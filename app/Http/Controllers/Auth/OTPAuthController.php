@@ -1,0 +1,273 @@
+<?php
+
+namespace App\Http\Controllers\Auth;
+
+use App\Enums\LoginType;
+use App\Http\Controllers\Controller;
+use App\Models\User;
+use App\Services\GlobalSettingsService;
+use App\Services\OTPService;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
+use Inertia\Inertia;
+use Inertia\Response;
+
+class OTPAuthController extends Controller
+{
+    protected OTPService $otpService;
+
+    public function __construct(OTPService $otpService)
+    {
+        $this->otpService = $otpService;
+    }
+
+    /**
+     * Mostrar página de login OTP
+     */
+    public function create(Request $request): Response
+    {
+        return Inertia::render('auth/LoginOTP', [
+            'status' => $request->session()->get('status'),
+            'authConfig' => GlobalSettingsService::getAuthConfig(),
+        ]);
+    }
+
+    /**
+     * Solicitar código OTP por email o documento
+     */
+    public function requestOTP(Request $request): RedirectResponse
+    {
+        $loginType = GlobalSettingsService::getLoginType();
+        
+        // Determinar las reglas de validación según el tipo de login
+        $rules = [];
+        $messages = [];
+        $fieldName = 'credential'; // Campo genérico que viene del frontend
+        
+        if ($loginType === LoginType::EMAIL) {
+            $rules[$fieldName] = 'required|email';
+            $messages = [
+                'credential.required' => 'El correo electrónico es requerido.',
+                'credential.email' => 'El correo electrónico debe ser una dirección válida.',
+            ];
+        } else {
+            $rules[$fieldName] = 'required|string|regex:/^[0-9]+$/';
+            $messages = [
+                'credential.required' => 'El documento de identidad es requerido.',
+                'credential.string' => 'El documento debe ser un valor válido.',
+                'credential.regex' => 'El documento solo debe contener números.',
+            ];
+        }
+        
+        $validator = Validator::make($request->all(), $rules, $messages);
+
+        if ($validator->fails()) {
+            throw ValidationException::withMessages($validator->errors()->toArray());
+        }
+
+        $credential = $request->input('credential');
+        
+        // Buscar usuario según el tipo de login
+        if ($loginType === LoginType::EMAIL) {
+            $user = User::where('email', $credential)
+                ->where('activo', true)
+                ->first();
+            $email = $credential;
+        } else {
+            // Login por documento
+            $user = User::where('documento_identidad', $credential)
+                ->where('activo', true)
+                ->first();
+            
+            if ($user) {
+                $email = $user->email;
+                
+                // Verificar que el usuario tenga email configurado
+                if (empty($email)) {
+                    throw ValidationException::withMessages([
+                        'credential' => ['El usuario no tiene un correo electrónico configurado. Contacte al administrador.'],
+                    ]);
+                }
+            }
+        }
+
+        if (!$user) {
+            $errorMessage = $loginType === LoginType::EMAIL 
+                ? 'El usuario no existe o no está autorizado para votar.'
+                : 'No se encontró un usuario con ese documento de identidad.';
+                
+            throw ValidationException::withMessages([
+                'credential' => [$errorMessage],
+            ]);
+        }
+
+        // Siempre generar nuevo código (invalidará el anterior automáticamente)
+
+        // Generar nuevo código OTP (esto también envía el email)
+        $codigo = $this->otpService->generateOTP($email);
+
+        // Para Inertia.js, redirigir de vuelta con mensaje de éxito
+        return back()->with('success', 'Código OTP enviado a tu correo electrónico.');
+    }
+
+    /**
+     * Verificar código OTP y autenticar usuario
+     */
+    public function verifyOTP(Request $request): RedirectResponse
+    {
+        $loginType = GlobalSettingsService::getLoginType();
+        
+        // Determinar las reglas de validación
+        $rules = [
+            'credential' => $loginType === LoginType::EMAIL ? 'required|email' : 'required|string|regex:/^[0-9]+$/',
+            'otp_code' => 'required|string|min:6|max:6',
+        ];
+        
+        $messages = [
+            'credential.required' => $loginType === LoginType::EMAIL ? 'El correo electrónico es requerido.' : 'El documento es requerido.',
+            'credential.email' => 'El correo electrónico debe ser una dirección válida.',
+            'credential.regex' => 'El documento solo debe contener números.',
+            'otp_code.required' => 'El código OTP es requerido.',
+            'otp_code.string' => 'El código OTP debe ser una cadena de texto.',
+            'otp_code.min' => 'El código OTP debe tener exactamente 6 dígitos.',
+            'otp_code.max' => 'El código OTP debe tener exactamente 6 dígitos.',
+        ];
+        
+        $validator = Validator::make($request->all(), $rules, $messages);
+
+        if ($validator->fails()) {
+            throw ValidationException::withMessages($validator->errors()->toArray());
+        }
+
+        $credential = $request->input('credential');
+        $otpCode = $request->input('otp_code');
+        
+        // Determinar el email según el tipo de login
+        if ($loginType === LoginType::EMAIL) {
+            $email = $credential;
+            $user = User::where('email', $email)
+                ->where('activo', true)
+                ->first();
+        } else {
+            // Login por documento
+            $user = User::where('documento_identidad', $credential)
+                ->where('activo', true)
+                ->first();
+            
+            if ($user) {
+                $email = $user->email;
+            } else {
+                throw ValidationException::withMessages([
+                    'credential' => ['Usuario no encontrado o inactivo.'],
+                ]);
+            }
+        }
+
+        // Validar código OTP
+        if (!$this->otpService->validateOTP($email, $otpCode)) {
+            throw ValidationException::withMessages([
+                'otp_code' => ['El código OTP es inválido o ha expirado.'],
+            ]);
+        }
+
+        if (!$user) {
+            throw ValidationException::withMessages([
+                'credential' => ['Usuario no encontrado o inactivo.'],
+            ]);
+        }
+
+        // Crear token Sanctum para la sesión
+        $token = $user->createToken('auth_token')->plainTextToken;
+
+        // Login del usuario
+        Auth::login($user);
+
+        // Regenerar sesión por seguridad
+        $request->session()->regenerate();
+
+        // Redirigir según tipo de usuario
+        $redirectRoute = ($user->isAdmin() || $user->isSuperAdmin()) ? 'admin.dashboard' : 'dashboard';
+        return redirect()->route($redirectRoute)->with('success', 'Autenticación exitosa.');
+    }
+
+    /**
+     * Reenviar código OTP
+     */
+    public function resendOTP(Request $request): RedirectResponse
+    {
+        $loginType = GlobalSettingsService::getLoginType();
+        
+        // Validación según tipo de login
+        $rules = [
+            'credential' => $loginType === LoginType::EMAIL ? 'required|email' : 'required|string|regex:/^[0-9]+$/',
+        ];
+        
+        $validator = Validator::make($request->all(), $rules);
+
+        if ($validator->fails()) {
+            throw ValidationException::withMessages($validator->errors()->toArray());
+        }
+
+        $credential = $request->input('credential');
+        
+        // Buscar usuario según tipo de login
+        if ($loginType === LoginType::EMAIL) {
+            $user = User::where('email', $credential)
+                ->where('activo', true)
+                ->first();
+            $email = $credential;
+        } else {
+            $user = User::where('documento_identidad', $credential)
+                ->where('activo', true)
+                ->first();
+            
+            if ($user) {
+                $email = $user->email;
+            }
+        }
+
+        if (!$user) {
+            throw ValidationException::withMessages([
+                'credential' => ['Usuario no encontrado o inactivo.'],
+            ]);
+        }
+
+        // Generar nuevo código (esto invalidará el anterior y enviará email)
+        $codigo = $this->otpService->generateOTP($email);
+
+        return back()->with('success', 'Nuevo código OTP enviado.');
+    }
+
+    /**
+     * Obtener configuración de login
+     * Endpoint público para el frontend
+     */
+    public function getLoginConfig(): JsonResponse
+    {
+        return response()->json([
+            'config' => GlobalSettingsService::getAuthConfig(),
+        ]);
+    }
+
+    /**
+     * Cerrar sesión
+     */
+    public function destroy(Request $request): RedirectResponse
+    {
+        // Revocar todos los tokens del usuario
+        if ($user = Auth::user()) {
+            $user->tokens()->delete();
+        }
+
+        Auth::guard('web')->logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        return redirect()->route('login')->with('status', 'Sesión cerrada exitosamente.');
+    }
+}

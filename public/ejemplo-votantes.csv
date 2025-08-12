@@ -1,0 +1,11 @@
+nombre,email,documento_identidad,territorio_id,departamento_id,municipio_id
+Juan Pérez,juan.perez@example.com,12345678,1,1,1
+María González,maria.gonzalez@example.com,23456789,1,1,2
+Carlos Rodríguez,carlos.rodriguez@example.com,34567890,2,2,3
+Ana Martínez,ana.martinez@example.com,45678901,2,2,4
+Luis García,luis.garcia@example.com,56789012,3,3,5
+Carmen López,carmen.lopez@example.com,67890123,3,3,6
+José Hernández,jose.hernandez@example.com,78901234,1,1,1
+Elena Díaz,elena.diaz@example.com,89012345,1,1,2
+Miguel Ruiz,miguel.ruiz@example.com,90123456,2,2,3
+Laura Sánchez,laura.sanchez@example.com,01234567,2,2,4
