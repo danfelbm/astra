@@ -1,9 +1,9 @@
-import tailwindcss from '@tailwindcss/vite';
 import vue from '@vitejs/plugin-vue';
 import laravel from 'laravel-vite-plugin';
 import path from 'path';
 import { defineConfig } from 'vite';
 
+// Configuración de fallback sin TailwindCSS Vite plugin para evitar lightningcss
 export default defineConfig({
     plugins: [
         laravel({
@@ -18,21 +18,26 @@ export default defineConfig({
                 },
             },
         }),
-        tailwindcss(),
+        // Sin tailwindcss() plugin para evitar dependencias nativas problemáticas
     ],
     resolve: {
         alias: {
             '@': path.resolve(__dirname, './resources/js'),
         },
     },
-    optimizeDeps: {
-        exclude: ['lightningcss']
+    css: {
+        postcss: {
+            plugins: [
+                require('tailwindcss'),
+                require('autoprefixer'),
+            ],
+        },
     },
     build: {
+        cssCodeSplit: false,
         rollupOptions: {
-            external: (id) => {
-                // Excluir dependencias opcionales problemáticas durante el build
-                return id.includes('lightningcss') && id.includes('.node');
+            output: {
+                manualChunks: undefined,
             }
         }
     }
