@@ -1,0 +1,536 @@
+<script setup lang="ts">
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
+import { type BreadcrumbItemType } from '@/types';
+import AppLayout from '@/layouts/AppLayout.vue';
+import { Head, router, useForm } from '@inertiajs/vue3';
+import { 
+    ArrowLeft, 
+    Calendar, 
+    MapPin, 
+    Users, 
+    Edit, 
+    UserPlus,
+    UserMinus,
+    Clock,
+    CheckCircle,
+    XCircle,
+    FileText
+} from 'lucide-vue-next';
+import { ref, computed } from 'vue';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
+
+interface Territorio {
+    id: number;
+    nombre: string;
+}
+
+interface Departamento {
+    id: number;
+    nombre: string;
+}
+
+interface Municipio {
+    id: number;
+    nombre: string;
+}
+
+interface Localidad {
+    id: number;
+    nombre: string;
+}
+
+interface Participante {
+    id: number;
+    name: string;
+    email: string;
+    pivot: {
+        tenant_id: number;
+        tipo_participacion: 'asistente' | 'moderador' | 'secretario';
+        asistio: boolean;
+        hora_registro?: string;
+    };
+}
+
+interface Asamblea {
+    id: number;
+    nombre: string;
+    descripcion?: string;
+    tipo: 'ordinaria' | 'extraordinaria';
+    tipo_label: string;
+    estado: 'programada' | 'en_curso' | 'finalizada' | 'cancelada';
+    estado_label: string;
+    estado_color: string;
+    fecha_inicio: string;
+    fecha_fin: string;
+    territorio?: Territorio;
+    departamento?: Departamento;
+    municipio?: Municipio;
+    localidad?: Localidad;
+    lugar?: string;
+    ubicacion_completa: string;
+    quorum_minimo?: number;
+    activo: boolean;
+    acta_url?: string;
+    duracion: string;
+    tiempo_restante: string;
+    rango_fechas: string;
+    alcanza_quorum: boolean;
+    asistentes_count: number;
+    participantes_count: number;
+    participantes?: Participante[];
+}
+
+interface Props {
+    asamblea: Asamblea;
+    puede_gestionar_participantes: boolean;
+}
+
+const props = defineProps<Props>();
+
+const breadcrumbs: BreadcrumbItemType[] = [
+    { title: 'Admin', href: '/admin/dashboard' },
+    { title: 'Asambleas', href: '/admin/asambleas' },
+    { title: props.asamblea.nombre, href: '#' },
+];
+
+// Helper para obtener route
+const { route } = window as any;
+
+// Estado para el modal de añadir participantes
+const modalAñadirAbierto = ref(false);
+const participantesDisponibles = ref<any[]>([]);
+const participantesSeleccionados = ref<number[]>([]);
+const tipoParticipacionNuevo = ref('asistente');
+
+// Estado para registrar asistencia
+const registrandoAsistencia = ref<number | null>(null);
+
+// Formatear fecha
+const formatearFecha = (fecha: string) => {
+    if (!fecha) return '';
+    return format(new Date(fecha), 'PPPpp', { locale: es });
+};
+
+// Obtener clase para tipo de participación
+const getTipoParticipacionBadge = (tipo: string) => {
+    switch (tipo) {
+        case 'moderador':
+            return 'bg-purple-100 text-purple-800';
+        case 'secretario':
+            return 'bg-blue-100 text-blue-800';
+        default:
+            return 'bg-gray-100 text-gray-800';
+    }
+};
+
+// Obtener estadísticas
+const estadisticas = computed(() => {
+    const participantes = props.asamblea.participantes || [];
+    const moderadores = participantes.filter(p => p.pivot?.tipo_participacion === 'moderador').length;
+    const secretarios = participantes.filter(p => p.pivot?.tipo_participacion === 'secretario').length;
+    const asistentes = participantes.filter(p => p.pivot?.tipo_participacion === 'asistente').length;
+    const presentes = participantes.filter(p => p.pivot?.asistio === true).length;
+    
+    return {
+        moderadores,
+        secretarios,
+        asistentes,
+        presentes,
+        total: participantes.length,
+    };
+});
+
+// Cargar participantes disponibles
+const abrirModalAñadir = async () => {
+    try {
+        const response = await fetch(route('admin.asambleas.manage-participantes', props.asamblea.id));
+        const data = await response.json();
+        participantesDisponibles.value = data.participantes_disponibles;
+        modalAñadirAbierto.value = true;
+    } catch (error) {
+        console.error('Error cargando participantes:', error);
+    }
+};
+
+// Añadir participantes seleccionados
+const añadirParticipantes = () => {
+    if (participantesSeleccionados.value.length === 0) return;
+
+    router.post(route('admin.asambleas.manage-participantes', props.asamblea.id), {
+        participante_ids: participantesSeleccionados.value,
+        tipo_participacion: tipoParticipacionNuevo.value,
+    }, {
+        preserveScroll: true,
+        onSuccess: () => {
+            modalAñadirAbierto.value = false;
+            participantesSeleccionados.value = [];
+            tipoParticipacionNuevo.value = 'asistente';
+        },
+    });
+};
+
+// Remover participante
+const removerParticipante = (participanteId: number) => {
+    if (!confirm('¿Estás seguro de remover este participante?')) return;
+
+    router.delete(route('admin.asambleas.manage-participantes', props.asamblea.id), {
+        data: { participante_id: participanteId },
+        preserveScroll: true,
+    });
+};
+
+// Actualizar tipo de participación
+const actualizarTipoParticipacion = (participanteId: number, tipo: string) => {
+    router.put(route('admin.asambleas.manage-participantes', props.asamblea.id), {
+        participante_id: participanteId,
+        tipo_participacion: tipo,
+    }, {
+        preserveScroll: true,
+    });
+};
+
+// Registrar asistencia
+const registrarAsistencia = (participanteId: number, asistio: boolean) => {
+    registrandoAsistencia.value = participanteId;
+    
+    router.put(route('admin.asambleas.manage-participantes', props.asamblea.id), {
+        participante_id: participanteId,
+        asistio: asistio,
+    }, {
+        preserveScroll: true,
+        onFinish: () => {
+            registrandoAsistencia.value = null;
+        },
+    });
+};
+
+// Navegar a edición
+const editarAsamblea = () => {
+    router.visit(route('admin.asambleas.edit', props.asamblea.id));
+};
+
+// Volver al listado
+const volver = () => {
+    router.visit(route('admin.asambleas.index'));
+};
+</script>
+
+<template>
+    <Head :title="`Asamblea: ${asamblea.nombre}`" />
+
+    <AppLayout :breadcrumbs="breadcrumbs">
+        <div class="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
+            <!-- Header -->
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-3xl font-bold">{{ asamblea.nombre }}</h1>
+                    <div class="mt-2 flex items-center gap-2">
+                        <Badge :class="asamblea.estado_color">
+                            {{ asamblea.estado_label }}
+                        </Badge>
+                        <Badge :class="asamblea.tipo === 'ordinaria' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'">
+                            {{ asamblea.tipo_label }}
+                        </Badge>
+                        <Badge v-if="asamblea.activo" class="bg-green-100 text-green-800">
+                            Activa
+                        </Badge>
+                        <Badge v-else class="bg-red-100 text-red-800">
+                            Inactiva
+                        </Badge>
+                    </div>
+                </div>
+                <div class="flex gap-2">
+                    <Button variant="outline" @click="volver">
+                        <ArrowLeft class="mr-2 h-4 w-4" />
+                        Volver
+                    </Button>
+                    <Button @click="editarAsamblea">
+                        <Edit class="mr-2 h-4 w-4" />
+                        Editar
+                    </Button>
+                </div>
+            </div>
+
+            <!-- Información General -->
+            <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                <Card>
+                    <CardHeader class="pb-3">
+                        <CardTitle class="text-sm font-medium">Fechas</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div class="space-y-2">
+                            <div class="flex items-center gap-2 text-sm">
+                                <Calendar class="h-4 w-4 text-muted-foreground" />
+                                <span>{{ asamblea.rango_fechas }}</span>
+                            </div>
+                            <div class="flex items-center gap-2 text-sm">
+                                <Clock class="h-4 w-4 text-muted-foreground" />
+                                <span>Duración: {{ asamblea.duracion }}</span>
+                            </div>
+                            <p class="text-sm font-medium">{{ asamblea.tiempo_restante }}</p>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader class="pb-3">
+                        <CardTitle class="text-sm font-medium">Ubicación</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div class="space-y-2">
+                            <div class="flex items-center gap-2 text-sm">
+                                <MapPin class="h-4 w-4 text-muted-foreground" />
+                                <span>{{ asamblea.lugar || 'No especificado' }}</span>
+                            </div>
+                            <p class="text-sm text-muted-foreground">
+                                {{ asamblea.ubicacion_completa }}
+                            </p>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader class="pb-3">
+                        <CardTitle class="text-sm font-medium">Quórum</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div class="space-y-2">
+                            <div class="flex items-center gap-2">
+                                <Users class="h-4 w-4 text-muted-foreground" />
+                                <span class="text-2xl font-bold">
+                                    {{ asamblea.asistentes_count }} / {{ asamblea.quorum_minimo || '∞' }}
+                                </span>
+                            </div>
+                            <Badge v-if="asamblea.alcanza_quorum" class="bg-green-100 text-green-800">
+                                <CheckCircle class="mr-1 h-3 w-3" />
+                                Quórum alcanzado
+                            </Badge>
+                            <Badge v-else-if="asamblea.quorum_minimo" class="bg-yellow-100 text-yellow-800">
+                                <XCircle class="mr-1 h-3 w-3" />
+                                Quórum no alcanzado
+                            </Badge>
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+
+            <!-- Descripción -->
+            <Card v-if="asamblea.descripcion">
+                <CardHeader>
+                    <CardTitle>Descripción</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <p class="text-sm">{{ asamblea.descripcion }}</p>
+                </CardContent>
+            </Card>
+
+            <!-- Participantes -->
+            <Card>
+                <CardHeader>
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <CardTitle>Participantes</CardTitle>
+                            <CardDescription>
+                                {{ asamblea.participantes_count }} participantes registrados
+                            </CardDescription>
+                        </div>
+                        <div class="flex gap-2">
+                            <Badge variant="outline">
+                                Moderadores: {{ estadisticas.moderadores }}
+                            </Badge>
+                            <Badge variant="outline">
+                                Secretarios: {{ estadisticas.secretarios }}
+                            </Badge>
+                            <Badge variant="outline">
+                                Asistentes: {{ estadisticas.asistentes }}
+                            </Badge>
+                            <Badge variant="outline">
+                                Presentes: {{ estadisticas.presentes }}
+                            </Badge>
+                        </div>
+                    </div>
+                </CardHeader>
+                <CardContent>
+                    <div v-if="puede_gestionar_participantes" class="mb-4">
+                        <Button @click="abrirModalAñadir">
+                            <UserPlus class="mr-2 h-4 w-4" />
+                            Añadir Participantes
+                        </Button>
+                    </div>
+
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Nombre</TableHead>
+                                <TableHead>Email</TableHead>
+                                <TableHead>Tipo de Participación</TableHead>
+                                <TableHead>Asistencia</TableHead>
+                                <TableHead>Hora de Registro</TableHead>
+                                <TableHead v-if="puede_gestionar_participantes" class="text-right">Acciones</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            <TableRow v-for="participante in asamblea.participantes" :key="participante.id">
+                                <TableCell class="font-medium">{{ participante.name }}</TableCell>
+                                <TableCell>{{ participante.email }}</TableCell>
+                                <TableCell>
+                                    <Badge :class="getTipoParticipacionBadge(participante.pivot?.tipo_participacion || 'asistente')">
+                                        {{ participante.pivot?.tipo_participacion || 'asistente' }}
+                                    </Badge>
+                                </TableCell>
+                                <TableCell>
+                                    <div v-if="puede_gestionar_participantes && asamblea.estado === 'en_curso'" class="flex items-center gap-2">
+                                        <Checkbox
+                                            :checked="participante.pivot?.asistio || false"
+                                            :disabled="registrandoAsistencia === participante.id"
+                                            @update:checked="(value) => registrarAsistencia(participante.id, value)"
+                                        />
+                                        <span v-if="participante.pivot?.asistio" class="text-green-600">Presente</span>
+                                        <span v-else class="text-gray-400">Ausente</span>
+                                    </div>
+                                    <div v-else>
+                                        <Badge v-if="participante.pivot?.asistio" class="bg-green-100 text-green-800">
+                                            Presente
+                                        </Badge>
+                                        <Badge v-else variant="outline">
+                                            Ausente
+                                        </Badge>
+                                    </div>
+                                </TableCell>
+                                <TableCell>
+                                    {{ participante.pivot?.hora_registro ? formatearFecha(participante.pivot.hora_registro) : '-' }}
+                                </TableCell>
+                                <TableCell v-if="puede_gestionar_participantes" class="text-right">
+                                    <div class="flex justify-end gap-2">
+                                        <Select 
+                                            :model-value="participante.pivot?.tipo_participacion || 'asistente'"
+                                            @update:model-value="(value) => actualizarTipoParticipacion(participante.id, value)"
+                                        >
+                                            <SelectTrigger class="w-32">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="asistente">Asistente</SelectItem>
+                                                <SelectItem value="moderador">Moderador</SelectItem>
+                                                <SelectItem value="secretario">Secretario</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            @click="removerParticipante(participante.id)"
+                                        >
+                                            <UserMinus class="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                </TableCell>
+                            </TableRow>
+                            <TableRow v-if="!asamblea.participantes || asamblea.participantes.length === 0">
+                                <TableCell colspan="6" class="text-center py-8">
+                                    <p class="text-muted-foreground">No hay participantes registrados</p>
+                                </TableCell>
+                            </TableRow>
+                        </TableBody>
+                    </Table>
+                </CardContent>
+            </Card>
+
+            <!-- Acta -->
+            <Card v-if="asamblea.acta_url">
+                <CardHeader>
+                    <CardTitle>Acta de la Asamblea</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <a 
+                        :href="asamblea.acta_url" 
+                        target="_blank"
+                        class="flex items-center gap-2 text-blue-600 hover:underline"
+                    >
+                        <FileText class="h-4 w-4" />
+                        Ver Acta
+                    </a>
+                </CardContent>
+            </Card>
+        </div>
+
+        <!-- Modal Añadir Participantes -->
+        <Dialog v-model:open="modalAñadirAbierto">
+            <DialogContent class="max-w-2xl">
+                <DialogHeader>
+                    <DialogTitle>Añadir Participantes</DialogTitle>
+                    <DialogDescription>
+                        Selecciona los usuarios que deseas añadir como participantes de la asamblea
+                    </DialogDescription>
+                </DialogHeader>
+
+                <div class="space-y-4">
+                    <div>
+                        <label class="text-sm font-medium">Tipo de Participación</label>
+                        <Select v-model="tipoParticipacionNuevo">
+                            <SelectTrigger>
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="asistente">Asistente</SelectItem>
+                                <SelectItem value="moderador">Moderador</SelectItem>
+                                <SelectItem value="secretario">Secretario</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    <div class="max-h-96 overflow-y-auto border rounded-lg p-4">
+                        <div v-for="usuario in participantesDisponibles" :key="usuario.id" class="flex items-center space-x-2 py-2">
+                            <Checkbox
+                                :id="`usuario-${usuario.id}`"
+                                :checked="participantesSeleccionados.includes(usuario.id)"
+                                @update:checked="(value) => {
+                                    if (value) {
+                                        participantesSeleccionados.push(usuario.id);
+                                    } else {
+                                        const index = participantesSeleccionados.indexOf(usuario.id);
+                                        if (index > -1) participantesSeleccionados.splice(index, 1);
+                                    }
+                                }"
+                            />
+                            <label 
+                                :for="`usuario-${usuario.id}`"
+                                class="flex-1 cursor-pointer text-sm"
+                            >
+                                {{ usuario.name }} ({{ usuario.email }})
+                            </label>
+                        </div>
+                        <p v-if="participantesDisponibles.length === 0" class="text-center text-muted-foreground">
+                            No hay usuarios disponibles para añadir
+                        </p>
+                    </div>
+                </div>
+
+                <DialogFooter>
+                    <Button variant="outline" @click="modalAñadirAbierto = false">
+                        Cancelar
+                    </Button>
+                    <Button 
+                        @click="añadirParticipantes"
+                        :disabled="participantesSeleccionados.length === 0"
+                    >
+                        Añadir {{ participantesSeleccionados.length }} Participante(s)
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    </AppLayout>
+</template>
