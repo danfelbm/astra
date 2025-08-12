@@ -26,3 +26,5 @@ Thumbs.db
 # Excluir carpetas específicas del proyecto
 /kiro
 /shadcn_docs
+/.vite
+/.claude
