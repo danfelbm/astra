@@ -24,6 +24,11 @@ use App\Http\Controllers\VotoController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
+// Test plain response
+Route::get('/plain-test', function () {
+    return 'Plain text response - Laravel is working!';
+});
+
 Route::get('/', function () {
     return Inertia::render('Welcome');
 })->name('home');
