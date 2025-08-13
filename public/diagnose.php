@@ -19,6 +19,13 @@ $diagnostics = [
         '../.env' => file_exists(__DIR__ . '/../.env'),
         '../vendor' => is_dir(__DIR__ . '/../vendor'),
         'build/manifest.json' => file_exists(__DIR__ . '/build/manifest.json'),
+        'build/assets/' => is_dir(__DIR__ . '/build/assets'),
+        'build/assets/app-CirNizQj.js' => file_exists(__DIR__ . '/build/assets/app-CirNizQj.js'),
+    ],
+    'build_assets' => [
+        'directory_exists' => is_dir(__DIR__ . '/build/assets'),
+        'files_count' => is_dir(__DIR__ . '/build/assets') ? count(scandir(__DIR__ . '/build/assets')) - 2 : 0,
+        'first_10_files' => is_dir(__DIR__ . '/build/assets') ? array_slice(scandir(__DIR__ . '/build/assets'), 2, 10) : [],
     ],
     'nginx_or_apache' => [
         'mod_rewrite' => function_exists('apache_get_modules') ? in_array('mod_rewrite', apache_get_modules()) : 'N/A',
