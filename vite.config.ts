@@ -20,11 +20,6 @@ export default defineConfig({
         }),
         tailwindcss(),
     ],
-    server: {
-        hmr: {
-            host: 'localhost',
-        },
-    },
     resolve: {
         alias: {
             '@': path.resolve(__dirname, './resources/js'),

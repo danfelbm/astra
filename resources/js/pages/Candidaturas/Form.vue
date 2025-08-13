@@ -281,7 +281,7 @@ const submitButtonText = computed(() => {
         } else if (props.candidatura?.estado === 'aprobado') {
             return 'Solicitar Revisión';
         } else {
-            return 'Actualizar Candidatura';
+            return 'Enviar Candidatura';
         }
     }
     return 'Crear Candidatura';
@@ -331,19 +331,70 @@ const hayCamposOcultos = computed(() => {
     return hayConvocatoriaOculta;
 });
 
-// Manejar selección de archivos
-const handleFilesSelected = (fieldId: string, files: File[]) => {
+// Manejar selección de archivos con subida inmediata para autoguardado
+const handleFilesSelected = async (fieldId: string, files: File[]) => {
+    // Guardar temporalmente para validación
     pendingFiles.value[fieldId] = files;
-    // Forzar re-evaluación de la validación
-    form.formulario_data[fieldId] = [...(form.formulario_data[fieldId] || [])];
+    
+    // Si hay archivos nuevos, subirlos inmediatamente para el autoguardado
+    if (files && files.length > 0) {
+        try {
+            // Mostrar indicador de carga
+            toast.info('Subiendo archivos...', {
+                duration: 2000,
+            });
+            
+            // Subir archivos inmediatamente
+            const uploadedFiles = await uploadFiles(files, {
+                module: 'candidaturas',
+                fieldId: fieldId,
+            });
+            
+            // Guardar las rutas de los archivos subidos
+            const newPaths = uploadedFiles.map(f => f.path);
+            
+            // Si el campo ya tiene archivos, agregar los nuevos
+            // Si no, crear un nuevo array
+            if (Array.isArray(form.formulario_data[fieldId])) {
+                // Reemplazar completamente con los nuevos archivos
+                form.formulario_data[fieldId] = newPaths;
+            } else {
+                form.formulario_data[fieldId] = newPaths;
+            }
+            
+            // Limpiar archivos pendientes ya que se subieron
+            pendingFiles.value[fieldId] = [];
+            
+            toast.success('Archivos subidos correctamente', {
+                duration: 2000,
+            });
+        } catch (error) {
+            console.error('Error al subir archivos:', error);
+            toast.error('Error al subir archivos', {
+                description: 'Por favor, intente nuevamente',
+                duration: 3000,
+            });
+            
+            // En caso de error, mantener los archivos en pendingFiles
+            // para que se puedan reintentar con el submit
+        }
+    } else {
+        // Si no hay archivos (se eliminaron todos), limpiar el campo
+        form.formulario_data[fieldId] = [];
+    }
 };
 
 // Métodos
 const handleSubmit = async () => {
     // Subir archivos pendientes antes de enviar el formulario
+    // (Solo si quedaron archivos pendientes por algún error previo)
     for (const [fieldId, files] of Object.entries(pendingFiles.value)) {
         if (files && files.length > 0) {
             try {
+                toast.info('Subiendo archivos pendientes...', {
+                    duration: 2000,
+                });
+                
                 const uploadedFiles = await uploadFiles(files, {
                     module: 'candidaturas',
                     fieldId: fieldId,
@@ -354,6 +405,10 @@ const handleSubmit = async () => {
                 pendingFiles.value[fieldId] = [];
             } catch (error) {
                 console.error('Error al subir archivos:', error);
+                toast.error('Error al subir archivos pendientes', {
+                    description: 'No se pudo completar el envío',
+                    duration: 3000,
+                });
                 return; // No continuar si hay error al subir archivos
             }
         }
@@ -748,6 +803,7 @@ const hasFieldError = (fieldId: string) => {
                             <Button 
                                 type="submit" 
                                 :disabled="!isFormValid || form.processing"
+                                class="bg-green-600 hover:bg-green-700 text-white border-green-600 hover:border-green-700 disabled:bg-gray-400 disabled:border-gray-400"
                             >
                                 <Save class="mr-2 h-4 w-4" />
                                 {{ submitButtonText }}
@@ -769,7 +825,7 @@ const hasFieldError = (fieldId: string) => {
         >
             <div
                 v-if="(!candidatura || ['borrador', 'rechazado'].includes(candidatura.estado)) && !form.processing"
-                class="fixed bottom-6 right-6 z-50"
+                class="fixed bottom-12 right-80 z-50"
             >
                 <Button
                     @click="saveManually"
