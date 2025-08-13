@@ -15,7 +15,7 @@ import { type BreadcrumbItemType } from '@/types';
 import { type FormField } from '@/types/forms';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Head, useForm } from '@inertiajs/vue3';
-import { ArrowLeft, Save, User, AlertCircle, Clock, CheckCircle } from 'lucide-vue-next';
+import { ArrowLeft, Save, User, AlertCircle, Clock, CheckCircle, PanelLeft } from 'lucide-vue-next';
 import { computed, ref, watch, reactive, onMounted, onUnmounted } from 'vue';
 import { useFileUpload } from '@/composables/useFileUpload';
 import { useConditionalFields } from '@/composables/useConditionalFields';
@@ -473,13 +473,27 @@ const handleSubmit = async () => {
 const hasFieldError = (fieldId: string) => {
     return !!form.errors[`formulario_data.${fieldId}`];
 };
+
+// Computed para controlar visibilidad del botón borrador
+const mostrarBotonBorrador = computed(() => {
+    return !props.candidatura || ['borrador', 'rechazado'].includes(props.candidatura.estado);
+});
+
+// Función para alternar el sidebar haciendo clic en el botón existente
+const toggleSidebar = () => {
+    // Buscar el botón del sidebar en el DOM y hacer clic en él
+    const sidebarTrigger = document.querySelector('[data-sidebar="trigger"]') as HTMLElement;
+    if (sidebarTrigger) {
+        sidebarTrigger.click();
+    }
+};
 </script>
 
 <template>
     <Head :title="pageTitle" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
-        <div class="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
+        <div class="flex h-full flex-1 flex-col gap-4 rounded-xl p-4 pb-24">
             <!-- Header -->
             <div class="flex items-center justify-between">
                 <div>
@@ -795,55 +809,88 @@ const hasFieldError = (fieldId: string) => {
                             <p class="text-red-800 text-sm">{{ form.errors.general }}</p>
                         </div>
 
-                        <!-- Botones de acción -->
-                        <div class="flex justify-between pt-6">
-                            <Button variant="outline" type="button" @click="$inertia.visit('/candidaturas')">
-                                Cancelar
-                            </Button>
-                            <Button 
-                                type="submit" 
-                                :disabled="!isFormValid || form.processing"
-                                class="bg-green-600 hover:bg-green-700 text-white border-green-600 hover:border-green-700 disabled:bg-gray-400 disabled:border-gray-400"
-                            >
-                                <Save class="mr-2 h-4 w-4" />
-                                {{ submitButtonText }}
-                            </Button>
-                        </div>
+                        <!-- Espacio para la barra flotante -->
+                        <div class="h-4"></div>
                     </form>
                 </CardContent>
             </Card>
         </div>
 
-        <!-- Botón flotante "Guardar como borrador" -->
-        <Transition
-            enter-active-class="transition ease-out duration-300"
-            enter-from-class="translate-y-2 opacity-0"
-            enter-to-class="translate-y-0 opacity-100"
-            leave-active-class="transition ease-in duration-200"
-            leave-from-class="translate-y-0 opacity-100"
-            leave-to-class="translate-y-2 opacity-0"
-        >
-            <div
-                v-if="(!candidatura || ['borrador', 'rechazado'].includes(candidatura.estado)) && !form.processing"
-                class="fixed bottom-12 right-80 z-50"
+        <!-- Barra de acciones flotante con glassmorphing -->
+        <Teleport to="body">
+            <Transition
+                enter-active-class="transition ease-out duration-300"
+                enter-from-class="translate-y-4 opacity-0"
+                enter-to-class="translate-y-0 opacity-100"
+                leave-active-class="transition ease-in duration-200"
+                leave-from-class="translate-y-0 opacity-100"
+                leave-to-class="translate-y-4 opacity-0"
             >
-                <Button
-                    @click="saveManually"
-                    :disabled="isSaving"
-                    size="lg"
-                    class="shadow-lg hover:shadow-xl transition-shadow duration-200"
-                >
-                    <template v-if="isSaving">
-                        <Clock class="mr-2 h-5 w-5 animate-spin" />
-                        Guardando...
-                    </template>
-                    <template v-else>
-                        <Save class="mr-2 h-5 w-5" />
-                        Guardar como borrador
-                    </template>
-                </Button>
-            </div>
-        </Transition>
+                <div v-if="true" class="fixed bottom-0 left-0 right-0 z-50 px-4 pb-4">
+                    <div class="mx-auto max-w-7xl">
+                        <div class="backdrop-blur-lg bg-tertiary-60 dark:bg-gray-900/80 border border-gray-200/50 dark:border-gray-700/50 rounded-2xl shadow-2xl p-4">
+                            <div class="flex items-center justify-between gap-4">
+                                <!-- Izquierda: Ocultar sidebar + Cancelar -->
+                                <div class="flex items-center gap-2">
+                                    <!-- Botón Ocultar Sidebar -->
+                                    <Button 
+                                        variant="outline" 
+                                        type="button"
+                                        @click="toggleSidebar"
+                                        class="backdrop-blur-sm"
+                                    >
+                                        <PanelLeft class="h-4 w-4" />
+                                        Ocultar sidebar
+                                    </Button>
+                                    
+                                    <!-- Botón Cancelar -->
+                                    <Button 
+                                        variant="outline" 
+                                        type="button"
+                                        @click="$inertia.visit('/candidaturas')"
+                                        class="backdrop-blur-sm"
+                                    >
+                                        <ArrowLeft class="mr-2 h-4 w-4" />
+                                        Cancelar
+                                    </Button>
+                                </div>
+                                
+                                <!-- Derecha: Borrador + Enviar -->
+                                <div class="flex items-center gap-3">
+                                    <!-- Botón Guardar Borrador (condicional) -->
+                                    <Button 
+                                        v-if="mostrarBotonBorrador"
+                                        @click="saveManually"
+                                        :disabled="isSaving"
+                                        variant="outline"
+                                        class="backdrop-blur-sm"
+                                    >
+                                        <template v-if="isSaving">
+                                            <Clock class="mr-2 h-4 w-4 animate-spin" />
+                                            Guardando...
+                                        </template>
+                                        <template v-else>
+                                            <Save class="mr-2 h-4 w-4" />
+                                            Guardar borrador
+                                        </template>
+                                    </Button>
+                                    
+                                    <!-- Botón Enviar -->
+                                    <Button 
+                                        @click="handleSubmit"
+                                        :disabled="!isFormValid || form.processing"
+                                        class="bg-green-600 hover:bg-green-700 text-white border-green-600 hover:border-green-700 disabled:bg-gray-400 disabled:border-gray-400"
+                                    >
+                                        <CheckCircle class="mr-2 h-4 w-4" />
+                                        {{ submitButtonText }}
+                                    </Button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </Transition>
+        </Teleport>
     </AppLayout>
 </template>
 
