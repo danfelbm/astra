@@ -58,6 +58,11 @@ class TenantMiddleware
      */
     protected function extractSubdomain(string $host): ?string
     {
+        // Ignorar dominios de Laravel Cloud
+        if (str_contains($host, '.laravel.cloud')) {
+            return null;
+        }
+        
         // Para desarrollo local con .test
         if (str_ends_with($host, '.test')) {
             $parts = explode('.', $host);
