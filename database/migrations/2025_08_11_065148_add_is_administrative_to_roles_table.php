@@ -12,13 +12,25 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Agregar campo is_administrative a la tabla roles
+        // Agregar campos is_system e is_administrative a la tabla roles
         Schema::table('roles', function (Blueprint $table) {
-            $table->boolean('is_administrative')->default(true)->after('is_system')
+            // Agregar is_system si no existe
+            if (!Schema::hasColumn('roles', 'is_system')) {
+                $table->boolean('is_system')->default(false)->after('allowed_modules')
+                    ->comment('Indica si es un rol del sistema (no editable)');
+            }
+            
+            // Agregar is_administrative
+            $table->boolean('is_administrative')->default(true)->after('allowed_modules')
                 ->comment('Indica si el rol tiene acceso a áreas administrativas (/admin)');
         });
 
-        // Actualizar los roles existentes según su naturaleza
+        // Actualizar los roles del sistema con is_system = true
+        DB::table('roles')
+            ->whereIn('name', ['super_admin', 'admin', 'manager', 'user', 'end_customer'])
+            ->update(['is_system' => true]);
+        
+        // Actualizar los roles existentes según su naturaleza administrativa
         // Roles administrativos (por defecto true)
         DB::table('roles')
             ->whereIn('name', ['super_admin', 'admin', 'manager'])
@@ -29,10 +41,13 @@ return new class extends Migration
             ->whereIn('name', ['user', 'end_customer'])
             ->update(['is_administrative' => false]);
         
-        // Roles personalizados existentes se asumen como administrativos
+        // Roles personalizados existentes se asumen como NO del sistema y administrativos
         DB::table('roles')
             ->whereNotIn('name', ['super_admin', 'admin', 'manager', 'user', 'end_customer'])
-            ->update(['is_administrative' => true]);
+            ->update([
+                'is_system' => false,
+                'is_administrative' => true
+            ]);
     }
 
     /**
@@ -41,7 +56,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('roles', function (Blueprint $table) {
-            $table->dropColumn('is_administrative');
+            $table->dropColumn(['is_system', 'is_administrative']);
         });
     }
 };
