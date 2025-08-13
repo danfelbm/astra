@@ -111,6 +111,78 @@ export function useAutoSave(
     };
 
     /**
+     * Renovar token CSRF
+     */
+    const refreshCSRFToken = async (): Promise<string | null> => {
+        try {
+            // Hacer una petición GET para obtener un nuevo token CSRF
+            const response = await fetch(window.location.href, {
+                method: 'GET',
+                credentials: 'same-origin',
+            });
+            
+            if (response.ok) {
+                const html = await response.text();
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                const tokenElement = doc.querySelector('meta[name="csrf-token"]');
+                
+                if (tokenElement) {
+                    const newToken = tokenElement.getAttribute('content');
+                    
+                    // Actualizar el token en el DOM actual
+                    const currentTokenElement = document.querySelector('meta[name="csrf-token"]');
+                    if (currentTokenElement && newToken) {
+                        currentTokenElement.setAttribute('content', newToken);
+                        return newToken;
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error renovando token CSRF:', error);
+        }
+        
+        return null;
+    };
+
+    /**
+     * Realizar petición con manejo automático de CSRF
+     */
+    const makeRequest = async (saveUrl: string, token: string, retryCount = 0): Promise<Response> => {
+        const response = await fetch(saveUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': token,
+                'Accept': 'application/json',
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify({
+                formulario_data: formData.value,
+            }),
+        });
+
+        // Si es error 419 y no hemos reintentado más de una vez
+        if (response.status === 419 && retryCount < 1) {
+            const newToken = await refreshCSRFToken();
+            
+            if (newToken) {
+                if (showNotifications) {
+                    toast.info('Renovando sesión...', {
+                        description: 'Se detectó una sesión expirada, renovando automáticamente',
+                        duration: 2000,
+                    });
+                }
+                
+                // Reintentar con el nuevo token
+                return makeRequest(saveUrl, newToken, retryCount + 1);
+            }
+        }
+
+        return response;
+    };
+
+    /**
      * Realizar el autoguardado
      */
     const performAutoSave = async () => {
@@ -131,19 +203,15 @@ export function useAutoSave(
                 ? url.replace('autosave', `${state.value.candidaturaId}/autosave`)
                 : url;
 
-            // Realizar la petición usando fetch (más control que Inertia para autoguardado)
-            const response = await fetch(saveUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
-                    'Accept': 'application/json',
-                },
-                credentials: 'same-origin',
-                body: JSON.stringify({
-                    formulario_data: formData.value,
-                }),
-            });
+            // Obtener token CSRF actual
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+            
+            if (!csrfToken) {
+                throw new Error('Token CSRF no encontrado');
+            }
+
+            // Realizar la petición con manejo automático de CSRF
+            const response = await makeRequest(saveUrl, csrfToken);
 
             if (!response.ok) {
                 throw new Error(`Error ${response.status}: ${response.statusText}`);
@@ -180,11 +248,21 @@ export function useAutoSave(
             // Guardar en localStorage aunque falle el servidor
             saveToLocalStorage();
 
-            if (showNotifications) {
-                toast.error('Error al guardar', {
-                    description: 'Los cambios se guardaron localmente',
-                    duration: 3000,
-                });
+            // Manejar errores específicos
+            if (error instanceof Error && error.message.includes('419')) {
+                if (showNotifications) {
+                    toast.warning('Sesión expirada', {
+                        description: 'Recarga la página para continuar. Los cambios se guardaron localmente.',
+                        duration: 5000,
+                    });
+                }
+            } else {
+                if (showNotifications) {
+                    toast.error('Error al guardar', {
+                        description: 'Los cambios se guardaron localmente',
+                        duration: 3000,
+                    });
+                }
             }
 
             console.error('Error en autoguardado:', error);

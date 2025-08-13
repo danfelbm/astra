@@ -255,19 +255,16 @@ const isFormValid = computed(() => {
         }
         
         // Log para depuración
+        // Campo inválido detectado - información disponible para debug si es necesario
         if (!isValid && campo.required) {
-            console.log(`Campo inválido: ${campo.id} (tipo: ${campo.type})`, {
-                value,
-                pendingFiles: pendingFiles.value[campo.id],
-                required: campo.required
-            });
+            // Debug info: campo.id, campo.type, value, pendingFiles, required
         }
         
         return { campo: campo.id, valid: isValid };
     });
     
     const allValid = validationResults.every(r => r.valid);
-    console.log('Validación del formulario:', { allValid, results: validationResults });
+    // Debug: validationResults contiene info de validación si es necesario
     
     return allValid;
 });

@@ -15,11 +15,7 @@ class CandidaturaObserver
      */
     public function created(Candidatura $candidatura): void
     {
-        \Log::info('🔥 OBSERVER CREATED EJECUTADO', [
-            'candidatura_id' => $candidatura->id,
-            'estado' => $candidatura->estado,
-            'version' => $candidatura->version
-        ]);
+        // Debug: Observer created ejecutado - candidatura_id: {$candidatura->id}
         
         // Crear entrada inicial en el historial cuando se crea la candidatura
         $this->crearEntradaHistorial($candidatura, 'Candidatura creada');
@@ -31,26 +27,18 @@ class CandidaturaObserver
      */
     public function updated(Candidatura $candidatura): void
     {
-        \Log::info('🔥 OBSERVER UPDATED EJECUTADO', [
-            'candidatura_id' => $candidatura->id,
-            'estado_actual' => $candidatura->estado,
-            'version' => $candidatura->version,
-            'changed_attributes' => $candidatura->getChanges()
-        ]);
+        // Debug: Observer updated ejecutado - candidatura_id: {$candidatura->id}
         
         // NUEVA LÓGICA: Capturar TODOS los cambios de estado y formulario
         
         $huboCambioEstado = $candidatura->wasChanged('estado');
         $huboCambioFormulario = $candidatura->wasChanged('formulario_data');
         
-        \Log::info('🔍 OBSERVER DETECTANDO CAMBIOS', [
-            'cambio_estado' => $huboCambioEstado,
-            'cambio_formulario' => $huboCambioFormulario
-        ]);
+        // Debug: Detectando cambios - estado: {$huboCambioEstado}, formulario: {$huboCambioFormulario}
         
         // Solo proceder si hubo cambios relevantes
         if (!$huboCambioEstado && !$huboCambioFormulario) {
-            \Log::info('⚠️ OBSERVER: Sin cambios relevantes, saliendo');
+            // Debug: Sin cambios relevantes, saliendo
             return;
         }
         
@@ -62,9 +50,7 @@ class CandidaturaObserver
         // Determinar motivo del cambio
         $motivoCambio = $this->determinarMotivoCambio($candidatura);
         
-        \Log::info('📝 OBSERVER: Creando historial', [
-            'motivo' => $motivoCambio
-        ]);
+        // Debug: Creando historial - motivo: {$motivoCambio}
         
         // Crear entrada en historial
         $this->crearEntradaHistorial($candidatura, $motivoCambio);
@@ -75,12 +61,7 @@ class CandidaturaObserver
      */
     private function crearEntradaHistorial(Candidatura $candidatura, string $motivoCambio): void
     {
-        \Log::info('🏗️ CREAR ENTRADA HISTORIAL INICIADO', [
-            'candidatura_id' => $candidatura->id,
-            'estado' => $candidatura->estado,
-            'version' => $candidatura->version,
-            'motivo' => $motivoCambio
-        ]);
+        // Debug: Crear entrada historial iniciado - candidatura_id: {$candidatura->id}
         
         $versionActual = $candidatura->version;
         
@@ -109,12 +90,7 @@ class CandidaturaObserver
             ->first();
         
         if ($existingHistorial) {
-            \Log::info('⚠️ HISTORIAL YA EXISTE, ACTUALIZANDO', [
-                'historial_id' => $existingHistorial->id,
-                'candidatura_id' => $candidatura->id,
-                'version' => $versionActual,
-                'estado' => $candidatura->estado
-            ]);
+            // Debug: Historial ya existe, actualizando - historial_id: {$existingHistorial->id}
             
             // Actualizar el registro existente con los nuevos datos
             $existingHistorial->update([
@@ -125,9 +101,7 @@ class CandidaturaObserver
                 'updated_at' => now(),
             ]);
             
-            \Log::info('✅ HISTORIAL ACTUALIZADO EXITOSAMENTE', [
-                'historial_id' => $existingHistorial->id
-            ]);
+            // Debug: Historial actualizado exitosamente - historial_id: {$existingHistorial->id}
             
             return;
         }
@@ -145,13 +119,7 @@ class CandidaturaObserver
                 'motivo_cambio' => $motivoCambio,
             ]);
             
-            \Log::info('✅ HISTORIAL CREADO EXITOSAMENTE', [
-                'historial_id' => $historialEntry->id,
-                'candidatura_id' => $candidatura->id,
-                'estado' => $candidatura->estado,
-                'version' => $versionActual,
-                'motivo' => $motivoCambio
-            ]);
+            // Debug: Historial creado exitosamente - historial_id: {$historialEntry->id}
             
         } catch (\Exception $e) {
             \Log::error('❌ ERROR CREANDO HISTORIAL', [
@@ -229,10 +197,7 @@ class CandidaturaObserver
         
         // Si hay campos modificados, resetear sus aprobaciones
         if (!empty($camposModificados)) {
-            \Log::info('🔄 RESETANDO APROBACIONES DE CAMPOS MODIFICADOS', [
-                'candidatura_id' => $candidatura->id,
-                'campos_modificados' => $camposModificados
-            ]);
+            // Debug: Resetando aprobaciones de campos modificados - candidatura_id: {$candidatura->id}
             
             // Resetear aprobaciones de los campos que cambiaron
             $candidatura->campoAprobaciones()
