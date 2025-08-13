@@ -1,1 +1,0 @@
-import{i as o}from"./usePrimitiveElement-BltmeUoo.js";import{k as a,c as u}from"./app-CirNizQj.js";function n(t,e=Number.NEGATIVE_INFINITY,r=Number.POSITIVE_INFINITY){return Math.min(r,Math.max(e,t))}function I(t){const e=o({nonce:a()});return u(()=>{var r;return(t==null?void 0:t.value)||((r=e.nonce)==null?void 0:r.value)})}export{n as c,I as u};
