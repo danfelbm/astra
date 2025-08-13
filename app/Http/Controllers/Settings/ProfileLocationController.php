@@ -20,7 +20,29 @@ class ProfileLocationController extends Controller
     public function update(Request $request): RedirectResponse
     {
         // Validar los datos de entrada
-        $validated = $request->validate([
+        $user = $request->user();
+        
+        // Crear las reglas de validación
+        $rules = [
+            'name' => [
+                'required',
+                'string',
+                'min:2',
+                'max:255',
+            ],
+        ];
+        
+        // Solo validar documento_identidad si el usuario actualmente no tiene uno o está vacío
+        if (!$user->documento_identidad || trim($user->documento_identidad) === '') {
+            $rules['documento_identidad'] = [
+                'required',
+                'string',
+                'min:3',
+                'max:50',
+            ];
+        }
+        
+        $rules = array_merge($rules, [
             'territorio_id' => [
                 'required',
                 'integer',
@@ -51,7 +73,16 @@ class ProfileLocationController extends Controller
                 'max:15',
                 'regex:/^[0-9]+$/', // Solo números
             ],
-        ], [
+        ]);
+        
+        // Crear mensajes de validación
+        $messages = [
+            'name.required' => 'El nombre completo es obligatorio.',
+            'name.min' => 'El nombre debe tener al menos 2 caracteres.',
+            'name.max' => 'El nombre no puede tener más de 255 caracteres.',
+            'documento_identidad.required' => 'El documento de identidad es obligatorio.',
+            'documento_identidad.min' => 'El documento de identidad debe tener al menos 3 caracteres.',
+            'documento_identidad.max' => 'El documento de identidad no puede tener más de 50 caracteres.',
             'territorio_id.required' => 'El territorio es obligatorio.',
             'territorio_id.exists' => 'El territorio seleccionado no es válido.',
             'departamento_id.required' => 'El departamento es obligatorio.',
@@ -63,21 +94,31 @@ class ProfileLocationController extends Controller
             'telefono.min' => 'El teléfono debe tener al menos 7 dígitos.',
             'telefono.max' => 'El teléfono no puede tener más de 15 dígitos.',
             'telefono.regex' => 'El teléfono solo debe contener números.',
-        ]);
+        ];
+        
+        $validated = $request->validate($rules, $messages);
 
         try {
             // Usar transacción para garantizar la integridad de los datos
             DB::beginTransaction();
 
-            // Actualizar la información del usuario
-            $user = $request->user();
-            $user->update([
+            // Preparar datos para actualizar
+            $updateData = [
+                'name' => $validated['name'],
                 'territorio_id' => $validated['territorio_id'],
                 'departamento_id' => $validated['departamento_id'],
                 'municipio_id' => $validated['municipio_id'],
                 'localidad_id' => $validated['localidad_id'] ?? null,
                 'telefono' => $validated['telefono'],
-            ]);
+            ];
+            
+            // Solo actualizar documento_identidad si estaba vacío
+            if (!$user->documento_identidad || trim($user->documento_identidad) === '') {
+                $updateData['documento_identidad'] = $validated['documento_identidad'];
+            }
+            
+            // Actualizar la información del usuario
+            $user->update($updateData);
 
             DB::commit();
 

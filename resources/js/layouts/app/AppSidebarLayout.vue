@@ -23,12 +23,14 @@ const page = usePage();
 const user = computed(() => page.props.auth?.user);
 
 // Verificar si el usuario necesita completar su información de ubicación
-// Territorio, departamento, municipio y teléfono son obligatorios
+// Nombre, documento_identidad, territorio, departamento, municipio y teléfono son obligatorios
 // Localidad es opcional (no bloquea si falta)
 const locationDataIncomplete = computed(() => {
     if (!user.value) return false; // Si no hay usuario, no mostrar modal
     
-    return !user.value.territorio_id || 
+    return !user.value.name || 
+           !user.value.documento_identidad || 
+           !user.value.territorio_id || 
            !user.value.departamento_id || 
            !user.value.municipio_id || 
            !user.value.telefono;
