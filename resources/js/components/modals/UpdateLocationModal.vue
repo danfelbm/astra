@@ -23,11 +23,18 @@ const user = computed(() => page.props.auth.user);
 // Estado del formulario
 const loading = ref(false);
 const formData = ref({
+    name: user.value?.name || '',
+    documento_identidad: user.value?.documento_identidad || '',
     territorio_id: user.value?.territorio_id || undefined,
     departamento_id: user.value?.departamento_id || undefined,
     municipio_id: user.value?.municipio_id || undefined,
     localidad_id: user.value?.localidad_id || undefined,
     telefono: user.value?.telefono || '',
+});
+
+// Verificar si el documento de identidad debe mostrarse (solo si está vacío)
+const shouldShowDocumento = computed(() => {
+    return !user.value?.documento_identidad || user.value.documento_identidad.trim() === '';
 });
 
 // Datos geográficos para el componente selector
@@ -49,13 +56,22 @@ const handleGeographicChange = (value: any) => {
 
 // Validar si el formulario está completo (localidad es opcional)
 const isFormValid = computed(() => {
-    return !!(
+    const baseValidation = !!(
+        formData.value.name &&
+        formData.value.name.trim().length >= 2 &&
         formData.value.territorio_id &&
         formData.value.departamento_id &&
         formData.value.municipio_id &&
         formData.value.telefono && 
         formData.value.telefono.trim().length >= 7
     );
+    
+    // Si debe mostrar documento, también validarlo
+    if (shouldShowDocumento.value) {
+        return baseValidation && formData.value.documento_identidad && formData.value.documento_identidad.trim().length >= 3;
+    }
+    
+    return baseValidation;
 });
 
 // Guardar la información de ubicación
@@ -109,13 +125,13 @@ const formatPhone = (event: Event) => {
 <template>
     <Dialog :open="open" :modal="true">
         <DialogContent 
-            class="sm:max-w-[600px]" 
+            class="sm:max-w-[600px] max-h-[90vh] flex flex-col" 
             :closeable="false"
             @escape-key-down.prevent
             @pointer-down-outside.prevent
             @interact-outside.prevent
         >
-            <DialogHeader>
+            <DialogHeader class="flex-shrink-0">
                 <DialogTitle class="flex items-center gap-2 text-xl">
                     <AlertCircle class="h-5 w-5 text-orange-500" />
                     Completa tu información de ubicación
@@ -126,17 +142,46 @@ const formatPhone = (event: Event) => {
                 </DialogDescription>
             </DialogHeader>
 
-            <div class="space-y-4 py-4">
+            <!-- Contenido scrolleable -->
+            <div class="flex-1 overflow-y-auto px-1">
+                <div class="space-y-4 py-4">
                 <!-- Información importante -->
                 <Card class="border-orange-200 bg-orange-50">
                     <CardContent class="pt-4">
                         <p class="text-sm text-orange-800">
-                            <strong>Campos requeridos:</strong> Territorio, Departamento, Municipio y Teléfono.
+                            <strong>Campos requeridos:</strong> Nombre Completo<span v-if="shouldShowDocumento">, Documento de Identidad</span>, Territorio, Departamento, Municipio y Teléfono.
                             <br />
                             <span class="text-xs">La localidad es opcional.</span>
                         </p>
                     </CardContent>
                 </Card>
+
+                <!-- Campo de Nombre Completo -->
+                <div class="space-y-2">
+                    <Label for="name" class="text-base font-medium">Nombre Completo</Label>
+                    <Input
+                        id="name"
+                        v-model="formData.name"
+                        type="text"
+                        placeholder="Ingresa tu nombre completo"
+                        class="mt-1"
+                    />
+                </div>
+
+                <!-- Campo de Documento de Identidad (solo si está vacío) -->
+                <div v-if="shouldShowDocumento" class="space-y-2">
+                    <Label for="documento_identidad" class="text-base font-medium">Documento de Identidad</Label>
+                    <Input
+                        id="documento_identidad"
+                        v-model="formData.documento_identidad"
+                        type="text"
+                        placeholder="Ingresa tu número de documento"
+                        class="mt-1"
+                    />
+                    <p class="text-xs text-muted-foreground">
+                        Ingresa tu número de cédula o documento de identidad
+                    </p>
+                </div>
 
                 <!-- Selector de ubicación geográfica -->
                 <div class="space-y-2">
@@ -174,9 +219,10 @@ const formatPhone = (event: Event) => {
                         Ingresa tu número de teléfono sin espacios ni guiones
                     </p>
                 </div>
+                </div>
             </div>
 
-            <DialogFooter>
+            <DialogFooter class="flex-shrink-0">
                 <div class="flex items-center justify-between w-full">
                     <p class="text-xs text-muted-foreground">
                         * Campos obligatorios
