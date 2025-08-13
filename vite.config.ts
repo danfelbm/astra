@@ -35,5 +35,7 @@ export default defineConfig({
                 return id.includes('lightningcss') && id.includes('.node');
             }
         }
-    }
+    },
+    // 🚀 clave para multi-dominio
+    base: '/build/',
 });
