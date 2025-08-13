@@ -124,6 +124,14 @@ Route::middleware(['auth', 'verified'])->prefix('api/votaciones')->name('api.vot
     Route::get('{votacion}/resultados/tokens', [ResultadosController::class, 'tokens'])->name('resultados.tokens');
 });
 
+// Public Geographic routes for all authenticated users (for location modal)
+Route::middleware(['auth'])->prefix('api/geographic')->name('api.geographic.')->group(function () {
+    Route::get('territorios', [GeographicController::class, 'territorios'])->name('territorios');
+    Route::get('departamentos', [GeographicController::class, 'departamentos'])->name('departamentos');
+    Route::get('municipios', [GeographicController::class, 'municipios'])->name('municipios');
+    Route::get('localidades', [GeographicController::class, 'localidades'])->name('localidades');
+});
+
 Route::get('admin/dashboard', function () {
     return Inertia::render('Admin/Dashboard');
 })->middleware(['auth', 'verified', 'admin'])->name('admin.dashboard');

@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ref, onMounted, nextTick, computed } from 'vue';
+import { usePage } from '@inertiajs/vue3';
 import type { Territorio, Departamento, Municipio, Localidad } from '@/types/forms';
 
 // Extended interfaces for both single and multiple selection
@@ -97,11 +98,23 @@ const selectedLocalidades = computed(() => {
     }
 });
 
+// Obtener información del usuario para determinar las rutas a usar
+const page = usePage();
+const isAdmin = computed(() => page.props.auth?.isAdmin || false);
+
+// Determinar el prefijo de la ruta basado en si es admin o no
+const apiPrefix = computed(() => {
+    // Si estamos en una ruta admin (/admin/*), usar las rutas admin
+    // De lo contrario, usar las rutas públicas de la API
+    const currentPath = window.location.pathname;
+    return currentPath.startsWith('/admin') ? '/admin/geographic' : '/api/geographic';
+});
+
 // Load functions
 const loadTerritorios = async () => {
     try {
         loading.value = true;
-        const response = await fetch('/admin/geographic/territorios');
+        const response = await fetch(`${apiPrefix.value}/territorios`);
         territorios.value = await response.json();
     } catch (error) {
         console.error('Error loading territorios:', error);
@@ -117,7 +130,7 @@ const loadDepartamentos = async (territorioIds: number[]) => {
     }
     try {
         loading.value = true;
-        const response = await fetch(`/admin/geographic/departamentos?territorio_ids=${territorioIds.join(',')}`);
+        const response = await fetch(`${apiPrefix.value}/departamentos?territorio_ids=${territorioIds.join(',')}`);
         departamentos.value = await response.json();
     } catch (error) {
         console.error('Error loading departamentos:', error);
@@ -133,7 +146,7 @@ const loadMunicipios = async (departamentoIds: number[]) => {
     }
     try {
         loading.value = true;
-        const response = await fetch(`/admin/geographic/municipios?departamento_ids=${departamentoIds.join(',')}`);
+        const response = await fetch(`${apiPrefix.value}/municipios?departamento_ids=${departamentoIds.join(',')}`);
         municipios.value = await response.json();
     } catch (error) {
         console.error('Error loading municipios:', error);
@@ -149,7 +162,7 @@ const loadLocalidades = async (municipioIds: number[]) => {
     }
     try {
         loading.value = true;
-        const response = await fetch(`/admin/geographic/localidades?municipio_ids=${municipioIds.join(',')}`);
+        const response = await fetch(`${apiPrefix.value}/localidades?municipio_ids=${municipioIds.join(',')}`);
         localidades.value = await response.json();
     } catch (error) {
         console.error('Error loading localidades:', error);
