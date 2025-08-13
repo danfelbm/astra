@@ -34,7 +34,45 @@ class OTPAuthController extends Controller
         return Inertia::render('auth/LoginOTP', [
             'status' => $request->session()->get('status'),
             'authConfig' => GlobalSettingsService::getAuthConfig(),
+            'censoredEmail' => $request->session()->get('censored_email'),
+            'otpCredential' => $request->session()->get('otp_credential'),
         ]);
+    }
+
+    /**
+     * Censurar email para mostrar de forma segura
+     */
+    protected function censorEmail(string $email): string
+    {
+        $parts = explode('@', $email);
+        if (count($parts) !== 2) {
+            return $email;
+        }
+        
+        $localPart = $parts[0];
+        $domainParts = explode('.', $parts[1]);
+        
+        // Censurar parte local (mostrar 2 al inicio, 1 al final)
+        $localLength = strlen($localPart);
+        if ($localLength > 3) {
+            $localCensored = substr($localPart, 0, 2) . str_repeat('*', $localLength - 3) . substr($localPart, -1);
+        } else {
+            $localCensored = $localPart;
+        }
+        
+        // Censurar dominio (mostrar 1 al inicio, 1 al final antes del punto)
+        $domain = $domainParts[0];
+        $domainLength = strlen($domain);
+        if ($domainLength > 2) {
+            $domainCensored = substr($domain, 0, 1) . str_repeat('*', $domainLength - 2) . substr($domain, -1);
+        } else {
+            $domainCensored = $domain;
+        }
+        
+        // Mantener la extensión sin censurar
+        $extension = count($domainParts) > 1 ? '.' . implode('.', array_slice($domainParts, 1)) : '';
+        
+        return $localCensored . '@' . $domainCensored . $extension;
     }
 
     /**
@@ -111,6 +149,13 @@ class OTPAuthController extends Controller
         // Generar nuevo código OTP (esto también envía el email)
         $codigo = $this->otpService->generateOTP($email);
 
+        // Censurar el email para mostrar de forma segura
+        $censoredEmail = $this->censorEmail($email);
+        
+        // Guardar en sesión para mostrar en la vista
+        $request->session()->put('censored_email', $censoredEmail);
+        $request->session()->put('otp_credential', $credential);
+        
         // Para Inertia.js, redirigir de vuelta con mensaje de éxito
         return back()->with('success', 'Código OTP enviado a tu correo electrónico.');
     }
@@ -187,6 +232,9 @@ class OTPAuthController extends Controller
         // Login del usuario
         Auth::login($user);
 
+        // Limpiar datos temporales del OTP de la sesión
+        $request->session()->forget(['censored_email', 'otp_credential']);
+        
         // Regenerar sesión por seguridad
         $request->session()->regenerate();
 
@@ -239,6 +287,13 @@ class OTPAuthController extends Controller
 
         // Generar nuevo código (esto invalidará el anterior y enviará email)
         $codigo = $this->otpService->generateOTP($email);
+        
+        // Censurar el email para mostrar de forma segura
+        $censoredEmail = $this->censorEmail($email);
+        
+        // Actualizar en sesión
+        $request->session()->put('censored_email', $censoredEmail);
+        $request->session()->put('otp_credential', $credential);
 
         return back()->with('success', 'Nuevo código OTP enviado.');
     }
