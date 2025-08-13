@@ -22,10 +22,14 @@ interface AuthConfig {
 const props = defineProps<{
     status?: string;
     authConfig?: AuthConfig;
+    censoredEmail?: string;
+    otpCredential?: string;
 }>();
 
 // Estados del proceso OTP
-const step = ref<'credential' | 'otp'>('credential');
+// Si ya tenemos un email censurado, significa que ya se envió el OTP
+const step = ref<'credential' | 'otp'>(props.censoredEmail ? 'otp' : 'credential');
+const censoredEmailRef = ref<string>(props.censoredEmail || '');  // Para almacenar el email censurado
 
 // Configuración por defecto si no viene del servidor
 const config = computed(() => props.authConfig || {
@@ -41,13 +45,19 @@ const credentialForm = useForm({
 });
 
 const otpForm = useForm({
+    credential: props.otpCredential || '',
+    otp_code: [] as string[],  // El PinInput espera un array de strings
+});
+
+// Form para enviar el OTP (con el código como string)
+const submitForm = useForm({
     credential: '',
     otp_code: '',
 });
 
 const isRequestingOTP = ref(false);
 const resendTimer = ref(0);
-const timerInterval = ref<NodeJS.Timeout | null>(null);
+const timerInterval = ref<number | null>(null);
 
 // Computed para mostrar tiempo restante
 const canResend = computed(() => resendTimer.value === 0);
@@ -63,7 +73,7 @@ const startResendTimer = (seconds: number = 60) => {
     if (timerInterval.value) {
         clearInterval(timerInterval.value);
     }
-    timerInterval.value = setInterval(() => {
+    timerInterval.value = window.setInterval(() => {
         resendTimer.value--;
         if (resendTimer.value <= 0) {
             clearInterval(timerInterval.value!);
@@ -77,7 +87,12 @@ const requestOTP = () => {
     isRequestingOTP.value = true;
     
     credentialForm.post(route('auth.request-otp'), {
-        onSuccess: () => {
+        onSuccess: (page: any) => {
+            // Obtener el email censurado de la respuesta
+            if (page.props && page.props.censoredEmail) {
+                censoredEmailRef.value = page.props.censoredEmail;
+            }
+            
             // Cambiar a paso OTP
             step.value = 'otp';
             otpForm.credential = credentialForm.credential;
@@ -97,18 +112,21 @@ const requestOTP = () => {
 
 // Verificar código OTP
 const verifyOTP = () => {
-    // Asegurar que el OTP sea string y actualizar el form directamente
-    const otpCode = Array.isArray(otpForm.otp_code) ? otpForm.otp_code.join('') : String(otpForm.otp_code);
-    otpForm.otp_code = otpCode;
+    // Convertir array a string para enviar al servidor
+    const otpCode = otpForm.otp_code.join('');
     
-    // Enviar con Inertia.js (no usar data: param)
-    otpForm.post(route('auth.verify-otp'), {
-        onSuccess: (response) => {
+    // Actualizar el submitForm con los valores actuales
+    submitForm.credential = otpForm.credential;
+    submitForm.otp_code = otpCode;
+    
+    // Enviar con Inertia.js
+    submitForm.post(route('auth.verify-otp'), {
+        onSuccess: () => {
             // Redirección manejada por el backend
         },
         onError: () => {
             // Limpiar OTP en caso de error
-            otpForm.otp_code = '';
+            otpForm.otp_code = [];
         }
     });
 };
@@ -121,7 +139,12 @@ const resendOTP = () => {
     
     // Usar otpForm que ya tiene el credential guardado
     otpForm.post(route('auth.resend-otp'), {
-        onSuccess: () => {
+        onSuccess: (page: any) => {
+            // Actualizar el email censurado si viene en la respuesta
+            if (page.props && page.props.censoredEmail) {
+                censoredEmailRef.value = page.props.censoredEmail;
+            }
+            
             // Reiniciar timer
             startResendTimer(60);
         },
@@ -143,7 +166,15 @@ const goBackToCredential = () => {
 };
 
 // Cleanup al desmontar componente
-import { onUnmounted } from 'vue';
+import { onMounted, onUnmounted } from 'vue';
+
+// Si ya estamos en el paso OTP, iniciar el timer
+onMounted(() => {
+    if (step.value === 'otp') {
+        startResendTimer(60);
+    }
+});
+
 onUnmounted(() => {
     if (timerInterval.value) {
         clearInterval(timerInterval.value);
@@ -154,9 +185,21 @@ onUnmounted(() => {
 <template>
     <AuthBase 
         :title="step === 'credential' ? 'Iniciar Sesión' : 'Verificar Código'" 
-        :description="step === 'credential' ? `Ingresa tu ${config.label.toLowerCase()} para recibir el código de verificación` : 'Ingresa el código de 6 dígitos enviado a tu correo'"
     >
         <Head title="Iniciar Sesión" />
+
+        <!-- Descripción personalizada con texto en negrilla -->
+        <div v-if="step === 'credential'" class="mb-4 text-center text-muted-foreground">
+            <p v-if="config.login_type === 'documento'">
+                Ingresa tu documento de identidad para recibir el código de verificación <strong>vía correo electrónico</strong>
+            </p>
+            <p v-else>
+                Ingresa tu {{ config.label.toLowerCase() }} para recibir el código de verificación
+            </p>
+        </div>
+        <div v-else class="mb-4 text-center text-muted-foreground">
+            <p>Ingresa el código de 6 dígitos enviado a tu correo</p>
+        </div>
 
         <div v-if="status" class="mb-4 text-center text-sm font-medium text-green-600">
             {{ status }}
@@ -176,6 +219,7 @@ onUnmounted(() => {
                             autofocus
                             tabindex="1"
                             :autocomplete="config.login_type === 'email' ? 'email' : 'off'"
+                            :inputmode="config.login_type === 'documento' ? 'numeric' : undefined"
                             v-model="credentialForm.credential"
                             :placeholder="config.placeholder"
                             :pattern="config.pattern"
@@ -204,10 +248,10 @@ onUnmounted(() => {
                 <div class="text-center">
                     <p class="text-sm text-muted-foreground">
                         <span v-if="config.login_type === 'email'">
-                            Código enviado a: <span class="font-medium">{{ otpForm.credential }}</span>
+                            Código enviado al email <span class="font-medium">{{ censoredEmailRef || otpForm.credential }}</span>
                         </span>
                         <span v-else>
-                            Código enviado al email asociado al documento: <span class="font-medium">{{ otpForm.credential }}</span>
+                            Código enviado al email <span class="font-medium">{{ censoredEmailRef }}</span> asociado al documento <span class="font-medium">{{ otpForm.credential }}</span>
                         </span>
                     </p>
                 </div>
@@ -228,6 +272,7 @@ onUnmounted(() => {
                                     :key="id" 
                                     :index="index" 
                                     class="h-12 w-12 text-lg font-medium"
+                                    :inputmode="'numeric'"
                                 />
                             </PinInputGroup>
                         </PinInput>
@@ -239,10 +284,10 @@ onUnmounted(() => {
                     <Button 
                         type="submit" 
                         class="w-full" 
-                        :disabled="otpForm.processing || otpForm.otp_code.length !== 6"
+                        :disabled="submitForm.processing || otpForm.otp_code.join('').length !== 6"
                     >
-                        <LoaderCircle v-if="otpForm.processing" class="mr-2 h-4 w-4 animate-spin" />
-                        {{ otpForm.processing ? 'Verificando...' : 'Verificar Código' }}
+                        <LoaderCircle v-if="submitForm.processing" class="mr-2 h-4 w-4 animate-spin" />
+                        {{ submitForm.processing ? 'Verificando...' : 'Verificar Código' }}
                     </Button>
 
                     <!-- Botones secundarios -->
@@ -274,10 +319,14 @@ onUnmounted(() => {
         <!-- Información adicional -->
         <div class="mt-6 text-center text-xs text-muted-foreground">
             <p v-if="step === 'credential'">
-                Solo usuarios autorizados pueden acceder al sistema de votaciones.
+                Solo personas registradas como militantes pueden acceder al sistema.
             </p>
             <p v-else>
                 El código expira en 10 minutos. Si no lo recibes, verifica tu bandeja de spam.
+            </p>
+            <br />
+            <p>
+                Si necesitas ayuda escribe a <b>soporte@colombiahumana.co</b> para soporte sobre la plataforma. Para inquietudes jurídicas a <b>juridicoelectoral@colombiahumana.co</b>
             </p>
         </div>
     </AuthBase>
