@@ -187,18 +187,24 @@ class CandidaturaCampoAprobacion extends Model
     /**
      * Obtener resumen de aprobaciones
      */
-    public static function obtenerResumen(int $candidaturaId): array
+    public static function obtenerResumen(int $candidaturaId, ?int $totalCampos = null): array
     {
         $aprobaciones = static::where('candidatura_id', $candidaturaId)->get();
+        $aprobados = $aprobaciones->where('aprobado', true)->count();
+        $rechazados = $aprobaciones->where('aprobado', false)
+            ->whereNotNull('aprobado_por')->count();
+        
+        // Si se proporciona total de campos, usar ese, sino contar registros
+        $total = $totalCampos ?? $aprobaciones->count();
+        $pendientes = $total - $aprobados - $rechazados;
         
         return [
-            'total' => $aprobaciones->count(),
-            'aprobados' => $aprobaciones->where('aprobado', true)->count(),
-            'rechazados' => $aprobaciones->where('aprobado', false)
-                ->whereNotNull('aprobado_por')->count(),
-            'pendientes' => $aprobaciones->whereNull('aprobado_por')->count(),
-            'porcentaje_aprobado' => $aprobaciones->count() > 0 
-                ? round(($aprobaciones->where('aprobado', true)->count() / $aprobaciones->count()) * 100, 2)
+            'total' => $total,
+            'aprobados' => $aprobados,
+            'rechazados' => $rechazados,
+            'pendientes' => max(0, $pendientes), // Asegurar que no sea negativo
+            'porcentaje_aprobado' => $total > 0 
+                ? round(($aprobados / $total) * 100, 2)
                 : 0,
         ];
     }

@@ -32,6 +32,9 @@ interface Candidatura {
     created_at: string;
     updated_at: string;
     tiene_datos: boolean;
+    campos_llenados: number;
+    total_campos: number;
+    porcentaje_completado: number;
     esta_pendiente: boolean;
 }
 
@@ -179,7 +182,11 @@ const formatearFecha = (fecha: string) => {
                                         <div class="flex items-center gap-2">
                                             <AlertCircle class="h-4 w-4 text-muted-foreground" />
                                             <span class="font-medium">Datos:</span>
-                                            <span>{{ candidatura.tiene_datos ? 'Completos' : 'Vacío' }}</span>
+                                            <span v-if="candidatura.total_campos > 0">
+                                                {{ candidatura.campos_llenados }} / {{ candidatura.total_campos }}
+                                                <span class="text-muted-foreground">({{ candidatura.porcentaje_completado }}%)</span>
+                                            </span>
+                                            <span v-else>Sin configuración</span>
                                         </div>
                                         
                                         <div v-if="candidatura.aprobado_por" class="flex items-center gap-2">
