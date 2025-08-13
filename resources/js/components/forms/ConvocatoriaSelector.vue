@@ -159,15 +159,6 @@ onMounted(() => {
 
 <template>
     <div class="space-y-4">
-        <!-- Advertencia de postulación automática -->
-        <Alert v-if="showPostulacionWarning && selectedConvocatoria" class="border-blue-200 bg-blue-50">
-            <AlertCircle class="h-4 w-4 text-blue-600" />
-            <AlertTitle class="text-blue-800">Postulación Automática</AlertTitle>
-            <AlertDescription class="text-blue-700">
-                Al enviar este formulario de candidatura, se creará automáticamente una postulación 
-                a la convocatoria seleccionada, la cual quedará en estado "Enviada" para revisión administrativa.
-            </AlertDescription>
-        </Alert>
 
         <!-- Loading -->
         <div v-if="loading" class="text-center py-8">
