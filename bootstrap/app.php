@@ -14,11 +14,18 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
-        $middleware->web(append: [
-            TenantMiddleware::class,
-            HandleInertiaRequests::class,
-            AddLinkHeadersForPreloadedAssets::class,
-        ]);
+        $middlewares = [];
+        
+        // Solo cargar TenantMiddleware si está habilitado
+        if (env('ENABLE_TENANT_MIDDLEWARE', true)) {
+            $middlewares[] = TenantMiddleware::class;
+        }
+        
+        // Siempre cargar estos
+        $middlewares[] = HandleInertiaRequests::class;
+        $middlewares[] = AddLinkHeadersForPreloadedAssets::class;
+        
+        $middleware->web(append: $middlewares);
 
         $middleware->alias([
             'admin' => \App\Http\Middleware\AdminMiddleware::class,
