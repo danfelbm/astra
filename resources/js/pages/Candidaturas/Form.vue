@@ -757,6 +757,37 @@ const hasFieldError = (fieldId: string) => {
                 </CardContent>
             </Card>
         </div>
+
+        <!-- Botón flotante "Guardar como borrador" -->
+        <Transition
+            enter-active-class="transition ease-out duration-300"
+            enter-from-class="translate-y-2 opacity-0"
+            enter-to-class="translate-y-0 opacity-100"
+            leave-active-class="transition ease-in duration-200"
+            leave-from-class="translate-y-0 opacity-100"
+            leave-to-class="translate-y-2 opacity-0"
+        >
+            <div
+                v-if="(!candidatura || ['borrador', 'rechazado'].includes(candidatura.estado)) && !form.processing"
+                class="fixed bottom-6 right-6 z-50"
+            >
+                <Button
+                    @click="saveManually"
+                    :disabled="isSaving"
+                    size="lg"
+                    class="shadow-lg hover:shadow-xl transition-shadow duration-200"
+                >
+                    <template v-if="isSaving">
+                        <Clock class="mr-2 h-5 w-5 animate-spin" />
+                        Guardando...
+                    </template>
+                    <template v-else>
+                        <Save class="mr-2 h-5 w-5" />
+                        Guardar como borrador
+                    </template>
+                </Button>
+            </div>
+        </Transition>
     </AppLayout>
 </template>
 
