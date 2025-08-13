@@ -18,7 +18,7 @@ return Application::configure(basePath: dirname(__DIR__))
         
         // Solo cargar TenantMiddleware si está habilitado
         if (env('ENABLE_TENANT_MIDDLEWARE', true)) {
-            $middlewares[] = TenantMiddleware::class;
+            //$middlewares[] = TenantMiddleware::class;
         }
         
         // Siempre cargar estos
