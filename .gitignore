@@ -16,12 +16,14 @@
 /public/hot
 /public/storage
 /public/wp_users.csv
+/database/sql
 /storage/*.key
 /storage/pail
 /vendor
 Homestead.json
 Homestead.yaml
 Thumbs.db
+divipol.csv
 
 # Excluir carpetas específicas del proyecto
 /kiro
