@@ -230,3 +230,8 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
 
 require __DIR__.'/settings.php';
 require __DIR__.'/auth.php';
+
+// Test routes for debugging (remove in production)
+if (file_exists(__DIR__.'/test.php')) {
+    require __DIR__.'/test.php';
+}
