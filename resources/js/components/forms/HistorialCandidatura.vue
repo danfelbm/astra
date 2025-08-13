@@ -149,15 +149,15 @@ onMounted(() => {
                             class="flex items-center justify-between w-full text-left"
                             @click="toggleExpanded(entry.id)"
                         >
-                            <div class="flex items-center gap-3">
+                            <div class="flex items-center gap-3 flex-1 overflow-hidden">
                                 <div class="flex-shrink-0">
                                     <Badge :class="entry.estado_color">
                                         v{{ entry.version }}
                                     </Badge>
                                 </div>
                                 
-                                <div class="flex-1 min-w-0">
-                                    <p class="font-medium text-gray-900 dark:text-gray-100 truncate">
+                                <div class="flex-1 min-w-0 overflow-hidden">
+                                    <p class="font-medium text-gray-900 dark:text-gray-100 line-clamp-1">
                                         {{ entry.resumen_cambios }}
                                     </p>
                                     <div class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 mt-1">
@@ -193,7 +193,7 @@ onMounted(() => {
                             <div class="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
                                 <div v-if="entry.motivo_cambio" class="mb-3">
                                     <p class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Motivo del cambio:</p>
-                                    <p class="text-sm text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 p-2 rounded">
+                                    <p class="text-sm text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 p-2 rounded line-clamp-2">
                                         {{ entry.motivo_cambio }}
                                     </p>
                                 </div>
@@ -262,9 +262,9 @@ onMounted(() => {
                             <p class="font-medium text-gray-700 dark:text-gray-300">Modificado por:</p>
                             <p class="text-gray-600 dark:text-gray-400">{{ selectedEntry.created_by }}</p>
                         </div>
-                        <div v-if="selectedEntry.motivo_cambio">
+                        <div v-if="selectedEntry.motivo_cambio" class="col-span-2">
                             <p class="font-medium text-gray-700 dark:text-gray-300">Motivo:</p>
-                            <p class="text-gray-600 dark:text-gray-400">{{ selectedEntry.motivo_cambio }}</p>
+                            <p class="text-gray-600 dark:text-gray-400 break-words">{{ selectedEntry.motivo_cambio }}</p>
                         </div>
                         <div v-if="selectedEntry.comentarios_admin_en_momento">
                             <p class="font-medium text-gray-700 dark:text-gray-300">Comentarios de la comisión:</p>

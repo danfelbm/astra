@@ -41,8 +41,22 @@ class CandidaturaController extends Controller
 
         $candidaturas = $query->paginate(20)->withQueryString();
 
+        // Obtener configuración activa para calcular campos
+        $configuracionActiva = CandidaturaConfig::obtenerConfiguracionActiva();
+        $totalCampos = $configuracionActiva ? $configuracionActiva->contarCampos() : 0;
+
         // Enriquecer datos para el frontend
-        $candidaturas->through(function ($candidatura) {
+        $candidaturas->through(function ($candidatura) use ($totalCampos) {
+            // Calcular campos llenados
+            $camposLlenados = 0;
+            if (!empty($candidatura->formulario_data) && is_array($candidatura->formulario_data)) {
+                foreach ($candidatura->formulario_data as $value) {
+                    if ($value !== null && $value !== '' && $value !== []) {
+                        $camposLlenados++;
+                    }
+                }
+            }
+
             return [
                 'id' => $candidatura->id,
                 'usuario' => [
@@ -60,9 +74,12 @@ class CandidaturaController extends Controller
                     'email' => $candidatura->aprobadoPor->email,
                 ] : null,
                 'fecha_aprobacion' => $candidatura->fecha_aprobacion,
-                'created_at' => $candidatura->created_at->format('d/m/Y H:i'),
-                'updated_at' => $candidatura->updated_at->format('d/m/Y H:i'),
+                'created_at' => $candidatura->created_at->toISOString(),
+                'updated_at' => $candidatura->updated_at->toISOString(),
                 'tiene_datos' => !empty($candidatura->formulario_data),
+                'campos_llenados' => $camposLlenados,
+                'total_campos' => $totalCampos,
+                'porcentaje_completado' => $totalCampos > 0 ? round(($camposLlenados / $totalCampos) * 100) : 0,
                 'esta_pendiente' => $candidatura->estaPendiente(),
             ];
         });
@@ -162,7 +179,19 @@ class CandidaturaController extends Controller
 
         // Obtener aprobaciones de campos
         $campoAprobaciones = $candidatura->getCamposAprobaciones();
-        $resumenAprobaciones = $candidatura->getEstadoAprobacionCampos();
+        
+        // Calcular resumen con el total de campos de la configuración activa
+        $totalCamposConfig = $config ? $config->contarCampos() : 0;
+        $resumenBase = $candidatura->getEstadoAprobacionCampos();
+        $resumenAprobaciones = [
+            'total' => $totalCamposConfig,
+            'aprobados' => $resumenBase['aprobados'] ?? 0,
+            'rechazados' => $resumenBase['rechazados'] ?? 0,
+            'pendientes' => $totalCamposConfig - ($resumenBase['aprobados'] ?? 0) - ($resumenBase['rechazados'] ?? 0),
+            'porcentaje_aprobado' => $totalCamposConfig > 0 
+                ? round((($resumenBase['aprobados'] ?? 0) / $totalCamposConfig) * 100, 2) 
+                : 0,
+        ];
 
         return Inertia::render('Admin/Candidaturas/Show', [
             'candidatura' => [
@@ -183,8 +212,8 @@ class CandidaturaController extends Controller
                     'email' => $candidatura->aprobadoPor->email,
                 ] : null,
                 'fecha_aprobacion' => $candidatura->fecha_aprobacion,
-                'created_at' => $candidatura->created_at->format('d/m/Y H:i'),
-                'updated_at' => $candidatura->updated_at->format('d/m/Y H:i'),
+                'created_at' => $candidatura->created_at->toISOString(),
+                'updated_at' => $candidatura->updated_at->toISOString(),
             ],
             'configuracion_campos' => $config ? $config->obtenerCampos() : [],
             'campo_aprobaciones' => $campoAprobaciones->map(function ($aprobacion) {
@@ -452,7 +481,7 @@ class CandidaturaController extends Controller
                 'formulario_data' => $item->formulario_data,
                 'formulario_data_con_nombres' => $item->formulario_data_con_nombres,
                 'motivo_cambio' => $item->motivo_cambio,
-                'created_by' => $item->usuario?->name ?? 'Usuario eliminado',
+                'created_by' => $item->createdBy?->name ?? 'Usuario eliminado',
                 'comentarios_admin_en_momento' => $item->comentarios_admin_en_momento,
                 'fecha_formateada' => $item->fecha_formateada,
                 'resumen_cambios' => $item->resumen_cambios,
