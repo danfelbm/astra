@@ -1,0 +1,1 @@
+import{$ as c,a8 as s}from"./app-CRtAryep.js";function j(t,r){const i=typeof t=="string"?`${t}Context`:r,e=Symbol(i);return[n=>{const o=c(e,n);if(o||o===null)return o;throw new Error(`Injection \`${e.toString()}\` not found. Component must be used within ${Array.isArray(t)?`one of the following components: ${t.join(", ")}`:`\`${t}\``}`)},n=>(s(e,n),n)]}export{j as c};
