@@ -29,6 +29,21 @@ class CandidaturaObserver
     {
         // Debug: Observer updated ejecutado - candidatura_id: {$candidatura->id}
         
+        // NUEVA LÓGICA: Los autoguardados usan saveQuietly() y no disparan este Observer
+        // Esta verificación es para otros casos donde se actualice ultimo_autoguardado manualmente
+        
+        // Verificación por cambios detectados - si solo cambió ultimo_autoguardado y formulario_data
+        // pero no cambió estado, versión o comentarios, probablemente es un guardado menor
+        $esGuardadoMenor = $candidatura->wasChanged('ultimo_autoguardado') && 
+                          !$candidatura->wasChanged('estado') && 
+                          !$candidatura->wasChanged('version') &&
+                          !$candidatura->wasChanged('comentarios_admin');
+        
+        if ($esGuardadoMenor) {
+            // No crear historial para guardados menores
+            return;
+        }
+        
         // NUEVA LÓGICA: Capturar TODOS los cambios de estado y formulario
         
         $huboCambioEstado = $candidatura->wasChanged('estado');
@@ -93,11 +108,20 @@ class CandidaturaObserver
             // Debug: Historial ya existe, actualizando - historial_id: {$existingHistorial->id}
             
             // Actualizar el registro existente con los nuevos datos
+            // Evitar concatenación repetitiva del mismo motivo
+            $motivoActual = $existingHistorial->motivo_cambio;
+            
+            // Solo agregar el nuevo motivo si es diferente al último agregado
+            if (!str_contains($motivoActual, $motivoCambio) || 
+                !str_ends_with($motivoActual, $motivoCambio)) {
+                $motivoActual = $motivoActual . ' | ' . $motivoCambio;
+            }
+            
             $existingHistorial->update([
                 'formulario_data' => $formularioDataFiltrado,
                 'configuracion_campos_en_momento' => $configuracionCampos,
                 'comentarios_admin_en_momento' => $candidatura->comentarios_admin,
-                'motivo_cambio' => $existingHistorial->motivo_cambio . ' | ' . $motivoCambio,
+                'motivo_cambio' => $motivoActual,
                 'updated_at' => now(),
             ]);
             
