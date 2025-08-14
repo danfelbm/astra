@@ -36,6 +36,8 @@ class OTPAuthController extends Controller
             'authConfig' => GlobalSettingsService::getAuthConfig(),
             'censoredEmail' => $request->session()->get('censored_email'),
             'otpCredential' => $request->session()->get('otp_credential'),
+            'otpChannel' => $request->session()->get('otp_channel', 'email'),
+            'whatsappEnabled' => config('services.whatsapp.enabled', false),
         ]);
     }
 
@@ -146,8 +148,14 @@ class OTPAuthController extends Controller
 
         // Siempre generar nuevo código (invalidará el anterior automáticamente)
 
-        // Generar nuevo código OTP (esto también envía el email)
-        $codigo = $this->otpService->generateOTP($email);
+        // Obtener número de WhatsApp del usuario si existe
+        $phone = $user->getWhatsAppNumber();
+        
+        // Determinar el canal que se usará
+        $channel = $this->determineOTPChannel($email, $phone);
+        
+        // Generar nuevo código OTP (esto también envía el email/WhatsApp)
+        $codigo = $this->otpService->generateOTP($email, $phone);
 
         // Censurar el email para mostrar de forma segura
         $censoredEmail = $this->censorEmail($email);
@@ -155,9 +163,13 @@ class OTPAuthController extends Controller
         // Guardar en sesión para mostrar en la vista
         $request->session()->put('censored_email', $censoredEmail);
         $request->session()->put('otp_credential', $credential);
+        $request->session()->put('otp_channel', $channel);
+        
+        // Mensaje de éxito según el canal
+        $successMessage = $this->getSuccessMessage($channel);
         
         // Para Inertia.js, redirigir de vuelta con mensaje de éxito
-        return back()->with('success', 'Código OTP enviado a tu correo electrónico.');
+        return back()->with('success', $successMessage);
     }
 
     /**
@@ -285,8 +297,14 @@ class OTPAuthController extends Controller
             ]);
         }
 
-        // Generar nuevo código (esto invalidará el anterior y enviará email)
-        $codigo = $this->otpService->generateOTP($email);
+        // Obtener número de WhatsApp del usuario si existe
+        $phone = $user->getWhatsAppNumber();
+        
+        // Determinar el canal que se usará
+        $channel = $this->determineOTPChannel($email, $phone);
+        
+        // Generar nuevo código (esto invalidará el anterior y enviará email/WhatsApp)
+        $codigo = $this->otpService->generateOTP($email, $phone);
         
         // Censurar el email para mostrar de forma segura
         $censoredEmail = $this->censorEmail($email);
@@ -294,8 +312,12 @@ class OTPAuthController extends Controller
         // Actualizar en sesión
         $request->session()->put('censored_email', $censoredEmail);
         $request->session()->put('otp_credential', $credential);
+        $request->session()->put('otp_channel', $channel);
+        
+        // Mensaje de éxito según el canal
+        $successMessage = 'Nuevo ' . $this->getSuccessMessage($channel);
 
-        return back()->with('success', 'Nuevo código OTP enviado.');
+        return back()->with('success', $successMessage);
     }
 
     /**
@@ -324,5 +346,45 @@ class OTPAuthController extends Controller
         $request->session()->regenerateToken();
 
         return redirect()->route('login')->with('status', 'Sesión cerrada exitosamente.');
+    }
+
+    /**
+     * Determinar el canal de OTP basado en configuración y disponibilidad
+     */
+    private function determineOTPChannel(string $email, ?string $phone): string
+    {
+        $configChannel = config('services.otp.channel', 'email');
+        $whatsappEnabled = config('services.whatsapp.enabled', false);
+        
+        // Si WhatsApp no está habilitado, usar email
+        if (!$whatsappEnabled) {
+            return 'email';
+        }
+        
+        // Si no hay teléfono, usar email
+        if (empty($phone)) {
+            return 'email';
+        }
+        
+        // Retornar el canal configurado
+        return $configChannel;
+    }
+
+    /**
+     * Obtener mensaje de éxito según el canal usado
+     */
+    private function getSuccessMessage(string $channel): string
+    {
+        switch ($channel) {
+            case 'whatsapp':
+                return 'Código OTP enviado a tu WhatsApp.';
+            
+            case 'both':
+                return 'Código OTP enviado a tu correo electrónico y WhatsApp.';
+            
+            case 'email':
+            default:
+                return 'Código OTP enviado a tu correo electrónico.';
+        }
     }
 }
