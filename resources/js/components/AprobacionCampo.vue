@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import FileFieldDisplay from '@/components/display/FileFieldDisplay.vue';
+import RepeaterFieldDisplay from '@/components/display/RepeaterFieldDisplay.vue';
 import {
     Dialog,
     DialogContent,
@@ -156,8 +158,75 @@ const rechazarCampo = async () => {
     }
 };
 
-// Función para formatear el valor del campo
+// Detectar si el valor es de tipo file
+const isFileField = computed(() => {
+    // Si es un array de strings con rutas de archivo
+    if (Array.isArray(props.valor) && props.valor.length > 0) {
+        const firstItem = props.valor[0];
+        if (typeof firstItem === 'string' && (
+            firstItem.includes('uploads/') || 
+            firstItem.includes('.pdf') ||
+            firstItem.includes('.doc') ||
+            firstItem.includes('.jpg') ||
+            firstItem.includes('.png')
+        )) {
+            return true;
+        }
+    }
+    return false;
+});
+
+// Detectar si el valor es de tipo repeater
+const isRepeaterField = computed(() => {
+    // Si es un array de objetos con estructura de repetidor
+    if (Array.isArray(props.valor) && props.valor.length > 0) {
+        const firstItem = props.valor[0];
+        if (typeof firstItem === 'object' && firstItem !== null) {
+            // Verificar si tiene estructura de repetidor (id y data) o es un objeto de datos
+            return firstItem.hasOwnProperty('id') && firstItem.hasOwnProperty('data') ||
+                   (typeof firstItem === 'object' && !Array.isArray(firstItem));
+        }
+    }
+    return false;
+});
+
+// Detectar si el valor es de tipo disclaimer
+const isDisclaimerField = computed(() => {
+    // Si es un objeto con estructura de disclaimer (accepted y timestamp)
+    if (typeof props.valor === 'object' && props.valor !== null && !Array.isArray(props.valor)) {
+        return props.valor.hasOwnProperty('accepted') && props.valor.hasOwnProperty('timestamp');
+    }
+    return false;
+});
+
+// Función para formatear el valor del campo (para campos normales)
 const formatearValor = (valor: any): string => {
+    if (isFileField.value || isRepeaterField.value) {
+        return ''; // Se maneja con componentes especiales
+    }
+    
+    // Manejar campos tipo disclaimer
+    if (isDisclaimerField.value) {
+        if (typeof valor === 'object' && valor !== null) {
+            if (valor.accepted === true) {
+                try {
+                    const fecha = new Date(valor.timestamp);
+                    return `✅ Aceptado el ${fecha.toLocaleDateString('es-ES', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    })}`;
+                } catch {
+                    return '✅ Aceptado';
+                }
+            } else {
+                return '❌ No aceptado';
+            }
+        }
+    }
+    
     if (Array.isArray(valor)) {
         return valor.join(', ');
     }
@@ -174,7 +243,22 @@ const formatearValor = (valor: any): string => {
         <div class="flex items-start justify-between">
             <div class="flex-1">
                 <h4 class="font-medium text-sm">{{ campoTitle }}</h4>
-                <p class="text-sm text-muted-foreground mt-1">
+                <!-- Componente para archivos -->
+                <div v-if="isFileField" class="mt-2">
+                    <FileFieldDisplay 
+                        :value="valor"
+                        :label="campoTitle"
+                    />
+                </div>
+                <!-- Componente para repetidores -->
+                <div v-else-if="isRepeaterField" class="mt-2">
+                    <RepeaterFieldDisplay 
+                        :value="valor"
+                        :label="campoTitle"
+                    />
+                </div>
+                <!-- Valor normal para otros campos -->
+                <p v-else class="text-sm text-muted-foreground mt-1">
                     {{ formatearValor(valor) }}
                 </p>
             </div>
@@ -252,7 +336,22 @@ const formatearValor = (valor: any): string => {
             <div class="space-y-4 py-4">
                 <div>
                     <Label>Valor actual del campo</Label>
-                    <p class="mt-1 p-2 bg-muted rounded text-sm">
+                    <!-- Componente para archivos -->
+                    <div v-if="isFileField" class="mt-2 p-2 bg-muted rounded">
+                        <FileFieldDisplay 
+                            :value="valor"
+                            :label="campoTitle"
+                        />
+                    </div>
+                    <!-- Componente para repetidores -->
+                    <div v-else-if="isRepeaterField" class="mt-2 p-2 bg-muted rounded">
+                        <RepeaterFieldDisplay 
+                            :value="valor"
+                            :label="campoTitle"
+                        />
+                    </div>
+                    <!-- Valor normal -->
+                    <p v-else class="mt-1 p-2 bg-muted rounded text-sm">
                         {{ formatearValor(valor) }}
                     </p>
                 </div>
@@ -304,7 +403,22 @@ const formatearValor = (valor: any): string => {
             <div class="space-y-4 py-4">
                 <div>
                     <Label>Valor actual del campo</Label>
-                    <p class="mt-1 p-2 bg-muted rounded text-sm">
+                    <!-- Componente para archivos -->
+                    <div v-if="isFileField" class="mt-2 p-2 bg-muted rounded">
+                        <FileFieldDisplay 
+                            :value="valor"
+                            :label="campoTitle"
+                        />
+                    </div>
+                    <!-- Componente para repetidores -->
+                    <div v-else-if="isRepeaterField" class="mt-2 p-2 bg-muted rounded">
+                        <RepeaterFieldDisplay 
+                            :value="valor"
+                            :label="campoTitle"
+                        />
+                    </div>
+                    <!-- Valor normal -->
+                    <p v-else class="mt-1 p-2 bg-muted rounded text-sm">
                         {{ formatearValor(valor) }}
                     </p>
                 </div>
