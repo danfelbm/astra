@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed, watch } from 'vue';
+import { computed, watch, ref } from 'vue';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import DatePicker from '@/components/ui/date-picker/DatePicker.vue';
 import DateTimePicker from '@/components/ui/datetime-picker/DateTimePicker.vue';
+import CascadeSelect from './CascadeSelect.vue';
 import { X } from 'lucide-vue-next';
 import type { 
   FilterCondition, 
@@ -20,6 +21,7 @@ interface Props {
   fields: FilterField[];
   onUpdate: (updates: Partial<FilterCondition>) => void;
   onRemove: () => void;
+  allConditions?: FilterCondition[]; // Para acceder a valores de campos padre en cascadas
 }
 
 const props = defineProps<Props>();
@@ -31,6 +33,20 @@ const selectedField = computed(() =>
 
 // Tipo de campo actual
 const fieldType = computed(() => selectedField.value?.type || 'text');
+
+// Obtener el valor del campo padre para cascadas
+const parentFieldValue = computed(() => {
+  if (!selectedField.value?.cascadeFrom || !props.allConditions) {
+    return null;
+  }
+  
+  // Buscar la condición del campo padre
+  const parentCondition = props.allConditions.find(
+    c => (c.field === selectedField.value?.cascadeFrom || c.name === selectedField.value?.cascadeFrom) && c.id !== props.condition.id
+  );
+  
+  return parentCondition?.value || null;
+});
 
 // Operadores disponibles para el campo actual
 const availableOperators = computed(() => {
@@ -45,6 +61,7 @@ const availableOperators = computed(() => {
     date: ['equals', 'not_equals', 'greater_than', 'less_than', 'greater_or_equal', 'less_or_equal', 'between', 'is_empty', 'is_not_empty'],
     datetime: ['equals', 'not_equals', 'greater_than', 'less_than', 'greater_or_equal', 'less_or_equal', 'between', 'is_empty', 'is_not_empty'],
     select: ['equals', 'not_equals', 'is_empty', 'is_not_empty'],
+    'select-cascade': ['equals', 'not_equals', 'is_empty', 'is_not_empty'],
     multiselect: ['in', 'not_in', 'is_empty', 'is_not_empty'],
     boolean: ['equals'],
   } as const;
@@ -282,6 +299,15 @@ const handleBetweenChange = (index: 0 | 1, value: any) => {
             </SelectItem>
           </SelectContent>
         </Select>
+        
+        <!-- Select en cascada -->
+        <CascadeSelect
+          v-else-if="fieldType === 'select-cascade' && selectedField"
+          :model-value="condition.value"
+          @update:model-value="handleValueChange"
+          :field="selectedField"
+          :parent-value="parentFieldValue"
+        />
         
         <!-- Boolean -->
         <Select 

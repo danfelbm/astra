@@ -10,6 +10,7 @@ use App\Models\Departamento;
 use App\Models\Municipio;
 use App\Models\Localidad;
 use App\Traits\HasAdvancedFilters;
+use App\Traits\HasGeographicFilters;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -20,7 +21,7 @@ use Inertia\Response;
 
 class AsambleaController extends Controller
 {
-    use HasAdvancedFilters;
+    use HasAdvancedFilters, HasGeographicFilters;
 
     /**
      * Display a listing of the resource.
@@ -182,30 +183,8 @@ class AsambleaController extends Controller
                 'label' => 'Fecha de Fin',
                 'type' => 'datetime',
             ],
-            [
-                'name' => 'territorio_id',
-                'label' => 'Territorio',
-                'type' => 'select',
-                'options' => Territorio::all()->map(fn($t) => ['value' => $t->id, 'label' => $t->nombre])->toArray(),
-            ],
-            [
-                'name' => 'departamento_id',
-                'label' => 'Departamento',
-                'type' => 'select',
-                'options' => Departamento::all()->map(fn($d) => ['value' => $d->id, 'label' => $d->nombre])->toArray(),
-            ],
-            [
-                'name' => 'municipio_id',
-                'label' => 'Municipio',
-                'type' => 'select',
-                'options' => Municipio::all()->map(fn($m) => ['value' => $m->id, 'label' => $m->nombre])->toArray(),
-            ],
-            [
-                'name' => 'localidad_id',
-                'label' => 'Localidad',
-                'type' => 'select',
-                'options' => Localidad::all()->map(fn($l) => ['value' => $l->id, 'label' => $l->nombre])->toArray(),
-            ],
+            // Campos geográficos en cascada usando el trait
+            ...$this->getGeographicFilterFields(),
             [
                 'name' => 'quorum_minimo',
                 'label' => 'Quórum Mínimo',
@@ -463,6 +442,7 @@ class AsambleaController extends Controller
         // Definir campos permitidos para filtrar
         $allowedFields = [
             'name', 'email', 'tipo_participacion', 'asistio',
+            'territorio_id', 'departamento_id', 'municipio_id', 'localidad_id',
         ];
         
         // Campos para búsqueda rápida
@@ -497,7 +477,8 @@ class AsambleaController extends Controller
      */
     protected function getParticipantesFilterFieldsConfig(): array
     {
-        return [
+        // Campos básicos del usuario
+        $basicFields = [
             [
                 'name' => 'name',
                 'label' => 'Nombre',
@@ -528,6 +509,13 @@ class AsambleaController extends Controller
                 ],
             ],
         ];
+        
+        // Obtener campos geográficos en cascada para usuarios
+        // Los usuarios tienen campos territorio_id, departamento_id, etc. directamente
+        $geographicFields = $this->getUserGeographicFilterFields();
+        
+        // Combinar todos los campos
+        return array_merge($basicFields, $geographicFields);
     }
 
     /**

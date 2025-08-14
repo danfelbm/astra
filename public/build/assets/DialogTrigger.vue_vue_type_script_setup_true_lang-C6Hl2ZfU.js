@@ -1,1 +1,0 @@
-import{A as s}from"./index-BKD8hVBb.js";import{d as r,j as t,o as n,u as p,aR as i,au as l,e as u,A as c}from"./app-gzqSbCbx.js";const _=r({__name:"DialogTrigger",props:{asChild:{type:Boolean},as:{}},setup(a){const e=a;return(o,m)=>(n(),t(p(s),i(l(e)),{default:u(()=>[c(o.$slots,"default")]),_:3},16))}});export{_};
