@@ -127,6 +127,7 @@ const borderColorClass = computed(() => {
           :key="condition.id"
           :condition="condition"
           :fields="fields"
+          :all-conditions="group.conditions"
           :on-update="(updates) => onUpdateCondition(condition.id, updates)"
           :on-remove="() => onRemoveCondition(condition.id)"
         />

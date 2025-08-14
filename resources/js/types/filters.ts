@@ -23,6 +23,7 @@ export type FieldType =
   | 'date' 
   | 'datetime' 
   | 'select' 
+  | 'select-cascade'  // Nuevo tipo para selectores en cascada
   | 'multiselect' 
   | 'boolean';
 
@@ -60,6 +61,26 @@ export interface FilterField {
   
   // Validación personalizada
   validate?: (value: any) => boolean | string;
+  
+  // --- Propiedades para campos en cascada (select-cascade) ---
+  
+  // Campo del que depende este campo (para cascadas)
+  cascadeFrom?: string;
+  
+  // Campos hijos que dependen de este campo
+  cascadeChildren?: string[];
+  
+  // Endpoint para cargar opciones en cascada
+  cascadeEndpoint?: string;
+  
+  // Nombre del parámetro a enviar al endpoint
+  cascadeParam?: string;
+  
+  // Si las opciones deben cargarse inmediatamente al montar
+  loadOnMount?: boolean;
+  
+  // Cache de opciones para evitar recargas innecesarias
+  cacheOptions?: boolean;
 }
 
 // Opción para campos select
@@ -209,6 +230,12 @@ export const operatorsByFieldType: Record<FieldType, FilterOperator[]> = {
     'is_not_empty',
   ],
   select: [
+    'equals',
+    'not_equals',
+    'is_empty',
+    'is_not_empty',
+  ],
+  'select-cascade': [
     'equals',
     'not_equals',
     'is_empty',
