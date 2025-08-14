@@ -140,4 +140,84 @@ class GlobalSettingsService
     {
         return GlobalSetting::get('system.allow_registration', false);
     }
+
+    /**
+     * Obtener el canal de OTP configurado
+     */
+    public static function getOTPChannel(): string
+    {
+        // Si está configurado en GlobalSettings, usar eso
+        $globalChannel = GlobalSetting::get('otp.channel');
+        if ($globalChannel) {
+            return $globalChannel;
+        }
+        
+        // Si no, usar el valor del archivo de configuración
+        return config('services.otp.channel', 'email');
+    }
+
+    /**
+     * Establecer el canal de OTP
+     */
+    public static function setOTPChannel(string $channel): bool
+    {
+        // Validar que el canal sea válido
+        if (!in_array($channel, ['email', 'whatsapp', 'both'])) {
+            throw new \InvalidArgumentException("Canal OTP inválido: {$channel}");
+        }
+        
+        return GlobalSetting::set(
+            'otp.channel',
+            $channel,
+            'enum',
+            [
+                'category' => 'otp',
+                'description' => 'Canal de envío de códigos OTP',
+                'allowed_values' => ['email', 'whatsapp', 'both'],
+            ]
+        );
+    }
+
+    /**
+     * Verificar si WhatsApp está habilitado
+     */
+    public static function isWhatsAppEnabled(): bool
+    {
+        // Primero verificar si está configurado en GlobalSettings
+        $globalEnabled = GlobalSetting::get('whatsapp.enabled');
+        if ($globalEnabled !== null) {
+            return $globalEnabled;
+        }
+        
+        // Si no, usar el valor del archivo de configuración
+        return config('services.whatsapp.enabled', false);
+    }
+
+    /**
+     * Obtener estadísticas de OTP
+     */
+    public static function getOTPStats(): array
+    {
+        $otpService = new \App\Services\OTPService();
+        return $otpService->getStats();
+    }
+
+    /**
+     * Obtener configuración completa de OTP/WhatsApp
+     */
+    public static function getMessagingConfig(): array
+    {
+        return [
+            'otp' => [
+                'channel' => self::getOTPChannel(),
+                'expiration_minutes' => config('services.otp.expiration_minutes', 10),
+                'send_immediately' => config('services.otp.send_immediately', true),
+            ],
+            'whatsapp' => [
+                'enabled' => self::isWhatsAppEnabled(),
+                'instance' => config('services.whatsapp.instance'),
+                'configured' => !empty(config('services.whatsapp.api_key')),
+            ],
+        ];
+    }
 }

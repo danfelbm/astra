@@ -268,4 +268,53 @@ class User extends Authenticatable
         // Retornar módulos únicos
         return array_unique($modules);
     }
+
+    /**
+     * Obtener número de WhatsApp formateado para el usuario
+     * 
+     * @return string|null
+     */
+    public function getWhatsAppNumber(): ?string
+    {
+        if (empty($this->telefono)) {
+            return null;
+        }
+
+        $phone = preg_replace('/[\s\-\(\)]/', '', $this->telefono);
+        
+        // Si ya tiene formato internacional con +, retornar sin el +
+        if (str_starts_with($phone, '+')) {
+            return substr($phone, 1);
+        }
+        
+        // Si empieza con código de país sin +
+        if (strlen($phone) > 10) {
+            return $phone;
+        }
+        
+        // Si es un número local colombiano (10 dígitos), agregar código de país
+        if (strlen($phone) == 10 && str_starts_with($phone, '3')) {
+            return '57' . $phone;
+        }
+        
+        // Retornar como está si no coincide con ningún patrón
+        return $phone;
+    }
+
+    /**
+     * Verificar si el usuario tiene un número de WhatsApp válido
+     * 
+     * @return bool
+     */
+    public function hasWhatsAppNumber(): bool
+    {
+        $phone = $this->getWhatsAppNumber();
+        
+        if (empty($phone)) {
+            return false;
+        }
+        
+        // Debe ser solo números y tener entre 10 y 15 dígitos
+        return preg_match('/^\d{10,15}$/', $phone) === 1;
+    }
 }

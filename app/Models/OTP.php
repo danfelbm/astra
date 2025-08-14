@@ -19,6 +19,9 @@ class OTP extends Model
         'codigo',
         'expira_en',
         'usado',
+        'canal_enviado',
+        'whatsapp_sent_at',
+        'telefono_destino',
     ];
 
     protected function casts(): array
@@ -26,6 +29,7 @@ class OTP extends Model
         return [
             'expira_en' => 'datetime',
             'usado' => 'boolean',
+            'whatsapp_sent_at' => 'datetime',
         ];
     }
 

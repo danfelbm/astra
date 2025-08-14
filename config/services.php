@@ -45,7 +45,25 @@ return [
     */
     'otp' => [
         'send_immediately' => env('OTP_SEND_IMMEDIATELY', true),  // true = envío inmediato, false = usar cola
-        'expiration_minutes' => env('OTP_EXPIRATION_MINUTES', 10),
+        'expiration_minutes' => (int) env('OTP_EXPIRATION_MINUTES', 10),
+        'channel' => env('OTP_CHANNEL', 'email'), // email, whatsapp, both
+        'prefer_whatsapp' => env('OTP_PREFER_WHATSAPP', false), // Si both, cuál prefiere
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | WhatsApp Evolution API Configuration
+    |--------------------------------------------------------------------------
+    |
+    | Configuración para integración con Evolution API para envío de mensajes
+    | de WhatsApp. Requiere una instancia de Evolution API configurada.
+    |
+    */
+    'whatsapp' => [
+        'enabled' => env('WHATSAPP_ENABLED', false),
+        'api_key' => env('WHATSAPP_API_KEY'),
+        'base_url' => env('WHATSAPP_BASE_URL'),
+        'instance' => env('WHATSAPP_INSTANCE'),
     ],
 
 ];

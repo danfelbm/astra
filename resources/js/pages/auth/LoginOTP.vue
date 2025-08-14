@@ -24,6 +24,8 @@ const props = defineProps<{
     authConfig?: AuthConfig;
     censoredEmail?: string;
     otpCredential?: string;
+    otpChannel?: string;
+    whatsappEnabled?: boolean;
 }>();
 
 // Estados del proceso OTP
@@ -191,14 +193,26 @@ onUnmounted(() => {
         <!-- Descripción personalizada con texto en negrilla -->
         <div v-if="step === 'credential'" class="mb-4 text-center text-muted-foreground">
             <p v-if="config.login_type === 'documento'">
-                Ingresa tu documento de identidad para recibir el código de verificación <strong>vía correo electrónico</strong>
+                Ingresa tu documento de identidad para recibir el código de verificación 
+                <strong v-if="!whatsappEnabled">vía correo electrónico</strong>
+                <strong v-else-if="props.otpChannel === 'whatsapp'">vía WhatsApp</strong>
+                <strong v-else-if="props.otpChannel === 'both'">vía correo electrónico y WhatsApp</strong>
+                <strong v-else>vía correo electrónico</strong>
             </p>
             <p v-else>
                 Ingresa tu {{ config.label.toLowerCase() }} para recibir el código de verificación
             </p>
         </div>
         <div v-else class="mb-4 text-center text-muted-foreground">
-            <p>Ingresa el código de 6 dígitos enviado a tu correo</p>
+            <p v-if="props.otpChannel === 'whatsapp'">
+                Ingresa el código de 6 dígitos enviado a tu <strong>WhatsApp</strong>
+            </p>
+            <p v-else-if="props.otpChannel === 'both'">
+                Ingresa el código de 6 dígitos enviado a tu <strong>correo y WhatsApp</strong>
+            </p>
+            <p v-else>
+                Ingresa el código de 6 dígitos enviado a tu <strong>correo</strong>
+            </p>
         </div>
 
         <div v-if="status" class="mb-4 text-center text-sm font-medium text-green-600">
@@ -248,10 +262,26 @@ onUnmounted(() => {
                 <div class="text-center">
                     <p class="text-sm text-muted-foreground">
                         <span v-if="config.login_type === 'email'">
-                            Código enviado al email <span class="font-medium">{{ censoredEmailRef || otpForm.credential }}</span>
+                            <span v-if="props.otpChannel === 'whatsapp'">
+                                Código enviado por WhatsApp al número asociado con <span class="font-medium">{{ censoredEmailRef || otpForm.credential }}</span>
+                            </span>
+                            <span v-else-if="props.otpChannel === 'both'">
+                                Código enviado al email <span class="font-medium">{{ censoredEmailRef || otpForm.credential }}</span> y WhatsApp
+                            </span>
+                            <span v-else>
+                                Código enviado al email <span class="font-medium">{{ censoredEmailRef || otpForm.credential }}</span>
+                            </span>
                         </span>
                         <span v-else>
-                            Código enviado al email <span class="font-medium">{{ censoredEmailRef }}</span> asociado al documento <span class="font-medium">{{ otpForm.credential }}</span>
+                            <span v-if="props.otpChannel === 'whatsapp'">
+                                Código enviado por WhatsApp al número asociado con el documento <span class="font-medium">{{ otpForm.credential }}</span>
+                            </span>
+                            <span v-else-if="props.otpChannel === 'both'">
+                                Código enviado al email <span class="font-medium">{{ censoredEmailRef }}</span> y WhatsApp asociados al documento <span class="font-medium">{{ otpForm.credential }}</span>
+                            </span>
+                            <span v-else>
+                                Código enviado al email <span class="font-medium">{{ censoredEmailRef }}</span> asociado al documento <span class="font-medium">{{ otpForm.credential }}</span>
+                            </span>
                         </span>
                     </p>
                 </div>
