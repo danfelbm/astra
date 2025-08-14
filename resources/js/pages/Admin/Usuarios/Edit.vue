@@ -50,6 +50,7 @@ interface Props {
         is_system: boolean;
         description?: string;
     }>;
+    canAssignRoles: boolean;
 }
 
 const props = defineProps<Props>();
@@ -251,7 +252,8 @@ const submit = () => {
                         </div>
 
                         <div class="grid gap-4 md:grid-cols-2">
-                            <div>
+                            <!-- Campo de rol condicional basado en permisos -->
+                            <div v-if="canAssignRoles">
                                 <Label for="role_id">Rol *</Label>
                                 <Select v-model="form.role_id">
                                     <SelectTrigger :class="{ 'border-red-500': form.errors.role_id }">
@@ -270,6 +272,18 @@ const submit = () => {
                                 <p v-if="form.errors.role_id" class="text-sm text-red-600 mt-1">
                                     {{ form.errors.role_id }}
                                 </p>
+                            </div>
+                            <!-- Mostrar rol actual cuando no tiene permisos para cambiarlo -->
+                            <div v-else>
+                                <Label>Rol actual</Label>
+                                <div class="p-3 bg-muted rounded-md">
+                                    <p class="text-sm font-medium">
+                                        {{ roles.find(r => r.value === form.role_id)?.label || 'Sin rol asignado' }}
+                                    </p>
+                                    <p class="text-xs text-muted-foreground mt-1">
+                                        No tienes permisos para cambiar el rol de este usuario
+                                    </p>
+                                </div>
                             </div>
 
                             <div>

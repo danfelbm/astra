@@ -132,4 +132,17 @@ return [
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Default User Role
+    |--------------------------------------------------------------------------
+    |
+    | This value determines the default role ID that will be assigned to new
+    | users when they are created by someone who doesn't have the 
+    | 'users.assign_roles' permission.
+    |
+    */
+
+    'default_user_role_id' => env('DEFAULT_USER_ROLE_ID', 4),
+
 ];

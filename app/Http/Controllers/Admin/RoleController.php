@@ -336,6 +336,7 @@ class RoleController extends Controller
                         'users.edit' => 'Editar usuarios',
                         'users.delete' => 'Eliminar usuarios',
                         'users.export' => 'Exportar usuarios',
+                        'users.assign_roles' => 'Asignar roles a usuarios',
                     ],
                 ],
                 'votaciones' => [

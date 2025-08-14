@@ -191,6 +191,7 @@ class UserController extends Controller
         return Inertia::render('Admin/Usuarios/Create', [
             'cargos' => $cargos,
             'roles' => $roles,
+            'canAssignRoles' => auth()->user()->hasPermission('users.assign_roles'),
         ]);
     }
 
@@ -202,11 +203,11 @@ class UserController extends Controller
         // Verificación de permisos adicional como respaldo
         $this->authorizeAction('users.create');
         
-        $validated = $request->validate([
+        // Validación condicional del role_id basada en el permiso
+        $rules = [
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
-            'role_id' => 'required|exists:roles,id',
             'cargo_id' => ['nullable', function ($attribute, $value, $fail) {
                 if ($value && $value !== 'none' && !\App\Models\Cargo::find($value)) {
                     $fail('El cargo seleccionado no es válido.');
@@ -220,7 +221,16 @@ class UserController extends Controller
             'municipio_id' => 'nullable|exists:municipios,id',
             'localidad_id' => 'nullable|exists:localidades,id',
             'activo' => 'boolean',
-        ]);
+        ];
+
+        // Solo requerir role_id si el usuario tiene permiso para asignar roles
+        if (auth()->user()->hasPermission('users.assign_roles')) {
+            $rules['role_id'] = 'required|exists:roles,id';
+        } else {
+            $rules['role_id'] = 'nullable|exists:roles,id';
+        }
+
+        $validated = $request->validate($rules);
 
         // Validar coherencia geográfica
         if ($validated['localidad_id']) {
@@ -246,8 +256,16 @@ class UserController extends Controller
         $validated['password'] = Hash::make($validated['password']);
         $validated['activo'] = $validated['activo'] ?? true;
 
+        // Determinar el role_id basado en permisos
+        if (auth()->user()->hasPermission('users.assign_roles')) {
+            // El usuario tiene permiso para asignar roles, usar el rol seleccionado
+            $roleId = $validated['role_id'];
+        } else {
+            // El usuario NO tiene permiso, usar el rol por defecto
+            $roleId = config('app.default_user_role_id', 4);
+        }
+        
         // Remover role_id del array de datos validados
-        $roleId = $validated['role_id'];
         unset($validated['role_id']);
         
         // Crear el usuario
@@ -305,6 +323,7 @@ class UserController extends Controller
             'user' => $usuario,
             'cargos' => $cargos,
             'roles' => $roles,
+            'canAssignRoles' => auth()->user()->hasPermission('users.assign_roles'),
         ]);
     }
 
@@ -316,11 +335,11 @@ class UserController extends Controller
         // Verificación de permisos adicional como respaldo
         $this->authorizeAction('users.edit');
         
-        $validated = $request->validate([
+        // Validación condicional del role_id basada en el permiso
+        $rules = [
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users,email,' . $usuario->id,
             'password' => ['nullable', 'confirmed', Rules\Password::defaults()],
-            'role_id' => 'required|exists:roles,id',
             'cargo_id' => ['nullable', function ($attribute, $value, $fail) {
                 if ($value && $value !== 'none' && !\App\Models\Cargo::find($value)) {
                     $fail('El cargo seleccionado no es válido.');
@@ -334,7 +353,17 @@ class UserController extends Controller
             'municipio_id' => 'nullable|exists:municipios,id',
             'localidad_id' => 'nullable|exists:localidades,id',
             'activo' => 'boolean',
-        ]);
+        ];
+
+        // Solo requerir role_id si el usuario tiene permiso para asignar roles
+        if (auth()->user()->hasPermission('users.assign_roles')) {
+            $rules['role_id'] = 'required|exists:roles,id';
+        } else {
+            // Si no tiene permiso, no validar role_id (será ignorado)
+            $rules['role_id'] = 'nullable|exists:roles,id';
+        }
+
+        $validated = $request->validate($rules);
 
         // Validar coherencia geográfica
         if ($validated['localidad_id']) {
@@ -364,15 +393,22 @@ class UserController extends Controller
             $validated['password'] = Hash::make($validated['password']);
         }
 
+        // Manejar actualización de rol basado en permisos
+        $roleId = null;
+        if (auth()->user()->hasPermission('users.assign_roles')) {
+            // El usuario tiene permiso para cambiar roles
+            $roleId = $validated['role_id'] ?? null;
+        }
+        // Si no tiene permiso, el roleId permanece null y no se actualiza el rol
+        
         // Remover role_id del array de datos validados
-        $roleId = $validated['role_id'] ?? null;
         unset($validated['role_id']);
         
         // Actualizar el usuario
         $usuario->update($validated);
         
-        // Actualizar el rol del usuario si se proporcionó
-        if ($roleId) {
+        // Solo actualizar el rol si el usuario tiene permiso y se proporcionó un role_id
+        if ($roleId !== null && auth()->user()->hasPermission('users.assign_roles')) {
             // Remover roles anteriores y asignar el nuevo
             $usuario->roles()->sync([$roleId => [
                 'assigned_at' => now(),
