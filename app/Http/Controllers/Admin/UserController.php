@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\Cargo;
 use App\Traits\HasAdvancedFilters;
+use App\Traits\AuthorizesActions;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Hash;
@@ -14,12 +15,15 @@ use Illuminate\Support\Facades\DB;
 
 class UserController extends Controller
 {
-    use HasAdvancedFilters;
+    use HasAdvancedFilters, AuthorizesActions;
     /**
      * Display a listing of the resource.
      */
     public function index(Request $request)
     {
+        // Verificación de permisos adicional como respaldo
+        $this->authorizeAction('users.view');
+        
         $query = User::with(['territorio', 'departamento', 'municipio', 'localidad', 'cargo']);
 
         // Definir campos permitidos para filtrar
@@ -154,6 +158,9 @@ class UserController extends Controller
      */
     public function create()
     {
+        // Verificación de permisos adicional como respaldo
+        $this->authorizeAction('users.create');
+        
         $cargos = Cargo::orderBy('nombre')->get();
         
         // Obtener el tenant actual del usuario autenticado
@@ -192,6 +199,9 @@ class UserController extends Controller
      */
     public function store(Request $request)
     {
+        // Verificación de permisos adicional como respaldo
+        $this->authorizeAction('users.create');
+        
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
@@ -258,6 +268,9 @@ class UserController extends Controller
      */
     public function edit(User $usuario)
     {
+        // Verificación de permisos adicional como respaldo
+        $this->authorizeAction('users.edit');
+        
         $usuario->load(['territorio', 'departamento', 'municipio', 'localidad', 'cargo', 'roles']);
         $cargos = Cargo::orderBy('nombre')->get();
         
@@ -300,6 +313,9 @@ class UserController extends Controller
      */
     public function update(Request $request, User $usuario)
     {
+        // Verificación de permisos adicional como respaldo
+        $this->authorizeAction('users.edit');
+        
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users,email,' . $usuario->id,
@@ -373,6 +389,9 @@ class UserController extends Controller
      */
     public function destroy(User $usuario)
     {
+        // Verificación de permisos adicional como respaldo
+        $this->authorizeAction('users.delete');
+        
         // No permitir eliminar el propio usuario
         if ($usuario->id === auth()->id()) {
             return back()->with('error', 'No puedes eliminar tu propio usuario.');
@@ -399,6 +418,9 @@ class UserController extends Controller
      */
     public function toggleActive(User $usuario)
     {
+        // Verificación de permisos adicional como respaldo
+        $this->authorizeAction('users.edit');
+        
         // No permitir desactivar el propio usuario
         if ($usuario->id === auth()->id()) {
             return back()->with('error', 'No puedes desactivar tu propio usuario.');

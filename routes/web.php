@@ -139,77 +139,153 @@ Route::get('admin/dashboard', function () {
 // Admin routes
 Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.')->group(function () {
     // Tenants routes (solo super admin)
-    Route::resource('tenants', TenantController::class);
-    Route::post('tenants/switch', [TenantController::class, 'switch'])->name('tenants.switch');
+    Route::resource('tenants', TenantController::class)
+        ->middleware('permission'); // El middleware inferirá el permiso de la acción
+    Route::post('tenants/switch', [TenantController::class, 'switch'])
+        ->middleware('permission:tenants.switch')
+        ->name('tenants.switch');
     
     // Roles routes
-    Route::resource('roles', RoleController::class);
-    Route::get('roles/{role}/permissions', [RoleController::class, 'permissions'])->name('roles.permissions');
-    Route::post('roles/{role}/segments', [RoleController::class, 'attachSegments'])->name('roles.attach-segments');
+    Route::resource('roles', RoleController::class)
+        ->middleware('permission'); // El middleware inferirá el permiso de la acción
+    Route::get('roles/{role}/permissions', [RoleController::class, 'permissions'])
+        ->middleware('permission:roles.view')
+        ->name('roles.permissions');
+    Route::post('roles/{role}/segments', [RoleController::class, 'attachSegments'])
+        ->middleware('permission:roles.edit')
+        ->name('roles.attach-segments');
     
     // Segments routes
-    Route::resource('segments', SegmentController::class);
-    Route::post('segments/{segment}/evaluate', [SegmentController::class, 'evaluate'])->name('segments.evaluate');
-    Route::post('segments/{segment}/clear-cache', [SegmentController::class, 'clearCache'])->name('segments.clear-cache');
+    Route::resource('segments', SegmentController::class)
+        ->middleware('permission'); // El middleware inferirá el permiso de la acción
+    Route::post('segments/{segment}/evaluate', [SegmentController::class, 'evaluate'])
+        ->middleware('permission:segments.edit')
+        ->name('segments.evaluate');
+    Route::post('segments/{segment}/clear-cache', [SegmentController::class, 'clearCache'])
+        ->middleware('permission:segments.edit')
+        ->name('segments.clear-cache');
     
-    Route::resource('votaciones', VotacionController::class)->except(['show']);
+    Route::resource('votaciones', VotacionController::class)
+        ->except(['show'])
+        ->middleware('permission'); // El middleware inferirá el permiso de la acción
     Route::post('votaciones/{votacione}/toggle-status', [VotacionController::class, 'toggleStatus'])
+        ->middleware('permission:votaciones.edit')
         ->name('votaciones.toggle-status');
     Route::match(['GET', 'POST', 'DELETE'], 'votaciones/{votacione}/votantes', [VotacionController::class, 'manageVotantes'])
+        ->middleware('permission:votaciones.manage_voters')
         ->name('votaciones.manage-votantes');
     Route::post('votaciones/{votacione}/importar-votantes', [VotacionController::class, 'importarVotantes'])
+        ->middleware('permission:votaciones.manage_voters')
         ->name('votaciones.importar-votantes');
     
     // Cargos routes
-    Route::resource('cargos', CargoController::class);
-    Route::get('cargos-tree', [CargoController::class, 'getTree'])->name('cargos.tree');
-    Route::get('cargos-for-convocatorias', [CargoController::class, 'getCargosForConvocatorias'])->name('cargos.for-convocatorias');
+    Route::resource('cargos', CargoController::class)
+        ->middleware('permission'); // El middleware inferirá el permiso de la acción
+    Route::get('cargos-tree', [CargoController::class, 'getTree'])
+        ->middleware('permission:cargos.view')
+        ->name('cargos.tree');
+    Route::get('cargos-for-convocatorias', [CargoController::class, 'getCargosForConvocatorias'])
+        ->middleware('permission:cargos.view')
+        ->name('cargos.for-convocatorias');
     
     // Periodos Electorales routes
-    Route::resource('periodos-electorales', PeriodoElectoralController::class);
-    Route::get('periodos-disponibles', [PeriodoElectoralController::class, 'getPeriodosDisponibles'])->name('periodos.disponibles');
-    Route::get('periodos-por-estado/{estado}', [PeriodoElectoralController::class, 'getPeriodosPorEstado'])->name('periodos.por-estado');
+    Route::resource('periodos-electorales', PeriodoElectoralController::class)
+        ->middleware('permission'); // El middleware inferirá el permiso de la acción
+    Route::get('periodos-disponibles', [PeriodoElectoralController::class, 'getPeriodosDisponibles'])
+        ->middleware('permission:periodos.view')
+        ->name('periodos.disponibles');
+    Route::get('periodos-por-estado/{estado}', [PeriodoElectoralController::class, 'getPeriodosPorEstado'])
+        ->middleware('permission:periodos.view')
+        ->name('periodos.por-estado');
     
     // Asambleas routes
-    Route::resource('asambleas', AsambleaController::class);
+    Route::resource('asambleas', AsambleaController::class)
+        ->middleware('permission'); // El middleware inferirá el permiso de la acción
     Route::match(['GET', 'POST', 'DELETE', 'PUT'], 'asambleas/{asamblea}/participantes', [AsambleaController::class, 'manageParticipantes'])
+        ->middleware('permission:asambleas.manage_participants')
         ->name('asambleas.manage-participantes');
     
     // Convocatorias routes
-    Route::resource('convocatorias', ConvocatoriaController::class);
-    Route::get('convocatorias-disponibles', [ConvocatoriaController::class, 'getConvocatoriasDisponibles'])->name('convocatorias.disponibles');
-    Route::get('convocatorias-por-estado/{estado}', [ConvocatoriaController::class, 'getConvocatoriasPorEstado'])->name('convocatorias.por-estado');
+    Route::resource('convocatorias', ConvocatoriaController::class)
+        ->middleware('permission'); // El middleware inferirá el permiso de la acción
+    Route::get('convocatorias-disponibles', [ConvocatoriaController::class, 'getConvocatoriasDisponibles'])
+        ->middleware('permission:convocatorias.view')
+        ->name('convocatorias.disponibles');
+    Route::get('convocatorias-por-estado/{estado}', [ConvocatoriaController::class, 'getConvocatoriasPorEstado'])
+        ->middleware('permission:convocatorias.view')
+        ->name('convocatorias.por-estado');
     
     // Candidaturas admin routes - Rutas específicas ANTES del resource
-    Route::get('candidaturas/configuracion', [AdminCandidaturaController::class, 'configuracion'])->name('candidaturas.configuracion');
-    Route::post('candidaturas/configuracion', [AdminCandidaturaController::class, 'guardarConfiguracion'])->name('candidaturas.guardar-configuracion');
-    Route::post('candidaturas/configuracion/{configuracion}/activar', [AdminCandidaturaController::class, 'activarConfiguracion'])->name('candidaturas.activar-configuracion');
-    Route::get('candidaturas-por-estado/{estado}', [AdminCandidaturaController::class, 'getCandidaturasPorEstado'])->name('candidaturas.por-estado');
-    Route::get('candidaturas-configuracion-activa', [AdminCandidaturaController::class, 'getConfiguracionActiva'])->name('candidaturas.configuracion-activa');
-    Route::get('candidaturas-estadisticas', [AdminCandidaturaController::class, 'getEstadisticas'])->name('candidaturas.estadisticas');
+    Route::get('candidaturas/configuracion', [AdminCandidaturaController::class, 'configuracion'])
+        ->middleware('permission:candidaturas.view')
+        ->name('candidaturas.configuracion');
+    Route::post('candidaturas/configuracion', [AdminCandidaturaController::class, 'guardarConfiguracion'])
+        ->middleware('permission:candidaturas.create')
+        ->name('candidaturas.guardar-configuracion');
+    Route::post('candidaturas/configuracion/{configuracion}/activar', [AdminCandidaturaController::class, 'activarConfiguracion'])
+        ->middleware('permission:candidaturas.approve')
+        ->name('candidaturas.activar-configuracion');
+    Route::get('candidaturas-por-estado/{estado}', [AdminCandidaturaController::class, 'getCandidaturasPorEstado'])
+        ->middleware('permission:candidaturas.view')
+        ->name('candidaturas.por-estado');
+    Route::get('candidaturas-configuracion-activa', [AdminCandidaturaController::class, 'getConfiguracionActiva'])
+        ->middleware('permission:candidaturas.view')
+        ->name('candidaturas.configuracion-activa');
+    Route::get('candidaturas-estadisticas', [AdminCandidaturaController::class, 'getEstadisticas'])
+        ->middleware('permission:candidaturas.view')
+        ->name('candidaturas.estadisticas');
     
     // Resource routes después de las rutas específicas
-    Route::resource('candidaturas', AdminCandidaturaController::class)->only(['index', 'show']);
-    Route::get('candidaturas/{candidatura}/historial', [AdminCandidaturaController::class, 'historial'])->name('candidaturas.historial');
-    Route::post('candidaturas/{candidatura}/aprobar', [AdminCandidaturaController::class, 'aprobar'])->name('candidaturas.aprobar');
-    Route::post('candidaturas/{candidatura}/rechazar', [AdminCandidaturaController::class, 'rechazar'])->name('candidaturas.rechazar');
-    Route::post('candidaturas/{candidatura}/volver-borrador', [AdminCandidaturaController::class, 'volverABorrador'])->name('candidaturas.volver-borrador');
+    Route::resource('candidaturas', AdminCandidaturaController::class)
+        ->only(['index', 'show'])
+        ->middleware('permission:candidaturas.view');
+    Route::get('candidaturas/{candidatura}/historial', [AdminCandidaturaController::class, 'historial'])
+        ->middleware('permission:candidaturas.view')
+        ->name('candidaturas.historial');
+    Route::post('candidaturas/{candidatura}/aprobar', [AdminCandidaturaController::class, 'aprobar'])
+        ->middleware('permission:candidaturas.approve')
+        ->name('candidaturas.aprobar');
+    Route::post('candidaturas/{candidatura}/rechazar', [AdminCandidaturaController::class, 'rechazar'])
+        ->middleware('permission:candidaturas.reject')
+        ->name('candidaturas.rechazar');
+    Route::post('candidaturas/{candidatura}/volver-borrador', [AdminCandidaturaController::class, 'volverABorrador'])
+        ->middleware('permission:candidaturas.approve')
+        ->name('candidaturas.volver-borrador');
     
     // Rutas para aprobación de campos individuales
-    Route::post('candidaturas/{candidatura}/campos/{campoId}/aprobar', [AdminCandidaturaController::class, 'aprobarCampo'])->name('candidaturas.aprobar-campo');
-    Route::post('candidaturas/{candidatura}/campos/{campoId}/rechazar', [AdminCandidaturaController::class, 'rechazarCampo'])->name('candidaturas.rechazar-campo');
-    Route::get('candidaturas/{candidatura}/estado-aprobacion-campos', [AdminCandidaturaController::class, 'getEstadoAprobacionCampos'])->name('candidaturas.estado-campos');
-    Route::post('candidaturas/{candidatura}/aprobar-global', [AdminCandidaturaController::class, 'aprobarGlobal'])->name('candidaturas.aprobar-global');
+    Route::post('candidaturas/{candidatura}/campos/{campoId}/aprobar', [AdminCandidaturaController::class, 'aprobarCampo'])
+        ->middleware('permission:candidaturas.approve')
+        ->name('candidaturas.aprobar-campo');
+    Route::post('candidaturas/{candidatura}/campos/{campoId}/rechazar', [AdminCandidaturaController::class, 'rechazarCampo'])
+        ->middleware('permission:candidaturas.reject')
+        ->name('candidaturas.rechazar-campo');
+    Route::get('candidaturas/{candidatura}/estado-aprobacion-campos', [AdminCandidaturaController::class, 'getEstadoAprobacionCampos'])
+        ->middleware('permission:candidaturas.view')
+        ->name('candidaturas.estado-campos');
+    Route::post('candidaturas/{candidatura}/aprobar-global', [AdminCandidaturaController::class, 'aprobarGlobal'])
+        ->middleware('permission:candidaturas.approve')
+        ->name('candidaturas.aprobar-global');
     
     // Postulaciones admin routes  
-    Route::resource('postulaciones', AdminPostulacionController::class)->only(['index', 'show'])->parameters([
-        'postulaciones' => 'postulacion'
-    ]);
-    Route::post('postulaciones/{postulacion}/cambiar-estado', [AdminPostulacionController::class, 'cambiarEstado'])->name('postulaciones.cambiar-estado');
-    Route::get('postulaciones-reportes', [AdminPostulacionController::class, 'reportes'])->name('postulaciones.reportes');
-    Route::get('postulaciones-estadisticas', [AdminPostulacionController::class, 'estadisticas'])->name('postulaciones.estadisticas');
-    Route::get('postulaciones-por-estado/{estado}', [AdminPostulacionController::class, 'porEstado'])->name('postulaciones.por-estado');
-    Route::get('postulaciones-exportar', [AdminPostulacionController::class, 'exportar'])->name('postulaciones.exportar');
+    Route::resource('postulaciones', AdminPostulacionController::class)
+        ->only(['index', 'show'])
+        ->parameters(['postulaciones' => 'postulacion'])
+        ->middleware('permission:postulaciones.view');
+    Route::post('postulaciones/{postulacion}/cambiar-estado', [AdminPostulacionController::class, 'cambiarEstado'])
+        ->middleware('permission:postulaciones.review')
+        ->name('postulaciones.cambiar-estado');
+    Route::get('postulaciones-reportes', [AdminPostulacionController::class, 'reportes'])
+        ->middleware('permission:postulaciones.view')
+        ->name('postulaciones.reportes');
+    Route::get('postulaciones-estadisticas', [AdminPostulacionController::class, 'estadisticas'])
+        ->middleware('permission:postulaciones.view')
+        ->name('postulaciones.estadisticas');
+    Route::get('postulaciones-por-estado/{estado}', [AdminPostulacionController::class, 'porEstado'])
+        ->middleware('permission:postulaciones.view')
+        ->name('postulaciones.por-estado');
+    Route::get('postulaciones-exportar', [AdminPostulacionController::class, 'exportar'])
+        ->middleware('permission:postulaciones.view')
+        ->name('postulaciones.exportar');
     
     // Import routes
     Route::get('imports/{import}', [ImportController::class, 'show'])->name('imports.show');
@@ -219,12 +295,20 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
     Route::get('votaciones/{votacion}/imports/active', [ImportController::class, 'active'])->name('votaciones.imports.active');
     
     // Configuration routes
-    Route::get('configuracion', [ConfiguracionController::class, 'index'])->name('configuracion.index');
-    Route::post('configuracion', [ConfiguracionController::class, 'update'])->name('configuracion.update');
+    Route::get('configuracion', [ConfiguracionController::class, 'index'])
+        ->middleware('permission:settings.view')
+        ->name('configuracion.index');
+    Route::post('configuracion', [ConfiguracionController::class, 'update'])
+        ->middleware('permission:settings.edit')
+        ->name('configuracion.update');
     
     // Users management routes
-    Route::resource('usuarios', UserController::class)->except(['show']);
-    Route::post('usuarios/{usuario}/toggle-active', [UserController::class, 'toggleActive'])->name('usuarios.toggle-active');
+    Route::resource('usuarios', UserController::class)
+        ->except(['show'])
+        ->middleware('permission'); // El middleware inferirá el permiso de la acción
+    Route::post('usuarios/{usuario}/toggle-active', [UserController::class, 'toggleActive'])
+        ->middleware('permission:users.edit')
+        ->name('usuarios.toggle-active');
     
     // Geographic routes for cascade selection
     Route::prefix('geographic')->name('geographic.')->group(function () {

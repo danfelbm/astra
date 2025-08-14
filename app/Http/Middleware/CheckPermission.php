@@ -55,14 +55,15 @@ class CheckPermission
         
         // Mapear rutas a permisos
         $routePermissionMap = [
-            // Usuarios
-            'admin.users.index' => 'users.view',
-            'admin.users.show' => 'users.view',
-            'admin.users.create' => 'users.create',
-            'admin.users.store' => 'users.create',
-            'admin.users.edit' => 'users.edit',
-            'admin.users.update' => 'users.edit',
-            'admin.users.destroy' => 'users.delete',
+            // Usuarios - NOTA: La ruta es 'usuarios' no 'users'
+            'admin.usuarios.index' => 'users.view',
+            'admin.usuarios.show' => 'users.view',
+            'admin.usuarios.create' => 'users.create',
+            'admin.usuarios.store' => 'users.create',
+            'admin.usuarios.edit' => 'users.edit',
+            'admin.usuarios.update' => 'users.edit',
+            'admin.usuarios.destroy' => 'users.delete',
+            'admin.usuarios.toggle-active' => 'users.edit',
             
             // Votaciones
             'admin.votaciones.index' => 'votaciones.view',
