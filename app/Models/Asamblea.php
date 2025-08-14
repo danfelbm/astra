@@ -42,9 +42,23 @@ class Asamblea extends Model
     {
         $tenantId = app(\App\Services\TenantService::class)->getCurrentTenant()?->id;
         
+        $relation = $this->belongsToMany(User::class, 'asamblea_usuario', 'asamblea_id', 'usuario_id')
+            ->withPivot(['tenant_id', 'tipo_participacion', 'asistio', 'hora_registro'])
+            ->withTimestamps();
+            
+        // Solo aplicar filtro de tenant si existe un tenant activo
+        if ($tenantId) {
+            $relation->wherePivot('tenant_id', $tenantId);
+        }
+        
+        return $relation;
+    }
+    
+    // Relación con todos los participantes sin filtro de tenant (para administración)
+    public function allParticipantes(): BelongsToMany
+    {
         return $this->belongsToMany(User::class, 'asamblea_usuario', 'asamblea_id', 'usuario_id')
             ->withPivot(['tenant_id', 'tipo_participacion', 'asistio', 'hora_registro'])
-            ->wherePivot('tenant_id', $tenantId)
             ->withTimestamps();
     }
 
@@ -277,9 +291,9 @@ class Asamblea extends Model
             return true;
         }
 
-        $asistentes = $this->participantes()
-            ->wherePivot('asistio', true)
-            ->count();
+        // Usar allParticipantes si es super admin, participantes si no
+        $relation = auth()->user()?->isSuperAdmin() ? $this->allParticipantes() : $this->participantes();
+        $asistentes = $relation->wherePivot('asistio', true)->count();
 
         return $asistentes >= $this->quorum_minimo;
     }
@@ -287,15 +301,17 @@ class Asamblea extends Model
     // Obtener cantidad de asistentes
     public function getAsistentesCount(): int
     {
-        return $this->participantes()
-            ->wherePivot('asistio', true)
-            ->count();
+        // Usar allParticipantes si es super admin, participantes si no
+        $relation = auth()->user()?->isSuperAdmin() ? $this->allParticipantes() : $this->participantes();
+        return $relation->wherePivot('asistio', true)->count();
     }
 
     // Obtener cantidad total de participantes invitados
     public function getParticipantesCount(): int
     {
-        return $this->participantes()->count();
+        // Usar allParticipantes si es super admin, participantes si no
+        $relation = auth()->user()?->isSuperAdmin() ? $this->allParticipantes() : $this->participantes();
+        return $relation->count();
     }
 
     // Formateo de fechas para la UI

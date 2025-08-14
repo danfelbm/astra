@@ -312,11 +312,7 @@ class AsambleaController extends Controller
             'territorio', 
             'departamento', 
             'municipio', 
-            'localidad',
-            'participantes' => function($query) {
-                $query->orderBy('asamblea_usuario.tipo_participacion')
-                      ->orderBy('users.name');
-            }
+            'localidad'
         ]);
 
         return Inertia::render('Admin/Asambleas/Show', [
@@ -333,6 +329,7 @@ class AsambleaController extends Controller
                 'participantes_count' => $asamblea->getParticipantesCount(),
             ]),
             'puede_gestionar_participantes' => Auth::user()->hasPermission('asambleas.manage_participants'),
+            'filterFieldsConfig' => $this->getParticipantesFilterFieldsConfig(),
         ]);
     }
 
@@ -434,6 +431,106 @@ class AsambleaController extends Controller
     }
 
     /**
+     * Obtener participantes paginados con filtros
+     */
+    public function getParticipantes(Request $request, Asamblea $asamblea)
+    {
+        // Verificar permisos
+        if (!Auth::user()->hasPermission('asambleas.view')) {
+            abort(403, 'No tienes permisos para ver participantes');
+        }
+
+        // Construir query manualmente con los joins necesarios
+        $query = User::query()
+            ->join('asamblea_usuario', 'users.id', '=', 'asamblea_usuario.usuario_id')
+            ->where('asamblea_usuario.asamblea_id', $asamblea->id);
+        
+        // Aplicar filtro de tenant si no es super admin
+        if (!Auth::user()->isSuperAdmin()) {
+            $tenantId = app(\App\Services\TenantService::class)->getCurrentTenant()?->id;
+            if ($tenantId) {
+                $query->where('asamblea_usuario.tenant_id', $tenantId);
+            }
+        }
+        
+        $query->select('users.*', 
+                'asamblea_usuario.tipo_participacion',
+                'asamblea_usuario.asistio',
+                'asamblea_usuario.hora_registro',
+                'asamblea_usuario.tenant_id'
+            );
+
+        // Definir campos permitidos para filtrar
+        $allowedFields = [
+            'name', 'email', 'tipo_participacion', 'asistio',
+        ];
+        
+        // Campos para búsqueda rápida
+        $quickSearchFields = ['name', 'email'];
+
+        // Aplicar filtros avanzados
+        $this->applyAdvancedFilters($query, $request, $allowedFields, $quickSearchFields);
+        
+        // Aplicar filtros simples si existen
+        if ($request->filled('tipo_participacion') && !$request->filled('advanced_filters')) {
+            $query->where('asamblea_usuario.tipo_participacion', $request->tipo_participacion);
+        }
+        
+        if ($request->has('asistio') && !$request->filled('advanced_filters')) {
+            $query->where('asamblea_usuario.asistio', $request->asistio === 'true' || $request->asistio === '1');
+        }
+
+        // Ordenamiento
+        $query->orderBy('asamblea_usuario.tipo_participacion')
+              ->orderBy('users.name');
+
+        $participantes = $query->paginate(20)->withQueryString();
+
+        return response()->json([
+            'participantes' => $participantes,
+            'filterFieldsConfig' => $this->getParticipantesFilterFieldsConfig(),
+        ]);
+    }
+
+    /**
+     * Obtener configuración de campos para filtros avanzados de participantes
+     */
+    protected function getParticipantesFilterFieldsConfig(): array
+    {
+        return [
+            [
+                'name' => 'name',
+                'label' => 'Nombre',
+                'type' => 'text',
+            ],
+            [
+                'name' => 'email',
+                'label' => 'Email',
+                'type' => 'text',
+            ],
+            [
+                'name' => 'tipo_participacion',
+                'label' => 'Tipo de Participación',
+                'type' => 'select',
+                'options' => [
+                    ['value' => 'asistente', 'label' => 'Asistente'],
+                    ['value' => 'moderador', 'label' => 'Moderador'],
+                    ['value' => 'secretario', 'label' => 'Secretario'],
+                ],
+            ],
+            [
+                'name' => 'asistio',
+                'label' => 'Asistencia',
+                'type' => 'select',
+                'options' => [
+                    ['value' => 1, 'label' => 'Presente'],
+                    ['value' => 0, 'label' => 'Ausente'],
+                ],
+            ],
+        ];
+    }
+
+    /**
      * Gestionar participantes de la asamblea
      */
     public function manageParticipantes(Request $request, Asamblea $asamblea)
@@ -445,7 +542,9 @@ class AsambleaController extends Controller
 
         if ($request->isMethod('GET')) {
             // Obtener participantes asignados y disponibles
-            $participantesAsignados = $asamblea->participantes()->get();
+            // Usar allParticipantes si es super admin
+            $relation = Auth::user()->isSuperAdmin() ? $asamblea->allParticipantes() : $asamblea->participantes();
+            $participantesAsignados = $relation->get();
             $participantesDisponibles = User::where('activo', true)
                 ->whereNotIn('id', $participantesAsignados->pluck('id'))
                 ->get();
@@ -469,7 +568,9 @@ class AsambleaController extends Controller
             }
 
             // Obtener el tenant_id actual
-            $tenantId = app(\App\Services\TenantService::class)->getCurrentTenant()->id;
+            $tenantService = app(\App\Services\TenantService::class);
+            $currentTenant = $tenantService->getCurrentTenant();
+            $tenantId = $currentTenant ? $currentTenant->id : 1; // Default a 1 si no hay tenant
             
             // Preparar los datos para attach con tenant_id y tipo de participación
             $attachData = [];
@@ -482,7 +583,9 @@ class AsambleaController extends Controller
                 ];
             }
             
-            $asamblea->participantes()->attach($attachData);
+            // Usar allParticipantes si es super admin para attach
+            $relation = Auth::user()->isSuperAdmin() ? $asamblea->allParticipantes() : $asamblea->participantes();
+            $relation->attach($attachData);
 
             return back()->with('success', 'Participantes asignados exitosamente.');
         }
@@ -497,7 +600,9 @@ class AsambleaController extends Controller
                 return back()->withErrors($validator->errors());
             }
 
-            $asamblea->participantes()->detach($request->participante_id);
+            // Usar allParticipantes si es super admin para detach
+            $relation = Auth::user()->isSuperAdmin() ? $asamblea->allParticipantes() : $asamblea->participantes();
+            $relation->detach($request->participante_id);
 
             return back()->with('success', 'Participante removido exitosamente.');
         }
@@ -527,7 +632,9 @@ class AsambleaController extends Controller
                 }
             }
 
-            $asamblea->participantes()->updateExistingPivot($request->participante_id, $updateData);
+            // Usar allParticipantes si es super admin para updateExistingPivot
+            $relation = Auth::user()->isSuperAdmin() ? $asamblea->allParticipantes() : $asamblea->participantes();
+            $relation->updateExistingPivot($request->participante_id, $updateData);
 
             return back()->with('success', 'Participante actualizado exitosamente.');
         }

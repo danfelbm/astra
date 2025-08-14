@@ -41,7 +41,7 @@ import type { AdvancedFilterConfig, PresetFilter } from '@/types/filters';
 // Props
 interface Props {
   config: AdvancedFilterConfig;
-  route: string;
+  route?: string;  // Opcional para modo AJAX
   routeParams?: Record<string, any>;
   preserveScroll?: boolean;
   preserveState?: boolean;
@@ -168,19 +168,9 @@ const formatDate = (date: Date) => {
             <Input
               v-model="state.quickSearch"
               :placeholder="quickSearchPlaceholder"
-              class="pl-10 pr-10"
+              class="pl-10"
               @keyup.enter="applyFilters"
             />
-            <Button
-              v-if="state.quickSearch"
-              type="button"
-              variant="ghost"
-              size="sm"
-              class="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 p-0"
-              @click="state.quickSearch = ''"
-            >
-              <X class="h-4 w-4" />
-            </Button>
           </div>
 
           <!-- Botón de filtros avanzados -->
