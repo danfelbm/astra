@@ -192,8 +192,8 @@ class User extends Authenticatable
 
         // Verificar permisos en los roles del usuario
         foreach ($this->roles as $role) {
-            $permissions = $role->permissions ?? [];
-            if (in_array('*', $permissions) || in_array($permission, $permissions)) {
+            // Usar el método hasPermission del rol que incluye verificación de wildcards
+            if ($role->hasPermission($permission)) {
                 return true;
             }
         }

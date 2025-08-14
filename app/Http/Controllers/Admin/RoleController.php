@@ -7,13 +7,14 @@ use App\Models\Role;
 use App\Models\Segment;
 use App\Services\TenantService;
 use App\Traits\HasAdvancedFilters;
+use App\Traits\AuthorizesActions;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class RoleController extends Controller
 {
-    use HasAdvancedFilters;
+    use HasAdvancedFilters, AuthorizesActions;
 
     protected TenantService $tenantService;
 
@@ -27,6 +28,9 @@ class RoleController extends Controller
      */
     public function index(Request $request): Response
     {
+        // Verificación de permisos adicional como respaldo
+        $this->authorizeAction('roles.view');
+        
         // Obtener el tenant actual (si el servicio está disponible)
         $currentTenantId = null;
         try {
@@ -90,10 +94,8 @@ class RoleController extends Controller
      */
     public function create(): Response
     {
-        // Solo admin y super admin pueden crear roles
-        if (!auth()->user()->isAdmin()) {
-            abort(403, 'No autorizado');
-        }
+        // Verificación de permisos específicos en lugar de isAdmin()
+        $this->authorizeAction('roles.create');
 
         return Inertia::render('Admin/Roles/Create', [
             'segments' => Segment::select('id', 'name', 'description')->get(),
@@ -107,9 +109,8 @@ class RoleController extends Controller
      */
     public function store(Request $request)
     {
-        if (!auth()->user()->isAdmin()) {
-            abort(403, 'No autorizado');
-        }
+        // Verificación de permisos específicos en lugar de isAdmin()
+        $this->authorizeAction('roles.create');
 
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:roles,name',
@@ -156,6 +157,9 @@ class RoleController extends Controller
      */
     public function show(Role $role): Response
     {
+        // Verificación de permisos adicional como respaldo
+        $this->authorizeAction('roles.view');
+        
         // Cargar solo datos esenciales para evitar referencias circulares
         $role->loadCount(['users', 'segments']);
         $role->load(['segments:id,name,description']);
@@ -171,9 +175,8 @@ class RoleController extends Controller
      */
     public function edit(Role $role): Response
     {
-        if (!auth()->user()->isAdmin()) {
-            abort(403, 'No autorizado');
-        }
+        // Verificación de permisos específicos en lugar de isAdmin()
+        $this->authorizeAction('roles.edit');
 
         // No permitir editar roles del sistema si no es super admin
         if ($role->isSystemRole() && !auth()->user()->isSuperAdmin()) {
@@ -197,9 +200,8 @@ class RoleController extends Controller
      */
     public function update(Request $request, Role $role)
     {
-        if (!auth()->user()->isAdmin()) {
-            abort(403, 'No autorizado');
-        }
+        // Verificación de permisos específicos en lugar de isAdmin()
+        $this->authorizeAction('roles.edit');
 
         // No permitir editar roles del sistema si no es super admin
         if ($role->isSystemRole() && !auth()->user()->isSuperAdmin()) {
@@ -240,9 +242,8 @@ class RoleController extends Controller
      */
     public function destroy(Role $role)
     {
-        if (!auth()->user()->isAdmin()) {
-            abort(403, 'No autorizado');
-        }
+        // Verificación de permisos específicos en lugar de isAdmin()
+        $this->authorizeAction('roles.delete');
 
         // No permitir eliminar roles del sistema
         if ($role->isSystemRole()) {
