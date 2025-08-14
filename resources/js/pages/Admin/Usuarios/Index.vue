@@ -14,13 +14,6 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import {
     AlertDialog,
     AlertDialogAction,
     AlertDialogCancel,
@@ -30,7 +23,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Plus, MoreHorizontal, Edit, Trash, Power, ChevronLeft, ChevronRight } from 'lucide-vue-next';
+import { Plus, Edit, Trash, Power, ChevronLeft, ChevronRight } from 'lucide-vue-next';
 import AdvancedFilters from '@/components/filters/AdvancedFilters.vue';
 import type { AdvancedFilterConfig } from '@/types/filters';
 import { type BreadcrumbItemType } from '@/types';
@@ -121,7 +114,7 @@ const getRoleBadgeVariant = (role: string) => {
 };
 
 const getStatusBadgeVariant = (activo: boolean) => {
-    return activo ? 'success' : 'destructive';
+    return activo ? 'default' : 'destructive';
 };
 
 const formatLocation = (user: User) => {
@@ -186,7 +179,6 @@ const changePage = (page: number) => {
                                     <TableHead>Usuario</TableHead>
                                     <TableHead>Rol</TableHead>
                                     <TableHead>Ubicación</TableHead>
-                                    <TableHead>Cargo</TableHead>
                                     <TableHead>Estado</TableHead>
                                     <TableHead>Registro</TableHead>
                                     <TableHead class="text-right">Acciones</TableHead>
@@ -214,14 +206,6 @@ const changePage = (page: number) => {
                                         </div>
                                     </TableCell>
                                     <TableCell>
-                                        <span v-if="user.cargo" class="text-sm">
-                                            {{ user.cargo.nombre }}
-                                        </span>
-                                        <span v-else class="text-sm text-muted-foreground">
-                                            Sin cargo
-                                        </span>
-                                    </TableCell>
-                                    <TableCell>
                                         <Badge :variant="getStatusBadgeVariant(user.activo)">
                                             {{ user.activo ? 'Activo' : 'Inactivo' }}
                                         </Badge>
@@ -231,38 +215,35 @@ const changePage = (page: number) => {
                                             {{ new Date(user.created_at).toLocaleDateString() }}
                                         </div>
                                     </TableCell>
-                                    <TableCell class="text-right">
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger as-child>
-                                                <Button variant="ghost" size="sm">
-                                                    <MoreHorizontal class="h-4 w-4" />
+                                    <TableCell>
+                                        <div class="flex justify-end gap-1">
+                                            <Link :href="route('admin.usuarios.edit', user.id)">
+                                                <Button variant="ghost" size="icon" class="h-8 w-8">
+                                                    <Edit class="h-4 w-4" />
                                                 </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end">
-                                                <Link :href="route('admin.usuarios.edit', user.id)">
-                                                    <DropdownMenuItem>
-                                                        <Edit class="mr-2 h-4 w-4" />
-                                                        Editar
-                                                    </DropdownMenuItem>
-                                                </Link>
-                                                <DropdownMenuItem @click="toggleUserStatus(user)">
-                                                    <Power class="mr-2 h-4 w-4" />
-                                                    {{ user.activo ? 'Desactivar' : 'Activar' }}
-                                                </DropdownMenuItem>
-                                                <DropdownMenuSeparator />
-                                                <DropdownMenuItem 
-                                                    class="text-destructive"
-                                                    @click="confirmDelete(user)"
-                                                >
-                                                    <Trash class="mr-2 h-4 w-4" />
-                                                    Eliminar
-                                                </DropdownMenuItem>
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
+                                            </Link>
+                                            <Button 
+                                                variant="ghost" 
+                                                size="icon" 
+                                                class="h-8 w-8"
+                                                @click="toggleUserStatus(user)"
+                                                :title="user.activo ? 'Desactivar' : 'Activar'"
+                                            >
+                                                <Power class="h-4 w-4" :class="user.activo ? 'text-green-600' : 'text-gray-400'" />
+                                            </Button>
+                                            <Button 
+                                                variant="ghost" 
+                                                size="icon" 
+                                                class="h-8 w-8 hover:text-destructive"
+                                                @click="confirmDelete(user)"
+                                            >
+                                                <Trash class="h-4 w-4" />
+                                            </Button>
+                                        </div>
                                     </TableCell>
                                 </TableRow>
                                 <TableRow v-if="users.data.length === 0">
-                                    <TableCell colspan="7" class="text-center">
+                                    <TableCell colspan="6" class="text-center">
                                         <div class="py-12 text-muted-foreground">
                                             No se encontraron usuarios
                                         </div>
