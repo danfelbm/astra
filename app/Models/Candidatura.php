@@ -14,6 +14,7 @@ class Candidatura extends Model
 {
     use HasFactory, HasTenant;
 
+
     protected $fillable = [
         'user_id',
         'formulario_data',

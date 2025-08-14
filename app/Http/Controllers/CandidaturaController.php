@@ -759,8 +759,9 @@ class CandidaturaController extends Controller
             // Marcar como autoguardado
             $candidatura->ultimo_autoguardado = now();
             
-            // Guardar sin validación completa
-            $candidatura->save();
+            // Guardar sin validación completa y sin disparar eventos del Observer
+            // Esto evita crear entradas redundantes en el historial
+            $candidatura->saveQuietly();
             
             return response()->json([
                 'success' => true,
@@ -828,8 +829,9 @@ class CandidaturaController extends Controller
             // Marcar como autoguardado
             $candidatura->ultimo_autoguardado = now();
             
-            // Guardar sin validación completa
-            $candidatura->save();
+            // Guardar sin validación completa y sin disparar eventos del Observer
+            // Esto evita crear entradas redundantes en el historial
+            $candidatura->saveQuietly();
             
             return response()->json([
                 'success' => true,
