@@ -8,6 +8,8 @@ import { type BreadcrumbItemType } from '@/types';
 import { type FormField } from '@/types/forms';
 import HistorialCandidatura from '@/components/forms/HistorialCandidatura.vue';
 import AprobacionCampo from '@/components/AprobacionCampo.vue';
+import FileFieldDisplay from '@/components/display/FileFieldDisplay.vue';
+import RepeaterFieldDisplay from '@/components/display/RepeaterFieldDisplay.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Head, useForm, router } from '@inertiajs/vue3';
 import { ArrowLeft, CheckCircle, Clock, User, XCircle, MessageSquare, AlertTriangle, Undo2, CheckSquare, XSquare } from 'lucide-vue-next';
@@ -175,7 +177,45 @@ const getFieldValue = (campo: FormField, value: any) => {
         case 'checkbox':
             return Array.isArray(value) ? value.join(', ') : value;
         case 'date':
-            return new Date(value).toLocaleDateString('es-ES');
+        case 'datepicker':
+            try {
+                return new Date(value).toLocaleDateString('es-ES', {
+                    year: 'numeric',
+                    month: 'long', 
+                    day: 'numeric'
+                });
+            } catch {
+                return value;
+            }
+        case 'disclaimer':
+            // Formatear campo disclaimer con accepted y timestamp
+            if (typeof value === 'object' && value !== null) {
+                if (value.accepted === true) {
+                    try {
+                        const fecha = new Date(value.timestamp);
+                        return `✅ Aceptado el ${fecha.toLocaleDateString('es-ES', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        })}`;
+                    } catch {
+                        return '✅ Aceptado';
+                    }
+                } else {
+                    return '❌ No aceptado';
+                }
+            }
+            return value;
+        case 'file':
+            // Los archivos se manejan con el componente FileFieldDisplay
+            return null;
+        case 'repeater':
+            // Los repetidores se manejan con el componente RepeaterFieldDisplay  
+            return null;
+        case 'textarea':
+            return value;
         default:
             return value;
     }
@@ -511,7 +551,22 @@ const formatearFecha = (fecha: string) => {
                                     {{ campo.description }}
                                 </p>
                                 <div class="mt-2">
-                                    <p class="text-muted-foreground">
+                                    <!-- Componente especial para archivos -->
+                                    <FileFieldDisplay 
+                                        v-if="campo.type === 'file'"
+                                        :value="candidatura.formulario_data[campo.id]"
+                                        :label="campo.title"
+                                    />
+                                    <!-- Componente especial para repetidores -->
+                                    <RepeaterFieldDisplay 
+                                        v-else-if="campo.type === 'repeater'"
+                                        :value="candidatura.formulario_data[campo.id]"
+                                        :label="campo.title"
+                                        :fields="campo.repeaterConfig?.fields"
+                                        :item-name="campo.repeaterConfig?.itemName || 'Elemento'"
+                                    />
+                                    <!-- Valor normal para otros tipos de campos -->
+                                    <p v-else class="text-muted-foreground">
                                         {{ getFieldValue(campo, candidatura.formulario_data[campo.id]) }}
                                     </p>
                                 </div>
