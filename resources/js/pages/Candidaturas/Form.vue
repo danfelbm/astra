@@ -52,7 +52,7 @@ const { uploadFiles } = useFileUpload();
 // Archivos pendientes de subir por campo
 const pendingFiles = ref<Record<string, File[]>>({});
 
-// Detectar si los datos existentes no corresponden a la configuración actual
+// Detectar si los datos existentes no corresponden a la configuración actual (sin uso pero IMPORTANTE)
 const datosDesactualizados = computed(() => {
     if (!props.is_editing || !props.candidatura?.formulario_data) return false;
     
@@ -607,17 +607,6 @@ const toggleSidebar = () => {
                                     <p v-if="hayCamposOcultos" class="mt-1 text-blue-600">
                                         Algunos campos están ocultos porque no son editables en candidaturas aprobadas o no pueden modificarse después del envío.
                                     </p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Aviso de datos desactualizados -->
-                        <div v-if="datosDesactualizados" class="p-4 bg-amber-50 border border-amber-200 rounded-lg">
-                            <div class="flex items-start gap-3">
-                                <AlertCircle class="h-5 w-5 text-amber-600 mt-0.5" />
-                                <div class="text-sm text-amber-800">
-                                    <p class="font-medium">Formulario Actualizado</p>
-                                    <p class="mt-1">El formulario de candidatura ha sido actualizado con nuevos campos. Por favor, completa todos los campos requeridos antes de enviar tu candidatura.</p>
                                 </div>
                             </div>
                         </div>
