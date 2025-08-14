@@ -27,16 +27,28 @@ class RoleController extends Controller
      */
     public function index(Request $request): Response
     {
-        // Obtener el tenant actual
-        $currentTenantId = app(\App\Services\TenantService::class)->getCurrentTenant()?->id;
+        // Obtener el tenant actual (si el servicio está disponible)
+        $currentTenantId = null;
+        try {
+            $currentTenantId = app(\App\Services\TenantService::class)->getCurrentTenant()?->id;
+        } catch (\Exception $e) {
+            // Si no hay TenantService o está deshabilitado, continuar sin tenant
+        }
         
         // Mostrar roles del sistema y roles del tenant actual
+        // IMPORTANTE: No cargar relaciones completas para evitar referencias circulares
+        // que causan memory exhausted al serializar para Inertia
         $query = Role::query()
-            ->with(['users', 'segments'])
-            ->where(function($q) use ($currentTenantId) {
+            ->withCount(['users', 'segments'])
+            ->with(['segments:id,name']); // Solo cargar id y nombre de segments
+        
+        // Si hay tenant, filtrar por él; si no, mostrar todos
+        if ($currentTenantId !== null) {
+            $query->where(function($q) use ($currentTenantId) {
                 $q->whereNull('tenant_id')  // Roles del sistema
                   ->orWhere('tenant_id', $currentTenantId); // Roles del tenant actual
             });
+        }
 
         // Aplicar filtros simples
         if ($request->filled('search')) {
@@ -51,7 +63,8 @@ class RoleController extends Controller
         $query = $this->applyAdvancedFilters($query, $request);
 
         // Si no es super admin, no mostrar el rol super_admin
-        if (!auth()->user()->isSuperAdmin()) {
+        $user = auth()->user();
+        if (!$user || !$user->isSuperAdmin()) {
             $query->where('name', '!=', 'super_admin');
         }
 
@@ -60,8 +73,8 @@ class RoleController extends Controller
                       ->paginate(10)
                       ->withQueryString();
 
-        // Obtener todos los segmentos disponibles
-        $segments = Segment::all();
+        // Obtener todos los segmentos disponibles (solo id y nombre para evitar memoria)
+        $segments = Segment::select('id', 'name', 'description')->get();
 
         return Inertia::render('Admin/Roles/Index', [
             'roles' => $roles,
@@ -83,7 +96,7 @@ class RoleController extends Controller
         }
 
         return Inertia::render('Admin/Roles/Create', [
-            'segments' => Segment::all(),
+            'segments' => Segment::select('id', 'name', 'description')->get(),
             'availablePermissions' => $this->getAvailablePermissions(),
             'modules' => $this->getAvailableModules(),
         ]);
@@ -111,7 +124,13 @@ class RoleController extends Controller
             'segment_ids.*' => 'exists:segments,id',
         ]);
 
-        $currentTenant = $this->tenantService->getCurrentTenant();
+        // Obtener el tenant actual (si está disponible)
+        $currentTenant = null;
+        try {
+            $currentTenant = $this->tenantService->getCurrentTenant();
+        } catch (\Exception $e) {
+            // Si no hay TenantService o está deshabilitado, continuar sin tenant
+        }
         
         $role = Role::create([
             'tenant_id' => $currentTenant ? $currentTenant->id : null,
@@ -137,11 +156,13 @@ class RoleController extends Controller
      */
     public function show(Role $role): Response
     {
-        $role->load(['users', 'segments']);
+        // Cargar solo datos esenciales para evitar referencias circulares
+        $role->loadCount(['users', 'segments']);
+        $role->load(['segments:id,name,description']);
 
         return Inertia::render('Admin/Roles/Show', [
             'role' => $role,
-            'userCount' => $role->users()->count(),
+            'userCount' => $role->users_count,
         ]);
     }
 
@@ -159,11 +180,12 @@ class RoleController extends Controller
             abort(403, 'No se pueden editar roles del sistema');
         }
 
-        $role->load('segments');
+        // Cargar solo los IDs de segments para evitar problemas de memoria
+        $role->load('segments:id,name');
 
         return Inertia::render('Admin/Roles/Edit', [
             'role' => $role,
-            'segments' => Segment::all(),
+            'segments' => Segment::select('id', 'name', 'description')->get(),
             'availablePermissions' => $this->getAvailablePermissions(),
             'modules' => $this->getAvailableModules(),
             'selectedSegments' => $role->segments->pluck('id')->toArray(),
