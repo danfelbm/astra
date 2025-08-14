@@ -56,7 +56,7 @@ const emit = defineEmits<Emits>();
 const convocatorias = ref<Convocatoria[]>([]);
 const loading = ref(false);
 const error = ref<string | null>(null);
-const selectedConvocatoria = ref<number | undefined>(props.modelValue);
+const selectedConvocatoria = ref<string | undefined>(props.modelValue?.toString());
 
 // Cargar convocatorias disponibles
 const cargarConvocatorias = async () => {
@@ -99,17 +99,17 @@ const convocatoriasAgrupadas = computed(() => {
 
 // Computed para obtener la convocatoria seleccionada
 const convocatoriaSeleccionada = computed(() => {
-    return convocatorias.value.find(c => c.id === selectedConvocatoria.value);
+    return convocatorias.value.find(c => c.id === Number(selectedConvocatoria.value));
 });
 
 // Watch para cambios en el valor seleccionado
 watch(selectedConvocatoria, (newValue) => {
-    emit('update:modelValue', newValue);
+    emit('update:modelValue', newValue ? Number(newValue) : undefined);
 });
 
 // Watch para cambios externos en el modelValue
 watch(() => props.modelValue, (newValue) => {
-    selectedConvocatoria.value = newValue;
+    selectedConvocatoria.value = newValue?.toString();
 });
 
 // Formatear fecha
@@ -185,8 +185,12 @@ onMounted(() => {
                         <Card
                             v-for="convocatoria in convocatoriasAgrupadas.abiertas"
                             :key="convocatoria.id"
-                            class="cursor-pointer hover:shadow-md transition-shadow"
-                            :class="{ 'ring-2 ring-primary': selectedConvocatoria === convocatoria.id }"
+                            class="cursor-pointer hover:shadow-md transition-all duration-200"
+                            :class="{ 
+                                'ring-2 ring-primary bg-primary/5 dark:bg-primary/10': selectedConvocatoria === convocatoria.id.toString(),
+                                'hover:bg-muted/50': selectedConvocatoria !== convocatoria.id.toString()
+                            }"
+                            @click="selectedConvocatoria = convocatoria.id.toString()"
                         >
                             <CardHeader class="pb-3">
                                 <div class="flex items-start gap-3">
@@ -249,8 +253,12 @@ onMounted(() => {
                         <Card
                             v-for="convocatoria in convocatoriasAgrupadas.futuras"
                             :key="convocatoria.id"
-                            class="cursor-pointer hover:shadow-md transition-shadow opacity-90"
-                            :class="{ 'ring-2 ring-primary': selectedConvocatoria === convocatoria.id }"
+                            class="cursor-pointer hover:shadow-md transition-all duration-200 opacity-90"
+                            :class="{ 
+                                'ring-2 ring-primary bg-primary/5 dark:bg-primary/10': selectedConvocatoria === convocatoria.id.toString(),
+                                'hover:bg-muted/50': selectedConvocatoria !== convocatoria.id.toString()
+                            }"
+                            @click="selectedConvocatoria = convocatoria.id.toString()"
                         >
                             <CardHeader class="pb-3">
                                 <div class="flex items-start gap-3">

@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import FileUploadField from '@/components/forms/FileUploadField.vue';
@@ -14,7 +15,7 @@ import RepeaterField from '@/components/forms/RepeaterField.vue';
 import { type BreadcrumbItemType } from '@/types';
 import { type FormField } from '@/types/forms';
 import AppLayout from '@/layouts/AppLayout.vue';
-import { Head, useForm } from '@inertiajs/vue3';
+import { Head, useForm, router } from '@inertiajs/vue3';
 import { ArrowLeft, Save, User, AlertCircle, Clock, CheckCircle, PanelLeft } from 'lucide-vue-next';
 import { computed, ref, watch, reactive, onMounted, onUnmounted } from 'vue';
 import { useFileUpload } from '@/composables/useFileUpload';
@@ -269,6 +270,43 @@ const isFormValid = computed(() => {
     return allValid;
 });
 
+// Computed para contar campos llenos vs total
+const progressInfo = computed(() => {
+    const totalCampos = camposVisibles.value.length;
+    let camposLlenos = 0;
+    
+    camposVisibles.value.forEach(campo => {
+        const value = form.formulario_data[campo.id];
+        let estaLleno = false;
+        
+        // Lógica similar a isFormValid pero para TODOS los campos (no solo requeridos)
+        if (campo.type === 'checkbox') {
+            estaLleno = Array.isArray(value) && value.length > 0;
+        } else if (campo.type === 'file') {
+            estaLleno = (Array.isArray(value) && value.length > 0) || 
+                       (pendingFiles.value[campo.id] && pendingFiles.value[campo.id].length > 0);
+        } else if (campo.type === 'convocatoria') {
+            estaLleno = value !== null && value !== undefined && value !== '';
+        } else if (campo.type === 'disclaimer') {
+            estaLleno = value && value.accepted === true;
+        } else if (campo.type === 'repeater') {
+            estaLleno = Array.isArray(value) && value.length > 0;
+        } else if (campo.type === 'datepicker') {
+            estaLleno = value !== null && value !== undefined && value !== '';
+        } else {
+            estaLleno = value && value.toString().trim() !== '';
+        }
+        
+        if (estaLleno) camposLlenos++;
+    });
+    
+    return {
+        llenos: camposLlenos,
+        total: totalCampos,
+        porcentaje: totalCampos > 0 ? Math.round((camposLlenos / totalCampos) * 100) : 0
+    };
+});
+
 const pageTitle = computed(() => {
     return props.is_editing ? 'Editar Candidatura' : 'Crear Candidatura';
 });
@@ -505,7 +543,7 @@ const toggleSidebar = () => {
                         }}
                     </p>
                 </div>
-                <Button variant="outline" @click="$inertia.visit('/candidaturas')">
+                <Button variant="outline" @click="router.visit('/candidaturas')">
                     <ArrowLeft class="mr-2 h-4 w-4" />
                     Volver
                 </Button>
@@ -826,44 +864,46 @@ const toggleSidebar = () => {
                 leave-from-class="translate-y-0 opacity-100"
                 leave-to-class="translate-y-4 opacity-0"
             >
-                <div v-if="true" class="fixed bottom-0 left-0 right-0 z-50 px-4 pb-4">
+                <div v-if="true" class="fixed bottom-0 left-0 right-0 z-50 px-2 sm:px-4 pb-2 sm:pb-4">
                     <div class="mx-auto max-w-7xl">
-                        <div class="backdrop-blur-lg bg-tertiary-60 dark:bg-gray-900/80 border border-gray-200/50 dark:border-gray-700/50 rounded-2xl shadow-2xl p-4">
-                            <div class="flex items-center justify-between gap-4">
-                                <!-- Izquierda: Ocultar sidebar + Cancelar -->
-                                <div class="flex items-center gap-2">
-                                    <!-- Botón Ocultar Sidebar -->
+                        <div class="backdrop-blur-lg bg-tertiary-60 dark:bg-gray-900/80 border border-gray-200/50 dark:border-gray-700/50 rounded-xl sm:rounded-2xl shadow-2xl p-3 sm:p-4">
+                            <!-- Diseño responsive: grid en móvil, flex en desktop -->
+                            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+                                <!-- Botón Ocultar Sidebar - solo en desktop -->
+                                <div class="hidden sm:flex items-center">
                                     <Button 
                                         variant="outline" 
                                         type="button"
                                         @click="toggleSidebar"
-                                        class="backdrop-blur-sm"
+                                        class="backdrop-blur-sm flex-shrink-0 text-xs sm:text-sm py-2 px-3"
                                     >
                                         <PanelLeft class="h-4 w-4" />
-                                        Ocultar sidebar
-                                    </Button>
-                                    
-                                    <!-- Botón Cancelar -->
-                                    <Button 
-                                        variant="outline" 
-                                        type="button"
-                                        @click="$inertia.visit('/candidaturas')"
-                                        class="backdrop-blur-sm"
-                                    >
-                                        <ArrowLeft class="mr-2 h-4 w-4" />
-                                        Cancelar
+                                        <span class="ml-2">Ocultar sidebar</span>
                                     </Button>
                                 </div>
                                 
-                                <!-- Derecha: Borrador + Enviar -->
-                                <div class="flex items-center gap-3">
+                                <!-- Barra de progreso - ancho completo en móvil, centrado en desktop -->
+                                <div class="flex-1 sm:max-w-xs lg:max-w-sm mx-0 sm:mx-4">
+                                    <div class="flex items-center gap-3">
+                                        <Progress :modelValue="progressInfo.porcentaje" class="flex-1" />
+                                        <span class="text-xs sm:text-sm text-muted-foreground whitespace-nowrap font-medium">
+                                            {{ progressInfo.llenos }} / {{ progressInfo.total }}
+                                        </span>
+                                    </div>
+                                    <p class="text-xs text-muted-foreground mt-1 text-center hidden sm:block">
+                                        Campos completados
+                                    </p>
+                                </div>
+                                
+                                <!-- Grupo acciones principales -->
+                                <div class="flex items-center gap-2 sm:gap-3">
                                     <!-- Botón Guardar Borrador (condicional) -->
                                     <Button 
                                         v-if="mostrarBotonBorrador"
                                         @click="saveManually"
                                         :disabled="isSaving"
                                         variant="outline"
-                                        class="backdrop-blur-sm"
+                                        class="backdrop-blur-sm flex-1 sm:flex-none text-xs sm:text-sm py-2 px-3"
                                     >
                                         <template v-if="isSaving">
                                             <Clock class="mr-2 h-4 w-4 animate-spin" />
@@ -879,10 +919,10 @@ const toggleSidebar = () => {
                                     <Button 
                                         @click="handleSubmit"
                                         :disabled="!isFormValid || form.processing"
-                                        class="bg-green-600 hover:bg-green-700 text-white border-green-600 hover:border-green-700 disabled:bg-gray-400 disabled:border-gray-400"
+                                        class="bg-green-600 hover:bg-green-700 text-white border-green-600 hover:border-green-700 disabled:bg-gray-400 disabled:border-gray-400 flex-1 sm:flex-none text-xs sm:text-sm py-2 px-3"
                                     >
-                                        <CheckCircle class="mr-2 h-4 w-4" />
-                                        {{ submitButtonText }}
+                                        <CheckCircle class="h-4 w-4" />
+                                        <span class="ml-2 whitespace-nowrap">{{ submitButtonText }}</span>
                                     </Button>
                                 </div>
                             </div>
