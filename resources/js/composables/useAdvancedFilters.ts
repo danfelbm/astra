@@ -22,8 +22,8 @@ export interface UseAdvancedFiltersOptions {
   // Configuración del filtro
   config: AdvancedFilterConfig;
   
-  // URL para aplicar los filtros (ruta de Inertia)
-  route: string;
+  // URL para aplicar los filtros (ruta de Inertia) - opcional para modo AJAX
+  route?: string;
   
   // Parámetros adicionales para la ruta
   routeParams?: Record<string, any>;
@@ -285,12 +285,17 @@ export function useAdvancedFilters(options: UseAdvancedFiltersOptions) {
     isLoading.value = true;
     const params = currentQueryParams.value;
     
-    // Callback personalizado
-    if (onApply) {
-      onApply(params);
+    // Si no hay ruta definida, solo ejecutar el callback (modo AJAX)
+    if (!route) {
+      if (onApply) {
+        onApply(params);
+      }
+      isLoading.value = false;
+      state.value.hasChanges = false;
+      return;
     }
     
-    // Aplicar usando Inertia
+    // Aplicar usando Inertia si hay ruta
     router.get(route, {
       ...routeParams,
       ...params,

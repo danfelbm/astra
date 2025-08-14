@@ -3,6 +3,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import AdvancedFilters from '@/components/filters/AdvancedFilters.vue';
+import type { AdvancedFilterConfig } from '@/types/filters';
 import {
     Dialog,
     DialogContent,
@@ -27,11 +29,14 @@ import {
     Clock,
     CheckCircle,
     XCircle,
-    FileText
+    FileText,
+    ChevronLeft,
+    ChevronRight
 } from 'lucide-vue-next';
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import axios from 'axios';
 
 interface Territorio {
     id: number;
@@ -91,12 +96,12 @@ interface Asamblea {
     alcanza_quorum: boolean;
     asistentes_count: number;
     participantes_count: number;
-    participantes?: Participante[];
 }
 
 interface Props {
     asamblea: Asamblea;
     puede_gestionar_participantes: boolean;
+    filterFieldsConfig: any[];
 }
 
 const props = defineProps<Props>();
@@ -109,6 +114,31 @@ const breadcrumbs: BreadcrumbItemType[] = [
 
 // Helper para obtener route
 const { route } = window as any;
+
+// Estado para participantes paginados
+const participantes = ref<Participante[]>([]);
+const participantesPagination = ref<any>({
+    current_page: 1,
+    last_page: 1,
+    per_page: 20,
+    total: 0,
+    from: 0,
+    to: 0,
+});
+const loadingParticipantes = ref(false);
+const currentFilters = ref<any>({});
+
+// Configuración para el componente de filtros avanzados
+const filterConfig: AdvancedFilterConfig = {
+    fields: props.filterFieldsConfig || [],
+    showQuickSearch: true,
+    quickSearchPlaceholder: 'Buscar por nombre o email...',
+    quickSearchFields: ['name', 'email'],
+    maxNestingLevel: 1,
+    allowSaveFilters: false,
+    debounceTime: 500,
+    autoApply: false,
+};
 
 // Estado para el modal de añadir participantes
 const modalAñadirAbierto = ref(false);
@@ -139,20 +169,65 @@ const getTipoParticipacionBadge = (tipo: string) => {
 
 // Obtener estadísticas
 const estadisticas = computed(() => {
-    const participantes = props.asamblea.participantes || [];
-    const moderadores = participantes.filter(p => p.pivot?.tipo_participacion === 'moderador').length;
-    const secretarios = participantes.filter(p => p.pivot?.tipo_participacion === 'secretario').length;
-    const asistentes = participantes.filter(p => p.pivot?.tipo_participacion === 'asistente').length;
-    const presentes = participantes.filter(p => p.pivot?.asistio === true).length;
+    const moderadores = participantes.value.filter(p => p.pivot?.tipo_participacion === 'moderador').length;
+    const secretarios = participantes.value.filter(p => p.pivot?.tipo_participacion === 'secretario').length;
+    const asistentes = participantes.value.filter(p => p.pivot?.tipo_participacion === 'asistente').length;
+    const presentes = participantes.value.filter(p => p.pivot?.asistio === true).length;
     
     return {
         moderadores,
         secretarios,
         asistentes,
         presentes,
-        total: participantes.length,
+        total: participantesPagination.value.total || 0,
     };
 });
+
+// Cargar participantes con filtros y paginación
+const cargarParticipantes = async (page = 1, filters = {}) => {
+    loadingParticipantes.value = true;
+    try {
+        const params = {
+            page,
+            ...filters,
+        };
+        
+        const response = await axios.get(route('admin.asambleas.participantes-list', props.asamblea.id), {
+            params,
+        });
+        
+        participantes.value = response.data.participantes.data;
+        participantesPagination.value = {
+            current_page: response.data.participantes.current_page,
+            last_page: response.data.participantes.last_page,
+            per_page: response.data.participantes.per_page,
+            total: response.data.participantes.total,
+            from: response.data.participantes.from,
+            to: response.data.participantes.to,
+        };
+    } catch (error) {
+        console.error('Error cargando participantes:', error);
+    } finally {
+        loadingParticipantes.value = false;
+    }
+};
+
+// Cambiar página
+const changePage = (page: number) => {
+    cargarParticipantes(page, currentFilters.value);
+};
+
+// Aplicar filtros
+const handleApplyFilters = (filters: any) => {
+    currentFilters.value = filters;
+    cargarParticipantes(1, filters);
+};
+
+// Limpiar filtros
+const handleClearFilters = () => {
+    currentFilters.value = {};
+    cargarParticipantes(1, {});
+};
 
 // Cargar participantes disponibles
 const abrirModalAñadir = async () => {
@@ -164,6 +239,11 @@ const abrirModalAñadir = async () => {
     } catch (error) {
         console.error('Error cargando participantes:', error);
     }
+};
+
+// Refrescar lista de participantes después de cambios
+const refrescarParticipantes = () => {
+    cargarParticipantes(participantesPagination.value.current_page, currentFilters.value);
 };
 
 // Añadir participantes seleccionados
@@ -179,6 +259,7 @@ const añadirParticipantes = () => {
             modalAñadirAbierto.value = false;
             participantesSeleccionados.value = [];
             tipoParticipacionNuevo.value = 'asistente';
+            refrescarParticipantes();
         },
     });
 };
@@ -190,6 +271,9 @@ const removerParticipante = (participanteId: number) => {
     router.delete(route('admin.asambleas.manage-participantes', props.asamblea.id), {
         data: { participante_id: participanteId },
         preserveScroll: true,
+        onSuccess: () => {
+            refrescarParticipantes();
+        },
     });
 };
 
@@ -200,6 +284,9 @@ const actualizarTipoParticipacion = (participanteId: number, tipo: string) => {
         tipo_participacion: tipo,
     }, {
         preserveScroll: true,
+        onSuccess: () => {
+            refrescarParticipantes();
+        },
     });
 };
 
@@ -214,6 +301,7 @@ const registrarAsistencia = (participanteId: number, asistio: boolean) => {
         preserveScroll: true,
         onFinish: () => {
             registrandoAsistencia.value = null;
+            refrescarParticipantes();
         },
     });
 };
@@ -227,6 +315,11 @@ const editarAsamblea = () => {
 const volver = () => {
     router.visit(route('admin.asambleas.index'));
 };
+
+// Cargar participantes al montar el componente
+onMounted(() => {
+    cargarParticipantes();
+});
 </script>
 
 <template>
@@ -338,6 +431,13 @@ const volver = () => {
                 </CardContent>
             </Card>
 
+            <!-- Filtros Avanzados -->
+            <AdvancedFilters
+                :config="filterConfig"
+                @apply="handleApplyFilters"
+                @clear="handleClearFilters"
+            />
+
             <!-- Participantes -->
             <Card>
                 <CardHeader>
@@ -345,7 +445,7 @@ const volver = () => {
                         <div>
                             <CardTitle>Participantes</CardTitle>
                             <CardDescription>
-                                {{ asamblea.participantes_count }} participantes registrados
+                                {{ participantesPagination.total }} participantes registrados
                             </CardDescription>
                         </div>
                         <div class="flex gap-2">
@@ -372,7 +472,11 @@ const volver = () => {
                         </Button>
                     </div>
 
-                    <Table>
+                    <div v-if="loadingParticipantes" class="flex justify-center py-8">
+                        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                    </div>
+                    
+                    <Table v-else>
                         <TableHeader>
                             <TableRow>
                                 <TableHead>Nombre</TableHead>
@@ -384,7 +488,7 @@ const volver = () => {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            <TableRow v-for="participante in asamblea.participantes" :key="participante.id">
+                            <TableRow v-for="participante in participantes" :key="participante.id">
                                 <TableCell class="font-medium">{{ participante.name }}</TableCell>
                                 <TableCell>{{ participante.email }}</TableCell>
                                 <TableCell>
@@ -439,13 +543,43 @@ const volver = () => {
                                     </div>
                                 </TableCell>
                             </TableRow>
-                            <TableRow v-if="!asamblea.participantes || asamblea.participantes.length === 0">
+                            <TableRow v-if="participantes.length === 0">
                                 <TableCell colspan="6" class="text-center py-8">
                                     <p class="text-muted-foreground">No hay participantes registrados</p>
                                 </TableCell>
                             </TableRow>
                         </TableBody>
                     </Table>
+
+                    <!-- Paginación -->
+                    <div v-if="participantesPagination.last_page > 1" class="flex items-center justify-between mt-4">
+                        <div class="text-sm text-muted-foreground">
+                            Mostrando {{ participantesPagination.from }} a {{ participantesPagination.to }} de {{ participantesPagination.total }} resultados
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                :disabled="participantesPagination.current_page === 1"
+                                @click="changePage(participantesPagination.current_page - 1)"
+                            >
+                                <ChevronLeft class="h-4 w-4" />
+                                Anterior
+                            </Button>
+                            <div class="text-sm">
+                                Página {{ participantesPagination.current_page }} de {{ participantesPagination.last_page }}
+                            </div>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                :disabled="participantesPagination.current_page === participantesPagination.last_page"
+                                @click="changePage(participantesPagination.current_page + 1)"
+                            >
+                                Siguiente
+                                <ChevronRight class="h-4 w-4" />
+                            </Button>
+                        </div>
+                    </div>
                 </CardContent>
             </Card>
 

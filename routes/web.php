@@ -204,6 +204,9 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
     Route::match(['GET', 'POST', 'DELETE', 'PUT'], 'asambleas/{asamblea}/participantes', [AsambleaController::class, 'manageParticipantes'])
         ->middleware('permission:asambleas.manage_participants')
         ->name('asambleas.manage-participantes');
+    Route::get('asambleas/{asamblea}/participantes-list', [AsambleaController::class, 'getParticipantes'])
+        ->middleware('permission:asambleas.view')
+        ->name('asambleas.participantes-list');
     
     // Convocatorias routes
     Route::resource('convocatorias', ConvocatoriaController::class)

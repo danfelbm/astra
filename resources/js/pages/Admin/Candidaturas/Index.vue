@@ -10,6 +10,7 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { Clock, Eye, Settings, UserCheck, AlertCircle } from 'lucide-vue-next';
 import AdvancedFilters from '@/components/filters/AdvancedFilters.vue';
+import Pagination from '@/components/ui/pagination/Pagination.vue';
 import type { AdvancedFilterConfig } from '@/types/filters';
 import { ref, watch } from 'vue';
 
@@ -222,24 +223,7 @@ const formatearFecha = (fecha: string) => {
                     </div>
 
                     <!-- Paginación -->
-                    <div v-if="candidaturas.links && candidaturas.links.length > 3" class="mt-6 flex justify-center">
-                        <div class="flex items-center gap-2">
-                            <template v-for="link in candidaturas.links" :key="link.label">
-                                <Button
-                                    v-if="link.url"
-                                    :variant="link.active ? 'default' : 'outline'"
-                                    size="sm"
-                                    @click="router.get(link.url)"
-                                    v-html="link.label"
-                                />
-                                <span
-                                    v-else
-                                    class="px-3 py-1 text-sm text-muted-foreground"
-                                    v-html="link.label"
-                                />
-                            </template>
-                        </div>
-                    </div>
+                    <Pagination :links="candidaturas.links" />
                 </CardContent>
             </Card>
         </div>
