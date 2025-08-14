@@ -102,14 +102,46 @@ const nextAction = computed(() => {
 });
 
 // Función para formatear fecha
-const formatearFecha = (fecha: string) => {
-    return new Date(fecha).toLocaleDateString('es-ES', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-    });
+const formatearFecha = (fecha: string | null | undefined) => {
+    if (!fecha) {
+        return 'Fecha no disponible';
+    }
+    
+    try {
+        // Intentar parsear la fecha
+        const dateObj = new Date(fecha);
+        
+        // Verificar si la fecha es válida
+        if (isNaN(dateObj.getTime())) {
+            // Si la fecha viene en formato dd/mm/yyyy HH:mm, intentar parsearlo
+            const parts = fecha.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})/);
+            if (parts) {
+                const [, day, month, year, hour, minute] = parts;
+                const parsedDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), parseInt(hour), parseInt(minute));
+                if (!isNaN(parsedDate.getTime())) {
+                    return parsedDate.toLocaleDateString('es-ES', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                }
+            }
+            return fecha; // Devolver la fecha tal cual si no se puede parsear
+        }
+        
+        return dateObj.toLocaleDateString('es-ES', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    } catch (error) {
+        console.error('Error al formatear fecha:', error);
+        return fecha || 'Fecha no disponible';
+    }
 };
 </script>
 
@@ -131,37 +163,39 @@ const formatearFecha = (fecha: string) => {
             <!-- Estado Actual -->
             <Card class="border-2">
                 <CardContent class="p-6">
-                    <div class="flex items-center gap-4">
-                        <div :class="[statusColor, 'p-3 rounded-full bg-opacity-10']">
-                            <component :is="statusIcon" class="h-8 w-8" />
-                        </div>
-                        
-                        <div class="flex-1">
-                            <h3 class="text-xl font-semibold mb-1">
-                                {{ hasCandidatura ? candidatura!.estado_label : 'Sin Candidatura' }}
-                            </h3>
+                    <div class="flex flex-col sm:flex-row sm:items-center gap-4">
+                        <div class="flex items-center gap-4 flex-1">
+                            <div :class="[statusColor, 'p-3 rounded-full bg-opacity-10 flex-shrink-0']">
+                                <component :is="statusIcon" class="h-8 w-8" />
+                            </div>
                             
-                            <p class="text-muted-foreground mb-2">
-                                {{ hasCandidatura 
-                                    ? `Versión ${candidatura!.version} - Actualizada el ${formatearFecha(candidatura!.updated_at)}`
-                                    : 'Aún no has creado tu perfil de candidatura'
-                                }}
-                            </p>
-
-                            <div v-if="hasCandidatura" class="flex items-center gap-2">
-                                <Badge :class="candidatura!.estado_color">
-                                    {{ candidatura!.estado_label }}
-                                </Badge>
+                            <div class="flex-1">
+                                <h3 class="text-xl font-semibold mb-1">
+                                    {{ hasCandidatura ? candidatura!.estado_label : 'Sin Candidatura' }}
+                                </h3>
                                 
-                                <Badge v-if="!candidatura!.tiene_datos" variant="outline" class="bg-yellow-50 text-yellow-700">
-                                    Incompleto
-                                </Badge>
+                                <p class="text-muted-foreground mb-2">
+                                    {{ hasCandidatura 
+                                        ? `Versión ${candidatura!.version} - Actualizada el ${formatearFecha(candidatura!.updated_at)}`
+                                        : 'Aún no has creado tu perfil de candidatura'
+                                    }}
+                                </p>
+
+                                <div v-if="hasCandidatura" class="flex items-center gap-2 flex-wrap">
+                                    <Badge :class="candidatura!.estado_color">
+                                        {{ candidatura!.estado_label }}
+                                    </Badge>
+                                    
+                                    <Badge v-if="!candidatura!.tiene_datos" variant="outline" class="bg-yellow-50 text-yellow-700">
+                                        Incompleto
+                                    </Badge>
+                                </div>
                             </div>
                         </div>
 
-                        <div v-if="nextAction" class="text-right">
-                            <Link :href="nextAction.href">
-                                <Button>
+                        <div v-if="nextAction" class="w-full sm:w-auto">
+                            <Link :href="nextAction.href" class="block">
+                                <Button class="w-full sm:w-auto">
                                     <component :is="nextAction.icon" class="mr-2 h-4 w-4" />
                                     {{ nextAction.text }}
                                 </Button>
