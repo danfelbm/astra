@@ -36,6 +36,7 @@ import {
 import { ref, computed, onMounted } from 'vue';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { toast } from 'vue-sonner';
 import axios from 'axios';
 
 interface Territorio {
@@ -196,7 +197,17 @@ const cargarParticipantes = async (page = 1, filters = {}) => {
             params,
         });
         
-        participantes.value = response.data.participantes.data;
+        // Mapear los datos correctamente desde el join
+        participantes.value = response.data.participantes.data.map((p: any) => ({
+            ...p,
+            pivot: {
+                tenant_id: p.tenant_id,
+                tipo_participacion: p.tipo_participacion || 'asistente',
+                asistio: p.asistio === 1 || p.asistio === true || p.asistio === '1',
+                hora_registro: p.hora_registro,
+            }
+        }));
+        
         participantesPagination.value = {
             current_page: response.data.participantes.current_page,
             last_page: response.data.participantes.last_page,
@@ -250,58 +261,169 @@ const refrescarParticipantes = () => {
 const añadirParticipantes = () => {
     if (participantesSeleccionados.value.length === 0) return;
 
+    const cantidadSeleccionados = participantesSeleccionados.value.length;
+    
     router.post(route('admin.asambleas.manage-participantes', props.asamblea.id), {
         participante_ids: participantesSeleccionados.value,
         tipo_participacion: tipoParticipacionNuevo.value,
     }, {
         preserveScroll: true,
+        preserveState: true,
+        only: [], // No actualizar ningún prop
         onSuccess: () => {
             modalAñadirAbierto.value = false;
             participantesSeleccionados.value = [];
             tipoParticipacionNuevo.value = 'asistente';
-            refrescarParticipantes();
+            
+            toast.success(`${cantidadSeleccionados} participante(s) añadido(s) exitosamente`, {
+                duration: 2000,
+            });
+            
+            // Recargar la lista solo si se añadieron participantes
+            // para actualizar la paginación y mostrar los nuevos
+            cargarParticipantes(participantesPagination.value.current_page, currentFilters.value);
+        },
+        onError: () => {
+            toast.error('Error al añadir participantes', {
+                description: 'Por favor intenta nuevamente',
+                duration: 3000,
+            });
         },
     });
 };
 
 // Remover participante
 const removerParticipante = (participanteId: number) => {
-    if (!confirm('¿Estás seguro de remover este participante?')) return;
+    const participante = participantes.value.find(p => p.id === participanteId);
+    const nombreParticipante = participante?.name || 'Participante';
+    
+    if (!confirm(`¿Estás seguro de remover a ${nombreParticipante} de la asamblea?`)) return;
+
+    // Eliminación optimista: remover inmediatamente de la lista
+    const indice = participantes.value.findIndex(p => p.id === participanteId);
+    const participanteRemovido = participantes.value[indice];
+    
+    if (indice !== -1) {
+        participantes.value.splice(indice, 1);
+        // Actualizar el contador total
+        participantesPagination.value.total -= 1;
+    }
 
     router.delete(route('admin.asambleas.manage-participantes', props.asamblea.id), {
         data: { participante_id: participanteId },
         preserveScroll: true,
+        preserveState: true,
+        only: [], // No actualizar ningún prop
         onSuccess: () => {
-            refrescarParticipantes();
+            toast.success(`${nombreParticipante} removido de la asamblea`, {
+                duration: 2000,
+            });
+        },
+        onError: () => {
+            // Restaurar si hay error
+            if (participanteRemovido && indice !== -1) {
+                participantes.value.splice(indice, 0, participanteRemovido);
+                participantesPagination.value.total += 1;
+            }
+            toast.error('Error al remover participante', {
+                duration: 3000,
+            });
         },
     });
 };
 
 // Actualizar tipo de participación
 const actualizarTipoParticipacion = (participanteId: number, tipo: string) => {
+    const participante = participantes.value.find(p => p.id === participanteId);
+    const nombreParticipante = participante?.name || 'Participante';
+    const tipoAnterior = participante?.pivot?.tipo_participacion;
+    
+    // Actualización optimista
+    if (participante && participante.pivot) {
+        participante.pivot.tipo_participacion = tipo;
+    }
+    
     router.put(route('admin.asambleas.manage-participantes', props.asamblea.id), {
         participante_id: participanteId,
         tipo_participacion: tipo,
     }, {
         preserveScroll: true,
+        preserveState: true,
+        only: [], // No actualizar ningún prop
         onSuccess: () => {
-            refrescarParticipantes();
+            const tipoLabel = tipo.charAt(0).toUpperCase() + tipo.slice(1);
+            toast.success(`${nombreParticipante} asignado como ${tipoLabel}`, {
+                duration: 2000,
+            });
+        },
+        onError: () => {
+            // Revertir en caso de error
+            if (participante && participante.pivot && tipoAnterior) {
+                participante.pivot.tipo_participacion = tipoAnterior;
+            }
+            toast.error('Error al actualizar el tipo de participación', {
+                duration: 3000,
+            });
         },
     });
 };
 
 // Registrar asistencia
 const registrarAsistencia = (participanteId: number, asistio: boolean) => {
+    // Evitar múltiples clicks mientras se procesa
+    if (registrandoAsistencia.value === participanteId) return;
+    
     registrandoAsistencia.value = participanteId;
     
+    // Actualización optimista: actualizar el estado local inmediatamente
+    const participante = participantes.value.find(p => p.id === participanteId);
+    const nombreParticipante = participante?.name || 'Participante';
+    
+    if (participante && participante.pivot) {
+        const estadoAnterior = participante.pivot.asistio;
+        participante.pivot.asistio = asistio;
+        if (asistio) {
+            participante.pivot.hora_registro = new Date().toISOString();
+        } else {
+            participante.pivot.hora_registro = null;
+        }
+    }
+    
+    // Usar router de Inertia pero sin recargar la página
     router.put(route('admin.asambleas.manage-participantes', props.asamblea.id), {
         participante_id: participanteId,
         asistio: asistio,
     }, {
         preserveScroll: true,
+        preserveState: true,
+        only: [], // No actualizar ningún prop, solo ejecutar la acción
+        onSuccess: () => {
+            // Mostrar notificación de éxito
+            if (asistio) {
+                toast.success(`${nombreParticipante} marcado como presente`, {
+                    duration: 2000,
+                });
+            } else {
+                toast.info(`${nombreParticipante} marcado como ausente`, {
+                    duration: 2000,
+                });
+            }
+        },
+        onError: () => {
+            // Si hay error, revertir el cambio optimista
+            if (participante && participante.pivot) {
+                participante.pivot.asistio = !asistio;
+                participante.pivot.hora_registro = null;
+            }
+            
+            // Mostrar notificación de error
+            toast.error('Error al actualizar la asistencia', {
+                description: 'Por favor intenta nuevamente',
+                duration: 3000,
+            });
+        },
         onFinish: () => {
             registrandoAsistencia.value = null;
-            refrescarParticipantes();
         },
     });
 };
@@ -498,13 +620,29 @@ onMounted(() => {
                                 </TableCell>
                                 <TableCell>
                                     <div v-if="puede_gestionar_participantes && asamblea.estado === 'en_curso'" class="flex items-center gap-2">
-                                        <Checkbox
-                                            :checked="participante.pivot?.asistio || false"
-                                            :disabled="registrandoAsistencia === participante.id"
-                                            @update:checked="(value) => registrarAsistencia(participante.id, value)"
-                                        />
-                                        <span v-if="participante.pivot?.asistio" class="text-green-600">Presente</span>
-                                        <span v-else class="text-gray-400">Ausente</span>
+                                        <div class="relative">
+                                            <Checkbox
+                                                :checked="participante.pivot?.asistio || false"
+                                                :disabled="registrandoAsistencia === participante.id"
+                                                @update:checked="(value) => registrarAsistencia(participante.id, value)"
+                                                :class="registrandoAsistencia === participante.id ? 'opacity-50' : ''"
+                                            />
+                                            <div v-if="registrandoAsistencia === participante.id" class="absolute inset-0 flex items-center justify-center">
+                                                <div class="animate-spin rounded-full h-3 w-3 border-b-2 border-primary"></div>
+                                            </div>
+                                        </div>
+                                        <span 
+                                            v-if="participante.pivot?.asistio" 
+                                            class="text-green-600 transition-all duration-300"
+                                        >
+                                            Presente
+                                        </span>
+                                        <span 
+                                            v-else 
+                                            class="text-gray-400 transition-all duration-300"
+                                        >
+                                            Ausente
+                                        </span>
                                     </div>
                                     <div v-else>
                                         <Badge v-if="participante.pivot?.asistio" class="bg-green-100 text-green-800">
