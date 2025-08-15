@@ -443,6 +443,18 @@ class RoleController extends Controller
                         'dashboard.admin' => 'Ver dashboard administrativo',
                     ],
                 ],
+                'formularios' => [
+                    'label' => 'Formularios (Admin)',
+                    'permissions' => [
+                        'formularios.view' => 'Ver todos los formularios',
+                        'formularios.create' => 'Crear formularios',
+                        'formularios.edit' => 'Editar formularios',
+                        'formularios.delete' => 'Eliminar formularios',
+                        'formularios.view_responses' => 'Ver respuestas de formularios',
+                        'formularios.export' => 'Exportar respuestas',
+                        'formularios.manage_permissions' => 'Gestionar permisos de formularios',
+                    ],
+                ],
             ],
             'frontend' => [
                 'votaciones' => [
@@ -500,6 +512,13 @@ class RoleController extends Controller
                         'dashboard.view' => 'Ver dashboard personal',
                     ],
                 ],
+                'formularios' => [
+                    'label' => 'Formularios',
+                    'permissions' => [
+                        'formularios.view_public' => 'Ver formularios públicos',
+                        'formularios.fill_public' => 'Llenar formularios públicos',
+                    ],
+                ],
             ],
         ];
     }
@@ -521,6 +540,7 @@ class RoleController extends Controller
                 'convocatorias' => 'Convocatorias (Gestión)',
                 'postulaciones' => 'Postulaciones (Gestión)',
                 'candidaturas' => 'Candidaturas (Gestión)',
+                'formularios' => 'Formularios (Gestión)',
                 'cargos' => 'Cargos',
                 'periodos' => 'Periodos Electorales',
                 'reports' => 'Reportes',
@@ -533,6 +553,7 @@ class RoleController extends Controller
                 'convocatorias' => 'Convocatorias',
                 'postulaciones' => 'Mis Postulaciones',
                 'candidaturas' => 'Mi Candidatura',
+                'formularios' => 'Formularios',
                 'profile' => 'Mi Perfil',
             ],
         ];

@@ -68,7 +68,7 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<Emits>();
 
 const formData = computed({
-    get: () => props.modelValue,
+    get: () => props.modelValue || {},
     set: (value) => emit('update:modelValue', value)
 });
 
@@ -99,7 +99,8 @@ watch(visibleFields, () => {
 });
 
 const updateField = (fieldId: string, value: any) => {
-    const newData = { ...formData.value };
+    const currentData = formData.value || {};
+    const newData = { ...currentData };
     newData[fieldId] = value;
     formData.value = newData;
 };

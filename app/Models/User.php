@@ -317,4 +317,36 @@ class User extends Authenticatable
         // Debe ser solo números y tener entre 10 y 15 dígitos
         return preg_match('/^\d{10,15}$/', $phone) === 1;
     }
+    
+    /**
+     * Obtener los formularios creados por el usuario
+     */
+    public function formulariosCreados()
+    {
+        return $this->hasMany(\App\Models\Formulario::class, 'creado_por');
+    }
+    
+    /**
+     * Obtener los formularios actualizados por el usuario
+     */
+    public function formulariosActualizados()
+    {
+        return $this->hasMany(\App\Models\Formulario::class, 'actualizado_por');
+    }
+    
+    /**
+     * Obtener las respuestas de formularios del usuario
+     */
+    public function respuestasFormularios()
+    {
+        return $this->hasMany(\App\Models\FormularioRespuesta::class, 'usuario_id');
+    }
+    
+    /**
+     * Obtener los permisos de formularios del usuario
+     */
+    public function permisosFormularios()
+    {
+        return $this->hasMany(\App\Models\FormularioPermiso::class, 'usuario_id');
+    }
 }

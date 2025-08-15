@@ -6,8 +6,10 @@ import { toast } from 'vue-sonner';
 interface AutoSaveOptions {
     /** URL para el autoguardado */
     url: string;
-    /** ID de la candidatura existente (opcional) */
-    candidaturaId?: number | null;
+    /** ID del recurso existente (opcional) - puede ser candidatura, formulario, etc. */
+    resourceId?: number | null;
+    /** Nombre del campo ID en la respuesta (default: 'candidatura_id') */
+    resourceIdField?: string;
     /** Tiempo de debounce en milisegundos (default: 3000) */
     debounceTime?: number;
     /** Si mostrar notificaciones de autoguardado (default: true) */
@@ -16,6 +18,8 @@ interface AutoSaveOptions {
     useLocalStorage?: boolean;
     /** Clave para localStorage */
     localStorageKey?: string;
+    /** Datos adicionales para enviar con cada petición */
+    additionalData?: Record<string, any>;
 }
 
 interface AutoSaveState {
@@ -25,8 +29,8 @@ interface AutoSaveState {
     lastSaved: Date | null;
     /** Mensaje del último error (si hubo) */
     lastError: string | null;
-    /** ID de la candidatura (se actualiza después del primer guardado) */
-    candidaturaId: number | null;
+    /** ID del recurso (se actualiza después del primer guardado) */
+    resourceId: number | null;
 }
 
 export function useAutoSave(
@@ -35,11 +39,13 @@ export function useAutoSave(
 ) {
     const {
         url,
-        candidaturaId: initialCandidaturaId = null,
+        resourceId: initialResourceId = null,
+        resourceIdField = 'candidatura_id',
         debounceTime = 3000,
         showNotifications = true,
         useLocalStorage = true,
-        localStorageKey = 'candidatura_draft',
+        localStorageKey = 'draft',
+        additionalData = {},
     } = options;
 
     // Estado del autoguardado
@@ -47,7 +53,7 @@ export function useAutoSave(
         status: 'idle',
         lastSaved: null,
         lastError: null,
-        candidaturaId: initialCandidaturaId,
+        resourceId: initialResourceId,
     });
 
     // Estado computado para facilitar el acceso
@@ -63,9 +69,10 @@ export function useAutoSave(
 
         try {
             const dataToStore = {
-                formulario_data: formData.value,
+                data: formData.value,
                 timestamp: new Date().toISOString(),
-                candidaturaId: state.value.candidaturaId,
+                resourceId: state.value.resourceId,
+                additionalData,
             };
             localStorage.setItem(localStorageKey, JSON.stringify(dataToStore));
         } catch (error) {
@@ -158,7 +165,9 @@ export function useAutoSave(
             },
             credentials: 'same-origin',
             body: JSON.stringify({
+                ...additionalData,
                 formulario_data: formData.value,
+                respuestas: formData.value, // Para compatibilidad con formularios
             }),
         });
 
@@ -198,9 +207,9 @@ export function useAutoSave(
         state.value.lastError = null;
 
         try {
-            // Determinar la URL correcta basada en si existe una candidatura
-            const saveUrl = state.value.candidaturaId 
-                ? url.replace('autosave', `${state.value.candidaturaId}/autosave`)
+            // Determinar la URL correcta basada en si existe un recurso
+            const saveUrl = state.value.resourceId 
+                ? url.replace('autosave', `${state.value.resourceId}/autosave`)
                 : url;
 
             // Obtener token CSRF actual
@@ -223,9 +232,13 @@ export function useAutoSave(
                 state.value.status = 'saved';
                 state.value.lastSaved = new Date();
                 
-                // Actualizar el ID de candidatura si es el primer guardado
-                if (!state.value.candidaturaId && result.candidatura_id) {
-                    state.value.candidaturaId = result.candidatura_id;
+                // Actualizar el ID del recurso si es el primer guardado
+                if (!state.value.resourceId) {
+                    // Buscar el ID en diferentes campos posibles
+                    const possibleId = result[resourceIdField] || result.respuesta_id || result.candidatura_id || result.id;
+                    if (possibleId) {
+                        state.value.resourceId = possibleId;
+                    }
                 }
 
                 // Guardar en localStorage como respaldo
@@ -283,10 +296,20 @@ export function useAutoSave(
     };
 
     /**
+     * Watcher para cambios en el formulario
+     */
+    let stopWatchingFn: (() => void) | null = null;
+    
+    /**
      * Configurar watcher para cambios en el formulario
      */
     const startWatching = () => {
-        return watch(
+        // Detener watcher anterior si existe
+        if (stopWatchingFn) {
+            stopWatchingFn();
+        }
+        
+        stopWatchingFn = watch(
             formData,
             () => {
                 // Solo autoguardar si no hay errores previos o si el estado es idle/saved
@@ -296,14 +319,25 @@ export function useAutoSave(
             },
             { deep: true }
         );
+        
+        return stopWatchingFn;
     };
 
     /**
-     * Detener el autoguardado
+     * Detener el autoguardado y el watcher
      */
-    const stopAutoSave = () => {
+    const stopWatching = () => {
         debouncedAutoSave.cancel();
+        if (stopWatchingFn) {
+            stopWatchingFn();
+            stopWatchingFn = null;
+        }
     };
+    
+    /**
+     * Alias para compatibilidad con código existente
+     */
+    const stopAutoSave = stopWatching;
 
     /**
      * Reiniciar el estado
@@ -314,7 +348,7 @@ export function useAutoSave(
             status: 'idle',
             lastSaved: null,
             lastError: null,
-            candidaturaId: initialCandidaturaId,
+            resourceId: initialResourceId,
         };
         clearLocalStorage();
     };
@@ -324,14 +358,18 @@ export function useAutoSave(
      */
     const restoreDraft = () => {
         const stored = loadFromLocalStorage();
-        if (stored && stored.formulario_data) {
+        if (stored && (stored.data || stored.formulario_data)) {
             if (showNotifications) {
                 toast.info('Borrador recuperado', {
                     description: 'Se recuperaron los cambios no guardados',
                     duration: 3000,
                 });
             }
-            return stored;
+            // Compatibilidad con formato antiguo y nuevo
+            return {
+                ...stored,
+                data: stored.data || stored.formulario_data,
+            };
         }
         return null;
     };
@@ -346,7 +384,8 @@ export function useAutoSave(
         // Métodos
         saveNow,
         startWatching,
-        stopAutoSave,
+        stopWatching,
+        stopAutoSave, // Alias para compatibilidad
         reset,
         restoreDraft,
         clearLocalStorage,
