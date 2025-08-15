@@ -84,6 +84,13 @@ return [
         'auth_endpoint' => env('ZOOM_AUTH_ENDPOINT', '/api/zoom/auth'),
         'webhook_secret' => env('ZOOM_WEBHOOK_SECRET'), // Para webhooks de Zoom (opcional)
         
+        // Configuraciones OAuth para API Server-to-Server
+        'oauth' => [
+            'client_id' => env('ZOOM_OAUTH_CLIENT_ID'),
+            'client_secret' => env('ZOOM_OAUTH_CLIENT_SECRET'),
+            'account_id' => env('ZOOM_OAUTH_ACCOUNT_ID'),
+        ],
+        
         // Configuraciones por defecto para reuniones
         'default_settings' => [
             'host_video' => env('ZOOM_DEFAULT_HOST_VIDEO', true),

@@ -11,6 +11,7 @@ use App\Http\Controllers\Admin\PostulacionController as AdminPostulacionControll
 use App\Http\Controllers\Admin\AsambleaController;
 use App\Http\Controllers\AsambleaPublicController;
 use App\Http\Controllers\Api\ZoomAuthController;
+use App\Http\Controllers\Api\ZoomRegistrantController;
 use App\Http\Controllers\Admin\VotacionController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\TenantController;
@@ -116,6 +117,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('asambleas/{asamblea}', [AsambleaPublicController::class, 'show'])
         ->middleware('permission:asambleas.view_public')
         ->name('asambleas.show');
+    Route::get('asambleas/{asamblea}/participantes', [AsambleaPublicController::class, 'getParticipantes'])
+        ->middleware('permission:asambleas.view_public')
+        ->name('asambleas.participantes');
     
     // API routes para Zoom (dentro del grupo auth)
     Route::prefix('api/zoom')->name('api.zoom.')->group(function () {
@@ -128,6 +132,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('asambleas/{asamblea}/access', [ZoomAuthController::class, 'checkAccess'])
             ->middleware('permission:asambleas.view_public')
             ->name('check-access');
+        
+        // Rutas para registro de participantes (API mode)
+        Route::post('registrants/register', [ZoomRegistrantController::class, 'register'])
+            ->middleware('permission:asambleas.participate')
+            ->name('registrants.register');
+        Route::get('registrants/{asamblea}/status', [ZoomRegistrantController::class, 'status'])
+            ->middleware('permission:asambleas.view_public')
+            ->name('registrants.status');
+        Route::delete('registrants/{asamblea}', [ZoomRegistrantController::class, 'destroy'])
+            ->middleware('permission:asambleas.participate')
+            ->name('registrants.destroy');
     });
     
     // APIs for postulaciones

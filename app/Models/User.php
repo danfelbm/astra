@@ -349,4 +349,78 @@ class User extends Authenticatable
     {
         return $this->hasMany(\App\Models\FormularioPermiso::class, 'usuario_id');
     }
+    
+    /**
+     * Relación con registros de Zoom
+     */
+    public function zoomRegistrants()
+    {
+        return $this->hasMany(\App\Models\ZoomRegistrant::class);
+    }
+    
+    /**
+     * Dividir el nombre en first_name y last_name según reglas específicas
+     * 
+     * Reglas:
+     * - 2 palabras: primera = first_name, segunda = last_name
+     * - 3 palabras: primera = first_name, últimas dos = last_name
+     * - 4 palabras: primeras dos = first_name, últimas dos = last_name
+     * - 5+ palabras: primeras dos = first_name, resto = last_name
+     */
+    public function splitName(): array
+    {
+        $name = trim($this->name);
+        
+        if (empty($name)) {
+            return ['first' => '', 'last' => ''];
+        }
+        
+        $parts = array_filter(explode(' ', $name)); // Eliminar espacios vacíos
+        $count = count($parts);
+        
+        switch($count) {
+            case 1:
+                // Si es solo una palabra o un carácter, usar "Participante" como apellido
+                return ['first' => $parts[0], 'last' => 'Participante'];
+                
+            case 2:
+                return ['first' => $parts[0], 'last' => $parts[1]];
+                
+            case 3:
+                return [
+                    'first' => $parts[0], 
+                    'last' => $parts[1] . ' ' . $parts[2]
+                ];
+                
+            case 4:
+                return [
+                    'first' => $parts[0] . ' ' . $parts[1], 
+                    'last' => $parts[2] . ' ' . $parts[3]
+                ];
+                
+            default: // 5 o más palabras
+                return [
+                    'first' => implode(' ', array_slice($parts, 0, 2)),
+                    'last' => implode(' ', array_slice($parts, 2))
+                ];
+        }
+    }
+    
+    /**
+     * Obtener registro de Zoom para una asamblea específica
+     */
+    public function getZoomRegistrantForAsamblea(\App\Models\Asamblea $asamblea)
+    {
+        return $this->zoomRegistrants()
+                   ->where('asamblea_id', $asamblea->id)
+                   ->first();
+    }
+    
+    /**
+     * Verificar si el usuario está registrado en una asamblea de Zoom
+     */
+    public function isRegisteredInZoomAsamblea(\App\Models\Asamblea $asamblea): bool
+    {
+        return $this->getZoomRegistrantForAsamblea($asamblea) !== null;
+    }
 }

@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { DateTimePicker } from '@/components/ui/datetime-picker';
 import { type BreadcrumbItemType } from '@/types';
 import AppLayout from '@/layouts/AppLayout.vue';
@@ -32,8 +33,12 @@ interface Asamblea {
     acta_url?: string;
     // Campos de videoconferencia
     zoom_enabled?: boolean;
+    zoom_integration_type?: 'sdk' | 'api';
     zoom_meeting_id?: string;
     zoom_meeting_password?: string;
+    zoom_occurrence_ids?: string;
+    zoom_prefix?: string;
+    zoom_registration_open_date?: string;
     zoom_meeting_type?: 'instant' | 'scheduled' | 'recurring';
     zoom_settings?: {
         host_video?: boolean;
@@ -107,6 +112,14 @@ const form = useForm({
     acta_url: props.asamblea?.acta_url || '',
     // Campos de videoconferencia
     zoom_enabled: props.asamblea?.zoom_enabled ?? false,
+    zoom_integration_type: props.asamblea?.zoom_integration_type || 'sdk',
+    zoom_meeting_id: props.asamblea?.zoom_meeting_id || '',
+    zoom_meeting_password: props.asamblea?.zoom_meeting_password || '',
+    zoom_occurrence_ids: props.asamblea?.zoom_occurrence_ids || '',
+    zoom_prefix: props.asamblea?.zoom_prefix || '',
+    zoom_registration_open_date: props.asamblea?.zoom_registration_open_date || '',
+    zoom_join_url: props.asamblea?.zoom_join_url || '',
+    zoom_start_url: props.asamblea?.zoom_start_url || '',
     zoom_meeting_type: props.asamblea?.zoom_meeting_type || 'scheduled',
     zoom_settings: props.asamblea?.zoom_settings || {
         host_video: true,
@@ -520,10 +533,34 @@ const cancelar = () => {
                         </div>
                         
                         <div v-if="form.zoom_enabled" class="space-y-4 pl-6 border-l-2 border-blue-200">
-                            <div class="grid gap-4 md:grid-cols-2">
-                                <div class="space-y-2">
-                                    <Label for="zoom_meeting_type">Tipo de Reunión</Label>
-                                    <Select v-model="form.zoom_meeting_type">
+                            <!-- Selector de tipo de integración -->
+                            <div class="space-y-3">
+                                <Label class="text-sm font-medium">Tipo de Integración</Label>
+                                <RadioGroup v-model="form.zoom_integration_type" class="flex gap-6">
+                                    <div class="flex items-center space-x-2">
+                                        <RadioGroupItem value="sdk" id="sdk" />
+                                        <Label for="sdk" class="cursor-pointer">
+                                            SDK (Automático)
+                                        </Label>
+                                    </div>
+                                    <div class="flex items-center space-x-2">
+                                        <RadioGroupItem value="api" id="api" />
+                                        <Label for="api" class="cursor-pointer">
+                                            API (Manual)
+                                        </Label>
+                                    </div>
+                                </RadioGroup>
+                                <p class="text-xs text-muted-foreground">
+                                    SDK: Reuniones generadas automáticamente. API: Configuración manual de reunión existente.
+                                </p>
+                            </div>
+                            
+                            <!-- Configuración para modo SDK -->
+                            <div v-if="form.zoom_integration_type === 'sdk'" class="space-y-4">
+                                <div class="grid gap-4 md:grid-cols-2">
+                                    <div class="space-y-2">
+                                        <Label for="zoom_meeting_type">Tipo de Reunión</Label>
+                                        <Select v-model="form.zoom_meeting_type">
                                         <SelectTrigger>
                                             <SelectValue placeholder="Selecciona el tipo" />
                                         </SelectTrigger>
@@ -616,11 +653,106 @@ const cancelar = () => {
                                 </div>
                             </div>
 
-                            <div class="bg-blue-50 p-3 rounded-md">
-                                <p class="text-sm text-blue-800">
-                                    <strong>Nota:</strong> La reunión de Zoom se creará automáticamente cuando guardes la asamblea. 
-                                    Los participantes podrán acceder a la videoconferencia desde la vista de la asamblea.
-                                </p>
+                                <div class="bg-blue-50 p-3 rounded-md">
+                                    <p class="text-sm text-blue-800">
+                                        <strong>Nota:</strong> La reunión de Zoom se creará automáticamente cuando guardes la asamblea. 
+                                        Los participantes podrán acceder a la videoconferencia desde la vista de la asamblea.
+                                    </p>
+                                </div>
+                            </div>
+                            
+                            <!-- Configuración para modo API -->
+                            <div v-if="form.zoom_integration_type === 'api'" class="space-y-4">
+                                <div class="grid gap-4 md:grid-cols-2">
+                                    <div class="space-y-2">
+                                        <Label for="zoom_meeting_id_api">Meeting ID</Label>
+                                        <Input
+                                            id="zoom_meeting_id_api"
+                                            v-model="form.zoom_meeting_id"
+                                            placeholder="Ej: 123456789"
+                                        />
+                                        <p class="text-xs text-muted-foreground">
+                                            ID de la reunión existente en Zoom
+                                        </p>
+                                    </div>
+                                    
+                                    <div class="space-y-2">
+                                        <Label for="zoom_occurrence_ids">Occurrence IDs</Label>
+                                        <Input
+                                            id="zoom_occurrence_ids"
+                                            v-model="form.zoom_occurrence_ids"
+                                            placeholder="Ej: 1648194360000,1648280760000"
+                                        />
+                                        <p class="text-xs text-muted-foreground">
+                                            IDs de ocurrencias separados por comas (opcional)
+                                        </p>
+                                    </div>
+                                    
+                                    <div class="space-y-2">
+                                        <Label for="zoom_prefix">Prefijo</Label>
+                                        <Input
+                                            id="zoom_prefix"
+                                            v-model="form.zoom_prefix"
+                                            placeholder="Ej: CH"
+                                            maxlength="10"
+                                            class="w-24"
+                                        />
+                                        <p class="text-xs text-muted-foreground">
+                                            Prefijo que se añadirá al nombre en Zoom
+                                        </p>
+                                    </div>
+                                </div>
+                                
+                                <div class="space-y-2">
+                                    <Label for="zoom_registration_open_date">Apertura de inscripciones</Label>
+                                    <DateTimePicker
+                                        id="zoom_registration_open_date"
+                                        v-model="form.zoom_registration_open_date"
+                                        placeholder="Seleccionar fecha y hora"
+                                    />
+                                    <p class="text-xs text-muted-foreground">
+                                        Fecha y hora a partir de la cual los usuarios pueden generar su link personal (opcional)
+                                    </p>
+                                </div>
+                                
+                                <div class="grid gap-4 md:grid-cols-2">
+                                    <div class="space-y-2">
+                                        <Label for="zoom_meeting_password_api">Contraseña de la Reunión</Label>
+                                        <Input
+                                            id="zoom_meeting_password_api"
+                                            v-model="form.zoom_meeting_password"
+                                            placeholder="Contraseña (opcional)"
+                                        />
+                                    </div>
+                                    
+                                    <div class="space-y-2">
+                                        <Label for="zoom_join_url">Join URL</Label>
+                                        <Input
+                                            id="zoom_join_url"
+                                            v-model="form.zoom_join_url"
+                                            placeholder="https://zoom.us/j/123456789"
+                                        />
+                                    </div>
+                                </div>
+                                
+                                <div class="space-y-2">
+                                    <Label for="zoom_start_url">Start URL</Label>
+                                    <Input
+                                        id="zoom_start_url"
+                                        v-model="form.zoom_start_url"
+                                        placeholder="https://zoom.us/s/123456789"
+                                    />
+                                    <p class="text-xs text-muted-foreground">
+                                        URL para iniciar la reunión (para moderadores)
+                                    </p>
+                                </div>
+                                
+                                <div class="bg-orange-50 p-3 rounded-md">
+                                    <p class="text-sm text-orange-800">
+                                        <strong>Modo API:</strong> Los campos se completan manualmente. Los usuarios verán un botón 
+                                        para generar su link personal de acceso a la reunión.
+                                    </p>
+                                </div>
                             </div>
                         </div>
                         

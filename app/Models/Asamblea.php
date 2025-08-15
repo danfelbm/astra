@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Asamblea extends Model
 {
@@ -37,6 +38,11 @@ class Asamblea extends Model
         'zoom_created_at',
         'zoom_join_url',
         'zoom_start_url',
+        // Nuevos campos de integración
+        'zoom_integration_type',
+        'zoom_occurrence_ids',
+        'zoom_prefix',
+        'zoom_registration_open_date',
     ];
 
     protected $casts = [
@@ -48,6 +54,7 @@ class Asamblea extends Model
         'zoom_enabled' => 'boolean',
         'zoom_settings' => 'array',
         'zoom_created_at' => 'datetime',
+        'zoom_registration_open_date' => 'datetime',
     ];
 
     // Relación con participantes (usuarios)
@@ -390,11 +397,40 @@ class Asamblea extends Model
             return false;
         }
         
+        // Si es modo API y tiene fecha de apertura de inscripciones, usarla
+        if ($this->zoom_integration_type === 'api' && $this->zoom_registration_open_date) {
+            return $this->zoomApiRegistrationOpen();
+        }
+        
+        // Lógica original para SDK o API sin fecha específica
         $now = now();
         $inicioPermitido = $this->fecha_inicio->subMinutes(15); // 15 minutos antes
         $finPermitido = $this->fecha_fin->addMinutes(30); // 30 minutos después
         
         return $now >= $inicioPermitido && $now <= $finPermitido;
+    }
+    
+    /**
+     * Verificar si las inscripciones de API están abiertas
+     */
+    public function zoomApiRegistrationOpen(): bool
+    {
+        if (!$this->tieneZoomHabilitado() || $this->zoom_integration_type !== 'api') {
+            return false;
+        }
+        
+        // Si no hay fecha específica, usar lógica por defecto
+        if (!$this->zoom_registration_open_date) {
+            $now = now();
+            $inicioPermitido = $this->fecha_inicio->subMinutes(15);
+            return $now >= $inicioPermitido;
+        }
+        
+        // Usar fecha específica de apertura
+        $now = now();
+        $finPermitido = $this->fecha_fin->addMinutes(30); // Hasta 30 min después del fin
+        
+        return $now >= $this->zoom_registration_open_date && $now <= $finPermitido;
     }
     
     /**
@@ -479,5 +515,75 @@ class Asamblea extends Model
         return $query->conZoomHabilitado()
                     ->where('fecha_inicio', '<=', $finPermitido)
                     ->where('fecha_fin', '>=', $inicioPermitido);
+    }
+    
+    /**
+     * Relación con registros de Zoom
+     */
+    public function zoomRegistrants(): HasMany
+    {
+        return $this->hasMany(ZoomRegistrant::class);
+    }
+    
+    /**
+     * Verificar si usa integración API
+     */
+    public function usesZoomApi(): bool
+    {
+        return $this->zoom_integration_type === 'api';
+    }
+    
+    /**
+     * Verificar si usa integración SDK
+     */
+    public function usesZoomSdk(): bool
+    {
+        return $this->zoom_integration_type === 'sdk';
+    }
+    
+    /**
+     * Obtener registro de un usuario específico
+     */
+    public function getZoomRegistrantForUser(User $user): ?ZoomRegistrant
+    {
+        return $this->zoomRegistrants()
+                   ->where('user_id', $user->id)
+                   ->first();
+    }
+    
+    /**
+     * Verificar si un usuario está registrado en Zoom
+     */
+    public function isUserRegisteredInZoom(User $user): bool
+    {
+        if ($this->usesZoomSdk()) {
+            // Para SDK no hay registro previo
+            return false;
+        }
+        
+        return $this->getZoomRegistrantForUser($user) !== null;
+    }
+    
+    /**
+     * Obtener configuraciones para el tipo de integración actual
+     */
+    public function getZoomIntegrationConfig(): array
+    {
+        $baseConfig = [
+            'type' => $this->zoom_integration_type,
+            'enabled' => $this->zoom_enabled,
+            'meeting_id' => $this->zoom_meeting_id,
+            'password' => $this->zoom_meeting_password,
+        ];
+        
+        if ($this->usesZoomApi()) {
+            $baseConfig['occurrence_ids'] = $this->zoom_occurrence_ids;
+            $baseConfig['join_url'] = $this->zoom_join_url;
+            $baseConfig['start_url'] = $this->zoom_start_url;
+        } else {
+            $baseConfig['settings'] = $this->getZoomSettingsWithDefaults();
+        }
+        
+        return $baseConfig;
     }
 }

@@ -259,6 +259,7 @@ class AsambleaController extends Controller
             'activo' => 'boolean',
             // Campos de Zoom
             'zoom_enabled' => 'boolean',
+            'zoom_integration_type' => 'nullable|in:sdk,api',
             'zoom_meeting_type' => 'nullable|in:instant,scheduled,recurring',
             'zoom_settings' => 'nullable|array',
             'zoom_settings.host_video' => 'nullable|boolean',
@@ -266,6 +267,14 @@ class AsambleaController extends Controller
             'zoom_settings.waiting_room' => 'nullable|boolean',
             'zoom_settings.mute_upon_entry' => 'nullable|boolean',
             'zoom_settings.auto_recording' => 'nullable|in:none,local,cloud',
+            // Campos específicos para modo API
+            'zoom_meeting_id' => 'nullable|string|max:255',
+            'zoom_meeting_password' => 'nullable|string|max:255',
+            'zoom_occurrence_ids' => 'nullable|string|max:500',
+            'zoom_prefix' => 'nullable|string|max:10',
+            'zoom_registration_open_date' => 'nullable|date',
+            'zoom_join_url' => 'nullable|string|max:500',
+            'zoom_start_url' => 'nullable|string|max:500',
         ], [
             'nombre.required' => 'El nombre es requerido.',
             'tipo.required' => 'El tipo de asamblea es requerido.',
@@ -281,11 +290,26 @@ class AsambleaController extends Controller
 
         $data = $validator->validated();
         $data['estado'] = 'programada'; // Estado inicial
+        
+        // DEBUG: Log para verificar datos que llegan (comentado)
+        // \Log::info('Datos de Asamblea STORE recibidos:', [
+        //     'zoom_enabled' => $data['zoom_enabled'] ?? 'NOT_SET',
+        //     'zoom_integration_type' => $data['zoom_integration_type'] ?? 'NOT_SET',
+        //     'zoom_meeting_id' => $data['zoom_meeting_id'] ?? 'NOT_SET',
+        //     'zoom_occurrence_ids' => $data['zoom_occurrence_ids'] ?? 'NOT_SET',
+        //     'zoom_join_url' => $data['zoom_join_url'] ?? 'NOT_SET',
+        //     'zoom_start_url' => $data['zoom_start_url'] ?? 'NOT_SET',
+        // ]);
+        
+        // Establecer valor por defecto para zoom_integration_type si está habilitado
+        if (($data['zoom_enabled'] ?? false) && empty($data['zoom_integration_type'])) {
+            $data['zoom_integration_type'] = 'sdk';
+        }
 
         $asamblea = Asamblea::create($data);
 
-        // Crear reunión de Zoom si está habilitado
-        if ($data['zoom_enabled'] ?? false) {
+        // Crear reunión de Zoom solo si está habilitado y es modo SDK
+        if (($data['zoom_enabled'] ?? false) && ($data['zoom_integration_type'] ?? 'sdk') === 'sdk') {
             $zoomService = new ZoomService();
             $result = $zoomService->createMeeting($asamblea);
             
@@ -382,6 +406,7 @@ class AsambleaController extends Controller
             'acta_url' => 'nullable|string|max:255',
             // Campos de Zoom
             'zoom_enabled' => 'boolean',
+            'zoom_integration_type' => 'nullable|in:sdk,api',
             'zoom_meeting_type' => 'nullable|in:instant,scheduled,recurring',
             'zoom_settings' => 'nullable|array',
             'zoom_settings.host_video' => 'nullable|boolean',
@@ -389,6 +414,14 @@ class AsambleaController extends Controller
             'zoom_settings.waiting_room' => 'nullable|boolean',
             'zoom_settings.mute_upon_entry' => 'nullable|boolean',
             'zoom_settings.auto_recording' => 'nullable|in:none,local,cloud',
+            // Campos específicos para modo API
+            'zoom_meeting_id' => 'nullable|string|max:255',
+            'zoom_meeting_password' => 'nullable|string|max:255',
+            'zoom_occurrence_ids' => 'nullable|string|max:500',
+            'zoom_prefix' => 'nullable|string|max:10',
+            'zoom_registration_open_date' => 'nullable|date',
+            'zoom_join_url' => 'nullable|string|max:500',
+            'zoom_start_url' => 'nullable|string|max:500',
         ], [
             'nombre.required' => 'El nombre es requerido.',
             'tipo.required' => 'El tipo de asamblea es requerido.',
@@ -404,40 +437,69 @@ class AsambleaController extends Controller
         }
 
         $data = $validator->validated();
+        
+        // DEBUG: Log para verificar datos que llegan (comentado)
+        // \Log::info('Datos de Asamblea UPDATE recibidos:', [
+        //     'zoom_enabled' => $data['zoom_enabled'] ?? 'NOT_SET',
+        //     'zoom_integration_type' => $data['zoom_integration_type'] ?? 'NOT_SET',
+        //     'zoom_meeting_id' => $data['zoom_meeting_id'] ?? 'NOT_SET',
+        //     'zoom_occurrence_ids' => $data['zoom_occurrence_ids'] ?? 'NOT_SET',
+        //     'zoom_join_url' => $data['zoom_join_url'] ?? 'NOT_SET',
+        //     'zoom_start_url' => $data['zoom_start_url'] ?? 'NOT_SET',
+        // ]);
+        
+        // Establecer valor por defecto para zoom_integration_type si está habilitado
+        if (($data['zoom_enabled'] ?? false) && empty($data['zoom_integration_type'])) {
+            $data['zoom_integration_type'] = 'sdk';
+        }
 
         // Si se está cambiando el estado a 'en_curso', verificar que haya participantes
         if ($data['estado'] === 'en_curso' && $asamblea->participantes()->count() === 0) {
             return back()->withErrors(['estado' => 'No se puede iniciar una asamblea sin participantes asignados.']);
         }
 
-        // Manejar cambios en Zoom
+        // Manejar cambios en Zoom - solo para modo SDK
         $zoomMessages = [];
-        $zoomService = new ZoomService();
+        $currentIntegrationType = $data['zoom_integration_type'] ?? $asamblea->zoom_integration_type ?? 'sdk';
+        $previousIntegrationType = $asamblea->zoom_integration_type ?? 'sdk';
         
-        // Si se está habilitando Zoom por primera vez
-        if ($data['zoom_enabled'] && !$asamblea->zoom_enabled) {
-            $result = $zoomService->createMeeting($asamblea);
-            if (!$result['success']) {
-                $data['zoom_enabled'] = false;
-                $zoomMessages[] = 'No se pudo crear la reunión de Zoom: ' . $result['message'];
-            } else {
-                $zoomMessages[] = 'Reunión de Zoom creada exitosamente.';
+        // Solo gestionar Zoom automáticamente si es modo SDK
+        if ($currentIntegrationType === 'sdk') {
+            $zoomService = new ZoomService();
+            
+            // Si se está habilitando Zoom por primera vez
+            if ($data['zoom_enabled'] && !$asamblea->zoom_enabled) {
+                $result = $zoomService->createMeeting($asamblea);
+                if (!$result['success']) {
+                    $data['zoom_enabled'] = false;
+                    $zoomMessages[] = 'No se pudo crear la reunión de Zoom: ' . $result['message'];
+                } else {
+                    $zoomMessages[] = 'Reunión de Zoom creada exitosamente.';
+                }
+            }
+            // Si se está deshabilitando Zoom
+            elseif (!$data['zoom_enabled'] && $asamblea->zoom_enabled) {
+                $result = $zoomService->deleteMeeting($asamblea);
+                if ($result['success']) {
+                    $zoomMessages[] = 'Reunión de Zoom eliminada.';
+                }
+            }
+            // Si ya tiene Zoom habilitado y se está actualizando
+            elseif ($data['zoom_enabled'] && $asamblea->zoom_enabled && $previousIntegrationType === 'sdk') {
+                $result = $zoomService->updateMeeting($asamblea);
+                if (!$result['success']) {
+                    $zoomMessages[] = 'No se pudo actualizar la reunión de Zoom: ' . $result['message'];
+                } else {
+                    $zoomMessages[] = 'Reunión de Zoom actualizada.';
+                }
             }
         }
-        // Si se está deshabilitando Zoom
-        elseif (!$data['zoom_enabled'] && $asamblea->zoom_enabled) {
+        // Si se cambió de SDK a API, eliminar la reunión automática de Zoom
+        elseif ($currentIntegrationType === 'api' && $previousIntegrationType === 'sdk' && $asamblea->zoom_enabled) {
+            $zoomService = new ZoomService();
             $result = $zoomService->deleteMeeting($asamblea);
             if ($result['success']) {
-                $zoomMessages[] = 'Reunión de Zoom eliminada.';
-            }
-        }
-        // Si ya tiene Zoom habilitado y se está actualizando
-        elseif ($data['zoom_enabled'] && $asamblea->zoom_enabled) {
-            $result = $zoomService->updateMeeting($asamblea);
-            if (!$result['success']) {
-                $zoomMessages[] = 'No se pudo actualizar la reunión de Zoom: ' . $result['message'];
-            } else {
-                $zoomMessages[] = 'Reunión de Zoom actualizada.';
+                $zoomMessages[] = 'Reunión automática de Zoom eliminada. Ahora usa configuración manual.';
             }
         }
 
