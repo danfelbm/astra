@@ -11,7 +11,7 @@ import { DateTimePicker } from '@/components/ui/datetime-picker';
 import { type BreadcrumbItemType } from '@/types';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Head, useForm, router } from '@inertiajs/vue3';
-import { ArrowLeft, MapPin, Save } from 'lucide-vue-next';
+import { ArrowLeft, MapPin, Save, Video, Settings, Users, Mic, Camera } from 'lucide-vue-next';
 import { ref, computed, watch } from 'vue';
 
 interface Asamblea {
@@ -30,6 +30,21 @@ interface Asamblea {
     quorum_minimo?: number;
     activo: boolean;
     acta_url?: string;
+    // Campos de videoconferencia
+    zoom_enabled?: boolean;
+    zoom_meeting_id?: string;
+    zoom_meeting_password?: string;
+    zoom_meeting_type?: 'instant' | 'scheduled' | 'recurring';
+    zoom_settings?: {
+        host_video?: boolean;
+        participant_video?: boolean;
+        waiting_room?: boolean;
+        mute_upon_entry?: boolean;
+        auto_recording?: 'none' | 'local' | 'cloud';
+    };
+    zoom_created_at?: string;
+    zoom_join_url?: string;
+    zoom_start_url?: string;
 }
 
 interface Territorio {
@@ -90,6 +105,16 @@ const form = useForm({
     quorum_minimo: props.asamblea?.quorum_minimo || null,
     activo: props.asamblea?.activo ?? true,
     acta_url: props.asamblea?.acta_url || '',
+    // Campos de videoconferencia
+    zoom_enabled: props.asamblea?.zoom_enabled ?? false,
+    zoom_meeting_type: props.asamblea?.zoom_meeting_type || 'scheduled',
+    zoom_settings: props.asamblea?.zoom_settings || {
+        host_video: true,
+        participant_video: false,
+        waiting_room: true,
+        mute_upon_entry: true,
+        auto_recording: 'none'
+    },
 });
 
 // Validaciones de fecha
@@ -469,6 +494,139 @@ const cancelar = () => {
                                 </Label>
                             </div>
                         </div>
+                    </CardContent>
+                </Card>
+
+                <!-- Videoconferencia -->
+                <Card>
+                    <CardHeader>
+                        <CardTitle class="flex items-center gap-2">
+                            <Video class="h-5 w-5" />
+                            Videoconferencia
+                        </CardTitle>
+                        <CardDescription>
+                            Configuración de videoconferencia con Zoom para la asamblea
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent class="space-y-4">
+                        <div class="flex items-center space-x-2">
+                            <Switch
+                                id="zoom_enabled"
+                                v-model="form.zoom_enabled"
+                            />
+                            <Label for="zoom_enabled" class="cursor-pointer">
+                                Habilitar videoconferencia
+                            </Label>
+                        </div>
+                        
+                        <div v-if="form.zoom_enabled" class="space-y-4 pl-6 border-l-2 border-blue-200">
+                            <div class="grid gap-4 md:grid-cols-2">
+                                <div class="space-y-2">
+                                    <Label for="zoom_meeting_type">Tipo de Reunión</Label>
+                                    <Select v-model="form.zoom_meeting_type">
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Selecciona el tipo" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="scheduled">Programada</SelectItem>
+                                            <SelectItem value="instant">Instantánea</SelectItem>
+                                            <SelectItem value="recurring">Recurrente</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    <p class="text-sm text-muted-foreground">
+                                        Se recomienda "Programada" para asambleas
+                                    </p>
+                                </div>
+
+                                <div v-if="asamblea?.zoom_meeting_id" class="space-y-2">
+                                    <Label>Estado de la Reunión</Label>
+                                    <div class="flex items-center gap-2 p-2 bg-green-50 rounded-md">
+                                        <Video class="h-4 w-4 text-green-600" />
+                                        <span class="text-sm text-green-800">Reunión creada</span>
+                                    </div>
+                                    <p class="text-xs text-muted-foreground">
+                                        ID: {{ asamblea.zoom_meeting_id }}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div class="space-y-3">
+                                <Label class="text-sm font-medium flex items-center gap-2">
+                                    <Settings class="h-4 w-4" />
+                                    Configuraciones de la Reunión
+                                </Label>
+                                
+                                <div class="grid gap-3 md:grid-cols-2">
+                                    <div class="flex items-center space-x-2">
+                                        <Switch
+                                            id="host_video"
+                                            v-model="form.zoom_settings.host_video"
+                                        />
+                                        <Label for="host_video" class="text-sm cursor-pointer flex items-center gap-1">
+                                            <Camera class="h-3 w-3" />
+                                            Video del moderador
+                                        </Label>
+                                    </div>
+
+                                    <div class="flex items-center space-x-2">
+                                        <Switch
+                                            id="participant_video"
+                                            v-model="form.zoom_settings.participant_video"
+                                        />
+                                        <Label for="participant_video" class="text-sm cursor-pointer flex items-center gap-1">
+                                            <Users class="h-3 w-3" />
+                                            Video de participantes
+                                        </Label>
+                                    </div>
+
+                                    <div class="flex items-center space-x-2">
+                                        <Switch
+                                            id="waiting_room"
+                                            v-model="form.zoom_settings.waiting_room"
+                                        />
+                                        <Label for="waiting_room" class="text-sm cursor-pointer">
+                                            Sala de espera
+                                        </Label>
+                                    </div>
+
+                                    <div class="flex items-center space-x-2">
+                                        <Switch
+                                            id="mute_upon_entry"
+                                            v-model="form.zoom_settings.mute_upon_entry"
+                                        />
+                                        <Label for="mute_upon_entry" class="text-sm cursor-pointer flex items-center gap-1">
+                                            <Mic class="h-3 w-3" />
+                                            Silenciar al entrar
+                                        </Label>
+                                    </div>
+                                </div>
+
+                                <div class="space-y-2">
+                                    <Label for="auto_recording" class="text-sm">Grabación automática</Label>
+                                    <Select v-model="form.zoom_settings.auto_recording">
+                                        <SelectTrigger>
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="none">Sin grabación</SelectItem>
+                                            <SelectItem value="local">Grabación local</SelectItem>
+                                            <SelectItem value="cloud">Grabación en la nube</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+
+                            <div class="bg-blue-50 p-3 rounded-md">
+                                <p class="text-sm text-blue-800">
+                                    <strong>Nota:</strong> La reunión de Zoom se creará automáticamente cuando guardes la asamblea. 
+                                    Los participantes podrán acceder a la videoconferencia desde la vista de la asamblea.
+                                </p>
+                            </div>
+                        </div>
+                        
+                        <span v-if="form.errors.zoom_enabled" class="text-sm text-red-500">
+                            {{ form.errors.zoom_enabled }}
+                        </span>
                     </CardContent>
                 </Card>
 

@@ -9,6 +9,7 @@ use App\Models\Territorio;
 use App\Models\Departamento;
 use App\Models\Municipio;
 use App\Models\Localidad;
+use App\Services\ZoomService;
 use App\Traits\HasAdvancedFilters;
 use App\Traits\HasGeographicFilters;
 use Illuminate\Http\JsonResponse;
@@ -41,6 +42,7 @@ class AsambleaController extends Controller
             'nombre', 'descripcion', 'tipo', 'estado', 'lugar',
             'fecha_inicio', 'fecha_fin', 'territorio_id', 'departamento_id', 
             'municipio_id', 'localidad_id', 'activo', 'quorum_minimo',
+            'zoom_enabled', 'zoom_meeting_id', 'zoom_meeting_type',
             'created_at', 'updated_at', 'participantes_count'
         ];
         
@@ -255,6 +257,15 @@ class AsambleaController extends Controller
             'lugar' => 'nullable|string|max:255',
             'quorum_minimo' => 'nullable|integer|min:1',
             'activo' => 'boolean',
+            // Campos de Zoom
+            'zoom_enabled' => 'boolean',
+            'zoom_meeting_type' => 'nullable|in:instant,scheduled,recurring',
+            'zoom_settings' => 'nullable|array',
+            'zoom_settings.host_video' => 'nullable|boolean',
+            'zoom_settings.participant_video' => 'nullable|boolean',
+            'zoom_settings.waiting_room' => 'nullable|boolean',
+            'zoom_settings.mute_upon_entry' => 'nullable|boolean',
+            'zoom_settings.auto_recording' => 'nullable|in:none,local,cloud',
         ], [
             'nombre.required' => 'El nombre es requerido.',
             'tipo.required' => 'El tipo de asamblea es requerido.',
@@ -271,10 +282,23 @@ class AsambleaController extends Controller
         $data = $validator->validated();
         $data['estado'] = 'programada'; // Estado inicial
 
-        Asamblea::create($data);
+        $asamblea = Asamblea::create($data);
+
+        // Crear reunión de Zoom si está habilitado
+        if ($data['zoom_enabled'] ?? false) {
+            $zoomService = new ZoomService();
+            $result = $zoomService->createMeeting($asamblea);
+            
+            if (!$result['success']) {
+                // Si falla la creación de Zoom, deshabilitar pero no fallar la creación de la asamblea
+                $asamblea->update(['zoom_enabled' => false]);
+                return redirect()->route('admin.asambleas.index')
+                    ->with('warning', 'Asamblea creada exitosamente, pero no se pudo crear la reunión de Zoom: ' . $result['message']);
+            }
+        }
 
         return redirect()->route('admin.asambleas.index')
-            ->with('success', 'Asamblea creada exitosamente.');
+            ->with('success', 'Asamblea creada exitosamente.' . ($data['zoom_enabled'] ?? false ? ' Reunión de Zoom configurada.' : ''));
     }
 
     /**
@@ -356,6 +380,15 @@ class AsambleaController extends Controller
             'quorum_minimo' => 'nullable|integer|min:1',
             'activo' => 'boolean',
             'acta_url' => 'nullable|string|max:255',
+            // Campos de Zoom
+            'zoom_enabled' => 'boolean',
+            'zoom_meeting_type' => 'nullable|in:instant,scheduled,recurring',
+            'zoom_settings' => 'nullable|array',
+            'zoom_settings.host_video' => 'nullable|boolean',
+            'zoom_settings.participant_video' => 'nullable|boolean',
+            'zoom_settings.waiting_room' => 'nullable|boolean',
+            'zoom_settings.mute_upon_entry' => 'nullable|boolean',
+            'zoom_settings.auto_recording' => 'nullable|in:none,local,cloud',
         ], [
             'nombre.required' => 'El nombre es requerido.',
             'tipo.required' => 'El tipo de asamblea es requerido.',
@@ -377,10 +410,46 @@ class AsambleaController extends Controller
             return back()->withErrors(['estado' => 'No se puede iniciar una asamblea sin participantes asignados.']);
         }
 
+        // Manejar cambios en Zoom
+        $zoomMessages = [];
+        $zoomService = new ZoomService();
+        
+        // Si se está habilitando Zoom por primera vez
+        if ($data['zoom_enabled'] && !$asamblea->zoom_enabled) {
+            $result = $zoomService->createMeeting($asamblea);
+            if (!$result['success']) {
+                $data['zoom_enabled'] = false;
+                $zoomMessages[] = 'No se pudo crear la reunión de Zoom: ' . $result['message'];
+            } else {
+                $zoomMessages[] = 'Reunión de Zoom creada exitosamente.';
+            }
+        }
+        // Si se está deshabilitando Zoom
+        elseif (!$data['zoom_enabled'] && $asamblea->zoom_enabled) {
+            $result = $zoomService->deleteMeeting($asamblea);
+            if ($result['success']) {
+                $zoomMessages[] = 'Reunión de Zoom eliminada.';
+            }
+        }
+        // Si ya tiene Zoom habilitado y se está actualizando
+        elseif ($data['zoom_enabled'] && $asamblea->zoom_enabled) {
+            $result = $zoomService->updateMeeting($asamblea);
+            if (!$result['success']) {
+                $zoomMessages[] = 'No se pudo actualizar la reunión de Zoom: ' . $result['message'];
+            } else {
+                $zoomMessages[] = 'Reunión de Zoom actualizada.';
+            }
+        }
+
         $asamblea->update($data);
 
+        $message = 'Asamblea actualizada exitosamente.';
+        if (!empty($zoomMessages)) {
+            $message .= ' ' . implode(' ', $zoomMessages);
+        }
+
         return redirect()->route('admin.asambleas.index')
-            ->with('success', 'Asamblea actualizada exitosamente.');
+            ->with('success', $message);
     }
 
     /**

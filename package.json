@@ -36,6 +36,7 @@
         "@vee-validate/zod": "^4.15.1",
         "@vitejs/plugin-vue": "^5.2.1",
         "@vueuse/core": "^12.8.2",
+        "@zoom/meetingsdk": "^4.0.0",
         "chart.js": "^4.5.0",
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
@@ -62,11 +63,11 @@
         "zod": "^3.24.0"
     },
     "optionalDependencies": {
-        "@rollup/rollup-linux-x64-gnu": "4.9.5",
         "@rollup/rollup-linux-arm64-gnu": "4.9.5",
-        "@tailwindcss/oxide-linux-x64-gnu": "^4.0.1",
+        "@rollup/rollup-linux-x64-gnu": "4.9.5",
         "@tailwindcss/oxide-linux-arm64-gnu": "^4.0.1",
-        "lightningcss-linux-x64-gnu": "^1.29.1",
-        "lightningcss-linux-arm64-gnu": "^1.29.1"
+        "@tailwindcss/oxide-linux-x64-gnu": "^4.0.1",
+        "lightningcss-linux-arm64-gnu": "^1.29.1",
+        "lightningcss-linux-x64-gnu": "^1.29.1"
     }
 }

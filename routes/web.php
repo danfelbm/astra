@@ -10,6 +10,7 @@ use App\Http\Controllers\Admin\PeriodoElectoralController;
 use App\Http\Controllers\Admin\PostulacionController as AdminPostulacionController;
 use App\Http\Controllers\Admin\AsambleaController;
 use App\Http\Controllers\AsambleaPublicController;
+use App\Http\Controllers\Api\ZoomAuthController;
 use App\Http\Controllers\Admin\VotacionController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\TenantController;
@@ -99,6 +100,19 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('asambleas/{asamblea}', [AsambleaPublicController::class, 'show'])
         ->middleware('permission:asambleas.view_public')
         ->name('asambleas.show');
+    
+    // API routes para Zoom (dentro del grupo auth)
+    Route::prefix('api/zoom')->name('api.zoom.')->group(function () {
+        Route::post('auth', [ZoomAuthController::class, 'generateSignature'])
+            ->middleware('permission:asambleas.join_video')
+            ->name('signature');
+        Route::get('asambleas/{asamblea}/info', [ZoomAuthController::class, 'getMeetingInfo'])
+            ->middleware('permission:asambleas.join_video')
+            ->name('meeting-info');
+        Route::get('asambleas/{asamblea}/access', [ZoomAuthController::class, 'checkAccess'])
+            ->middleware('permission:asambleas.view_public')
+            ->name('check-access');
+    });
     
     // APIs for postulaciones
     Route::get('api/convocatorias-disponibles', [PostulacionController::class, 'convocatoriasDisponibles'])->name('api.convocatorias.disponibles');
