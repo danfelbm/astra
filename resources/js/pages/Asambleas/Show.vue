@@ -5,10 +5,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import AdvancedFilters from '@/components/filters/AdvancedFilters.vue';
+import type { AdvancedFilterConfig } from '@/types/filters';
 import { type BreadcrumbItemType } from '@/types';
 import AppLayout from '@/layouts/AppLayout.vue';
 import ZoomMeeting from '@/components/ZoomMeeting.vue';
+import ZoomApiMeeting from '@/components/ZoomApiMeeting.vue';
 import { Head, Link, router } from '@inertiajs/vue3';
+import axios from 'axios';
 import { 
     ArrowLeft, 
     Calendar, 
@@ -20,11 +24,14 @@ import {
     FileText,
     Info,
     UserCheck,
-    Video
+    Video,
+    ChevronLeft,
+    ChevronRight
 } from 'lucide-vue-next';
-import { computed, ref } from 'vue';
+import { computed, ref, onMounted } from 'vue';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { useGeographicFilters } from '@/composables/useGeographicFilters';
 
 interface Territorio {
     id: number;
@@ -53,6 +60,10 @@ interface Participante {
     tipo_participacion: 'asistente' | 'moderador' | 'secretario';
     asistio: boolean;
     hora_registro?: string;
+    territorio_nombre?: string;
+    departamento_nombre?: string;
+    municipio_nombre?: string;
+    localidad_nombre?: string;
 }
 
 interface Asamblea {
@@ -82,6 +93,7 @@ interface Asamblea {
     participantes_count: number;
     // Campos de videoconferencia
     zoom_enabled?: boolean;
+    zoom_integration_type?: 'sdk' | 'api';
     zoom_meeting_id?: string;
     zoom_meeting_password?: string;
     zoom_estado?: string;
@@ -97,7 +109,6 @@ interface Props {
         asistio: boolean;
         hora_registro?: string;
     };
-    participantes?: Participante[];
 }
 
 const props = defineProps<Props>();
@@ -108,11 +119,52 @@ const breadcrumbs: BreadcrumbItemType[] = [
     { title: props.asamblea.nombre, href: '#' },
 ];
 
-// Helper para obtener route
-const { route } = window as any;
-
 // Tab activo
-const activeTab = ref('informacion');
+const activeTab = ref('videoconferencia');
+
+// Estado para participantes paginados
+const participantes = ref<Participante[]>([]);
+const participantesPagination = ref<any>({
+    current_page: 1,
+    last_page: 1,
+    per_page: 20,
+    total: 0,
+    from: 0,
+    to: 0,
+});
+const loadingParticipantes = ref(false);
+const currentFilters = ref({});
+const filterFieldsConfig = ref<any[]>([]);
+
+// Composable de filtros geográficos con endpoints públicos
+const geographicFilters = useGeographicFilters({
+    prefix: 'users.',  // Prefijo para evitar ambigüedad SQL
+    endpoints: {
+        territorios: route('api.geographic.territorios'),
+        departamentos: route('api.geographic.departamentos'),
+        municipios: route('api.geographic.municipios'),
+        localidades: route('api.geographic.localidades'),
+    },
+});
+
+// Configuración para el componente de filtros avanzados
+const filterConfig = computed<AdvancedFilterConfig>(() => {
+    // Combinar campos básicos del backend con campos geográficos del composable
+    const allFields = [
+        ...filterFieldsConfig.value || [],
+        ...geographicFilters.generateFilterFields(),
+    ];
+
+    return {
+        fields: allFields,
+        showQuickSearch: true,
+        quickSearchPlaceholder: 'Buscar participantes...',
+        quickSearchFields: ['name', 'email'],
+        maxNestingLevel: 2,
+        allowSaveFilters: true,
+        saveKey: `asamblea_${props.asamblea.id}_participantes_filters`,
+    };
+});
 
 // Formatear fecha completa
 const formatearFechaCompleta = (fecha: string) => {
@@ -158,26 +210,89 @@ const getTipoParticipacionLabel = (tipo: string) => {
 
 // Estadísticas de participantes
 const estadisticas = computed(() => {
-    if (!props.participantes) return null;
+    if (!participantes.value.length) return null;
     
-    const moderadores = props.participantes.filter(p => p.tipo_participacion === 'moderador').length;
-    const secretarios = props.participantes.filter(p => p.tipo_participacion === 'secretario').length;
-    const asistentes = props.participantes.filter(p => p.tipo_participacion === 'asistente').length;
-    const presentes = props.participantes.filter(p => p.asistio).length;
+    const moderadores = participantes.value.filter(p => p.tipo_participacion === 'moderador').length;
+    const secretarios = participantes.value.filter(p => p.tipo_participacion === 'secretario').length;
+    const asistentes = participantes.value.filter(p => p.tipo_participacion === 'asistente').length;
+    const presentes = participantes.value.filter(p => p.asistio).length;
     
     return {
         moderadores,
         secretarios,
         asistentes,
         presentes,
-        total: props.participantes.length,
+        total: participantesPagination.value.total || 0,
     };
 });
+
+// Cargar participantes con filtros y paginación
+const fetchParticipantes = async (page = 1, filters = {}) => {
+    if (!props.esParticipante) {
+        participantes.value = [];
+        return;
+    }
+
+    loadingParticipantes.value = true;
+    currentFilters.value = filters;
+    
+    try {
+        const response = await axios.get(route('asambleas.participantes', props.asamblea.id), {
+            params: {
+                page,
+                ...filters,
+            },
+        });
+
+        participantes.value = response.data.participantes.data;
+        participantesPagination.value = {
+            current_page: response.data.participantes.current_page,
+            last_page: response.data.participantes.last_page,
+            per_page: response.data.participantes.per_page,
+            total: response.data.participantes.total,
+            from: response.data.participantes.from,
+            to: response.data.participantes.to,
+        };
+
+        // Configurar filtros en la primera carga
+        if (filterFieldsConfig.value.length === 0) {
+            filterFieldsConfig.value = response.data.filterFieldsConfig;
+        }
+    } catch (error) {
+        console.error('Error cargando participantes:', error);
+        participantes.value = [];
+    } finally {
+        loadingParticipantes.value = false;
+    }
+};
+
+// Cambiar página
+const changePage = (page: number) => {
+    if (page >= 1 && page <= participantesPagination.value.last_page) {
+        fetchParticipantes(page, currentFilters.value);
+    }
+};
+
+// Aplicar filtros
+const applyFilters = (filters: any) => {
+    fetchParticipantes(1, filters);
+};
 
 // Volver al listado
 const volver = () => {
     router.visit(route('asambleas.index'));
 };
+
+// Cargar participantes al montar el componente
+onMounted(async () => {
+    // Inicializar filtros geográficos
+    await geographicFilters.initialize();
+    
+    // Cargar participantes si es participante
+    if (props.esParticipante) {
+        fetchParticipantes();
+    }
+});
 </script>
 
 <template>
@@ -236,8 +351,6 @@ const volver = () => {
             <!-- Navegación con Tabs -->
             <Tabs v-model="activeTab" class="w-full">
                 <TabsList class="grid w-full grid-cols-3">
-                    <TabsTrigger value="informacion">Información</TabsTrigger>
-                    <TabsTrigger value="participantes" :disabled="!esParticipante">Participantes</TabsTrigger>
                     <TabsTrigger 
                         value="videoconferencia" 
                         :disabled="!asamblea.zoom_enabled"
@@ -246,6 +359,8 @@ const volver = () => {
                         <Video class="h-4 w-4" />
                         Videoconferencia
                     </TabsTrigger>
+                    <TabsTrigger value="informacion">Información</TabsTrigger>
+                    <TabsTrigger value="participantes" :disabled="!esParticipante">Participantes</TabsTrigger>
                 </TabsList>
 
                 <!-- Tab de Información General -->
@@ -358,13 +473,13 @@ const volver = () => {
                 <TabsContent value="participantes" class="space-y-4 mt-6">
 
             <!-- Lista de Participantes (solo si es participante) -->
-            <Card v-if="esParticipante && participantes">
+            <Card v-if="esParticipante">
                 <CardHeader>
                     <div class="flex items-center justify-between">
                         <div>
                             <CardTitle>Participantes</CardTitle>
                             <CardDescription>
-                                Lista de participantes registrados en la asamblea
+                                {{ participantesPagination.total }} participantes registrados en la asamblea
                             </CardDescription>
                         </div>
                         <div v-if="estadisticas" class="flex gap-2">
@@ -384,38 +499,96 @@ const volver = () => {
                     </div>
                 </CardHeader>
                 <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Nombre</TableHead>
-                                <TableHead>Tipo de Participación</TableHead>
-                                <TableHead>Asistencia</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            <TableRow v-for="participante in participantes" :key="participante.id">
-                                <TableCell class="font-medium">{{ participante.name }}</TableCell>
-                                <TableCell>
-                                    <Badge :class="getTipoParticipacionBadge(participante.tipo_participacion)">
-                                        {{ getTipoParticipacionLabel(participante.tipo_participacion) }}
-                                    </Badge>
-                                </TableCell>
-                                <TableCell>
-                                    <Badge v-if="participante.asistio" class="bg-green-100 text-green-800">
-                                        <CheckCircle class="mr-1 h-3 w-3" />
-                                        Presente
-                                    </Badge>
-                                    <Badge v-else-if="asamblea.estado === 'finalizada'" class="bg-red-100 text-red-800">
-                                        <XCircle class="mr-1 h-3 w-3" />
-                                        Ausente
-                                    </Badge>
-                                    <Badge v-else variant="outline">
-                                        Pendiente
-                                    </Badge>
-                                </TableCell>
-                            </TableRow>
-                        </TableBody>
-                    </Table>
+                    <!-- Filtros Avanzados -->
+                    <div class="mb-4">
+                        <AdvancedFilters
+                            :config="filterConfig"
+                            @apply="applyFilters"
+                            @clear="applyFilters({})"
+                        />
+                    </div>
+
+                    <!-- Loading state -->
+                    <div v-if="loadingParticipantes" class="flex justify-center py-8">
+                        <div class="text-muted-foreground">Cargando participantes...</div>
+                    </div>
+
+                    <!-- Tabla de Participantes -->
+                    <div v-else>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Nombre</TableHead>
+                                    <TableHead>Departamento</TableHead>
+                                    <TableHead>Municipio</TableHead>
+                                    <TableHead>Localidad</TableHead>
+                                    <TableHead>Tipo de Participación</TableHead>
+                                    <TableHead>Asistencia</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                <TableRow v-for="participante in participantes" :key="participante.id">
+                                    <TableCell class="font-medium">{{ participante.name }}</TableCell>
+                                    <TableCell>{{ participante.departamento_nombre || 'N/A' }}</TableCell>
+                                    <TableCell>{{ participante.municipio_nombre || 'N/A' }}</TableCell>
+                                    <TableCell>{{ participante.localidad_nombre || 'N/A' }}</TableCell>
+                                    <TableCell>
+                                        <Badge :class="getTipoParticipacionBadge(participante.tipo_participacion)">
+                                            {{ getTipoParticipacionLabel(participante.tipo_participacion) }}
+                                        </Badge>
+                                    </TableCell>
+                                    <TableCell>
+                                        <Badge v-if="participante.asistio" class="bg-green-100 text-green-800">
+                                            <CheckCircle class="mr-1 h-3 w-3" />
+                                            Presente
+                                        </Badge>
+                                        <Badge v-else-if="asamblea.estado === 'finalizada'" class="bg-red-100 text-red-800">
+                                            <XCircle class="mr-1 h-3 w-3" />
+                                            Ausente
+                                        </Badge>
+                                        <Badge v-else variant="outline">
+                                            Pendiente
+                                        </Badge>
+                                    </TableCell>
+                                </TableRow>
+                                <TableRow v-if="participantes.length === 0">
+                                    <TableCell :colspan="6" class="text-center py-8">
+                                        <p class="text-muted-foreground">No hay participantes registrados</p>
+                                    </TableCell>
+                                </TableRow>
+                            </TableBody>
+                        </Table>
+
+                        <!-- Paginación -->
+                        <div v-if="participantesPagination.last_page > 1" class="flex items-center justify-between mt-4">
+                            <div class="text-sm text-muted-foreground">
+                                Mostrando {{ participantesPagination.from }} a {{ participantesPagination.to }} de {{ participantesPagination.total }} resultados
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    :disabled="participantesPagination.current_page === 1"
+                                    @click="changePage(participantesPagination.current_page - 1)"
+                                >
+                                    <ChevronLeft class="h-4 w-4" />
+                                    Anterior
+                                </Button>
+                                <div class="text-sm">
+                                    Página {{ participantesPagination.current_page }} de {{ participantesPagination.last_page }}
+                                </div>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    :disabled="participantesPagination.current_page === participantesPagination.last_page"
+                                    @click="changePage(participantesPagination.current_page + 1)"
+                                >
+                                    Siguiente
+                                    <ChevronRight class="h-4 w-4" />
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
                 </CardContent>
             </Card>
 
@@ -440,12 +613,29 @@ const volver = () => {
 
                 <!-- Tab de Videoconferencia -->
                 <TabsContent value="videoconferencia" class="space-y-4 mt-6">
+                    <!-- Modo SDK (Zoom Meeting) -->
                     <ZoomMeeting 
-                        v-if="asamblea.zoom_enabled && asamblea.zoom_meeting_id"
+                        v-if="asamblea.zoom_enabled && asamblea.zoom_integration_type === 'sdk' && asamblea.zoom_meeting_id"
                         :asamblea-id="asamblea.id"
                         :meeting-id="asamblea.zoom_meeting_id"
                     />
                     
+                    <!-- Modo API (Zoom API Meeting) -->
+                    <ZoomApiMeeting 
+                        v-else-if="asamblea.zoom_enabled && asamblea.zoom_integration_type === 'api'"
+                        :asamblea-id="asamblea.id"
+                    />
+                    
+                    <!-- Zoom habilitado pero sin configuración completa -->
+                    <Alert v-else-if="asamblea.zoom_enabled && !asamblea.zoom_meeting_id">
+                        <Info class="h-4 w-4" />
+                        <AlertTitle>Configuración Incompleta</AlertTitle>
+                        <AlertDescription>
+                            La videoconferencia está habilitada pero aún no está completamente configurada.
+                        </AlertDescription>
+                    </Alert>
+                    
+                    <!-- Videoconferencia no habilitada -->
                     <Alert v-else-if="!asamblea.zoom_enabled">
                         <Info class="h-4 w-4" />
                         <AlertTitle>Videoconferencia No Habilitada</AlertTitle>

@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Asamblea;
+use App\Models\User;
+use App\Traits\HasAdvancedFilters;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
@@ -10,6 +12,8 @@ use Inertia\Response;
 
 class AsambleaPublicController extends Controller
 {
+    use HasAdvancedFilters;
+
     /**
      * Display a listing of asambleas for the authenticated user
      */
@@ -17,8 +21,9 @@ class AsambleaPublicController extends Controller
     {
         $user = Auth::user();
         
-        // Obtener asambleas donde el usuario es participante
+        // Obtener asambleas donde el usuario es participante (solo activas)
         $query = $user->asambleas()
+            ->where('activo', true)
             ->with(['territorio', 'departamento', 'municipio', 'localidad']);
 
         // Aplicar filtro por estado si se proporciona
@@ -142,11 +147,7 @@ class AsambleaPublicController extends Controller
             'territorio', 
             'departamento', 
             'municipio', 
-            'localidad',
-            'participantes' => function($query) {
-                $query->orderBy('asamblea_usuario.tipo_participacion')
-                      ->orderBy('users.name');
-            }
+            'localidad'
         ]);
 
         // Obtener información de mi participación si soy participante
@@ -160,20 +161,7 @@ class AsambleaPublicController extends Controller
             ];
         }
 
-        // Preparar lista de participantes (solo mostrar si es participante)
-        $participantes = [];
-        if ($esParticipante) {
-            $participantes = $asamblea->participantes->map(function ($p) {
-                return [
-                    'id' => $p->id,
-                    'name' => $p->name,
-                    'email' => $p->email,
-                    'tipo_participacion' => $p->pivot->tipo_participacion,
-                    'asistio' => $p->pivot->asistio,
-                    'hora_registro' => $p->pivot->hora_registro,
-                ];
-            });
-        }
+        // Los participantes se cargarán dinámicamente via AJAX
 
         return Inertia::render('Asambleas/Show', [
             'asamblea' => [
@@ -201,11 +189,165 @@ class AsambleaPublicController extends Controller
                 'alcanza_quorum' => $asamblea->alcanzaQuorum(),
                 'asistentes_count' => $asamblea->getAsistentesCount(),
                 'participantes_count' => $asamblea->getParticipantesCount(),
+                // Campos de videoconferencia
+                'zoom_enabled' => $asamblea->zoom_enabled,
+                'zoom_integration_type' => $asamblea->zoom_integration_type,
+                'zoom_meeting_id' => $asamblea->zoom_meeting_id,
+                'zoom_meeting_password' => $asamblea->zoom_meeting_password,
+                'zoom_occurrence_ids' => $asamblea->zoom_occurrence_ids,
+                'zoom_join_url' => $asamblea->zoom_join_url,
+                'zoom_start_url' => $asamblea->zoom_start_url,
+                'zoom_estado' => $asamblea->getZoomEstado(),
+                'zoom_estado_mensaje' => $asamblea->getZoomEstadoMensaje(),
             ],
             'esParticipante' => $esParticipante,
             'esDesuTerritorio' => $esDesuTerritorio,
             'miParticipacion' => $miParticipacion,
-            'participantes' => $participantes,
         ]);
+    }
+
+    /**
+     * Obtener participantes paginados con filtros
+     */
+    public function getParticipantes(Request $request, Asamblea $asamblea)
+    {
+        $user = Auth::user();
+        
+        // Verificar que el usuario sea participante o que la asamblea sea de su territorio
+        $esParticipante = $asamblea->participantes()->where('usuario_id', $user->id)->exists();
+        $esDesuTerritorio = false;
+        
+        if (!$esParticipante) {
+            // Verificar si la asamblea es del territorio del usuario
+            if ($user->localidad_id && $asamblea->localidad_id === $user->localidad_id) {
+                $esDesuTerritorio = true;
+            } elseif ($user->municipio_id && $asamblea->municipio_id === $user->municipio_id) {
+                $esDesuTerritorio = true;
+            } elseif ($user->departamento_id && $asamblea->departamento_id === $user->departamento_id) {
+                $esDesuTerritorio = true;
+            } elseif ($user->territorio_id && $asamblea->territorio_id === $user->territorio_id) {
+                $esDesuTerritorio = true;
+            }
+            
+            if (!$esDesuTerritorio) {
+                abort(403, 'No tienes permisos para ver los participantes de esta asamblea');
+            }
+        }
+
+        // Solo mostrar participantes si es participante (no si solo es de su territorio)
+        if (!$esParticipante) {
+            return response()->json([
+                'participantes' => ['data' => [], 'total' => 0, 'current_page' => 1, 'last_page' => 1],
+                'filterFieldsConfig' => [],
+            ]);
+        }
+
+        // Construir query con joins para incluir datos geográficos
+        $query = User::query()
+            ->join('asamblea_usuario', 'users.id', '=', 'asamblea_usuario.usuario_id')
+            ->leftJoin('territorios', 'users.territorio_id', '=', 'territorios.id')
+            ->leftJoin('departamentos', 'users.departamento_id', '=', 'departamentos.id')
+            ->leftJoin('municipios', 'users.municipio_id', '=', 'municipios.id')
+            ->leftJoin('localidades', 'users.localidad_id', '=', 'localidades.id')
+            ->where('asamblea_usuario.asamblea_id', $asamblea->id);
+        
+        $query->select('users.*', 
+                'asamblea_usuario.tipo_participacion',
+                'asamblea_usuario.asistio',
+                'asamblea_usuario.hora_registro',
+                'territorios.nombre as territorio_nombre',
+                'departamentos.nombre as departamento_nombre',
+                'municipios.nombre as municipio_nombre',
+                'localidades.nombre as localidad_nombre'
+            );
+
+        // Definir campos permitidos para filtrar (con tabla especificada para evitar ambigüedad)
+        $allowedFields = [
+            'name', 'email', 'tipo_participacion', 'asistio',
+            'users.territorio_id', 'users.departamento_id', 'users.municipio_id', 'users.localidad_id',
+        ];
+        
+        // Campos para búsqueda rápida
+        $quickSearchFields = ['name', 'email'];
+
+        // Aplicar filtros avanzados
+        $this->applyAdvancedFilters($query, $request, $allowedFields, $quickSearchFields);
+        
+        // Aplicar filtros simples si existen
+        if ($request->filled('tipo_participacion') && !$request->filled('advanced_filters')) {
+            $query->where('asamblea_usuario.tipo_participacion', $request->tipo_participacion);
+        }
+        
+        if ($request->has('asistio') && !$request->filled('advanced_filters')) {
+            $query->where('asamblea_usuario.asistio', $request->asistio === 'true' || $request->asistio === '1');
+        }
+
+        // Ordenamiento
+        $query->orderBy('asamblea_usuario.tipo_participacion')
+              ->orderBy('users.name');
+
+        $participantes = $query->paginate(20)->withQueryString();
+
+        // Transformar datos para incluir información geográfica
+        $participantes->getCollection()->transform(function ($participante) {
+            return [
+                'id' => $participante->id,
+                'name' => $participante->name,
+                'email' => $participante->email,
+                'tipo_participacion' => $participante->tipo_participacion,
+                'asistio' => $participante->asistio,
+                'hora_registro' => $participante->hora_registro,
+                'territorio_nombre' => $participante->territorio_nombre,
+                'departamento_nombre' => $participante->departamento_nombre,
+                'municipio_nombre' => $participante->municipio_nombre,
+                'localidad_nombre' => $participante->localidad_nombre,
+            ];
+        });
+
+        return response()->json([
+            'participantes' => $participantes,
+            'filterFieldsConfig' => $this->getParticipantesFilterFieldsConfig(),
+        ]);
+    }
+
+    /**
+     * Obtener configuración de campos para filtros avanzados de participantes
+     * Los campos geográficos se manejan en el frontend con useGeographicFilters
+     */
+    protected function getParticipantesFilterFieldsConfig(): array
+    {
+        // Solo campos básicos del usuario
+        // Los campos geográficos se añadirán dinámicamente en el frontend
+        return [
+            [
+                'name' => 'name',
+                'label' => 'Nombre',
+                'type' => 'text',
+            ],
+            [
+                'name' => 'email',
+                'label' => 'Email',
+                'type' => 'text',
+            ],
+            [
+                'name' => 'tipo_participacion',
+                'label' => 'Tipo de Participación',
+                'type' => 'select',
+                'options' => [
+                    ['value' => 'asistente', 'label' => 'Asistente'],
+                    ['value' => 'moderador', 'label' => 'Moderador'],
+                    ['value' => 'secretario', 'label' => 'Secretario'],
+                ],
+            ],
+            [
+                'name' => 'asistio',
+                'label' => 'Asistencia',
+                'type' => 'select',
+                'options' => [
+                    ['value' => 1, 'label' => 'Presente'],
+                    ['value' => 0, 'label' => 'Ausente'],
+                ],
+            ],
+        ];
     }
 }
