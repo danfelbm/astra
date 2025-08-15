@@ -201,6 +201,14 @@ const mainNavItems = computed<NavItem[]>(() => {
             });
         }
         
+        if (hasAnyPermission(['formularios.view', 'formularios.create', 'formularios.edit', 'formularios.delete', 'formularios.view_responses']) && hasModuleAccess('formularios')) {
+            electoralItems.push({
+                title: 'Formularios',
+                url: '/admin/formularios',
+                icon: FileText,
+            });
+        }
+        
         // Solo agregar la sección si hay elementos
         if (electoralItems.length > 0) {
             items.push({
@@ -325,6 +333,15 @@ const mainNavItems = computed<NavItem[]>(() => {
                 title: 'Mis Postulaciones',
                 url: '/postulaciones',
                 icon: ClipboardList,
+            });
+        }
+        
+        // Formularios
+        if (hasAnyPermission(['formularios.view_public', 'formularios.fill_public']) && hasModuleAccess('formularios')) {
+            items.push({
+                title: 'Formularios',
+                url: '/formularios',
+                icon: FileText,
             });
         }
         

@@ -740,6 +740,10 @@ class CandidaturaController extends Controller
                 $candidatura->estado = 'borrador';
                 $candidatura->version = 1;
                 $candidatura->formulario_data = [];
+                
+                // Asignar tenant_id manualmente porque saveQuietly() no dispara eventos del modelo
+                // y por tanto el trait HasTenant no puede asignarlo automáticamente
+                $candidatura->tenant_id = $usuario->tenant_id;
             }
             
             // Actualizar los datos del formulario (incluyendo convocatoria si existe)

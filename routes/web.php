@@ -41,12 +41,28 @@ Route::prefix('api/verificar-token')->name('api.verificar-token.')->group(functi
     Route::get('public-key', [TokenVerificationController::class, 'publicKey'])->name('public-key');
 });
 
+// Rutas públicas de formularios (con autenticación opcional)
+Route::get('formularios/{slug}', [\App\Http\Controllers\FormularioPublicController::class, 'show'])->name('formularios.show');
+Route::post('formularios/{slug}/responder', [\App\Http\Controllers\FormularioPublicController::class, 'store'])->name('formularios.store');
+Route::get('formularios/{slug}/success', [\App\Http\Controllers\FormularioPublicController::class, 'success'])->name('formularios.success');
+
+// API de formularios para autoguardado (requiere autenticación)
+Route::middleware(['auth'])->prefix('api/formularios')->name('api.formularios.')->group(function () {
+    Route::post('autosave', [\App\Http\Controllers\Api\FormularioController::class, 'autosave'])->name('autosave');
+    Route::post('{respuesta}/autosave', [\App\Http\Controllers\Api\FormularioController::class, 'autosaveExisting'])->name('autosave.existing');
+});
+
 Route::get('dashboard', function () {
     return Inertia::render('Dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 // Votaciones routes for regular users
 Route::middleware(['auth', 'verified'])->group(function () {
+    // Formularios para usuarios autenticados  
+    Route::get('formularios', [\App\Http\Controllers\FormularioPublicController::class, 'index'])
+        ->middleware('permission:formularios.view_public')
+        ->name('formularios.index');
+    
     Route::get('votaciones', [VotoController::class, 'index'])
         ->middleware('permission:votaciones.view_public')
         ->name('votaciones.index');
@@ -303,6 +319,17 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
     Route::get('postulaciones-exportar', [AdminPostulacionController::class, 'exportar'])
         ->middleware('permission:postulaciones.view')
         ->name('postulaciones.exportar');
+    
+    // Formularios admin routes
+    Route::resource('formularios', \App\Http\Controllers\Admin\FormularioController::class)
+        ->middleware('permission'); // El middleware inferirá el permiso de la acción
+    Route::get('formularios/{formulario}/exportar', [\App\Http\Controllers\Admin\FormularioController::class, 'exportarRespuestas'])
+        ->middleware('permission:formularios.export')
+        ->name('formularios.exportar');
+    
+    // Categorías de formularios (pendiente de implementar)
+    // Route::resource('formulario-categorias', \App\Http\Controllers\Admin\FormularioCategoriaController::class)
+    //     ->middleware('permission'); // El middleware inferirá el permiso de la acción
     
     // Import routes
     Route::get('imports/{import}', [ImportController::class, 'show'])->name('imports.show');

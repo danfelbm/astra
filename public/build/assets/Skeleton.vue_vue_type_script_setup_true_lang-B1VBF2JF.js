@@ -1,1 +1,0 @@
-import{a}from"./AppLogo.vue_vue_type_script_setup_true_lang-CnnbAlVn.js";import{d as n,a as o,o as r,n as t,u as c}from"./app-BwG9KyUw.js";const d=n({__name:"Skeleton",props:{class:{}},setup(e){const s=e;return(l,m)=>(r(),o("div",{class:t(c(a)("animate-pulse rounded-md bg-muted",s.class))},null,2))}});export{d as _};

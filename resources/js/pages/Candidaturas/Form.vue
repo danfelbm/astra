@@ -143,7 +143,8 @@ const {
     clearLocalStorage
 } = useAutoSave(formDataRef, {
     url: '/candidaturas/autosave',
-    candidaturaId: props.candidatura?.id || null,
+    resourceId: props.candidatura?.id || null,
+    resourceIdField: 'candidatura_id', // Campo esperado en la respuesta del servidor
     debounceTime: 3000, // 3 segundos
     showNotifications: true,
     useLocalStorage: true,
