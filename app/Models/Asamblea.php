@@ -28,6 +28,15 @@ class Asamblea extends Model
         'estado',
         'activo',
         'acta_url',
+        // Campos de Zoom
+        'zoom_enabled',
+        'zoom_meeting_id',
+        'zoom_meeting_password',
+        'zoom_meeting_type',
+        'zoom_settings',
+        'zoom_created_at',
+        'zoom_join_url',
+        'zoom_start_url',
     ];
 
     protected $casts = [
@@ -35,6 +44,10 @@ class Asamblea extends Model
         'fecha_fin' => 'datetime',
         'activo' => 'boolean',
         'quorum_minimo' => 'integer',
+        // Casts para campos de Zoom
+        'zoom_enabled' => 'boolean',
+        'zoom_settings' => 'array',
+        'zoom_created_at' => 'datetime',
     ];
 
     // Relación con participantes (usuarios)
@@ -356,5 +369,115 @@ class Asamblea extends Model
         }
         
         return implode(', ', $partes);
+    }
+
+    // Métodos para integración con Zoom
+    
+    /**
+     * Verificar si la asamblea tiene videoconferencia habilitada
+     */
+    public function tieneZoomHabilitado(): bool
+    {
+        return $this->zoom_enabled && !empty($this->zoom_meeting_id);
+    }
+    
+    /**
+     * Verificar si la videoconferencia está disponible para unirse
+     */
+    public function zoomDisponibleParaUnirse(): bool
+    {
+        if (!$this->tieneZoomHabilitado()) {
+            return false;
+        }
+        
+        $now = now();
+        $inicioPermitido = $this->fecha_inicio->subMinutes(15); // 15 minutos antes
+        $finPermitido = $this->fecha_fin->addMinutes(30); // 30 minutos después
+        
+        return $now >= $inicioPermitido && $now <= $finPermitido;
+    }
+    
+    /**
+     * Obtener el estado de la videoconferencia
+     */
+    public function getZoomEstado(): string
+    {
+        if (!$this->tieneZoomHabilitado()) {
+            return 'disabled';
+        }
+        
+        $now = now();
+        $inicioPermitido = $this->fecha_inicio->subMinutes(15);
+        $finPermitido = $this->fecha_fin->addMinutes(30);
+        
+        if ($now < $inicioPermitido) {
+            return 'pending'; // Pendiente de inicio
+        }
+        
+        if ($now > $finPermitido) {
+            return 'finished'; // Finalizada
+        }
+        
+        if ($now >= $this->fecha_inicio && $now <= $this->fecha_fin) {
+            return 'active'; // En curso
+        }
+        
+        return 'available'; // Disponible para unirse
+    }
+    
+    /**
+     * Obtener mensaje del estado de Zoom
+     */
+    public function getZoomEstadoMensaje(): string
+    {
+        $estado = $this->getZoomEstado();
+        
+        return match($estado) {
+            'disabled' => 'Videoconferencia no habilitada',
+            'pending' => 'Videoconferencia disponible 15 minutos antes del inicio',
+            'available' => 'Videoconferencia disponible',
+            'active' => 'Videoconferencia en curso',
+            'finished' => 'Videoconferencia finalizada',
+            default => 'Estado desconocido'
+        };
+    }
+    
+    /**
+     * Obtener configuración de Zoom con valores por defecto
+     */
+    public function getZoomSettingsWithDefaults(): array
+    {
+        $defaults = [
+            'host_video' => true,
+            'participant_video' => false,
+            'waiting_room' => true,
+            'mute_upon_entry' => true,
+            'auto_recording' => 'none'
+        ];
+        
+        return array_merge($defaults, $this->zoom_settings ?? []);
+    }
+    
+    /**
+     * Scope para asambleas con Zoom habilitado
+     */
+    public function scopeConZoomHabilitado(Builder $query): Builder
+    {
+        return $query->where('zoom_enabled', true)
+                    ->whereNotNull('zoom_meeting_id');
+    }
+    
+    /**
+     * Scope para asambleas con Zoom disponible para unirse
+     */
+    public function scopeZoomDisponible(Builder $query): Builder
+    {
+        $now = now();
+        $inicioPermitido = $now->copy()->subMinutes(15);
+        $finPermitido = $now->copy()->addMinutes(30);
+        
+        return $query->conZoomHabilitado()
+                    ->where('fecha_inicio', '<=', $finPermitido)
+                    ->where('fecha_fin', '>=', $inicioPermitido);
     }
 }

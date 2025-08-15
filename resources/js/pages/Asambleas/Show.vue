@@ -4,8 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { type BreadcrumbItemType } from '@/types';
 import AppLayout from '@/layouts/AppLayout.vue';
+import ZoomMeeting from '@/components/ZoomMeeting.vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { 
     ArrowLeft, 
@@ -17,9 +19,10 @@ import {
     XCircle,
     FileText,
     Info,
-    UserCheck
+    UserCheck,
+    Video
 } from 'lucide-vue-next';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -77,6 +80,12 @@ interface Asamblea {
     alcanza_quorum: boolean;
     asistentes_count: number;
     participantes_count: number;
+    // Campos de videoconferencia
+    zoom_enabled?: boolean;
+    zoom_meeting_id?: string;
+    zoom_meeting_password?: string;
+    zoom_estado?: string;
+    zoom_estado_mensaje?: string;
 }
 
 interface Props {
@@ -101,6 +110,9 @@ const breadcrumbs: BreadcrumbItemType[] = [
 
 // Helper para obtener route
 const { route } = window as any;
+
+// Tab activo
+const activeTab = ref('informacion');
 
 // Formatear fecha completa
 const formatearFechaCompleta = (fecha: string) => {
@@ -221,6 +233,24 @@ const volver = () => {
                 </AlertDescription>
             </Alert>
 
+            <!-- Navegación con Tabs -->
+            <Tabs v-model="activeTab" class="w-full">
+                <TabsList class="grid w-full grid-cols-3">
+                    <TabsTrigger value="informacion">Información</TabsTrigger>
+                    <TabsTrigger value="participantes" :disabled="!esParticipante">Participantes</TabsTrigger>
+                    <TabsTrigger 
+                        value="videoconferencia" 
+                        :disabled="!asamblea.zoom_enabled"
+                        class="flex items-center gap-2"
+                    >
+                        <Video class="h-4 w-4" />
+                        Videoconferencia
+                    </TabsTrigger>
+                </TabsList>
+
+                <!-- Tab de Información General -->
+                <TabsContent value="informacion" class="space-y-4 mt-6">
+
             <!-- Información General -->
             <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 <Card>
@@ -322,6 +352,11 @@ const volver = () => {
                 </CardContent>
             </Card>
 
+                </TabsContent>
+
+                <!-- Tab de Participantes -->
+                <TabsContent value="participantes" class="space-y-4 mt-6">
+
             <!-- Lista de Participantes (solo si es participante) -->
             <Card v-if="esParticipante && participantes">
                 <CardHeader>
@@ -401,8 +436,29 @@ const volver = () => {
                 </CardContent>
             </Card>
 
-            <!-- Información adicional para no participantes -->
-            <Alert v-if="!esParticipante && esDesuTerritorio">
+                </TabsContent>
+
+                <!-- Tab de Videoconferencia -->
+                <TabsContent value="videoconferencia" class="space-y-4 mt-6">
+                    <ZoomMeeting 
+                        v-if="asamblea.zoom_enabled && asamblea.zoom_meeting_id"
+                        :asamblea-id="asamblea.id"
+                        :meeting-id="asamblea.zoom_meeting_id"
+                    />
+                    
+                    <Alert v-else-if="!asamblea.zoom_enabled">
+                        <Info class="h-4 w-4" />
+                        <AlertTitle>Videoconferencia No Habilitada</AlertTitle>
+                        <AlertDescription>
+                            Esta asamblea no tiene videoconferencia habilitada.
+                        </AlertDescription>
+                    </Alert>
+                </TabsContent>
+
+            </Tabs>
+
+            <!-- Información adicional para no participantes (fuera de tabs) -->
+            <Alert v-if="!esParticipante && esDesuTerritorio" class="mt-6">
                 <Info class="h-4 w-4" />
                 <AlertTitle>Información Limitada</AlertTitle>
                 <AlertDescription>
@@ -410,6 +466,7 @@ const volver = () => {
                     Para participar, debes ser añadido por el administrador.
                 </AlertDescription>
             </Alert>
+
         </div>
     </AppLayout>
 </template>
