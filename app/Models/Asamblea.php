@@ -417,8 +417,8 @@ class Asamblea extends Model
         
         // Lógica original para SDK o API sin fecha específica
         $now = now();
-        $inicioPermitido = $this->fecha_inicio->subMinutes(15); // 15 minutos antes
-        $finPermitido = $this->fecha_fin->addMinutes(30); // 30 minutos después
+        $inicioPermitido = $this->fecha_inicio->copy()->subMinutes(15); // 15 minutos antes
+        $finPermitido = $this->fecha_fin->copy()->addMinutes(30); // 30 minutos después
         
         return $now >= $inicioPermitido && $now <= $finPermitido;
     }
@@ -435,13 +435,13 @@ class Asamblea extends Model
         // Si no hay fecha específica, usar lógica por defecto
         if (!$this->zoom_registration_open_date) {
             $now = now();
-            $inicioPermitido = $this->fecha_inicio->subMinutes(15);
+            $inicioPermitido = $this->fecha_inicio->copy()->subMinutes(15);
             return $now >= $inicioPermitido;
         }
         
         // Usar fecha específica de apertura
         $now = now();
-        $finPermitido = $this->fecha_fin->addMinutes(30); // Hasta 30 min después del fin
+        $finPermitido = $this->fecha_fin->copy()->addMinutes(30); // Hasta 30 min después del fin
         
         return $now >= $this->zoom_registration_open_date && $now <= $finPermitido;
     }

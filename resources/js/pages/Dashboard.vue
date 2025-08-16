@@ -4,7 +4,7 @@ import { type BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/vue3';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { FileText, ExternalLink, MoreHorizontal } from 'lucide-vue-next';
+import { FileText, ExternalLink, MoreHorizontal, Users, Mail } from 'lucide-vue-next';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -13,8 +13,9 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-defineProps<{
+const props = defineProps<{
     name?: string;
+    hasAssemblyAccess?: boolean;
 }>();
 </script>
 
@@ -38,8 +39,63 @@ defineProps<{
             </div>
 
             <!-- Cards Grid -->
-            <div class="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 max-w-4xl">
-                <!-- Primera Card: Crear Candidatura -->
+            <div class="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 max-w-6xl">
+                <!-- Primera Card: Acceso a Asamblea -->
+                <Card :class="[
+                    'border-l-4 transition-shadow',
+                    props.hasAssemblyAccess
+                        ? 'border-l-purple-500 hover:shadow-lg cursor-pointer'
+                        : 'border-l-gray-300 opacity-60 cursor-not-allowed'
+                ]">
+                    <Link v-if="props.hasAssemblyAccess" href="/asambleas/1" class="block h-full">
+                        <CardHeader class="pb-3">
+                            <div class="flex items-center space-x-3">
+                                <div class="p-2 bg-purple-100 rounded-lg dark:bg-purple-900">
+                                    <Users class="h-6 w-6 text-purple-600 dark:text-purple-400" />
+                                </div>
+                                <div>
+                                    <CardTitle class="text-lg text-purple-700 dark:text-purple-400">
+                                        Asamblea Nacional
+                                    </CardTitle>
+                                </div>
+                            </div>
+                        </CardHeader>
+                        <CardContent>
+                            <CardDescription class="text-sm">
+                                Accede a la Asamblea Nacional para participar en las discusiones y votaciones.
+                            </CardDescription>
+                            <Button variant="outline" size="sm" class="mt-4 w-full group">
+                                Ingresar
+                                <Users class="ml-2 h-4 w-4 group-hover:scale-110 transition-transform" />
+                            </Button>
+                        </CardContent>
+                    </Link>
+                    <div v-else class="block h-full">
+                        <CardHeader class="pb-3">
+                            <div class="flex items-center space-x-3">
+                                <div class="p-2 bg-gray-100 rounded-lg dark:bg-gray-800">
+                                    <Users class="h-6 w-6 text-gray-400" />
+                                </div>
+                                <div>
+                                    <CardTitle class="text-lg text-gray-500">
+                                        Asamblea Nacional
+                                    </CardTitle>
+                                </div>
+                            </div>
+                        </CardHeader>
+                        <CardContent>
+                            <CardDescription class="text-sm text-gray-400">
+                                No tienes acceso a esta asamblea. Contacta a soporte@colombiahumana.co para solicitar acceso.
+                            </CardDescription>
+                            <Button variant="outline" size="sm" class="mt-4 w-full" disabled>
+                                <Mail class="mr-2 h-4 w-4" />
+                                Contactar soporte
+                            </Button>
+                        </CardContent>
+                    </div>
+                </Card>
+
+                <!-- Segunda Card: Crear Candidatura -->
                 <Card class="border-l-4 border-l-green-500 hover:shadow-lg transition-shadow cursor-pointer">
                     <Link href="/candidaturas/create" class="block h-full">
                         <CardHeader class="pb-3">
@@ -66,7 +122,7 @@ defineProps<{
                     </Link>
                 </Card>
 
-                <!-- Segunda Card: Documentación -->
+                <!-- Tercera Card: Documentación -->
                 <Card class="border-l-4 border-l-blue-500 hover:shadow-lg transition-shadow cursor-pointer">
                     <a href="https://colombiahumana.co/postulaciones" target="_blank" rel="noopener noreferrer" class="block h-full">
                         <CardHeader class="pb-3">

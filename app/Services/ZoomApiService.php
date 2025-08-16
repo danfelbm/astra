@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Asamblea;
 use App\Models\User;
 use App\Models\ZoomRegistrant;
+use App\Services\ZoomNotificationService;
 use Exception;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -181,6 +182,27 @@ class ZoomApiService
                 'zoom_occurrences' => $responseData['occurrences'] ?? null,
                 'registered_at' => now(),
             ]);
+
+            // Enviar notificaciones automáticamente después del registro exitoso
+            try {
+                $notificationService = new ZoomNotificationService();
+                $notificationResult = $notificationService->sendNotifications($zoomRegistrant, $user);
+                
+                Log::info('Intento de notificaciones Zoom completado', [
+                    'zoom_registrant_id' => $zoomRegistrant->id,
+                    'user_id' => $user->id,
+                    'notification_success' => $notificationResult['success'],
+                    'channels_sent' => $notificationResult['channels_sent'] ?? [],
+                ]);
+                
+            } catch (Exception $notificationError) {
+                // No propagar errores de notificación para no afectar el registro exitoso
+                Log::warning('Error enviando notificaciones Zoom (no crítico)', [
+                    'zoom_registrant_id' => $zoomRegistrant->id,
+                    'user_id' => $user->id,
+                    'error' => $notificationError->getMessage()
+                ]);
+            }
 
             return [
                 'success' => true,

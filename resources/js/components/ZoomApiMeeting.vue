@@ -344,8 +344,7 @@ onMounted(() => {
                 <AlertCircle class="h-4 w-4" />
                 <AlertTitle>Advertencia</AlertTitle>
                 <AlertDescription>
-                    Si compartes tu link de ingreso con alguien más corres el riesgo de no poder participar en la asamblea, 
-                    pues solo un dispositivo puede estar conectado a la videoconferencia.
+                    Tu link es único, cuídalo, no lo compartas, si lo compartes podrías quedarte por fuera de la reunión, ya que solo se admite un usuario por link.
                 </AlertDescription>
             </Alert>
         </div>

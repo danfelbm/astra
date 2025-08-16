@@ -6,6 +6,7 @@ use App\Traits\HasTenant;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class ZoomRegistrant extends Model
 {
@@ -96,6 +97,14 @@ class ZoomRegistrant extends Model
             'expired' => 'Reunión finalizada',
             default => 'Estado desconocido'
         };
+    }
+
+    /**
+     * Relación con ZoomRegistrantAccess
+     */
+    public function access(): HasOne
+    {
+        return $this->hasOne(ZoomRegistrantAccess::class);
     }
 
     /**
