@@ -21,8 +21,8 @@ class OTPService
      */
     public function generateOTP(string $email, ?string $phone = null): string
     {
-        // Limpiar códigos expirados
-        $this->cleanExpiredOTPs();
+        // NO limpiar códigos expirados aquí - se hace mediante Job programado
+        // $this->cleanExpiredOTPs(); // REMOVIDO para mejorar rendimiento
 
         // Invalidar códigos OTP previos para el mismo email
         OTP::where('email', $email)->update(['usado' => true]);

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Auth\OTPAuthController;
+use App\Http\Middleware\ThrottleOTPRequests;
 use Illuminate\Support\Facades\Route;
 
 // Rutas OTP Authentication (nuevas)
@@ -10,15 +11,15 @@ Route::middleware('guest')->group(function () {
 
     Route::post('auth/request-otp', [OTPAuthController::class, 'requestOTP'])
         ->name('auth.request-otp')
-        ->middleware('throttle:5,1'); // 5 intentos por minuto
+        ->middleware([ThrottleOTPRequests::class.':request-otp']); // Rate limiting inteligente
 
     Route::post('auth/verify-otp', [OTPAuthController::class, 'verifyOTP'])
         ->name('auth.verify-otp')
-        ->middleware('throttle:10,1'); // 10 intentos por minuto
+        ->middleware([ThrottleOTPRequests::class.':verify-otp']); // Rate limiting inteligente
 
     Route::post('auth/resend-otp', [OTPAuthController::class, 'resendOTP'])
         ->name('auth.resend-otp')
-        ->middleware('throttle:3,1'); // 3 intentos por minuto
+        ->middleware([ThrottleOTPRequests::class.':resend-otp']); // Rate limiting inteligente
     
     // Endpoint público para obtener configuración de login
     Route::get('auth/login-config', [OTPAuthController::class, 'getLoginConfig'])

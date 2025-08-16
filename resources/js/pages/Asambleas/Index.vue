@@ -1,15 +1,12 @@
 <script setup lang="ts">
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { type BreadcrumbItemType } from '@/types';
 import AppLayout from '@/layouts/AppLayout.vue';
-import { Head, Link, router } from '@inertiajs/vue3';
-import { Calendar, Clock, MapPin, Users, Search, Eye, CheckCircle } from 'lucide-vue-next';
-import { ref, computed } from 'vue';
+import { Head, Link } from '@inertiajs/vue3';
+import { Calendar, Clock, MapPin, Users, Eye, CheckCircle } from 'lucide-vue-next';
+import { ref } from 'vue';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -36,20 +33,24 @@ interface Asamblea {
     };
 }
 
+interface PaginatedData {
+    data: Asamblea[];
+    current_page: number;
+    last_page: number;
+    per_page: number;
+    total: number;
+    from?: number;
+    to?: number;
+    links: Array<{
+        url: string | null;
+        label: string;
+        active: boolean;
+    }>;
+}
+
 interface Props {
-    asambleas: {
-        data: Asamblea[];
-        current_page: number;
-        last_page: number;
-        per_page: number;
-        total: number;
-        links: Array<{
-            url: string | null;
-            label: string;
-            active: boolean;
-        }>;
-    };
-    asambleasPublicas: Asamblea[];
+    asambleas: PaginatedData;
+    asambleasPublicas: PaginatedData;
     filters: {
         estado?: string;
         tipo?: string;
@@ -67,11 +68,6 @@ const breadcrumbs: BreadcrumbItemType[] = [
 // Helper para obtener route
 const { route } = window as any;
 
-// Estado para filtros
-const searchQuery = ref(props.filters.search || '');
-const selectedEstado = ref(props.filters.estado || 'all');
-const selectedTipo = ref(props.filters.tipo || 'all');
-
 // Tab activo
 const activeTab = ref('mis-asambleas');
 
@@ -85,36 +81,6 @@ const formatearFecha = (fecha: string) => {
 const formatearHora = (fecha: string) => {
     if (!fecha) return '';
     return format(new Date(fecha), 'p', { locale: es });
-};
-
-// Aplicar filtros
-const aplicarFiltros = () => {
-    const filters: any = {};
-    
-    if (searchQuery.value) {
-        filters.search = searchQuery.value;
-    }
-    
-    if (selectedEstado.value !== 'all') {
-        filters.estado = selectedEstado.value;
-    }
-    
-    if (selectedTipo.value !== 'all') {
-        filters.tipo = selectedTipo.value;
-    }
-    
-    router.get(route('asambleas.index'), filters, {
-        preserveState: true,
-        preserveScroll: true,
-    });
-};
-
-// Limpiar filtros
-const limpiarFiltros = () => {
-    searchQuery.value = '';
-    selectedEstado.value = 'all';
-    selectedTipo.value = 'all';
-    aplicarFiltros();
 };
 
 // Obtener badge para mi participación
@@ -150,59 +116,6 @@ const getTipoBadge = (tipo: string) => {
                 </p>
             </div>
 
-            <!-- Filtros -->
-            <Card>
-                <CardHeader>
-                    <CardTitle>Filtros</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <div class="grid gap-4 md:grid-cols-4">
-                        <div class="relative">
-                            <Search class="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                            <Input
-                                v-model="searchQuery"
-                                placeholder="Buscar por nombre..."
-                                class="pl-8"
-                                @keyup.enter="aplicarFiltros"
-                            />
-                        </div>
-
-                        <Select v-model="selectedEstado" @update:value="aplicarFiltros">
-                            <SelectTrigger>
-                                <SelectValue placeholder="Estado" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">Todos los estados</SelectItem>
-                                <SelectItem value="programada">Programada</SelectItem>
-                                <SelectItem value="en_curso">En Curso</SelectItem>
-                                <SelectItem value="finalizada">Finalizada</SelectItem>
-                                <SelectItem value="cancelada">Cancelada</SelectItem>
-                            </SelectContent>
-                        </Select>
-
-                        <Select v-model="selectedTipo" @update:value="aplicarFiltros">
-                            <SelectTrigger>
-                                <SelectValue placeholder="Tipo" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">Todos los tipos</SelectItem>
-                                <SelectItem value="ordinaria">Ordinaria</SelectItem>
-                                <SelectItem value="extraordinaria">Extraordinaria</SelectItem>
-                            </SelectContent>
-                        </Select>
-
-                        <div class="flex gap-2">
-                            <Button @click="aplicarFiltros">
-                                <Search class="mr-2 h-4 w-4" />
-                                Buscar
-                            </Button>
-                            <Button variant="outline" @click="limpiarFiltros">
-                                Limpiar
-                            </Button>
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
 
             <!-- Tabs -->
             <Tabs v-model="activeTab" class="flex-1">
@@ -211,7 +124,7 @@ const getTipoBadge = (tipo: string) => {
                         Mis Asambleas ({{ asambleas.total }})
                     </TabsTrigger>
                     <TabsTrigger value="asambleas-publicas">
-                        Asambleas de mi Territorio ({{ asambleasPublicas.length }})
+                        Asambleas de mi Territorio ({{ asambleasPublicas.total }})
                     </TabsTrigger>
                 </TabsList>
 
@@ -337,7 +250,7 @@ const getTipoBadge = (tipo: string) => {
                 <TabsContent value="asambleas-publicas" class="mt-4">
                     <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                         <Link 
-                            v-for="asamblea in asambleasPublicas" 
+                            v-for="asamblea in asambleasPublicas.data" 
                             :key="asamblea.id"
                             :href="route('asambleas.show', asamblea.id)"
                             class="block transition-transform hover:scale-[1.02]"
@@ -389,7 +302,7 @@ const getTipoBadge = (tipo: string) => {
                             </Card>
                         </Link>
 
-                        <div v-if="asambleasPublicas.length === 0" class="col-span-full">
+                        <div v-if="asambleasPublicas.data.length === 0" class="col-span-full">
                             <Card>
                                 <CardContent class="flex flex-col items-center justify-center py-12">
                                     <MapPin class="h-12 w-12 text-muted-foreground mb-4" />
@@ -401,6 +314,38 @@ const getTipoBadge = (tipo: string) => {
                                     </p>
                                 </CardContent>
                             </Card>
+                        </div>
+                    </div>
+
+                    <!-- Paginación para Asambleas Públicas -->
+                    <div v-if="asambleasPublicas.last_page > 1" class="mt-6 flex items-center justify-between">
+                        <p class="text-sm text-muted-foreground">
+                            Mostrando {{ (asambleasPublicas.current_page - 1) * asambleasPublicas.per_page + 1 }} a 
+                            {{ Math.min(asambleasPublicas.current_page * asambleasPublicas.per_page, asambleasPublicas.total) }} de 
+                            {{ asambleasPublicas.total }} asambleas
+                        </p>
+                        <div class="flex gap-2">
+                            <template v-for="link in asambleasPublicas.links" :key="link.label">
+                                <Link 
+                                    v-if="link.url"
+                                    :href="link.url"
+                                    :class="[
+                                        'px-3 py-1 text-sm border rounded',
+                                        link.active 
+                                            ? 'bg-primary text-primary-foreground' 
+                                            : 'bg-background hover:bg-accent'
+                                    ]"
+                                    v-html="link.label"
+                                />
+                                <span 
+                                    v-else
+                                    :class="[
+                                        'px-3 py-1 text-sm border rounded',
+                                        'bg-muted text-muted-foreground cursor-not-allowed'
+                                    ]"
+                                    v-html="link.label"
+                                />
+                            </template>
                         </div>
                     </div>
                 </TabsContent>

@@ -1,0 +1,10 @@
+[Unit]
+Description=Laravel Scheduler Timer
+Requires=laravel-scheduler.service
+
+[Timer]
+OnCalendar=*-*-* *:*:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target
