@@ -68,6 +68,8 @@ interface Participante {
         tipo_participacion: 'asistente' | 'moderador' | 'secretario';
         asistio: boolean;
         hora_registro?: string;
+        updated_by?: number;
+        updated_by_name?: string;
     };
 }
 
@@ -606,6 +608,7 @@ onMounted(() => {
                                 <TableHead>Tipo de Participación</TableHead>
                                 <TableHead>Asistencia</TableHead>
                                 <TableHead>Hora de Registro</TableHead>
+                                <TableHead>Registrado por</TableHead>
                                 <TableHead v-if="puede_gestionar_participantes" class="text-right">Acciones</TableHead>
                             </TableRow>
                         </TableHeader>
@@ -655,6 +658,12 @@ onMounted(() => {
                                 </TableCell>
                                 <TableCell>
                                     {{ participante.pivot?.hora_registro ? formatearFecha(participante.pivot.hora_registro) : '-' }}
+                                </TableCell>
+                                <TableCell>
+                                    <span v-if="participante.pivot?.updated_by">
+                                        {{ participante.pivot.updated_by === participante.id ? 'Auto-registro' : (participante.pivot.updated_by_name || 'Admin') }}
+                                    </span>
+                                    <span v-else>-</span>
                                 </TableCell>
                                 <TableCell v-if="puede_gestionar_participantes" class="text-right">
                                     <div class="flex justify-end gap-2">

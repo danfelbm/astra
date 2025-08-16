@@ -218,9 +218,14 @@ const getTipoBadge = (tipo: string) => {
                 <!-- Mis Asambleas -->
                 <TabsContent value="mis-asambleas" class="mt-4">
                     <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                        <Card v-for="asamblea in asambleas.data" :key="asamblea.id">
-                            <CardHeader>
-                                <div class="flex items-start justify-between">
+                        <Link 
+                            v-for="asamblea in asambleas.data" 
+                            :key="asamblea.id" 
+                            :href="route('asambleas.show', asamblea.id)"
+                            class="block transition-transform hover:scale-[1.02]"
+                        >
+                            <Card class="h-full hover:shadow-lg transition-shadow cursor-pointer">
+                                <CardHeader>
                                     <div class="space-y-1">
                                         <CardTitle class="text-lg">{{ asamblea.nombre }}</CardTitle>
                                         <div class="flex gap-2">
@@ -232,50 +237,53 @@ const getTipoBadge = (tipo: string) => {
                                             </Badge>
                                         </div>
                                     </div>
-                                    <Link :href="route('asambleas.show', asamblea.id)">
-                                        <Button variant="ghost" size="sm">
+                                </CardHeader>
+                                <CardContent class="space-y-4">
+                                    <p v-if="asamblea.descripcion" class="text-sm text-muted-foreground line-clamp-2">
+                                        {{ asamblea.descripcion }}
+                                    </p>
+
+                                    <div class="space-y-2 text-sm">
+                                        <div class="flex items-center gap-2">
+                                            <Calendar class="h-4 w-4 text-muted-foreground" />
+                                            <span>{{ formatearFecha(asamblea.fecha_inicio) }}</span>
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            <Clock class="h-4 w-4 text-muted-foreground" />
+                                            <span>{{ formatearHora(asamblea.fecha_inicio) }} - {{ formatearHora(asamblea.fecha_fin) }}</span>
+                                        </div>
+                                        <div v-if="asamblea.lugar" class="flex items-center gap-2">
+                                            <MapPin class="h-4 w-4 text-muted-foreground" />
+                                            <span class="line-clamp-1">{{ asamblea.lugar }}</span>
+                                        </div>
+                                    </div>
+
+                                    <div v-if="asamblea.mi_participacion" class="pt-2 border-t">
+                                        <div class="flex items-center justify-between">
+                                            <Badge :class="getParticipacionBadge(asamblea.mi_participacion.tipo).class">
+                                                {{ getParticipacionBadge(asamblea.mi_participacion.tipo).text }}
+                                            </Badge>
+                                            <Badge v-if="asamblea.mi_participacion.asistio" class="bg-green-100 text-green-800">
+                                                <CheckCircle class="mr-1 h-3 w-3" />
+                                                Asististe
+                                            </Badge>
+                                        </div>
+                                    </div>
+
+                                    <div class="pt-2 text-sm font-medium">
+                                        {{ asamblea.tiempo_restante }}
+                                    </div>
+
+                                    <!-- Botón placeholder indicador -->
+                                    <div class="pt-3 border-t">
+                                        <div class="inline-flex items-center gap-2 text-sm font-medium text-primary">
+                                            Ver detalles
                                             <Eye class="h-4 w-4" />
-                                        </Button>
-                                    </Link>
-                                </div>
-                            </CardHeader>
-                            <CardContent class="space-y-4">
-                                <p v-if="asamblea.descripcion" class="text-sm text-muted-foreground line-clamp-2">
-                                    {{ asamblea.descripcion }}
-                                </p>
-
-                                <div class="space-y-2 text-sm">
-                                    <div class="flex items-center gap-2">
-                                        <Calendar class="h-4 w-4 text-muted-foreground" />
-                                        <span>{{ formatearFecha(asamblea.fecha_inicio) }}</span>
+                                        </div>
                                     </div>
-                                    <div class="flex items-center gap-2">
-                                        <Clock class="h-4 w-4 text-muted-foreground" />
-                                        <span>{{ formatearHora(asamblea.fecha_inicio) }} - {{ formatearHora(asamblea.fecha_fin) }}</span>
-                                    </div>
-                                    <div v-if="asamblea.lugar" class="flex items-center gap-2">
-                                        <MapPin class="h-4 w-4 text-muted-foreground" />
-                                        <span class="line-clamp-1">{{ asamblea.lugar }}</span>
-                                    </div>
-                                </div>
-
-                                <div v-if="asamblea.mi_participacion" class="pt-2 border-t">
-                                    <div class="flex items-center justify-between">
-                                        <Badge :class="getParticipacionBadge(asamblea.mi_participacion.tipo).class">
-                                            {{ getParticipacionBadge(asamblea.mi_participacion.tipo).text }}
-                                        </Badge>
-                                        <Badge v-if="asamblea.mi_participacion.asistio" class="bg-green-100 text-green-800">
-                                            <CheckCircle class="mr-1 h-3 w-3" />
-                                            Asististe
-                                        </Badge>
-                                    </div>
-                                </div>
-
-                                <div class="pt-2 text-sm font-medium">
-                                    {{ asamblea.tiempo_restante }}
-                                </div>
-                            </CardContent>
-                        </Card>
+                                </CardContent>
+                            </Card>
+                        </Link>
 
                         <div v-if="asambleas.data.length === 0" class="col-span-full">
                             <Card>
@@ -328,43 +336,58 @@ const getTipoBadge = (tipo: string) => {
                 <!-- Asambleas Públicas de mi Territorio -->
                 <TabsContent value="asambleas-publicas" class="mt-4">
                     <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                        <Card v-for="asamblea in asambleasPublicas" :key="asamblea.id">
-                            <CardHeader>
-                                <div class="space-y-1">
-                                    <CardTitle class="text-lg">{{ asamblea.nombre }}</CardTitle>
-                                    <div class="flex gap-2">
-                                        <Badge :class="asamblea.estado_color">
-                                            {{ asamblea.estado_label }}
-                                        </Badge>
-                                        <Badge :class="getTipoBadge(asamblea.tipo).class">
-                                            {{ getTipoBadge(asamblea.tipo).text }}
-                                        </Badge>
+                        <Link 
+                            v-for="asamblea in asambleasPublicas" 
+                            :key="asamblea.id"
+                            :href="route('asambleas.show', asamblea.id)"
+                            class="block transition-transform hover:scale-[1.02]"
+                        >
+                            <Card class="h-full hover:shadow-lg transition-shadow cursor-pointer">
+                                <CardHeader>
+                                    <div class="space-y-1">
+                                        <CardTitle class="text-lg">{{ asamblea.nombre }}</CardTitle>
+                                        <div class="flex gap-2">
+                                            <Badge :class="asamblea.estado_color">
+                                                {{ asamblea.estado_label }}
+                                            </Badge>
+                                            <Badge :class="getTipoBadge(asamblea.tipo).class">
+                                                {{ getTipoBadge(asamblea.tipo).text }}
+                                            </Badge>
+                                        </div>
                                     </div>
-                                </div>
-                            </CardHeader>
-                            <CardContent class="space-y-4">
-                                <p v-if="asamblea.descripcion" class="text-sm text-muted-foreground line-clamp-2">
-                                    {{ asamblea.descripcion }}
-                                </p>
-
-                                <div class="space-y-2 text-sm">
-                                    <div class="flex items-center gap-2">
-                                        <Calendar class="h-4 w-4 text-muted-foreground" />
-                                        <span>{{ formatearFecha(asamblea.fecha_inicio) }}</span>
-                                    </div>
-                                    <div v-if="asamblea.lugar" class="flex items-center gap-2">
-                                        <MapPin class="h-4 w-4 text-muted-foreground" />
-                                        <span class="line-clamp-2">{{ asamblea.ubicacion_completa }}</span>
-                                    </div>
-                                </div>
-
-                                <div class="pt-2 border-t">
-                                    <p class="text-sm text-muted-foreground">
-                                        Asamblea pública de tu territorio
+                                </CardHeader>
+                                <CardContent class="space-y-4">
+                                    <p v-if="asamblea.descripcion" class="text-sm text-muted-foreground line-clamp-2">
+                                        {{ asamblea.descripcion }}
                                     </p>
-                                </div>
-                            </CardContent>
-                        </Card>
+
+                                    <div class="space-y-2 text-sm">
+                                        <div class="flex items-center gap-2">
+                                            <Calendar class="h-4 w-4 text-muted-foreground" />
+                                            <span>{{ formatearFecha(asamblea.fecha_inicio) }}</span>
+                                        </div>
+                                        <div v-if="asamblea.lugar" class="flex items-center gap-2">
+                                            <MapPin class="h-4 w-4 text-muted-foreground" />
+                                            <span class="line-clamp-2">{{ asamblea.ubicacion_completa }}</span>
+                                        </div>
+                                    </div>
+
+                                    <div class="pt-2 border-t">
+                                        <p class="text-sm text-muted-foreground">
+                                            Asamblea pública de tu territorio
+                                        </p>
+                                    </div>
+
+                                    <!-- Botón placeholder indicador -->
+                                    <div class="pt-3 border-t">
+                                        <div class="inline-flex items-center gap-2 text-sm font-medium text-primary">
+                                            Ver información
+                                            <Eye class="h-4 w-4" />
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </Link>
 
                         <div v-if="asambleasPublicas.length === 0" class="col-span-full">
                             <Card>
