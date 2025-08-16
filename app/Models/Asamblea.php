@@ -63,7 +63,7 @@ class Asamblea extends Model
         $tenantId = app(\App\Services\TenantService::class)->getCurrentTenant()?->id;
         
         $relation = $this->belongsToMany(User::class, 'asamblea_usuario', 'asamblea_id', 'usuario_id')
-            ->withPivot(['tenant_id', 'tipo_participacion', 'asistio', 'hora_registro'])
+            ->withPivot(['tenant_id', 'tipo_participacion', 'asistio', 'hora_registro', 'updated_by'])
             ->withTimestamps();
             
         // Solo aplicar filtro de tenant si existe un tenant activo
@@ -78,7 +78,7 @@ class Asamblea extends Model
     public function allParticipantes(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'asamblea_usuario', 'asamblea_id', 'usuario_id')
-            ->withPivot(['tenant_id', 'tipo_participacion', 'asistio', 'hora_registro'])
+            ->withPivot(['tenant_id', 'tipo_participacion', 'asistio', 'hora_registro', 'updated_by'])
             ->withTimestamps();
     }
 
@@ -153,26 +153,39 @@ class Asamblea extends Model
                     ->where('activo', true);
     }
 
-    // Scope para filtrar por territorio
+    // Scope para filtrar por territorio (inclusivo en cascada)
     public function scopePorTerritorio(Builder $query, $territorioId = null, $departamentoId = null, $municipioId = null, $localidadId = null): Builder
     {
-        if ($localidadId) {
-            return $query->where('localidad_id', $localidadId);
-        }
-        
-        if ($municipioId) {
-            return $query->where('municipio_id', $municipioId);
-        }
-        
-        if ($departamentoId) {
-            return $query->where('departamento_id', $departamentoId);
-        }
-        
-        if ($territorioId) {
-            return $query->where('territorio_id', $territorioId);
-        }
-        
-        return $query;
+        return $query->where(function($q) use ($territorioId, $departamentoId, $municipioId, $localidadId) {
+            // Si el usuario tiene localidad, puede ver asambleas de su localidad específica
+            if ($localidadId) {
+                $q->orWhere('localidad_id', $localidadId);
+            }
+            
+            // Si tiene municipio, puede ver asambleas de todo su municipio (sin localidad específica)
+            if ($municipioId) {
+                $q->orWhere(function($subQ) use ($municipioId) {
+                    $subQ->where('municipio_id', $municipioId)
+                         ->whereNull('localidad_id');
+                });
+            }
+            
+            // Si tiene departamento, puede ver asambleas de todo su departamento (sin municipio específico)
+            if ($departamentoId) {
+                $q->orWhere(function($subQ) use ($departamentoId) {
+                    $subQ->where('departamento_id', $departamentoId)
+                         ->whereNull('municipio_id');
+                });
+            }
+            
+            // Si tiene territorio, puede ver asambleas de todo su territorio (sin departamento específico)
+            if ($territorioId) {
+                $q->orWhere(function($subQ) use ($territorioId) {
+                    $subQ->where('territorio_id', $territorioId)
+                         ->whereNull('departamento_id');
+                });
+            }
+        });
     }
 
     public function scopeOrdenadoPorFecha(Builder $query): Builder

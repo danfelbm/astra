@@ -48,7 +48,7 @@ class AsambleaPublicController extends Controller
 
         // También incluir asambleas públicas del territorio del usuario si tiene asignado
         if ($user->territorio_id || $user->departamento_id || $user->municipio_id || $user->localidad_id) {
-            $asambleasPublicas = Asamblea::activas()
+            $queryPublicas = Asamblea::activas()
                 ->porTerritorio(
                     $user->territorio_id,
                     $user->departamento_id,
@@ -58,8 +58,27 @@ class AsambleaPublicController extends Controller
                 ->with(['territorio', 'departamento', 'municipio', 'localidad'])
                 ->whereDoesntHave('participantes', function($q) use ($user) {
                     $q->where('usuario_id', $user->id);
-                })
-                ->get();
+                });
+
+            // Aplicar los mismos filtros que a las asambleas del usuario
+            if ($request->filled('estado')) {
+                $queryPublicas->where('estado', $request->estado);
+            }
+
+            if ($request->filled('tipo')) {
+                $queryPublicas->where('tipo', $request->tipo);
+            }
+
+            if ($request->filled('search')) {
+                $search = $request->search;
+                $queryPublicas->where(function($q) use ($search) {
+                    $q->where('nombre', 'like', "%{$search}%")
+                      ->orWhere('descripcion', 'like', "%{$search}%")
+                      ->orWhere('lugar', 'like', "%{$search}%");
+                });
+            }
+
+            $asambleasPublicas = $queryPublicas->ordenadoPorFecha()->get();
         } else {
             $asambleasPublicas = collect();
         }
@@ -245,6 +264,7 @@ class AsambleaPublicController extends Controller
         // Construir query con joins para incluir datos geográficos
         $query = User::query()
             ->join('asamblea_usuario', 'users.id', '=', 'asamblea_usuario.usuario_id')
+            ->leftJoin('users as updater', 'asamblea_usuario.updated_by', '=', 'updater.id')
             ->leftJoin('territorios', 'users.territorio_id', '=', 'territorios.id')
             ->leftJoin('departamentos', 'users.departamento_id', '=', 'departamentos.id')
             ->leftJoin('municipios', 'users.municipio_id', '=', 'municipios.id')
@@ -255,6 +275,8 @@ class AsambleaPublicController extends Controller
                 'asamblea_usuario.tipo_participacion',
                 'asamblea_usuario.asistio',
                 'asamblea_usuario.hora_registro',
+                'asamblea_usuario.updated_by',
+                'updater.name as updated_by_name',
                 'territorios.nombre as territorio_nombre',
                 'departamentos.nombre as departamento_nombre',
                 'municipios.nombre as municipio_nombre',
@@ -297,6 +319,8 @@ class AsambleaPublicController extends Controller
                 'tipo_participacion' => $participante->tipo_participacion,
                 'asistio' => $participante->asistio,
                 'hora_registro' => $participante->hora_registro,
+                'updated_by' => $participante->updated_by,
+                'updated_by_name' => $participante->updated_by_name,
                 'territorio_nombre' => $participante->territorio_nombre,
                 'departamento_nombre' => $participante->departamento_nombre,
                 'municipio_nombre' => $participante->municipio_nombre,
@@ -349,5 +373,45 @@ class AsambleaPublicController extends Controller
                 ],
             ],
         ];
+    }
+
+    /**
+     * Marcar asistencia del usuario actual a la asamblea
+     */
+    public function marcarAsistencia(Request $request, Asamblea $asamblea)
+    {
+        $user = Auth::user();
+        
+        // Verificar que el usuario sea participante
+        $esParticipante = $asamblea->participantes()
+            ->where('usuario_id', $user->id)
+            ->exists();
+        
+        if (!$esParticipante) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No eres participante de esta asamblea'
+            ], 403);
+        }
+        
+        // Verificar que la asamblea esté en curso
+        if ($asamblea->estado !== 'en_curso') {
+            return response()->json([
+                'success' => false,
+                'message' => 'La asamblea no está en curso'
+            ], 400);
+        }
+        
+        // Actualizar asistencia
+        $asamblea->participantes()->updateExistingPivot($user->id, [
+            'asistio' => true,
+            'hora_registro' => now(),
+            'updated_by' => $user->id  // Auto-registro
+        ]);
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Asistencia registrada exitosamente'
+        ]);
     }
 }

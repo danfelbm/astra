@@ -60,6 +60,8 @@ interface Participante {
     tipo_participacion: 'asistente' | 'moderador' | 'secretario';
     asistio: boolean;
     hora_registro?: string;
+    updated_by?: number;
+    updated_by_name?: string;
     territorio_nombre?: string;
     departamento_nombre?: string;
     municipio_nombre?: string;
@@ -119,8 +121,8 @@ const breadcrumbs: BreadcrumbItemType[] = [
     { title: props.asamblea.nombre, href: '#' },
 ];
 
-// Tab activo
-const activeTab = ref('videoconferencia');
+// Tab activo - cambiar a "informacion" si no es participante
+const activeTab = ref(props.esParticipante ? 'videoconferencia' : 'informacion');
 
 // Estado para participantes paginados
 const participantes = ref<Participante[]>([]);
@@ -182,6 +184,12 @@ const formatearFecha = (fecha: string) => {
 const formatearHora = (fecha: string) => {
     if (!fecha) return '';
     return format(new Date(fecha), 'p', { locale: es });
+};
+
+// Formatear fecha y hora
+const formatearFechaHora = (fecha: string) => {
+    if (!fecha) return '';
+    return format(new Date(fecha), 'PPPp', { locale: es });
 };
 
 // Obtener badge para tipo de participación
@@ -350,8 +358,9 @@ onMounted(async () => {
 
             <!-- Navegación con Tabs -->
             <Tabs v-model="activeTab" class="w-full">
-                <TabsList class="grid w-full grid-cols-3">
+                <TabsList :class="esParticipante ? 'grid w-full grid-cols-3' : 'grid w-full grid-cols-2'">
                     <TabsTrigger 
+                        v-if="esParticipante"
                         value="videoconferencia" 
                         :disabled="!asamblea.zoom_enabled"
                         class="flex items-center gap-2"
@@ -431,7 +440,7 @@ onMounted(async () => {
                     </CardHeader>
                     <CardContent>
                         <div class="space-y-3">
-                            <div>
+                            <div v-if="esParticipante">
                                 <p class="text-xs text-muted-foreground">Quórum</p>
                                 <div class="flex items-center gap-2">
                                     <Users class="h-4 w-4 text-muted-foreground" />
@@ -447,6 +456,8 @@ onMounted(async () => {
                                     <XCircle class="mr-1 h-3 w-3" />
                                     Quórum no alcanzado
                                 </Badge>
+                            </div>
+                            <div v-else>
                             </div>
                             <div>
                                 <p class="text-xs text-muted-foreground">Total de participantes</p>
@@ -524,6 +535,8 @@ onMounted(async () => {
                                     <TableHead>Localidad</TableHead>
                                     <TableHead>Tipo de Participación</TableHead>
                                     <TableHead>Asistencia</TableHead>
+                                    <TableHead>Hora Registro</TableHead>
+                                    <TableHead>Registrado por</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -550,9 +563,18 @@ onMounted(async () => {
                                             Pendiente
                                         </Badge>
                                     </TableCell>
+                                    <TableCell>
+                                        {{ participante.hora_registro ? formatearFechaHora(participante.hora_registro) : '-' }}
+                                    </TableCell>
+                                    <TableCell>
+                                        <span v-if="participante.updated_by">
+                                            {{ participante.updated_by === participante.id ? 'Auto-registro' : (participante.updated_by_name || 'Admin') }}
+                                        </span>
+                                        <span v-else>-</span>
+                                    </TableCell>
                                 </TableRow>
                                 <TableRow v-if="participantes.length === 0">
-                                    <TableCell :colspan="6" class="text-center py-8">
+                                    <TableCell :colspan="8" class="text-center py-8">
                                         <p class="text-muted-foreground">No hay participantes registrados</p>
                                     </TableCell>
                                 </TableRow>
@@ -652,8 +674,9 @@ onMounted(async () => {
                 <Info class="h-4 w-4" />
                 <AlertTitle>Información Limitada</AlertTitle>
                 <AlertDescription>
-                    Como no eres participante registrado, solo puedes ver la información general de esta asamblea.
-                    Para participar, debes ser añadido por el administrador.
+                    <div class="space-y-2">
+                        <p>Para participar completamente, debes ser añadido por el administrador.</p>
+                    </div>
                 </AlertDescription>
             </Alert>
 

@@ -553,6 +553,7 @@ class AsambleaController extends Controller
         // Construir query manualmente con los joins necesarios
         $query = User::query()
             ->join('asamblea_usuario', 'users.id', '=', 'asamblea_usuario.usuario_id')
+            ->leftJoin('users as updater', 'asamblea_usuario.updated_by', '=', 'updater.id')
             ->where('asamblea_usuario.asamblea_id', $asamblea->id);
         
         // Aplicar filtro de tenant si no es super admin
@@ -567,6 +568,8 @@ class AsambleaController extends Controller
                 'asamblea_usuario.tipo_participacion',
                 'asamblea_usuario.asistio',
                 'asamblea_usuario.hora_registro',
+                'asamblea_usuario.updated_by',
+                'updater.name as updated_by_name',
                 'asamblea_usuario.tenant_id'
             );
 
@@ -749,6 +752,7 @@ class AsambleaController extends Controller
                 if ($request->asistio) {
                     $updateData['hora_registro'] = now();
                 }
+                $updateData['updated_by'] = Auth::user()->id;  // Admin que registra
             }
 
             // Usar allParticipantes si es super admin para updateExistingPivot

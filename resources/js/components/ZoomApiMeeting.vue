@@ -13,6 +13,7 @@ import {
     RefreshCw
 } from 'lucide-vue-next';
 import { ref, onMounted, computed } from 'vue';
+import { toast } from 'vue-sonner';
 import axios from 'axios';
 
 interface Props {
@@ -127,9 +128,47 @@ const cancelRegistration = async () => {
 };
 
 /**
- * Abrir URL de Zoom en nueva pestaña
+ * Marcar asistencia del usuario
  */
-const openZoomMeeting = () => {
+const marcarAsistencia = async () => {
+    try {
+        const response = await axios.post(route('asambleas.marcar-asistencia', props.asambleaId));
+        
+        if (response.data.success) {
+            toast.success('✅ Asistencia registrada', {
+                description: 'Tu asistencia ha sido marcada exitosamente',
+                duration: 3000,
+            });
+        }
+    } catch (error: any) {
+        // No bloquear la apertura de Zoom si falla
+        console.error('Error marcando asistencia:', error);
+        
+        if (error.response?.status === 400) {
+            toast.warning('La asamblea no está en curso', {
+                duration: 3000,
+            });
+        } else if (error.response?.status === 403) {
+            toast.error('No eres participante de esta asamblea', {
+                duration: 3000,
+            });
+        } else {
+            toast.error('Error al registrar asistencia', {
+                description: 'Tu asistencia no pudo ser registrada, pero puedes unirte a la reunión',
+                duration: 4000,
+            });
+        }
+    }
+};
+
+/**
+ * Abrir URL de Zoom en nueva pestaña y marcar asistencia
+ */
+const openZoomMeeting = async () => {
+    // Primero marcar asistencia (no bloqueante)
+    await marcarAsistencia();
+    
+    // Luego abrir Zoom independientemente del resultado
     if (registrationStatus.value?.zoom_join_url) {
         window.open(registrationStatus.value.zoom_join_url, '_blank', 'noopener,noreferrer');
     }
