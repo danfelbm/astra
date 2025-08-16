@@ -69,20 +69,20 @@ class OptimizationServiceProvider extends ServiceProvider
                 Config::set('session.driver', 'redis');
                 Config::set('queue.default', 'redis');
                 
-                Log::info('Sistema configurado para usar Redis (óptimo para alta carga)');
+                // Log::info('Sistema configurado para usar Redis (óptimo para alta carga)');
             } else {
                 // Fallback a database
                 Config::set('cache.default', 'database');
                 Config::set('session.driver', 'database');
                 Config::set('queue.default', 'database');
                 
-                Log::warning('Redis no disponible - usando database como fallback', [
-                    'recomendacion' => 'Instalar Redis para mejor rendimiento con alta carga'
-                ]);
+                // Log::warning('Redis no disponible - usando database como fallback', [
+                //     'recomendacion' => 'Instalar Redis para mejor rendimiento con alta carga'
+                // ]);
             }
         } catch (\Exception $e) {
             // En caso de error, mantener configuración por defecto
-            Log::error('Error configurando drivers dinámicos: ' . $e->getMessage());
+            // Log::error('Error configurando drivers dinámicos: ' . $e->getMessage());
         }
     }
     
@@ -120,7 +120,7 @@ class OptimizationServiceProvider extends ServiceProvider
             Config::set('cache.limiter', $cacheDriver);
         } catch (\Exception $e) {
             // Ignorar errores de configuración de cache
-            Log::debug('No se pudo configurar cache optimizado: ' . $e->getMessage());
+            // Log::debug('No se pudo configurar cache optimizado: ' . $e->getMessage());
         }
         
         // Configurar garbage collection de sesiones

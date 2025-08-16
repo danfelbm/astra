@@ -39,27 +39,36 @@ function show_status() {
 function start_workers() {
     echo -e "${YELLOW}▶️  Iniciando workers...${NC}"
     for i in $(seq 1 $WORKER_COUNT); do
-        systemctl start laravel-queue@$i.service
+        sudo systemctl start laravel-queue@$i.service
         echo "  Worker $i iniciado"
     done
+    # Iniciar scheduler también
+    sudo systemctl start laravel-scheduler.timer
+    echo "  Scheduler iniciado"
     echo -e "${GREEN}✅ Todos los workers iniciados${NC}"
 }
 
 function stop_workers() {
     echo -e "${YELLOW}⏸️  Deteniendo workers...${NC}"
     for i in $(seq 1 $WORKER_COUNT); do
-        systemctl stop laravel-queue@$i.service
+        sudo systemctl stop laravel-queue@$i.service
         echo "  Worker $i detenido"
     done
+    # Detener scheduler también
+    sudo systemctl stop laravel-scheduler.timer
+    echo "  Scheduler detenido"
     echo -e "${GREEN}✅ Todos los workers detenidos${NC}"
 }
 
 function restart_workers() {
     echo -e "${YELLOW}🔄 Reiniciando workers...${NC}"
     for i in $(seq 1 $WORKER_COUNT); do
-        systemctl restart laravel-queue@$i.service
+        sudo systemctl restart laravel-queue@$i.service
         echo "  Worker $i reiniciado"
     done
+    # Reiniciar scheduler también
+    sudo systemctl restart laravel-scheduler.timer
+    echo "  Scheduler reiniciado"
     echo -e "${GREEN}✅ Todos los workers reiniciados${NC}"
 }
 
@@ -81,10 +90,14 @@ function show_help() {
     echo "  help     - Mostrar esta ayuda"
 }
 
-# Verificar que se ejecuta como root
+# Verificar permisos sudo si no es root
 if [[ $EUID -ne 0 ]]; then
-   echo -e "${RED}❌ Este script debe ejecutarse como root (sudo)${NC}"
-   exit 1
+   # Verificar que puede usar sudo
+   if ! sudo -n true 2>/dev/null; then 
+      echo -e "${RED}❌ Este script requiere permisos de sudo${NC}"
+      echo "Ejecuta: sudo $0 $@"
+      exit 1
+   fi
 fi
 
 # Procesar comando

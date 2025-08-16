@@ -8,7 +8,7 @@ Group=litespeed
 Restart=always
 RestartSec=5
 WorkingDirectory=/var/www/webroot/ROOT
-ExecStart=/usr/bin/php /var/www/webroot/ROOT/artisan queue:work redis --sleep=3 --tries=3 --timeout=90
+ExecStart=/usr/local/lsws/lsphp84/bin/php /var/www/webroot/ROOT/artisan queue:work redis --sleep=3 --tries=3 --timeout=90
 StandardOutput=append:/var/www/webroot/ROOT/storage/logs/worker-%i.log
 StandardError=append:/var/www/webroot/ROOT/storage/logs/worker-%i.log
 

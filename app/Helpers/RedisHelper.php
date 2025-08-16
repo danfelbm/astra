@@ -30,14 +30,7 @@ class RedisHelper
                 return false;
             }
             
-            // Durante instalación/comandos, no intentar conectar para evitar errores
-            if (app()->runningInConsole() && !app()->isProduction()) {
-                // Solo verificar que la extensión está disponible
-                self::$redisAvailable = extension_loaded('redis') || class_exists('\Predis\Client');
-                return self::$redisAvailable;
-            }
-            
-            // En runtime normal, verificar conexión real
+            // SIEMPRE verificar conexión real, independientemente del entorno
             $redis = Redis::connection();
             $redis->ping();
             self::$redisAvailable = true;

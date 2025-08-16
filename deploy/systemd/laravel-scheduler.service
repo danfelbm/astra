@@ -7,6 +7,6 @@ Type=oneshot
 User=litespeed
 Group=litespeed
 WorkingDirectory=/var/www/webroot/ROOT
-ExecStart=/usr/bin/php /var/www/webroot/ROOT/artisan schedule:run
+ExecStart=/usr/local/lsws/lsphp84/bin/php /var/www/webroot/ROOT/artisan schedule:run
 StandardOutput=append:/var/www/webroot/ROOT/storage/logs/scheduler.log
 StandardError=append:/var/www/webroot/ROOT/storage/logs/scheduler.log
