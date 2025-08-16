@@ -162,12 +162,23 @@ class AsambleaPublicController extends Controller
             }
         }
 
+        // Cargar relaciones y conteos eficientemente
         $asamblea->load([
             'territorio', 
             'departamento', 
             'municipio', 
             'localidad'
         ]);
+        
+        // Cargar conteos solo si es participante para optimizar
+        if ($esParticipante) {
+            $asamblea->loadCount([
+                'participantes',
+                'participantes as asistentes_count' => function ($query) {
+                    $query->where('asamblea_usuario.asistio', true);
+                }
+            ]);
+        }
 
         // Obtener información de mi participación si soy participante
         $miParticipacion = null;
@@ -205,9 +216,12 @@ class AsambleaPublicController extends Controller
                 'duracion' => $asamblea->getDuracion(),
                 'tiempo_restante' => $asamblea->getTiempoRestante(),
                 'rango_fechas' => $asamblea->getRangoFechas(),
-                'alcanza_quorum' => $asamblea->alcanzaQuorum(),
-                'asistentes_count' => $asamblea->getAsistentesCount(),
-                'participantes_count' => $asamblea->getParticipantesCount(),
+                // Usar conteos precalculados si están disponibles, sino usar los métodos
+                'alcanza_quorum' => $esParticipante ? 
+                    ($asamblea->quorum_minimo ? ($asamblea->asistentes_count ?? 0) >= $asamblea->quorum_minimo : true) : 
+                    false,
+                'asistentes_count' => $esParticipante ? ($asamblea->asistentes_count ?? 0) : 0,
+                'participantes_count' => $esParticipante ? ($asamblea->participantes_count ?? 0) : 0,
                 // Campos de videoconferencia
                 'zoom_enabled' => $asamblea->zoom_enabled,
                 'zoom_integration_type' => $asamblea->zoom_integration_type,

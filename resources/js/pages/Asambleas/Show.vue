@@ -9,8 +9,6 @@ import AdvancedFilters from '@/components/filters/AdvancedFilters.vue';
 import type { AdvancedFilterConfig } from '@/types/filters';
 import { type BreadcrumbItemType } from '@/types';
 import AppLayout from '@/layouts/AppLayout.vue';
-import ZoomMeeting from '@/components/ZoomMeeting.vue';
-import ZoomApiMeeting from '@/components/ZoomApiMeeting.vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import axios from 'axios';
 import { 
@@ -28,10 +26,11 @@ import {
     ChevronLeft,
     ChevronRight
 } from 'lucide-vue-next';
-import { computed, ref, onMounted } from 'vue';
+import { computed, ref, onMounted, watch, defineAsyncComponent } from 'vue';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useGeographicFilters } from '@/composables/useGeographicFilters';
+import { useDebounce } from '@/composables/useDebounce';
 
 interface Territorio {
     id: number;
@@ -115,6 +114,10 @@ interface Props {
 
 const props = defineProps<Props>();
 
+// Componentes Zoom cargados dinámicamente para mejorar el rendimiento
+const ZoomMeeting = defineAsyncComponent(() => import('@/components/ZoomMeeting.vue'));
+const ZoomApiMeeting = defineAsyncComponent(() => import('@/components/ZoomApiMeeting.vue'));
+
 const breadcrumbs: BreadcrumbItemType[] = [
     { title: 'Inicio', href: '/dashboard' },
     { title: 'Asambleas', href: '/asambleas' },
@@ -123,6 +126,10 @@ const breadcrumbs: BreadcrumbItemType[] = [
 
 // Tab activo - cambiar a "informacion" si no es participante
 const activeTab = ref(props.esParticipante ? 'videoconferencia' : 'informacion');
+
+// Control de lazy loading para optimizar rendimiento
+const participantesCargados = ref(false);
+const filtrosGeograficosCargados = ref(false);
 
 // Estado para participantes paginados
 const participantes = ref<Participante[]>([]);
@@ -281,24 +288,51 @@ const changePage = (page: number) => {
     }
 };
 
-// Aplicar filtros
-const applyFilters = (filters: any) => {
+// Aplicar filtros con debounce para evitar llamadas excesivas
+const { debounce } = useDebounce();
+const applyFilters = debounce((filters: any) => {
     fetchParticipantes(1, filters);
-};
+}, 300);
 
 // Volver al listado
 const volver = () => {
     router.visit(route('asambleas.index'));
 };
 
-// Cargar participantes al montar el componente
-onMounted(async () => {
-    // Inicializar filtros geográficos
-    await geographicFilters.initialize();
+// Watch para implementar lazy loading del tab de participantes
+watch(activeTab, (newTab) => {
+    // Solo cargar datos del tab de participantes cuando se active por primera vez
+    if (newTab === 'participantes') {
+        cargarDatosParticipantes();
+    }
+});
+
+// Función para cargar datos del tab de participantes
+const cargarDatosParticipantes = async () => {
+    if (!props.esParticipante || participantesCargados.value) {
+        return;
+    }
     
-    // Cargar participantes si es participante
-    if (props.esParticipante) {
-        fetchParticipantes();
+    // Marcar como cargados para evitar recargas innecesarias
+    participantesCargados.value = true;
+    
+    // Inicializar filtros geográficos solo cuando se necesiten
+    if (!filtrosGeograficosCargados.value) {
+        filtrosGeograficosCargados.value = true;
+        await geographicFilters.initialize();
+    }
+    
+    // Cargar participantes
+    fetchParticipantes();
+};
+
+// onMounted simplificado - verifica si necesita cargar datos iniciales
+onMounted(() => {
+    // Si el tab inicial es participantes, cargar datos inmediatamente
+    // Nota: Por defecto, los participantes ven primero videoconferencia, no participantes
+    // Por lo que este caso rara vez ocurrirá, pero lo manejamos por completitud
+    if (activeTab.value === 'participantes') {
+        cargarDatosParticipantes();
     }
 });
 </script>
