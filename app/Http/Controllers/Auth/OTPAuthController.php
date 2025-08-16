@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Enums\LoginType;
 use App\Http\Controllers\Controller;
 use App\Models\User;
-use App\Services\GlobalSettingsService;
+use App\Services\CachedGlobalSettingsService as GlobalSettingsService;
 use App\Services\OTPService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -33,6 +33,7 @@ class OTPAuthController extends Controller
     {
         return Inertia::render('auth/LoginOTP', [
             'status' => $request->session()->get('status'),
+            // Usar servicio con cache para mejor rendimiento
             'authConfig' => GlobalSettingsService::getAuthConfig(),
             'censoredEmail' => $request->session()->get('censored_email'),
             'otpCredential' => $request->session()->get('otp_credential'),
@@ -129,20 +130,19 @@ class OTPAuthController extends Controller
                 
                 // Verificar que el usuario tenga email configurado
                 if (empty($email)) {
+                    // Mensaje genérico sin revelar detalles del usuario
                     throw ValidationException::withMessages([
-                        'credential' => ['El usuario no tiene un correo electrónico configurado. Contacte al administrador.'],
+                        'credential' => ['Las credenciales proporcionadas son inválidas o el usuario no está autorizado.'],
                     ]);
                 }
             }
         }
 
         if (!$user) {
-            $errorMessage = $loginType === LoginType::EMAIL 
-                ? 'El usuario no existe o no está autorizado para votar.'
-                : 'No se encontró un usuario con ese documento de identidad.';
-                
+            // Mensaje genérico para prevenir enumeración de usuarios
+            // No revelar si el usuario existe o no
             throw ValidationException::withMessages([
-                'credential' => [$errorMessage],
+                'credential' => ['Las credenciales proporcionadas son inválidas o el usuario no está autorizado.'],
             ]);
         }
 
@@ -220,7 +220,7 @@ class OTPAuthController extends Controller
                 $email = $user->email;
             } else {
                 throw ValidationException::withMessages([
-                    'credential' => ['Usuario no encontrado o inactivo.'],
+                    'credential' => ['Las credenciales proporcionadas son inválidas o el usuario no está autorizado.'],
                 ]);
             }
         }
@@ -234,7 +234,7 @@ class OTPAuthController extends Controller
 
         if (!$user) {
             throw ValidationException::withMessages([
-                'credential' => ['Usuario no encontrado o inactivo.'],
+                'credential' => ['Las credenciales proporcionadas son inválidas o el usuario no está autorizado.'],
             ]);
         }
 
@@ -293,7 +293,7 @@ class OTPAuthController extends Controller
 
         if (!$user) {
             throw ValidationException::withMessages([
-                'credential' => ['Usuario no encontrado o inactivo.'],
+                'credential' => ['Las credenciales proporcionadas son inválidas o el usuario no está autorizado.'],
             ]);
         }
 

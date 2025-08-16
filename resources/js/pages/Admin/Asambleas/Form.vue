@@ -131,16 +131,6 @@ const form = useForm({
 });
 
 // Validaciones de fecha
-const fechaInicioError = computed(() => {
-    if (!form.fecha_inicio) return '';
-    const fecha = new Date(form.fecha_inicio);
-    const ahora = new Date();
-    if (fecha < ahora) {
-        return 'La fecha de inicio debe ser posterior a la fecha actual';
-    }
-    return '';
-});
-
 const fechaFinError = computed(() => {
     if (!form.fecha_fin || !form.fecha_inicio) return '';
     const fechaFin = new Date(form.fecha_fin);
@@ -343,12 +333,9 @@ const cancelar = () => {
                                 <DateTimePicker
                                     v-model="form.fecha_inicio"
                                     placeholder="Seleccionar fecha y hora de inicio"
-                                    :class="{ 'border-red-500': form.errors.fecha_inicio || fechaInicioError }"
+                                    :class="{ 'border-red-500': form.errors.fecha_inicio }"
                                 />
-                                <span v-if="fechaInicioError" class="text-sm text-red-500">
-                                    {{ fechaInicioError }}
-                                </span>
-                                <span v-else-if="form.errors.fecha_inicio" class="text-sm text-red-500">
+                                <span v-if="form.errors.fecha_inicio" class="text-sm text-red-500">
                                     {{ form.errors.fecha_inicio }}
                                 </span>
                             </div>

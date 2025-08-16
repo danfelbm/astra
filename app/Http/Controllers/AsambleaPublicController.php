@@ -78,11 +78,22 @@ class AsambleaPublicController extends Controller
                 });
             }
 
-            $asambleasPublicas = $queryPublicas->ordenadoPorFecha()->get();
+            // Paginar asambleas públicas usando parámetro 'public_page'
+            $asambleasPublicas = $queryPublicas->ordenadoPorFecha()
+                ->paginate(12, ['*'], 'public_page')
+                ->withQueryString();
         } else {
-            $asambleasPublicas = collect();
+            // Crear paginación vacía para consistencia
+            $asambleasPublicas = new \Illuminate\Pagination\LengthAwarePaginator(
+                collect(),
+                0,
+                12,
+                $request->input('public_page', 1),
+                ['path' => $request->url()]
+            );
         }
 
+        // Paginar asambleas del usuario usando parámetro 'page' (default)
         $asambleas = $query->ordenadoPorFecha()
             ->paginate(12)
             ->withQueryString();
@@ -115,21 +126,30 @@ class AsambleaPublicController extends Controller
             ];
         });
 
+        // Transformar asambleas públicas de la misma manera que las del usuario
+        $asambleasPublicas->getCollection()->transform(function ($asamblea) {
+            return [
+                'id' => $asamblea->id,
+                'nombre' => $asamblea->nombre,
+                'descripcion' => $asamblea->descripcion,
+                'tipo' => $asamblea->tipo,
+                'tipo_label' => $asamblea->getTipoLabel(),
+                'estado' => $asamblea->estado,
+                'estado_label' => $asamblea->getEstadoLabel(),
+                'estado_color' => $asamblea->getEstadoColor(),
+                'fecha_inicio' => $asamblea->fecha_inicio,
+                'fecha_fin' => $asamblea->fecha_fin,
+                'lugar' => $asamblea->lugar,
+                'ubicacion_completa' => $asamblea->getUbicacionCompleta(),
+                'duracion' => $asamblea->getDuracion(),
+                'tiempo_restante' => $asamblea->getTiempoRestante(),
+                'rango_fechas' => $asamblea->getRangoFechas(),
+            ];
+        });
+
         return Inertia::render('Asambleas/Index', [
             'asambleas' => $asambleas,
-            'asambleasPublicas' => $asambleasPublicas->map(function ($asamblea) {
-                return [
-                    'id' => $asamblea->id,
-                    'nombre' => $asamblea->nombre,
-                    'descripcion' => $asamblea->descripcion,
-                    'tipo_label' => $asamblea->getTipoLabel(),
-                    'estado_label' => $asamblea->getEstadoLabel(),
-                    'estado_color' => $asamblea->getEstadoColor(),
-                    'fecha_inicio' => $asamblea->fecha_inicio,
-                    'ubicacion_completa' => $asamblea->getUbicacionCompleta(),
-                    'rango_fechas' => $asamblea->getRangoFechas(),
-                ];
-            }),
+            'asambleasPublicas' => $asambleasPublicas,
             'filters' => $request->only(['estado', 'tipo', 'search']),
         ]);
     }

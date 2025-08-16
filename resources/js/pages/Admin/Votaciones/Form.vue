@@ -206,14 +206,6 @@ const geographicRestrictions = computed({
 // Form field functions are now handled by DynamicFormBuilder component
 
 // Validación de fechas
-const fechaInicioError = computed(() => {
-    if (!form.fecha_inicio) return '';
-    if (form.fecha_inicio < new Date()) {
-        return 'La fecha de inicio debe ser posterior a la fecha actual';
-    }
-    return '';
-});
-
 const fechaFinError = computed(() => {
     if (!form.fecha_fin || !form.fecha_inicio) return '';
     if (form.fecha_fin <= form.fecha_inicio) {
@@ -586,9 +578,6 @@ onMounted(() => {
                                             v-model="form.fecha_inicio"
                                             placeholder="Seleccionar fecha y hora de inicio"
                                         />
-                                        <p v-if="fechaInicioError" class="text-sm text-destructive mt-1">
-                                            {{ fechaInicioError }}
-                                        </p>
                                         <p v-if="form.errors.fecha_inicio" class="text-sm text-destructive mt-1">
                                             {{ form.errors.fecha_inicio }}
                                         </p>
