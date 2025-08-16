@@ -22,6 +22,11 @@ class OptimizationServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Evitar ejecutar durante package:discover para prevenir errores en composer install
+        if ($this->shouldSkipOptimization()) {
+            return;
+        }
+        
         // Configurar drivers dinámicamente según disponibilidad de Redis
         $this->configureDynamicDrivers();
         
@@ -32,13 +37,28 @@ class OptimizationServiceProvider extends ServiceProvider
     /**
      * Configurar drivers dinámicamente basado en disponibilidad de Redis
      */
-    protected function configureDynamicDrivers(): void
+    /**
+     * Determinar si debemos saltar las optimizaciones
+     */
+    protected function shouldSkipOptimization(): bool
     {
-        // Solo hacer el check si estamos en un contexto web o de consola
-        if (!app()->runningInConsole() || app()->runningUnitTests()) {
-            return;
+        // Saltar durante composer install/update
+        if (isset($_SERVER['argv']) && 
+            (in_array('package:discover', $_SERVER['argv']) ||
+             in_array('clear-compiled', $_SERVER['argv']))) {
+            return true;
         }
         
+        // Saltar durante testing
+        if (app()->runningUnitTests()) {
+            return true;
+        }
+        
+        return false;
+    }
+    
+    protected function configureDynamicDrivers(): void
+    {
         try {
             // Verificar disponibilidad de Redis
             $redisAvailable = RedisHelper::isAvailable();
@@ -84,19 +104,24 @@ class OptimizationServiceProvider extends ServiceProvider
             ));
         }
         
-        // Configurar cache de configuración si Redis está disponible
-        if (RedisHelper::isAvailable()) {
-            // Cache de rutas y configuración por 1 hora
-            Config::set('cache.stores.config', [
-                'driver' => 'redis',
-                'connection' => 'cache',
-                'ttl' => 3600, // 1 hora
-            ]);
+        try {
+            // Configurar cache de configuración si Redis está disponible
+            if (RedisHelper::isAvailable()) {
+                // Cache de rutas y configuración por 1 hora
+                Config::set('cache.stores.config', [
+                    'driver' => 'redis',
+                    'connection' => 'cache',
+                    'ttl' => 3600, // 1 hora
+                ]);
+            }
+            
+            // Optimizar rate limiting para usar cache disponible
+            $cacheDriver = RedisHelper::getCacheDriver();
+            Config::set('cache.limiter', $cacheDriver);
+        } catch (\Exception $e) {
+            // Ignorar errores de configuración de cache
+            Log::debug('No se pudo configurar cache optimizado: ' . $e->getMessage());
         }
-        
-        // Optimizar rate limiting para usar cache disponible
-        $cacheDriver = RedisHelper::getCacheDriver();
-        Config::set('cache.limiter', $cacheDriver);
         
         // Configurar garbage collection de sesiones
         if (config('session.driver') === 'database') {

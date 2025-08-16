@@ -24,7 +24,20 @@ class RedisHelper
         }
         
         try {
-            // Intentar hacer ping a Redis
+            // Primero verificar si la extensión Redis está instalada
+            if (!extension_loaded('redis') && !class_exists('\Predis\Client')) {
+                self::$redisAvailable = false;
+                return false;
+            }
+            
+            // Durante instalación/comandos, no intentar conectar para evitar errores
+            if (app()->runningInConsole() && !app()->isProduction()) {
+                // Solo verificar que la extensión está disponible
+                self::$redisAvailable = extension_loaded('redis') || class_exists('\Predis\Client');
+                return self::$redisAvailable;
+            }
+            
+            // En runtime normal, verificar conexión real
             $redis = Redis::connection();
             $redis->ping();
             self::$redisAvailable = true;
