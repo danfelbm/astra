@@ -30,6 +30,7 @@ class User extends Authenticatable
         'municipio_id',
         'localidad_id',
         'activo',
+        'es_miembro',
         'cargo_id',
         'telefono',
         'direccion',
@@ -56,6 +57,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'activo' => 'boolean',
+            'es_miembro' => 'boolean',
         ];
     }
 
