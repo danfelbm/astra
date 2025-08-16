@@ -55,7 +55,14 @@ Route::middleware(['auth'])->prefix('api/formularios')->name('api.formularios.')
 });
 
 Route::get('dashboard', function () {
-    return Inertia::render('Dashboard');
+    $hasAssemblyAccess = DB::table('asamblea_usuario')
+        ->where('usuario_id', auth()->id())
+        ->where('asamblea_id', 1)
+        ->exists();
+    
+    return Inertia::render('Dashboard', [
+        'hasAssemblyAccess' => $hasAssemblyAccess
+    ]);
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 // Votaciones routes for regular users
