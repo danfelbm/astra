@@ -23,6 +23,7 @@ use App\Http\Controllers\PostulacionController;
 use App\Http\Controllers\ResultadosController;
 use App\Http\Controllers\TokenVerificationController;
 use App\Http\Controllers\VotoController;
+use App\Http\Controllers\ZoomRedirectController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -381,6 +382,12 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
         Route::get('entidades-por-ids', [GeographicController::class, 'entidadesPorIds'])->name('entidades-por-ids');
     });
 });
+
+// Ruta pública para redirección de enlaces Zoom enmascarados
+Route::get('/videoconferencia/{masked_id}', [ZoomRedirectController::class, 'redirect'])
+    ->name('zoom.redirect');
+Route::get('/videoconferencia/{masked_id}/verify', [ZoomRedirectController::class, 'verify'])
+    ->name('zoom.verify');
 
 require __DIR__.'/settings.php';
 require __DIR__.'/auth.php';
