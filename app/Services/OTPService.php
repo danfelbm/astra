@@ -138,6 +138,42 @@ class OTPService
                 Log::info("OTP encolado para envío a {$email}");
             }
 
+        } catch (\Symfony\Component\Mailer\Exception\UnexpectedResponseException $e) {
+            // Manejar específicamente el error 450 de rate limiting
+            if ($this->isRateLimitError($e)) {
+                Log::info("Rate limit alcanzado enviando OTP inmediato a {$email}. Intentando con cola como fallback.", [
+                    'email' => $email,
+                    'response_code' => $this->extractResponseCode($e->getMessage()),
+                    'error_type' => 'rate_limit'
+                ]);
+                
+                // Intentar con cola como fallback para rate limiting
+                if (config('services.otp.send_immediately', true)) {
+                    try {
+                        $user = User::where('email', $email)->first();
+                        $userName = $user ? $user->name : 'Usuario';
+                        SendOTPEmailJob::dispatch($email, $codigo, $userName, 10);
+                        Log::info("OTP encolado exitosamente como fallback para rate limit en {$email}");
+                    } catch (\Exception $fallbackError) {
+                        Log::error("Fallback de cola también falló para {$email}: " . $fallbackError->getMessage());
+                    }
+                }
+            } else {
+                // Para otros errores SMTP, log como error
+                Log::error("Error SMTP enviando email OTP a {$email}: " . $e->getMessage());
+                
+                // Intentar fallback para cualquier error SMTP si está configurado
+                if (config('services.otp.send_immediately', true)) {
+                    try {
+                        Log::info("Intentando envío mediante cola como fallback para {$email}");
+                        $user = User::where('email', $email)->first();
+                        $userName = $user ? $user->name : 'Usuario';
+                        SendOTPEmailJob::dispatch($email, $codigo, $userName, 10);
+                    } catch (\Exception $fallbackError) {
+                        Log::error("Fallback también falló: " . $fallbackError->getMessage());
+                    }
+                }
+            }
         } catch (\Exception $e) {
             Log::error("Error enviando email OTP a {$email}: " . $e->getMessage());
             
@@ -280,5 +316,46 @@ class OTPService
                 }
             }
         }
+    }
+
+    /**
+     * Verificar si el error es debido a rate limiting (código 450)
+     */
+    private function isRateLimitError(\Symfony\Component\Mailer\Exception\UnexpectedResponseException $exception): bool
+    {
+        $message = $exception->getMessage();
+        
+        // Buscar código 450 en el mensaje
+        if (preg_match('/code\s*"?450"?/i', $message)) {
+            return true;
+        }
+        
+        // Buscar patrones típicos de rate limiting
+        $rateLimitPatterns = [
+            '/too many requests/i',
+            '/rate limit/i',
+            '/requests per second/i',
+            '/throttle/i'
+        ];
+        
+        foreach ($rateLimitPatterns as $pattern) {
+            if (preg_match($pattern, $message)) {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+
+    /**
+     * Extraer código de respuesta del mensaje de error
+     */
+    private function extractResponseCode(string $message): ?string
+    {
+        if (preg_match('/code\s*"?(\d+)"?/i', $message, $matches)) {
+            return $matches[1];
+        }
+        
+        return null;
     }
 }
