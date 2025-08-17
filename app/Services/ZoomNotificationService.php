@@ -267,9 +267,10 @@ class ZoomNotificationService
                 $stats['with_phone']++;
             }
             
-            if ($registrant->access) {
-                $stats['total_accesses'] += $registrant->access->access_count;
-                if ($registrant->access->access_count > 0) {
+            if ($registrant->accesses) {
+                $accessCount = $registrant->accesses->count();
+                $stats['total_accesses'] += $accessCount;
+                if ($accessCount > 0) {
                     $stats['unique_accesses']++;
                 }
             }
