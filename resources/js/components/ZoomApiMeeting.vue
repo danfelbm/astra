@@ -40,15 +40,25 @@ const { route } = window as any;
 /**
  * Obtener estado del registro para la asamblea
  */
-const fetchStatus = async () => {
+const fetchStatus = async (skipLoadingIndicator = false) => {
     try {
-        isLoading.value = true;
+        // No mostrar loading durante el polling para evitar parpadeos
+        if (!skipLoadingIndicator) {
+            isLoading.value = true;
+        }
         error.value = null;
 
         const response = await axios.get(route('api.zoom.registrants.status', props.asambleaId));
         const data = response.data;
         
         if (data.success) {
+            // Preservar el estado de procesamiento si estamos en modo procesamiento
+            // para evitar parpadeos cuando el backend aún no detecta el job
+            if (isProcessing.value && !data.existing_registration && !data.processing) {
+                // Mantener el estado de procesamiento activo
+                data.processing = true;
+            }
+            
             statusData.value = data;
             
             // Si encontramos un registro completado, detener polling
@@ -233,7 +243,8 @@ const startPolling = () => {
                 return;
             }
             
-            await fetchStatus();
+            // Skip loading indicator durante polling para evitar parpadeos
+            await fetchStatus(true);
         } catch (error) {
             console.error('Error en polling:', error);
         }
