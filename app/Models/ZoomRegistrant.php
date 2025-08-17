@@ -6,7 +6,7 @@ use App\Traits\HasTenant;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ZoomRegistrant extends Model
 {
@@ -100,11 +100,44 @@ class ZoomRegistrant extends Model
     }
 
     /**
-     * Relación con ZoomRegistrantAccess
+     * Relación con ZoomRegistrantAccess (ahora hasMany para múltiples accesos)
      */
-    public function access(): HasOne
+    public function accesses(): HasMany
     {
-        return $this->hasOne(ZoomRegistrantAccess::class);
+        return $this->hasMany(ZoomRegistrantAccess::class);
+    }
+    
+    /**
+     * Helper para obtener el conteo de accesos (compatibilidad)
+     */
+    public function getAccessCountAttribute(): int
+    {
+        return $this->accesses()->count();
+    }
+    
+    /**
+     * Helper para obtener el primer acceso
+     */
+    public function getFirstAccessAttribute()
+    {
+        return $this->accesses()->oldest('accessed_at')->first();
+    }
+    
+    /**
+     * Helper para obtener el último acceso
+     */
+    public function getLastAccessAttribute()
+    {
+        return $this->accesses()->latest('accessed_at')->first();
+    }
+    
+    /**
+     * Relación legacy para compatibilidad (deprecada)
+     * @deprecated Usar accesses() en su lugar
+     */
+    public function access()
+    {
+        return $this->accesses()->latest('accessed_at')->limit(1);
     }
 
     /**

@@ -171,14 +171,16 @@ class ZoomRedirectController extends Controller
             $userAgent = $request->userAgent();
             $ipAddress = $request->ip();
             $maskedUrl = $request->url(); // Capturar URL completa del enlace enmascarado
+            $referer = $request->header('referer'); // Capturar referer si existe
             
             // Usar dispatch con datos primitivos para hacer esto asíncrono y no bloquear la redirección
-            dispatch(function () use ($zoomRegistrantId, $userAgent, $ipAddress, $maskedUrl) {
-                ZoomRegistrantAccess::createOrUpdateAccess(
+            dispatch(function () use ($zoomRegistrantId, $userAgent, $ipAddress, $maskedUrl, $referer) {
+                ZoomRegistrantAccess::createAccess(
                     $zoomRegistrantId,
                     $userAgent,
                     $ipAddress,
-                    $maskedUrl
+                    $maskedUrl,
+                    $referer
                 );
             })->afterResponse();
 

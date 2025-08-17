@@ -15,21 +15,20 @@ class ZoomRegistrantAccess extends Model
      */
     protected $fillable = [
         'zoom_registrant_id',
-        'access_count',
-        'first_accessed_at',
-        'last_accessed_at',
+        'accessed_at',
         'user_agent',
         'ip_address',
         'masked_url',
+        'referer',
+        'device_type',
+        'browser_name',
     ];
 
     /**
      * Casts para campos
      */
     protected $casts = [
-        'access_count' => 'integer',
-        'first_accessed_at' => 'datetime',
-        'last_accessed_at' => 'datetime',
+        'accessed_at' => 'datetime',
     ];
 
     /**
@@ -41,40 +40,85 @@ class ZoomRegistrantAccess extends Model
     }
 
     /**
-     * Incrementar contador de acceso con información adicional
+     * Crear nuevo registro de acceso
      */
-    public function incrementAccess(?string $userAgent = null, ?string $ipAddress = null, ?string $maskedUrl = null): void
-    {
-        $now = now();
-        
-        $this->update([
-            'access_count' => $this->access_count + 1,
-            'first_accessed_at' => $this->first_accessed_at ?? $now,
-            'last_accessed_at' => $now,
-            'user_agent' => $userAgent ?? $this->user_agent,
-            'ip_address' => $ipAddress ?? $this->ip_address,
-            'masked_url' => $maskedUrl ?? $this->masked_url,
+    public static function createAccess(
+        int $zoomRegistrantId, 
+        ?string $userAgent = null, 
+        ?string $ipAddress = null,
+        ?string $maskedUrl = null,
+        ?string $referer = null
+    ): self {
+        return self::create([
+            'zoom_registrant_id' => $zoomRegistrantId,
+            'accessed_at' => now(),
+            'user_agent' => $userAgent,
+            'ip_address' => $ipAddress,
+            'masked_url' => $maskedUrl,
+            'referer' => $referer,
+            'device_type' => self::detectDeviceType($userAgent),
+            'browser_name' => self::detectBrowser($userAgent),
         ]);
     }
 
     /**
-     * Crear o actualizar registro de acceso
+     * Detectar tipo de dispositivo desde user agent
      */
-    public static function createOrUpdateAccess(
-        int $zoomRegistrantId, 
-        ?string $userAgent = null, 
-        ?string $ipAddress = null,
-        ?string $maskedUrl = null
-    ): self {
-        $access = self::firstOrCreate([
-            'zoom_registrant_id' => $zoomRegistrantId,
-        ], [
-            'access_count' => 0,
-        ]);
-
-        $access->incrementAccess($userAgent, $ipAddress, $maskedUrl);
+    private static function detectDeviceType(?string $userAgent): ?string
+    {
+        if (!$userAgent) return null;
         
-        return $access->fresh();
+        $userAgent = strtolower($userAgent);
+        
+        if (preg_match('/(tablet|ipad|playbook)|(android(?!.*(mobi|opera mini)))/i', $userAgent)) {
+            return 'tablet';
+        }
+        
+        if (preg_match('/(up.browser|up.link|mmp|symbian|smartphone|midp|wap|phone|android|iemobile)/i', $userAgent)) {
+            return 'mobile';
+        }
+        
+        if (preg_match('/(mobile|phone|ipod)/i', $userAgent)) {
+            return 'mobile';
+        }
+        
+        return 'desktop';
+    }
+    
+    /**
+     * Detectar navegador desde user agent
+     */
+    private static function detectBrowser(?string $userAgent): ?string
+    {
+        if (!$userAgent) return null;
+        
+        $userAgent = strtolower($userAgent);
+        
+        if (strpos($userAgent, 'edg') !== false || strpos($userAgent, 'edge') !== false) {
+            return 'edge';
+        }
+        
+        if (strpos($userAgent, 'opr') !== false || strpos($userAgent, 'opera') !== false) {
+            return 'opera';
+        }
+        
+        if (strpos($userAgent, 'chrome') !== false) {
+            return 'chrome';
+        }
+        
+        if (strpos($userAgent, 'safari') !== false && strpos($userAgent, 'chrome') === false) {
+            return 'safari';
+        }
+        
+        if (strpos($userAgent, 'firefox') !== false) {
+            return 'firefox';
+        }
+        
+        if (strpos($userAgent, 'msie') !== false || strpos($userAgent, 'trident') !== false) {
+            return 'ie';
+        }
+        
+        return 'other';
     }
 
     /**
@@ -82,35 +126,67 @@ class ZoomRegistrantAccess extends Model
      */
     public static function getStatsForRegistrant(int $zoomRegistrantId): array
     {
-        $access = self::where('zoom_registrant_id', $zoomRegistrantId)->first();
+        $baseQuery = self::where('zoom_registrant_id', $zoomRegistrantId);
         
-        if (!$access) {
+        $totalCount = $baseQuery->count();
+        
+        if ($totalCount === 0) {
             return [
                 'total_accesses' => 0,
+                'unique_ips' => 0,
+                'unique_devices' => 0,
                 'first_accessed_at' => null,
                 'last_accessed_at' => null,
-                'user_agent' => null,
-                'ip_address' => null,
-                'masked_url' => null,
+                'devices' => [],
+                'browsers' => [],
+                'recent_accesses' => [],
             ];
         }
 
-        return [
-            'total_accesses' => $access->access_count,
-            'first_accessed_at' => $access->first_accessed_at,
-            'last_accessed_at' => $access->last_accessed_at,
-            'user_agent' => $access->user_agent,
-            'ip_address' => $access->ip_address,
-            'masked_url' => $access->masked_url,
+        // Consultas separadas para evitar conflictos con GROUP BY
+        $stats = [
+            'total_accesses' => $totalCount,
+            'unique_ips' => self::where('zoom_registrant_id', $zoomRegistrantId)->distinct('ip_address')->count('ip_address'),
+            'unique_devices' => self::where('zoom_registrant_id', $zoomRegistrantId)->distinct('device_type')->count('device_type'),
+            'first_accessed_at' => self::where('zoom_registrant_id', $zoomRegistrantId)->min('accessed_at'),
+            'last_accessed_at' => self::where('zoom_registrant_id', $zoomRegistrantId)->max('accessed_at'),
+            'devices' => self::where('zoom_registrant_id', $zoomRegistrantId)
+                ->selectRaw('device_type, COUNT(*) as count')
+                ->groupBy('device_type')
+                ->pluck('count', 'device_type')
+                ->toArray(),
+            'browsers' => self::where('zoom_registrant_id', $zoomRegistrantId)
+                ->selectRaw('browser_name, COUNT(*) as count')
+                ->groupBy('browser_name')
+                ->pluck('count', 'browser_name')
+                ->toArray(),
+            'recent_accesses' => self::where('zoom_registrant_id', $zoomRegistrantId)
+                ->latest('accessed_at')
+                ->limit(5)
+                ->get(['accessed_at', 'ip_address', 'device_type', 'browser_name'])
+                ->toArray(),
         ];
+        
+        return $stats;
     }
 
     /**
-     * Scope para registros con más de X accesos
+     * Scope para obtener accesos por zoom_registrant_id con conteo
      */
-    public function scopeWithManyAccesses($query, int $threshold = 5)
+    public function scopeWithAccessCount($query)
     {
-        return $query->where('access_count', '>=', $threshold);
+        return $query->selectRaw('zoom_registrant_id, COUNT(*) as access_count')
+            ->groupBy('zoom_registrant_id');
+    }
+    
+    /**
+     * Scope para registros con más de X accesos (basado en conteo)
+     */
+    public function scopeHavingManyAccesses($query, int $threshold = 5)
+    {
+        return $query->selectRaw('zoom_registrant_id, COUNT(*) as access_count')
+            ->groupBy('zoom_registrant_id')
+            ->havingRaw('COUNT(*) >= ?', [$threshold]);
     }
 
     /**
@@ -118,6 +194,22 @@ class ZoomRegistrantAccess extends Model
      */
     public function scopeRecentlyAccessed($query, int $hours = 24)
     {
-        return $query->where('last_accessed_at', '>=', now()->subHours($hours));
+        return $query->where('accessed_at', '>=', now()->subHours($hours));
+    }
+    
+    /**
+     * Scope para accesos desde un dispositivo específico
+     */
+    public function scopeFromDevice($query, string $deviceType)
+    {
+        return $query->where('device_type', $deviceType);
+    }
+    
+    /**
+     * Scope para accesos desde un navegador específico
+     */
+    public function scopeFromBrowser($query, string $browserName)
+    {
+        return $query->where('browser_name', $browserName);
     }
 }
