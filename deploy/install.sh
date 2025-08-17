@@ -16,6 +16,7 @@ NC='\033[0m' # No Color
 # Variables
 LARAVEL_PATH="/var/www/webroot/ROOT"
 WORKER_COUNT=8
+ZOOM_WORKER_COUNT=4
 SERVICE_USER="litespeed"
 SERVICE_GROUP="litespeed"
 
@@ -50,6 +51,10 @@ echo -e "${YELLOW}📝 Copiando archivos de servicio...${NC}"
 cp systemd/laravel-queue@.service /etc/systemd/system/
 echo "  ✓ laravel-queue@.service copiado"
 
+# Copiar servicio de workers de Zoom
+cp systemd/laravel-zoom-queue@.service /etc/systemd/system/
+echo "  ✓ laravel-zoom-queue@.service copiado"
+
 # Copiar scheduler service y timer
 cp systemd/laravel-scheduler.service /etc/systemd/system/
 cp systemd/laravel-scheduler.timer /etc/systemd/system/
@@ -59,13 +64,22 @@ echo "  ✓ laravel-scheduler service y timer copiados"
 echo -e "${YELLOW}🔄 Recargando configuración de systemd...${NC}"
 systemctl daemon-reload
 
-# 6. Habilitar y arrancar workers
-echo -e "${YELLOW}⚙️  Habilitando $WORKER_COUNT workers...${NC}"
+# 6. Habilitar y arrancar workers OTP
+echo -e "${YELLOW}⚙️  Habilitando $WORKER_COUNT workers OTP...${NC}"
 
 for i in $(seq 1 $WORKER_COUNT); do
     systemctl enable laravel-queue@$i.service
     systemctl start laravel-queue@$i.service
-    echo "  ✓ Worker $i habilitado y arrancado"
+    echo "  ✓ Worker OTP $i habilitado y arrancado"
+done
+
+# 6.1. Habilitar y arrancar workers de Zoom
+echo -e "${YELLOW}🎥 Habilitando $ZOOM_WORKER_COUNT workers de Zoom...${NC}"
+
+for i in $(seq 1 $ZOOM_WORKER_COUNT); do
+    systemctl enable laravel-zoom-queue@$i.service
+    systemctl start laravel-zoom-queue@$i.service
+    echo "  ✓ Worker Zoom $i habilitado y arrancado"
 done
 
 # 7. Habilitar y arrancar scheduler
@@ -87,29 +101,39 @@ echo -e "${GREEN}✅ Instalación completada exitosamente!${NC}"
 echo "=========================================="
 echo ""
 echo -e "${YELLOW}📊 Estado de los servicios:${NC}"
+echo ""
+echo "🔧 Workers OTP:"
 systemctl status laravel-queue@1.service --no-pager | head -n 3
-echo "..."
+echo "... (total: $WORKER_COUNT workers)"
+echo ""
+echo "🎥 Workers Zoom:"
+systemctl status laravel-zoom-queue@1.service --no-pager | head -n 3
+echo "... (total: $ZOOM_WORKER_COUNT workers)"
+echo ""
+echo "⏰ Scheduler:"
 systemctl status laravel-scheduler.timer --no-pager | head -n 3
 
 echo ""
 echo -e "${YELLOW}📝 Comandos útiles:${NC}"
 echo ""
-echo "  Ver estado de todos los workers:"
-echo "    systemctl status 'laravel-queue@*'"
+echo "🔧 Workers OTP:"
+echo "  Ver estado:    systemctl status 'laravel-queue@*'"
+echo "  Reiniciar:     systemctl restart 'laravel-queue@*'"
+echo "  Ver logs:      journalctl -u laravel-queue@1 -f"
+echo "  Gestión:       ./deploy/manage-workers.sh [status|start|stop|restart]"
 echo ""
-echo "  Reiniciar todos los workers:"
-echo "    systemctl restart 'laravel-queue@*'"
+echo "🎥 Workers Zoom:"
+echo "  Ver estado:    systemctl status 'laravel-zoom-queue@*'"
+echo "  Reiniciar:     systemctl restart 'laravel-zoom-queue@*'"
+echo "  Ver logs:      journalctl -u laravel-zoom-queue@1 -f"
+echo "  Gestión:       ./deploy/manage-zoom-workers.sh [status|start|stop|restart]"
 echo ""
-echo "  Ver logs de un worker específico:"
-echo "    journalctl -u laravel-queue@1 -f"
+echo "⏰ Scheduler:"
+echo "  Ver estado:    systemctl status laravel-scheduler.timer"
+echo "  Ver logs:      journalctl -u laravel-scheduler -f"
 echo ""
-echo "  Ver logs del scheduler:"
-echo "    journalctl -u laravel-scheduler -f"
-echo ""
-echo "  Detener todos los workers:"
-echo "    systemctl stop 'laravel-queue@*'"
-echo ""
-echo "  Ver logs de Laravel:"
-echo "    tail -f $LARAVEL_PATH/storage/logs/worker-*.log"
+echo "📁 Logs de archivos:"
+echo "  Workers OTP:   tail -f $LARAVEL_PATH/storage/logs/worker-*.log"
+echo "  Workers Zoom:  tail -f $LARAVEL_PATH/storage/logs/zoom-worker-*.log"
 echo ""
 echo -e "${GREEN}🎉 Sistema listo para producción!${NC}"

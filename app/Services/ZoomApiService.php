@@ -164,8 +164,16 @@ class ZoomApiService
 
             if ($response->failed()) {
                 $error = $response->json();
-                throw new Exception('Error registrando participante en Zoom: ' . 
-                    ($error['message'] ?? $response->body()));
+                $statusCode = $response->status();
+                $errorMessage = $error['message'] ?? $response->body();
+                
+                // Incluir código de error para mejor manejo
+                throw new Exception(
+                    sprintf('[HTTP %d] Error registrando participante en Zoom: %s', 
+                        $statusCode, 
+                        $errorMessage
+                    )
+                );
             }
 
             $responseData = $response->json();
@@ -221,6 +229,123 @@ class ZoomApiService
             return [
                 'success' => false,
                 'message' => $e->getMessage()
+            ];
+        }
+    }
+
+    /**
+     * Realizar solo la llamada a la API de Zoom para registro (para uso en jobs)
+     * No verifica registros existentes ni crea registros en BD
+     */
+    public function callZoomRegistrationApi(Asamblea $asamblea, User $user): array
+    {
+        try {
+            // Verificar que la asamblea usa API y tiene meetingId
+            if ($asamblea->zoom_integration_type !== 'api' || !$asamblea->zoom_meeting_id) {
+                throw new Exception('La asamblea no está configurada para usar la API de Zoom');
+            }
+
+            // Obtener token de acceso
+            $token = $this->getAccessToken();
+
+            // Procesar nombre del usuario
+            $nameParts = $user->splitName();
+
+            // Aplicar prefijo si existe
+            $firstName = $nameParts['first'];
+            if (!empty($asamblea->zoom_prefix)) {
+                $firstName = $asamblea->zoom_prefix . ' ' . $firstName;
+            }
+
+            // Preparar datos del registrante
+            $registrantData = [
+                'first_name' => $firstName,
+                'last_name' => $nameParts['last'],
+                'email' => $user->email,
+                'auto_approve' => true,
+            ];
+
+            // Añadir campos opcionales si están disponibles
+            if ($user->direccion) {
+                $registrantData['address'] = $user->direccion;
+            }
+
+            if ($user->municipio) {
+                $registrantData['city'] = $user->municipio->name;
+            }
+
+            if ($user->departamento) {
+                $registrantData['state'] = $user->departamento->name;
+            }
+
+            if ($user->territorio) {
+                $registrantData['country'] = $user->territorio->name;
+            }
+
+            if ($user->telefono) {
+                $registrantData['phone'] = $user->telefono;
+            }
+
+            // Construir URL de la API
+            $meetingId = $asamblea->zoom_meeting_id;
+            $url = "{$this->baseUrl}/meetings/{$meetingId}/registrants";
+
+            // Añadir occurrence_ids si están disponibles
+            $queryParams = [];
+            if ($asamblea->zoom_occurrence_ids) {
+                $queryParams['occurrence_ids'] = $asamblea->zoom_occurrence_ids;
+            }
+
+            if (!empty($queryParams)) {
+                $url .= '?' . http_build_query($queryParams);
+            }
+
+            // Hacer petición a la API de Zoom
+            $response = Http::withHeaders([
+                'Authorization' => 'Bearer ' . $token,
+                'Content-Type' => 'application/json',
+            ])->post($url, $registrantData);
+
+            if ($response->failed()) {
+                $error = $response->json();
+                $statusCode = $response->status();
+                $errorMessage = $error['message'] ?? $response->body();
+                
+                // Incluir código de error para mejor manejo
+                throw new Exception(
+                    sprintf('[HTTP %d] Error registrando participante en Zoom: %s', 
+                        $statusCode, 
+                        $errorMessage
+                    )
+                );
+            }
+
+            $responseData = $response->json();
+
+            // Retornar solo los datos de la respuesta de Zoom
+            return [
+                'success' => true,
+                'data' => [
+                    'zoom_registrant_id' => $responseData['registrant_id'],
+                    'zoom_join_url' => $responseData['join_url'],
+                    'zoom_participant_pin_code' => $responseData['participant_pin_code'] ?? null,
+                    'zoom_topic' => $responseData['topic'] ?? $asamblea->nombre,
+                    'zoom_start_time' => $responseData['start_time'] ?? $asamblea->fecha_inicio,
+                    'zoom_occurrences' => $responseData['occurrences'] ?? null,
+                ]
+            ];
+
+        } catch (Exception $e) {
+            Log::error('Error en llamada a API de Zoom', [
+                'error' => $e->getMessage(),
+                'asamblea_id' => $asamblea->id,
+                'user_id' => $user->id
+            ]);
+
+            return [
+                'success' => false,
+                'message' => $e->getMessage(),
+                'data' => null
             ];
         }
     }
