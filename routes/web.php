@@ -154,6 +154,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('registrants/{asamblea}', [ZoomRegistrantController::class, 'destroy'])
             ->middleware('permission:asambleas.participate')
             ->name('registrants.destroy');
+        Route::get('registrants/{registrant}/check-status', [ZoomRegistrantController::class, 'checkStatus'])
+            ->middleware('permission:asambleas.view_public')
+            ->name('registrants.check-status');
     });
     
     // APIs for postulaciones

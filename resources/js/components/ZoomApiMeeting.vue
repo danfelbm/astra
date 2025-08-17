@@ -12,7 +12,7 @@ import {
     Loader2,
     RefreshCw
 } from 'lucide-vue-next';
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { toast } from 'vue-sonner';
 import axios from 'axios';
 
@@ -25,8 +25,14 @@ const props = defineProps<Props>();
 // Estado del componente
 const isLoading = ref(false);
 const isRegistering = ref(false);
+const isProcessing = ref(false);
+const pollingInterval = ref<number | null>(null);
+const pollingStartTime = ref<number | null>(null);
 const error = ref<string | null>(null);
 const statusData = ref<any>(null);
+
+// Timeout máximo para polling (5 minutos)
+const POLLING_TIMEOUT_MS = 5 * 60 * 1000;
 
 // Helper para obtener route
 const { route } = window as any;
@@ -39,18 +45,34 @@ const fetchStatus = async () => {
         isLoading.value = true;
         error.value = null;
 
-        const response = await fetch(route('api.zoom.registrants.status', props.asambleaId), {
-            method: 'GET',
-            headers: {
-                'Accept': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
-            }
-        });
-
-        const data = await response.json();
+        const response = await axios.get(route('api.zoom.registrants.status', props.asambleaId));
+        const data = response.data;
         
         if (data.success) {
             statusData.value = data;
+            
+            // Si encontramos un registro completado, detener polling
+            if (data.existing_registration && data.existing_registration.status === 'completed') {
+                stopPolling();
+            }
+            // Si encontramos un registro fallido, detener polling 
+            else if (data.existing_registration && data.existing_registration.status === 'failed') {
+                stopPolling();
+            }
+            // Si está explícitamente procesando, asegurar que polling esté activo
+            else if (data.processing) {
+                if (!pollingInterval.value) {
+                    startPolling();
+                }
+            }
+            // Si estamos en modo procesamiento pero no hay procesamiento explícito,
+            // continuar polling (no detener por race conditions)
+            else if (isProcessing.value) {
+                // Mantener polling activo hasta resultado definitivo
+                if (!pollingInterval.value) {
+                    startPolling();
+                }
+            }
         } else {
             error.value = data.error || 'Error obteniendo estado';
         }
@@ -61,6 +83,18 @@ const fetchStatus = async () => {
     } finally {
         isLoading.value = false;
     }
+};
+
+/**
+ * Reintentar registro después de un fallo
+ */
+const retryRegistration = async () => {
+    // Limpiar error y estado
+    error.value = null;
+    statusData.value.existing_registration = null;
+    
+    // Llamar a registerUser
+    await registerUser();
 };
 
 /**
@@ -76,8 +110,19 @@ const registerUser = async () => {
         });
 
         if (response.data.success) {
-            // Actualizar estado después del registro exitoso
-            await fetchStatus();
+            // Si la respuesta indica que está procesando
+            if (response.data.processing) {
+                isProcessing.value = true;
+                statusData.value = response.data;
+                startPolling();
+                toast.success('🔄 Procesando registro', {
+                    description: 'Se está generando tu enlace de videoconferencia...',
+                    duration: 4000,
+                });
+            } else {
+                // Registro inmediato (caso legacy)
+                await fetchStatus();
+            }
         } else {
             error.value = response.data.error || 'Error registrando usuario';
         }
@@ -102,15 +147,8 @@ const cancelRegistration = async () => {
         isLoading.value = true;
         error.value = null;
 
-        const response = await fetch(route('api.zoom.registrants.destroy', props.asambleaId), {
-            method: 'DELETE',
-            headers: {
-                'Accept': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
-            }
-        });
-
-        const data = await response.json();
+        const response = await axios.delete(route('api.zoom.registrants.destroy', props.asambleaId));
+        const data = response.data;
         
         if (data.success) {
             // Actualizar estado después de la cancelación
@@ -174,6 +212,46 @@ const openZoomMeeting = async () => {
     }
 };
 
+/**
+ * Iniciar polling para verificar el estado del registro
+ */
+const startPolling = () => {
+    // Limpiar polling anterior si existe
+    stopPolling();
+    
+    // Marcar tiempo de inicio
+    pollingStartTime.value = Date.now();
+    
+    // Iniciar polling cada 2 segundos
+    pollingInterval.value = setInterval(async () => {
+        try {
+            // Verificar timeout de seguridad
+            if (pollingStartTime.value && (Date.now() - pollingStartTime.value) > POLLING_TIMEOUT_MS) {
+                console.warn('Polling timeout alcanzado (5 minutos)');
+                error.value = 'El proceso está tomando más tiempo del esperado. Por favor, recarga la página.';
+                stopPolling();
+                return;
+            }
+            
+            await fetchStatus();
+        } catch (error) {
+            console.error('Error en polling:', error);
+        }
+    }, 2000);
+};
+
+/**
+ * Detener polling
+ */
+const stopPolling = () => {
+    if (pollingInterval.value) {
+        clearInterval(pollingInterval.value);
+        pollingInterval.value = null;
+    }
+    pollingStartTime.value = null;
+    isProcessing.value = false;
+};
+
 // Computed para obtener el estado visual del registro
 const registrationStatus = computed(() => {
     if (!statusData.value?.existing_registration) {
@@ -183,22 +261,66 @@ const registrationStatus = computed(() => {
     const reg = statusData.value.existing_registration;
     return {
         ...reg,
-        statusColor: reg.status === 'active' ? 'bg-green-100 text-green-800' :
+        statusColor: reg.status === 'completed' ? 'bg-green-100 text-green-800' :
                      reg.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                     reg.status === 'failed' ? 'bg-red-100 text-red-800' :
                      'bg-gray-100 text-gray-800'
     };
 });
 
+// Computed para verificar si el registro falló
+const registrationFailed = computed(() => {
+    return statusData.value?.existing_registration?.status === 'failed';
+});
+
+// Computed para obtener mensaje de error amigable
+const errorMessage = computed(() => {
+    if (!registrationFailed.value) return null;
+    
+    const msg = statusData.value?.existing_registration?.error_message || 'Error desconocido al registrar';
+    
+    // Si el mensaje incluye "rate limit", sugerir reintentar más tarde
+    if (msg.toLowerCase().includes('rate limit')) {
+        return 'Se ha alcanzado el límite diario de registros. Por favor, intenta nuevamente mañana.';
+    }
+    
+    return msg;
+});
+
+// Computed para determinar si se puede reintentar
+const canRetry = computed(() => {
+    if (!registrationFailed.value) return false;
+    
+    const msg = statusData.value?.existing_registration?.error_message || '';
+    
+    // No permitir reintentar si es un error definitivo
+    const permanentErrors = [
+        'no existe',
+        'capacidad máxima',
+        'no tiene permisos'
+    ];
+    
+    return !permanentErrors.some(error => msg.toLowerCase().includes(error));
+});
+
 // Computed para verificar si puede registrarse
 const canRegister = computed(() => {
-    return statusData.value?.can_register && !statusData.value?.existing_registration;
+    // Si hay un registro fallido, no mostrar el botón de registro aquí
+    // (se mostrará en la card de error con opción de reintentar)
+    if (registrationFailed.value) return false;
+    
+    return statusData.value?.can_register && 
+           !statusData.value?.existing_registration && 
+           !isProcessing.value &&
+           !statusData.value?.processing;
 });
 
 // Computed para verificar si puede acceder a la reunión
 const canJoinMeeting = computed(() => {
     const reg = statusData.value?.existing_registration;
     const asambleaEnCurso = statusData.value?.asamblea?.estado === 'en_curso';
-    return reg && reg.zoom_join_url && asambleaEnCurso;
+    // Solo si está completado exitosamente
+    return reg && reg.status === 'completed' && reg.zoom_join_url && asambleaEnCurso;
 });
 
 // Computed para verificar si la asamblea está en curso
@@ -209,6 +331,11 @@ const isAsambleaEnCurso = computed(() => {
 // Cargar estado inicial
 onMounted(() => {
     fetchStatus();
+});
+
+// Limpiar polling al desmontar
+onUnmounted(() => {
+    stopPolling();
 });
 </script>
 
@@ -244,8 +371,79 @@ onMounted(() => {
 
         <!-- Contenido principal -->
         <div v-if="statusData && !isLoading">
-            <!-- Usuario ya registrado -->
-            <Card v-if="registrationStatus" class="border-green-200">
+            <!-- Procesando registro -->
+            <Card v-if="isProcessing || statusData.processing" class="border-blue-200 bg-blue-50">
+                <CardHeader>
+                    <CardTitle class="flex items-center gap-2 text-blue-700">
+                        <Loader2 class="h-5 w-5 animate-spin" />
+                        Procesando registro
+                    </CardTitle>
+                    <CardDescription>
+                        Se está generando tu enlace personal de videoconferencia...
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div class="space-y-2">
+                        <div class="text-sm text-blue-600">
+                            ✅ Validaciones completadas<br>
+                            🔄 Registrando en Zoom...<br>
+                            📧 Preparando notificación por email
+                        </div>
+                        <p class="text-xs text-muted-foreground">
+                            Este proceso toma entre 1-2 minutos. La página se actualizará automáticamente.
+                        </p>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <!-- Registro fallido -->
+            <Card v-else-if="registrationFailed" class="border-red-200 bg-red-50">
+                <CardHeader>
+                    <CardTitle class="flex items-center gap-2 text-red-700">
+                        <AlertCircle class="h-5 w-5" />
+                        Error en el registro
+                    </CardTitle>
+                    <CardDescription class="text-red-600">
+                        No se pudo completar tu registro en la videoconferencia
+                    </CardDescription>
+                </CardHeader>
+                <CardContent class="space-y-4">
+                    <Alert variant="destructive">
+                        <AlertCircle class="h-4 w-4" />
+                        <AlertTitle>Detalles del error</AlertTitle>
+                        <AlertDescription>{{ errorMessage }}</AlertDescription>
+                    </Alert>
+                    
+                    <div class="flex gap-2">
+                        <Button 
+                            v-if="canRetry"
+                            @click="retryRegistration"
+                            :disabled="isRegistering || isProcessing"
+                            class="flex-1"
+                        >
+                            <RefreshCw v-if="isRegistering || isProcessing" class="mr-2 h-4 w-4 animate-spin" />
+                            <RefreshCw v-else class="mr-2 h-4 w-4" />
+                            Reintentar registro
+                        </Button>
+                        
+                        <Button 
+                            v-else
+                            variant="outline"
+                            disabled
+                            class="flex-1"
+                        >
+                            No se puede reintentar
+                        </Button>
+                    </div>
+                    
+                    <p class="text-xs text-muted-foreground">
+                        Si el problema persiste, contacta al administrador.
+                    </p>
+                </CardContent>
+            </Card>
+            
+            <!-- Usuario ya registrado exitosamente -->
+            <Card v-else-if="registrationStatus && registrationStatus.status === 'completed'" class="border-green-200">
                 <CardHeader>
                     <CardTitle class="flex items-center gap-2 text-green-700">
                         <CheckCircle2 class="h-5 w-5" />
@@ -320,12 +518,12 @@ onMounted(() => {
                 <CardContent>
                     <Button 
                         @click="registerUser"
-                        :disabled="isRegistering"
+                        :disabled="isRegistering || isProcessing"
                         class="w-full"
                     >
-                        <Loader2 v-if="isRegistering" class="mr-2 h-4 w-4 animate-spin" />
+                        <Loader2 v-if="isRegistering || isProcessing" class="mr-2 h-4 w-4 animate-spin" />
                         <Video v-else class="mr-2 h-4 w-4" />
-                        Generar link de ingreso
+                        {{ isProcessing ? 'Procesando...' : 'Generar link de ingreso' }}
                     </Button>
                 </CardContent>
             </Card>

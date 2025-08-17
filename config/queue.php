@@ -109,4 +109,17 @@ return [
         'table' => 'failed_jobs',
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Zoom Registration Configuration
+    |--------------------------------------------------------------------------
+    |
+    | Configuration for Zoom registration queue processing
+    |
+    */
+
+    'zoom_registration_queue' => env('ZOOM_REGISTRATION_QUEUE', 'zoom-registrations'),
+    'zoom_registration_timeout' => env('ZOOM_REGISTRATION_TIMEOUT', 120),
+    'zoom_max_retry_attempts' => env('ZOOM_MAX_RETRY_ATTEMPTS', 3),
+
 ];

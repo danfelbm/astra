@@ -26,6 +26,9 @@ class ZoomRegistrant extends Model
         'zoom_topic',
         'zoom_occurrences',
         'registered_at',
+        'status',
+        'error_message',
+        'processing_started_at',
     ];
 
     /**
@@ -35,6 +38,7 @@ class ZoomRegistrant extends Model
         'zoom_occurrences' => 'array',
         'zoom_start_time' => 'datetime',
         'registered_at' => 'datetime',
+        'processing_started_at' => 'datetime',
     ];
 
     /**
@@ -96,6 +100,52 @@ class ZoomRegistrant extends Model
             'active' => 'Reunión en curso',
             'expired' => 'Reunión finalizada',
             default => 'Estado desconocido'
+        };
+    }
+
+    /**
+     * Verificar si el registro está pendiente
+     */
+    public function isPending(): bool
+    {
+        return $this->status === 'pending';
+    }
+
+    /**
+     * Verificar si el registro está en procesamiento
+     */
+    public function isProcessing(): bool
+    {
+        return $this->status === 'processing';
+    }
+
+    /**
+     * Verificar si el registro fue completado exitosamente
+     */
+    public function isCompleted(): bool
+    {
+        return $this->status === 'completed';
+    }
+
+    /**
+     * Verificar si el registro falló
+     */
+    public function isFailed(): bool
+    {
+        return $this->status === 'failed';
+    }
+
+    /**
+     * Obtener mensaje del estado de registro
+     */
+    public function getRegistrationStatusMessage(): string
+    {
+        return match($this->status) {
+            'pending' => 'Registro pendiente de procesamiento',
+            'processing' => 'Registrando en Zoom...',
+            'completed' => 'Registro completado exitosamente',
+            'failed' => 'Error en el registro: ' . ($this->error_message ?? 'Error desconocido'),
+            default => 'Estado de registro desconocido'
         };
     }
 
@@ -165,5 +215,46 @@ class ZoomRegistrant extends Model
     public function scopeForUser($query, int $userId)
     {
         return $query->where('user_id', $userId);
+    }
+
+    /**
+     * Scope para registros pendientes
+     */
+    public function scopePending($query)
+    {
+        return $query->where('status', 'pending');
+    }
+
+    /**
+     * Scope para registros en procesamiento
+     */
+    public function scopeProcessing($query)
+    {
+        return $query->where('status', 'processing');
+    }
+
+    /**
+     * Scope para registros completados
+     */
+    public function scopeCompleted($query)
+    {
+        return $query->where('status', 'completed');
+    }
+
+    /**
+     * Scope para registros fallidos
+     */
+    public function scopeFailed($query)
+    {
+        return $query->where('status', 'failed');
+    }
+
+    /**
+     * Scope para registros atorados (en procesamiento por mucho tiempo)
+     */
+    public function scopeStuck($query, int $minutesThreshold = 10)
+    {
+        return $query->where('status', 'processing')
+                    ->where('processing_started_at', '<', now()->subMinutes($minutesThreshold));
     }
 }
