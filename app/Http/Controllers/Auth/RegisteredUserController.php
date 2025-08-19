@@ -51,6 +51,13 @@ class RegisteredUserController extends Controller
             'es_miembro' => false,
         ]);
 
+        // Asignar rol por defecto desde la configuración
+        $defaultRoleId = config('app.default_user_role_id', 4);
+        $user->roles()->attach($defaultRoleId, [
+            'assigned_at' => now(),
+            'assigned_by' => null, // null indica auto-registro
+        ]);
+
         event(new Registered($user));
 
         Auth::login($user);

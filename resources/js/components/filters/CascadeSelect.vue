@@ -43,7 +43,17 @@ const placeholder = computed(() => {
   if (loading.value) return 'Cargando...';
   if (error.value) return 'Error al cargar opciones';
   if (isDisabled.value && props.field.cascadeFrom) {
-    return `Seleccione ${props.field.cascadeFrom.split('_')[0]} primero`;
+    // Extraer el nombre del campo sin prefijos ni sufijos
+    let fieldName = props.field.cascadeFrom;
+    // Remover prefijo si existe (ej: users.territorio_id -> territorio_id)
+    if (fieldName.includes('.')) {
+      fieldName = fieldName.split('.').pop() || fieldName;
+    }
+    // Remover _id del final
+    fieldName = fieldName.replace('_id', '');
+    // Capitalizar primera letra
+    const fieldLabel = fieldName.charAt(0).toUpperCase() + fieldName.slice(1);
+    return `Seleccione ${fieldLabel} primero`;
   }
   return props.field.placeholder || 'Seleccionar...';
 });
@@ -85,7 +95,15 @@ const loadOptions = async () => {
     
     // Añadir parámetro del padre si existe
     if (props.field.cascadeFrom && props.parentValue) {
-      const paramName = props.field.cascadeParam || `${props.field.cascadeFrom}`;
+      // Si cascadeParam está definido, usarlo. Si no, usar el nombre del campo sin prefijos
+      let paramName = props.field.cascadeParam;
+      if (!paramName) {
+        // Remover prefijo si existe (ej: users.territorio_id -> territorio_id)
+        paramName = props.field.cascadeFrom;
+        if (paramName.includes('.')) {
+          paramName = paramName.split('.').pop() || paramName;
+        }
+      }
       url.searchParams.append(paramName, props.parentValue);
     }
     

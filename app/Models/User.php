@@ -4,9 +4,11 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Traits\HasTenant;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Str;
 use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
@@ -59,6 +61,18 @@ class User extends Authenticatable
             'activo' => 'boolean',
             'es_miembro' => 'boolean',
         ];
+    }
+
+    /**
+     * Mutator para normalizar el campo name a formato Title Case
+     * Convierte nombres en MAYÚSCULAS a formato apropiado
+     * Ej: "MERIELYS PEREZ ARRIETA" -> "Merielys Perez Arrieta"
+     */
+    protected function name(): Attribute
+    {
+        return Attribute::make(
+            set: fn (?string $value) => $value ? Str::title(mb_strtolower(trim($value))) : $value
+        );
     }
 
     /**

@@ -41,8 +41,14 @@ const parentFieldValue = computed(() => {
   }
   
   // Buscar la condición del campo padre
+  // El cascadeFrom puede tener prefijo (ej: users.territorio_id)
+  const parentFieldName = selectedField.value.cascadeFrom;
+  
   const parentCondition = props.allConditions.find(
-    c => (c.field === selectedField.value?.cascadeFrom || c.name === selectedField.value?.cascadeFrom) && c.id !== props.condition.id
+    c => c.id !== props.condition.id && (
+      c.field === parentFieldName || 
+      c.name === parentFieldName
+    )
   );
   
   return parentCondition?.value || null;

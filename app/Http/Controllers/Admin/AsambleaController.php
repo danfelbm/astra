@@ -573,14 +573,14 @@ class AsambleaController extends Controller
                 'asamblea_usuario.tenant_id'
             );
 
-        // Definir campos permitidos para filtrar
+        // Definir campos permitidos para filtrar (con prefijos de tabla para evitar ambigüedad)
         $allowedFields = [
-            'name', 'email', 'tipo_participacion', 'asistio',
-            'territorio_id', 'departamento_id', 'municipio_id', 'localidad_id',
+            'users.name', 'users.email', 'asamblea_usuario.tipo_participacion', 'asamblea_usuario.asistio',
+            'users.territorio_id', 'users.departamento_id', 'users.municipio_id', 'users.localidad_id',
         ];
         
-        // Campos para búsqueda rápida
-        $quickSearchFields = ['name', 'email'];
+        // Campos para búsqueda rápida (con prefijos de tabla)
+        $quickSearchFields = ['users.name', 'users.email'];
 
         // Aplicar filtros avanzados
         $this->applyAdvancedFilters($query, $request, $allowedFields, $quickSearchFields);
@@ -611,20 +611,20 @@ class AsambleaController extends Controller
      */
     protected function getParticipantesFilterFieldsConfig(): array
     {
-        // Campos básicos del usuario
+        // Campos básicos del usuario (con prefijos de tabla para coincidencia con backend)
         $basicFields = [
             [
-                'name' => 'name',
+                'name' => 'users.name',
                 'label' => 'Nombre',
                 'type' => 'text',
             ],
             [
-                'name' => 'email',
+                'name' => 'users.email',
                 'label' => 'Email',
                 'type' => 'text',
             ],
             [
-                'name' => 'tipo_participacion',
+                'name' => 'asamblea_usuario.tipo_participacion',
                 'label' => 'Tipo de Participación',
                 'type' => 'select',
                 'options' => [
@@ -634,7 +634,7 @@ class AsambleaController extends Controller
                 ],
             ],
             [
-                'name' => 'asistio',
+                'name' => 'asamblea_usuario.asistio',
                 'label' => 'Asistencia',
                 'type' => 'select',
                 'options' => [
@@ -644,9 +644,30 @@ class AsambleaController extends Controller
             ],
         ];
         
-        // Obtener campos geográficos en cascada para usuarios
-        // Los usuarios tienen campos territorio_id, departamento_id, etc. directamente
+        // Obtener campos geográficos en cascada para usuarios (con prefijos de tabla)
         $geographicFields = $this->getUserGeographicFilterFields();
+        
+        // Agregar prefijo 'users.' a los campos geográficos y actualizar referencias de cascada
+        $geographicFields = array_map(function($field) {
+            // Agregar prefijo al nombre del campo
+            if (isset($field['name']) && !str_contains($field['name'], '.')) {
+                $field['name'] = 'users.' . $field['name'];
+            }
+            
+            // Actualizar cascadeFrom para que coincida con el nuevo nombre con prefijo
+            if (isset($field['cascadeFrom']) && !str_contains($field['cascadeFrom'], '.')) {
+                $field['cascadeFrom'] = 'users.' . $field['cascadeFrom'];
+            }
+            
+            // Actualizar cascadeChildren para que coincidan con los nuevos nombres con prefijo
+            if (isset($field['cascadeChildren']) && is_array($field['cascadeChildren'])) {
+                $field['cascadeChildren'] = array_map(function($child) {
+                    return !str_contains($child, '.') ? 'users.' . $child : $child;
+                }, $field['cascadeChildren']);
+            }
+            
+            return $field;
+        }, $geographicFields);
         
         // Combinar todos los campos
         return array_merge($basicFields, $geographicFields);
@@ -663,17 +684,38 @@ class AsambleaController extends Controller
         }
 
         if ($request->isMethod('GET')) {
-            // Obtener participantes asignados y disponibles
-            // Usar allParticipantes si es super admin
+            // Búsqueda de usuarios disponibles con paginación para evitar sobrecarga
+            $search = $request->input('search', '');
+            $page = $request->input('page', 1);
+            
+            // Obtener IDs de participantes ya asignados
             $relation = Auth::user()->isSuperAdmin() ? $asamblea->allParticipantes() : $asamblea->participantes();
-            $participantesAsignados = $relation->get();
-            $participantesDisponibles = User::where('activo', true)
-                ->whereNotIn('id', $participantesAsignados->pluck('id'))
-                ->get();
+            $participantesAsignadosIds = $relation->pluck('usuario_id');
+            
+            // Buscar usuarios disponibles con paginación
+            $query = User::where('activo', true)
+                ->whereNotIn('id', $participantesAsignadosIds);
+            
+            // Aplicar búsqueda si existe (nombre, email, documento de identidad, teléfono)
+            if (!empty($search)) {
+                $query->where(function($q) use ($search) {
+                    $q->where('name', 'like', '%' . $search . '%')
+                      ->orWhere('email', 'like', '%' . $search . '%')
+                      ->orWhere('documento_identidad', 'like', '%' . $search . '%')
+                      ->orWhere('telefono', 'like', '%' . $search . '%');
+                });
+            }
+            
+            // Paginar resultados (máximo 50 por página para evitar sobrecarga)
+            // Incluir campos adicionales para mostrar en el modal
+            $participantesDisponibles = $query
+                ->select('id', 'name', 'email', 'documento_identidad', 'telefono')
+                ->orderBy('name')
+                ->paginate(50);
 
             return response()->json([
-                'participantes_asignados' => $participantesAsignados,
                 'participantes_disponibles' => $participantesDisponibles,
+                'search' => $search,
             ]);
         }
 
