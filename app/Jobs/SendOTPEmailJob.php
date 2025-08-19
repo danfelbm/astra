@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Jobs\Middleware\WithRateLimiting;
 use App\Mail\OTPCodeMail;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -13,7 +14,7 @@ use Illuminate\Support\Facades\Mail;
 
 class SendOTPEmailJob implements ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels, WithRateLimiting;
 
     /**
      * El número de veces que el job puede ser intentado.
@@ -38,7 +39,8 @@ class SendOTPEmailJob implements ShouldQueue
         public string $userName,
         public int $expirationMinutes = 10
     ) {
-        //
+        // Inicializar la cola dedicada para OTP emails
+        $this->initializeRateLimitedQueue();
     }
 
     /**

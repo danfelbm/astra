@@ -122,4 +122,32 @@ return [
     'zoom_registration_timeout' => env('ZOOM_REGISTRATION_TIMEOUT', 120),
     'zoom_max_retry_attempts' => env('ZOOM_MAX_RETRY_ATTEMPTS', 3),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Colas Dedicadas para OTP
+    |--------------------------------------------------------------------------
+    |
+    | Configuración de colas dedicadas para el procesamiento de OTPs
+    | con rate limiting específico por proveedor.
+    |
+    */
+
+    'otp_email_queue' => env('OTP_EMAIL_QUEUE', 'otp-emails'),
+    'otp_whatsapp_queue' => env('OTP_WHATSAPP_QUEUE', 'otp-whatsapp'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Rate Limits por Proveedor
+    |--------------------------------------------------------------------------
+    |
+    | Límites de rate por segundo para cada proveedor de mensajería.
+    | Estos valores se usan para controlar el throughput de envío.
+    |
+    */
+
+    'rate_limits' => [
+        'resend' => env('RESEND_RATE_LIMIT', 2),      // 2 emails por segundo
+        'whatsapp' => env('WHATSAPP_RATE_LIMIT', 5),  // 5 mensajes por segundo
+    ],
+
 ];

@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Jobs\Middleware\WithRateLimiting;
 use App\Services\WhatsAppService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -12,7 +13,7 @@ use Illuminate\Support\Facades\Log;
 
 class SendOTPWhatsAppJob implements ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels, WithRateLimiting;
 
     /**
      * El número de veces que el job puede ser intentado.
@@ -52,7 +53,8 @@ class SendOTPWhatsAppJob implements ShouldQueue
         public string $userName,
         public int $expirationMinutes = 10
     ) {
-        //
+        // Inicializar la cola dedicada para OTP WhatsApp
+        $this->initializeRateLimitedQueue();
     }
 
     /**
@@ -87,11 +89,7 @@ class SendOTPWhatsAppJob implements ShouldQueue
             $sent = $whatsappService->sendMessage($this->phone, $message);
             
             if ($sent) {
-                Log::info("OTP enviado exitosamente por WhatsApp mediante job en cola", [
-                    'phone' => $this->phone,
-                    'code' => substr($this->codigo, 0, 2) . '****', // Log parcial por seguridad
-                    'attempt' => $this->attempts()
-                ]);
+                Log::info("OTP enviado exitosamente");
             } else {
                 // El servicio retornó false - verificar si es error permanente
                 $this->handleSendFailure();
@@ -123,9 +121,14 @@ class SendOTPWhatsAppJob implements ShouldQueue
             return;
         }
         
-        // Para errores temporales, lanzar excepción para reintentar
-        // pero Laravel respetará el límite de $tries = 3
-        throw new \Exception($errorMessage);
+        // Para errores temporales, loggear y marcar como fallido
+        Log::error("No se pudo enviar el mensaje de WhatsApp", [
+            'phone' => $this->phone,
+            'attempt' => $this->attempts()
+        ]);
+        
+        // Marcar como fallido sin generar stacktrace
+        $this->fail(new \Exception($errorMessage));
     }
     
     /**
@@ -178,9 +181,8 @@ class SendOTPWhatsAppJob implements ShouldQueue
             'will_retry' => $this->attempts() < $this->tries
         ]);
         
-        // Re-lanzar la excepción - Laravel manejará los reintentos
-        // y respetará el límite de $tries automáticamente
-        throw $e;
+        // Marcar como fallido sin generar stacktrace completo
+        $this->fail($e);
     }
     
     /**

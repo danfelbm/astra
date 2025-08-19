@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Jobs\Middleware\WithRateLimiting;
 use App\Mail\ZoomAccessMail;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -13,7 +14,7 @@ use Illuminate\Support\Facades\Mail;
 
 class SendZoomAccessEmailJob implements ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels, WithRateLimiting;
 
     /**
      * El número de veces que el job puede ser intentado.
@@ -47,6 +48,8 @@ class SendZoomAccessEmailJob implements ShouldQueue
     public function __construct(array $notificationData)
     {
         $this->notificationData = $notificationData;
+        // Inicializar la cola dedicada para emails (compartida con OTP)
+        $this->initializeRateLimitedQueue();
     }
 
     /**

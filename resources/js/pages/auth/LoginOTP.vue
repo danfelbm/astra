@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import InputError from '@/components/InputError.vue';
 import TextLink from '@/components/TextLink.vue';
+import OTPQueueStatus from '@/components/OTPQueueStatus.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -284,6 +285,29 @@ onUnmounted(() => {
                             </span>
                         </span>
                     </p>
+                </div>
+
+                <!-- Estado de la cola de envío -->
+                <div v-if="props.otpChannel === 'both'">
+                    <!-- Mostrar ambos componentes si se envió por email y WhatsApp -->
+                    <OTPQueueStatus 
+                        type="email"
+                        :identifier="censoredEmailRef || otpForm.credential"
+                        :show-rate-limit-info="true"
+                    />
+                    <OTPQueueStatus 
+                        type="whatsapp"
+                        :identifier="otpForm.credential"
+                        :show-rate-limit-info="true"
+                    />
+                </div>
+                <div v-else>
+                    <!-- Mostrar componente específico según el canal -->
+                    <OTPQueueStatus 
+                        :type="props.otpChannel === 'whatsapp' ? 'whatsapp' : 'email'"
+                        :identifier="props.otpChannel === 'whatsapp' ? otpForm.credential : (censoredEmailRef || otpForm.credential)"
+                        :show-rate-limit-info="true"
+                    />
                 </div>
 
                 <div class="grid gap-2">

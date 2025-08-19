@@ -1,0 +1,33 @@
+[Unit]
+Description=Laravel OTP Email Queue Worker %i
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+Restart=always
+RestartSec=5
+StartLimitInterval=0
+
+# Worker dedicado para emails OTP con rate limiting estricto
+# Procesa máximo 2 emails por segundo según límite de Resend
+ExecStart=/usr/local/lsws/lsphp84/bin/php /home/votaciones.com.co/votaciones.com.co/artisan queue:work redis \
+    --queue=otp-emails \
+    --sleep=1 \
+    --tries=3 \
+    --max-jobs=2 \
+    --max-time=1 \
+    --memory=256 \
+    --timeout=30
+
+# Environment
+Environment="QUEUE_CONNECTION=redis"
+Environment="QUEUE_NAME=otp-emails"
+
+# Output
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
