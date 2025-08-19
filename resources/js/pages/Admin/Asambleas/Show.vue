@@ -14,6 +14,7 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { type BreadcrumbItemType } from '@/types';
 import AppLayout from '@/layouts/AppLayout.vue';
@@ -33,7 +34,7 @@ import {
     ChevronLeft,
     ChevronRight
 } from 'lucide-vue-next';
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { toast } from 'vue-sonner';
@@ -136,7 +137,7 @@ const filterConfig: AdvancedFilterConfig = {
     fields: props.filterFieldsConfig || [],
     showQuickSearch: true,
     quickSearchPlaceholder: 'Buscar por nombre o email...',
-    quickSearchFields: ['name', 'email'],
+    quickSearchFields: ['users.name', 'users.email'],
     maxNestingLevel: 1,
     allowSaveFilters: false,
     debounceTime: 500,
@@ -146,8 +147,12 @@ const filterConfig: AdvancedFilterConfig = {
 // Estado para el modal de añadir participantes
 const modalAñadirAbierto = ref(false);
 const participantesDisponibles = ref<any[]>([]);
+const participantesDisponiblesPagination = ref<any>(null);
 const participantesSeleccionados = ref<number[]>([]);
 const tipoParticipacionNuevo = ref('asistente');
+const busquedaParticipantes = ref('');
+const cargandoParticipantesDisponibles = ref(false);
+const participantesInicializados = ref(false);
 
 // Estado para registrar asistencia
 const registrandoAsistencia = ref<number | null>(null);
@@ -242,17 +247,69 @@ const handleClearFilters = () => {
     cargarParticipantes(1, {});
 };
 
-// Cargar participantes disponibles
-const abrirModalAñadir = async () => {
+// Buscar participantes disponibles con paginación
+const buscarParticipantesDisponibles = async (page = 1) => {
+    cargandoParticipantesDisponibles.value = true;
     try {
-        const response = await fetch(route('admin.asambleas.manage-participantes', props.asamblea.id));
-        const data = await response.json();
-        participantesDisponibles.value = data.participantes_disponibles;
-        modalAñadirAbierto.value = true;
+        const response = await axios.get(route('admin.asambleas.manage-participantes', props.asamblea.id), {
+            params: {
+                search: busquedaParticipantes.value,
+                page: page,
+            },
+        });
+        
+        if (response.data.participantes_disponibles.data) {
+            participantesDisponibles.value = response.data.participantes_disponibles.data;
+            participantesDisponiblesPagination.value = {
+                current_page: response.data.participantes_disponibles.current_page,
+                last_page: response.data.participantes_disponibles.last_page,
+                total: response.data.participantes_disponibles.total,
+            };
+        } else {
+            participantesDisponibles.value = [];
+        }
     } catch (error) {
-        console.error('Error cargando participantes:', error);
+        console.error('Error buscando participantes:', error);
+        toast.error('Error al buscar participantes', {
+            description: 'Por favor intenta nuevamente',
+            duration: 3000,
+        });
+        participantesDisponibles.value = [];
+    } finally {
+        cargandoParticipantesDisponibles.value = false;
     }
 };
+
+// Abrir modal de añadir participantes
+const abrirModalAñadir = () => {
+    modalAñadirAbierto.value = true;
+    // Inicializar búsqueda solo la primera vez
+    if (!participantesInicializados.value) {
+        participantesInicializados.value = true;
+        buscarParticipantesDisponibles();
+    }
+};
+
+// Watch para búsqueda con debounce
+let timeoutId: number | null = null;
+watch(busquedaParticipantes, () => {
+    if (timeoutId) clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => {
+        if (modalAñadirAbierto.value) {
+            buscarParticipantesDisponibles();
+        }
+    }, 500);
+});
+
+// Limpiar estados al cerrar el modal
+watch(modalAñadirAbierto, (isOpen) => {
+    if (!isOpen) {
+        // Limpiar selección y búsqueda al cerrar
+        participantesSeleccionados.value = [];
+        busquedaParticipantes.value = '';
+        tipoParticipacionNuevo.value = 'asistente';
+    }
+});
 
 // Refrescar lista de participantes después de cambios
 const refrescarParticipantes = () => {
@@ -274,15 +331,12 @@ const añadirParticipantes = () => {
         only: [], // No actualizar ningún prop
         onSuccess: () => {
             modalAñadirAbierto.value = false;
-            participantesSeleccionados.value = [];
-            tipoParticipacionNuevo.value = 'asistente';
             
             toast.success(`${cantidadSeleccionados} participante(s) añadido(s) exitosamente`, {
                 duration: 2000,
             });
             
-            // Recargar la lista solo si se añadieron participantes
-            // para actualizar la paginación y mostrar los nuevos
+            // Recargar la lista de participantes
             cargarParticipantes(participantesPagination.value.current_page, currentFilters.value);
         },
         onError: () => {
@@ -440,8 +494,10 @@ const volver = () => {
     router.visit(route('admin.asambleas.index'));
 };
 
-// Cargar participantes al montar el componente
+// Cargar SOLO la primera página de participantes al montar (verdadero lazy loading)
 onMounted(() => {
+    // Siempre cargar la primera página (solo 20 registros)
+    // No importa si hay 10, 100 o 1800+ participantes totales
     cargarParticipantes();
 });
 </script>
@@ -569,10 +625,10 @@ onMounted(() => {
                         <div>
                             <CardTitle>Participantes</CardTitle>
                             <CardDescription>
-                                {{ participantesPagination.total }} participantes registrados
+                                {{ asamblea.participantes_count }} participantes registrados
                             </CardDescription>
                         </div>
-                        <div class="flex gap-2">
+                        <div v-if="participantes.length > 0" class="flex gap-2">
                             <Badge variant="outline">
                                 Moderadores: {{ estadisticas.moderadores }}
                             </Badge>
@@ -698,12 +754,12 @@ onMounted(() => {
                         </TableBody>
                     </Table>
 
-                    <!-- Paginación -->
-                    <div v-if="participantesPagination.last_page > 1" class="flex items-center justify-between mt-4">
+                    <!-- Paginación - Siempre visible para indicar que es una vista paginada -->
+                    <div v-if="participantesPagination.total > 0" class="flex items-center justify-between mt-4">
                         <div class="text-sm text-muted-foreground">
                             Mostrando {{ participantesPagination.from }} a {{ participantesPagination.to }} de {{ participantesPagination.total }} resultados
                         </div>
-                        <div class="flex items-center space-x-2">
+                        <div v-if="participantesPagination.last_page > 1" class="flex items-center space-x-2">
                             <Button
                                 variant="outline"
                                 size="sm"
@@ -759,57 +815,107 @@ onMounted(() => {
                 </DialogHeader>
 
                 <div class="space-y-4">
-                    <div>
-                        <label class="text-sm font-medium">Tipo de Participación</label>
-                        <Select v-model="tipoParticipacionNuevo">
-                            <SelectTrigger>
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="asistente">Asistente</SelectItem>
-                                <SelectItem value="moderador">Moderador</SelectItem>
-                                <SelectItem value="secretario">Secretario</SelectItem>
-                            </SelectContent>
-                        </Select>
+                    <div class="grid gap-4 md:grid-cols-2">
+                        <div>
+                            <label class="text-sm font-medium">Tipo de Participación</label>
+                            <Select v-model="tipoParticipacionNuevo">
+                                <SelectTrigger>
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="asistente">Asistente</SelectItem>
+                                    <SelectItem value="moderador">Moderador</SelectItem>
+                                    <SelectItem value="secretario">Secretario</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div>
+                            <label class="text-sm font-medium">Buscar Usuarios</label>
+                            <Input 
+                                v-model="busquedaParticipantes"
+                                placeholder="Buscar por nombre, email, documento o teléfono..."
+                                type="text"
+                            />
+                        </div>
                     </div>
 
                     <div class="max-h-96 overflow-y-auto border rounded-lg p-4">
-                        <div v-for="usuario in participantesDisponibles" :key="usuario.id" class="flex items-center space-x-2 py-2">
-                            <Checkbox
-                                :id="`usuario-${usuario.id}`"
-                                :checked="participantesSeleccionados.includes(usuario.id)"
-                                @update:checked="(value) => {
-                                    if (value) {
-                                        participantesSeleccionados.push(usuario.id);
-                                    } else {
-                                        const index = participantesSeleccionados.indexOf(usuario.id);
-                                        if (index > -1) participantesSeleccionados.splice(index, 1);
-                                    }
-                                }"
-                            />
-                            <label 
-                                :for="`usuario-${usuario.id}`"
-                                class="flex-1 cursor-pointer text-sm"
-                            >
-                                {{ usuario.name }} ({{ usuario.email }})
-                            </label>
+                        <div v-if="cargandoParticipantesDisponibles" class="flex justify-center py-8">
+                            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                         </div>
-                        <p v-if="participantesDisponibles.length === 0" class="text-center text-muted-foreground">
-                            No hay usuarios disponibles para añadir
+                        <div v-else-if="participantesDisponibles.length > 0">
+                            <div v-for="usuario in participantesDisponibles" :key="usuario.id" class="flex items-center space-x-2 py-2">
+                                <Checkbox
+                                    :id="`usuario-${usuario.id}`"
+                                    :checked="participantesSeleccionados.includes(usuario.id)"
+                                    @update:checked="(value) => {
+                                        if (value) {
+                                            participantesSeleccionados.push(usuario.id);
+                                        } else {
+                                            const index = participantesSeleccionados.indexOf(usuario.id);
+                                            if (index > -1) participantesSeleccionados.splice(index, 1);
+                                        }
+                                    }"
+                                />
+                                <label 
+                                    :for="`usuario-${usuario.id}`"
+                                    class="flex-1 cursor-pointer"
+                                >
+                                    <div class="text-sm font-medium">{{ usuario.name }}</div>
+                                    <div class="text-xs text-muted-foreground">
+                                        {{ usuario.email }}
+                                        <span v-if="usuario.documento_identidad"> • Doc: {{ usuario.documento_identidad }}</span>
+                                        <span v-if="usuario.telefono"> • Tel: {{ usuario.telefono }}</span>
+                                    </div>
+                                </label>
+                            </div>
+                            
+                            <!-- Paginación -->
+                            <div v-if="participantesDisponiblesPagination && participantesDisponiblesPagination.last_page > 1" class="mt-4 flex justify-center gap-2">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    :disabled="participantesDisponiblesPagination.current_page === 1"
+                                    @click="buscarParticipantesDisponibles(participantesDisponiblesPagination.current_page - 1)"
+                                >
+                                    <ChevronLeft class="h-4 w-4" />
+                                </Button>
+                                <span class="flex items-center px-2 text-sm">
+                                    Página {{ participantesDisponiblesPagination.current_page }} de {{ participantesDisponiblesPagination.last_page }}
+                                </span>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    :disabled="participantesDisponiblesPagination.current_page === participantesDisponiblesPagination.last_page"
+                                    @click="buscarParticipantesDisponibles(participantesDisponiblesPagination.current_page + 1)"
+                                >
+                                    <ChevronRight class="h-4 w-4" />
+                                </Button>
+                            </div>
+                        </div>
+                        <p v-else class="text-center text-muted-foreground py-4">
+                            {{ busquedaParticipantes ? 'No se encontraron usuarios con esa búsqueda' : 'Escribe para buscar usuarios disponibles' }}
                         </p>
                     </div>
                 </div>
 
                 <DialogFooter>
-                    <Button variant="outline" @click="modalAñadirAbierto = false">
-                        Cancelar
-                    </Button>
-                    <Button 
-                        @click="añadirParticipantes"
-                        :disabled="participantesSeleccionados.length === 0"
-                    >
-                        Añadir {{ participantesSeleccionados.length }} Participante(s)
-                    </Button>
+                    <div class="flex items-center justify-between w-full">
+                        <span v-if="participantesDisponiblesPagination" class="text-sm text-muted-foreground">
+                            {{ participantesDisponiblesPagination.total }} usuarios disponibles
+                        </span>
+                        <div class="flex gap-2">
+                            <Button variant="outline" @click="modalAñadirAbierto = false">
+                                Cancelar
+                            </Button>
+                            <Button 
+                                @click="añadirParticipantes"
+                                :disabled="participantesSeleccionados.length === 0"
+                            >
+                                Añadir {{ participantesSeleccionados.length }} Participante(s)
+                            </Button>
+                        </div>
+                    </div>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
