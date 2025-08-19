@@ -37,6 +37,7 @@
         "@vitejs/plugin-vue": "^5.2.1",
         "@vueuse/core": "^12.8.2",
         "@zoom/meetingsdk": "^4.0.0",
+        "base-vue-phone-input": "^0.1.13",
         "chart.js": "^4.5.0",
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
