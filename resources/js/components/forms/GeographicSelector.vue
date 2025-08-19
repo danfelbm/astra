@@ -2,7 +2,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ref, onMounted, nextTick, computed } from 'vue';
+import { ref, onMounted, nextTick, computed, watch } from 'vue';
 import { usePage } from '@inertiajs/vue3';
 import type { Territorio, Departamento, Municipio, Localidad } from '@/types/forms';
 
@@ -30,6 +30,9 @@ interface Props {
     description?: string;
     mode?: 'single' | 'multiple'; // Nuevo prop para controlar el modo
     showCard?: boolean; // Si mostrar con Card o sin ella
+    municipioLabel?: string; // Label personalizado para municipio
+    showLocalidad?: boolean; // Si mostrar o no el campo de localidad
+    showDepartamento?: boolean; // Si mostrar o no el campo de departamento
 }
 
 interface Emits {
@@ -42,6 +45,9 @@ const props = withDefaults(defineProps<Props>(), {
     description: 'Selecciona la ubicación',
     mode: 'multiple', // Por defecto mantiene compatibilidad con el comportamiento actual
     showCard: true,
+    municipioLabel: 'Municipio',
+    showLocalidad: true,
+    showDepartamento: true,
     modelValue: () => ({
         territorios_ids: [],
         departamentos_ids: [],
@@ -114,6 +120,14 @@ const apiPrefix = computed(() => {
     const currentPath = window.location.pathname;
     return currentPath.startsWith('/admin') ? '/admin/geographic' : '/api/geographic';
 });
+
+// Watcher para cargar municipios automáticamente cuando cambia departamento_id
+// (especialmente útil para territorio internacional donde departamento está oculto)
+watch(selectedDepartamentos, (newDepartamentos) => {
+    if (newDepartamentos.length > 0) {
+        loadMunicipios(newDepartamentos);
+    }
+}, { immediate: false });
 
 // Load functions
 const loadTerritorios = async () => {
@@ -309,7 +323,7 @@ const getSelectionText = (count: number, singular: string, plural: string) => {
             </div>
 
             <!-- Departamentos -->
-            <div v-if="departamentos.length > 0" class="w-full">
+            <div v-if="showDepartamento && departamentos.length > 0" class="w-full">
                 <Label>Departamento{{ isMultipleMode ? 's' : '' }}</Label>
                 <Select 
                     :model-value="isMultipleMode ? selectedDepartamentos.map(id => id.toString()) : (selectedDepartamentos[0]?.toString() || '')"
@@ -337,7 +351,7 @@ const getSelectionText = (count: number, singular: string, plural: string) => {
 
             <!-- Municipios -->
             <div v-if="municipios.length > 0" class="w-full">
-                <Label>Municipio{{ isMultipleMode ? 's' : '' }}</Label>
+                <Label>{{ municipioLabel }}{{ isMultipleMode ? 's' : '' }}</Label>
                 <Select 
                     :model-value="isMultipleMode ? selectedMunicipios.map(id => id.toString()) : (selectedMunicipios[0]?.toString() || '')"
                     @update:model-value="(value) => handleUpdate(value, 'municipio')"
@@ -345,7 +359,7 @@ const getSelectionText = (count: number, singular: string, plural: string) => {
                     :disabled="disabled || loading"
                 >
                     <SelectTrigger class="w-full">
-                        <SelectValue :placeholder="`Seleccionar municipio${isMultipleMode ? 's' : ''}...`" />
+                        <SelectValue :placeholder="`Seleccionar ${municipioLabel.toLowerCase()}${isMultipleMode ? 's' : ''}...`" />
                     </SelectTrigger>
                     <SelectContent>
                         <SelectItem 
@@ -358,12 +372,12 @@ const getSelectionText = (count: number, singular: string, plural: string) => {
                     </SelectContent>
                 </Select>
                 <p v-if="isMultipleMode" class="text-xs text-muted-foreground mt-1">
-                    {{ getSelectionText(selectedMunicipios.length, 'municipio', 'municipios') }}
+                    {{ getSelectionText(selectedMunicipios.length, municipioLabel.toLowerCase(), municipioLabel.toLowerCase() + 's') }}
                 </p>
             </div>
 
             <!-- Localidades -->
-            <div v-if="localidades.length > 0" class="w-full">
+            <div v-if="showLocalidad && localidades.length > 0" class="w-full">
                 <Label>Localidad{{ isMultipleMode ? 'es' : '' }}</Label>
                 <Select 
                     :model-value="isMultipleMode ? selectedLocalidades.map(id => id.toString()) : (selectedLocalidades[0]?.toString() || '')"

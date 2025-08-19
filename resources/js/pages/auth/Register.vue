@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SPhoneInput } from '@/components/ui/phone-input';
 import GeographicSelector from '@/components/forms/GeographicSelector.vue';
 import AuthBase from '@/layouts/AuthLayout.vue';
 import { Head, useForm } from '@inertiajs/vue3';
@@ -39,8 +40,6 @@ const form = useForm({
     departamento_id: null as number | null,
     municipio_id: null as number | null,
     localidad_id: null as number | null,
-    password: '',
-    password_confirmation: '',
 });
 
 // Computed para validaciones dinámicas
@@ -70,12 +69,23 @@ watch(() => form.documento_identidad, (value) => {
     }
 });
 
+// Estado para territorio internacional
+const isInternational = computed(() => form.territorio_id === 2);
+
 // Manejar cambio de ubicación geográfica
 const handleGeographicChange = (value: any) => {
     form.territorio_id = value.territorio_id || null;
-    form.departamento_id = value.departamento_id || null;
+    
+    // Si es territorio internacional (id 2), asumir departamento_id = 35
+    if (form.territorio_id === 2) {
+        form.departamento_id = 35;
+        form.localidad_id = null; // No mostrar localidad para internacional
+    } else {
+        form.departamento_id = value.departamento_id || null;
+        form.localidad_id = value.localidad_id || null;
+    }
+    
     form.municipio_id = value.municipio_id || null;
-    form.localidad_id = value.localidad_id || null;
 };
 
 // Cargar datos geográficos al montar
@@ -94,9 +104,7 @@ const submit = () => {
     // Limpiar errores personalizados antes de enviar
     documentoError.value = '';
     
-    form.post(route('register'), {
-        onFinish: () => form.reset('password', 'password_confirmation'),
-    });
+    form.post(route('register'));
 };
 </script>
 
@@ -137,13 +145,13 @@ const submit = () => {
                     <InputError :message="form.errors.email" />
                 </div>
 
-                <!-- Tipo de Documento y Número (1/3 - 2/3) -->
-                <div class="grid gap-4 md:grid-cols-3">
-                    <div class="grid gap-2 md:col-span-1">
-                        <Label for="tipo_documento">Tipo de documento</Label>
+                <!-- Número de documento -->
+                <div class="grid gap-2">
+                    <Label for="documento_identidad">Número de documento</Label>
+                    <div class="flex items-center">
                         <Select v-model="form.tipo_documento" required>
-                            <SelectTrigger id="tipo_documento" tabindex="3">
-                                <SelectValue placeholder="Seleccionar tipo" />
+                            <SelectTrigger id="tipo_documento" tabindex="3" class="rounded-e-none rounded-s-lg w-18">
+                                <SelectValue placeholder="CC" />
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectItem 
@@ -155,13 +163,9 @@ const submit = () => {
                                 </SelectItem>
                             </SelectContent>
                         </Select>
-                        <InputError :message="form.errors.tipo_documento" />
-                    </div>
-
-                    <div class="grid gap-2 md:col-span-2">
-                        <Label for="documento_identidad">Número de documento</Label>
                         <Input 
                             id="documento_identidad" 
+                            class="rounded-s-none rounded-e-lg"
                             :type="documentoInputMode === 'numeric' ? 'text' : 'text'"
                             :inputmode="documentoInputMode"
                             required 
@@ -170,29 +174,21 @@ const submit = () => {
                             v-model="form.documento_identidad" 
                             placeholder="Número de documento" 
                         />
-                        <InputError :message="documentoError || form.errors.documento_identidad" />
                     </div>
+                    <InputError :message="documentoError || form.errors.documento_identidad || form.errors.tipo_documento" />
                 </div>
 
                 <!-- Teléfono -->
                 <div class="grid gap-2">
                     <Label for="telefono">Teléfono</Label>
-                    <Input 
-                        id="telefono" 
-                        type="text"
-                        inputmode="numeric"
-                        required 
-                        tabindex="5" 
-                        autocomplete="tel" 
-                        v-model="form.telefono" 
-                        placeholder="Número de teléfono" 
+                    <SPhoneInput 
+                        v-model="form.telefono"
                     />
                     <InputError :message="form.errors.telefono" />
                 </div>
 
                 <!-- Ubicación Geográfica -->
                 <div class="grid gap-2">
-                    <Label>Ubicación (opcional)</Label>
                     <GeographicSelector
                         :modelValue="{
                             territorio_id: form.territorio_id,
@@ -204,42 +200,16 @@ const submit = () => {
                         mode="single"
                         :showCard="false"
                         description="Selecciona tu ubicación"
+                        :municipioLabel="isInternational ? 'País' : 'Municipio'"
+                        :showLocalidad="!isInternational"
+                        :showDepartamento="!isInternational"
                     />
                     <InputError :message="form.errors.territorio_id || form.errors.departamento_id || form.errors.municipio_id || form.errors.localidad_id" />
                 </div>
 
-                <!-- Contraseña -->
-                <div class="grid gap-2">
-                    <Label for="password">Contraseña</Label>
-                    <Input
-                        id="password"
-                        type="password"
-                        required
-                        tabindex="6"
-                        autocomplete="new-password"
-                        v-model="form.password"
-                        placeholder="Contraseña"
-                    />
-                    <InputError :message="form.errors.password" />
-                </div>
-
-                <!-- Confirmar Contraseña -->
-                <div class="grid gap-2">
-                    <Label for="password_confirmation">Confirmar contraseña</Label>
-                    <Input
-                        id="password_confirmation"
-                        type="password"
-                        required
-                        tabindex="7"
-                        autocomplete="new-password"
-                        v-model="form.password_confirmation"
-                        placeholder="Confirmar contraseña"
-                    />
-                    <InputError :message="form.errors.password_confirmation" />
-                </div>
 
                 <!-- Botón de Submit -->
-                <Button type="submit" class="mt-2 w-full" tabindex="8" :disabled="form.processing">
+                <Button type="submit" class="mt-2 w-full" tabindex="6" :disabled="form.processing">
                     <LoaderCircle v-if="form.processing" class="h-4 w-4 animate-spin" />
                     Crear cuenta
                 </Button>
@@ -248,7 +218,7 @@ const submit = () => {
             <!-- Link para login -->
             <div class="text-center text-sm text-muted-foreground">
                 ¿Ya tienes una cuenta?
-                <TextLink :href="route('login')" class="underline underline-offset-4" tabindex="9">Iniciar sesión</TextLink>
+                <TextLink :href="route('login')" class="underline underline-offset-4" tabindex="7">Iniciar sesión</TextLink>
             </div>
         </form>
     </AuthBase>
