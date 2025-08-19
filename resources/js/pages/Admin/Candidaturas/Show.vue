@@ -117,7 +117,7 @@ const canReject = computed(() => {
 });
 
 const canRevert = computed(() => {
-    return props.candidatura.estado === 'aprobado' || props.candidatura.estado === 'rechazado';
+    return props.candidatura.estado === 'aprobado' || props.candidatura.estado === 'rechazado' || props.candidatura.estado === 'pendiente';
 });
 
 // Función para verificar si un objeto está vacío

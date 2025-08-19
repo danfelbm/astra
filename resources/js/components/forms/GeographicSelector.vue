@@ -101,11 +101,16 @@ const selectedLocalidades = computed(() => {
 // Obtener información del usuario para determinar las rutas a usar
 const page = usePage();
 const isAdmin = computed(() => page.props.auth?.isAdmin || false);
+const isAuthenticated = computed(() => !!page.props.auth?.user);
 
 // Determinar el prefijo de la ruta basado en si es admin o no
 const apiPrefix = computed(() => {
+    // Si no está autenticado, usar rutas públicas
+    if (!isAuthenticated.value) {
+        return '/api/public/geographic';
+    }
     // Si estamos en una ruta admin (/admin/*), usar las rutas admin
-    // De lo contrario, usar las rutas públicas de la API
+    // De lo contrario, usar las rutas autenticadas de la API
     const currentPath = window.location.pathname;
     return currentPath.startsWith('/admin') ? '/admin/geographic' : '/api/geographic';
 });
@@ -277,7 +282,7 @@ const getSelectionText = (count: number, singular: string, plural: string) => {
         </CardHeader>
         <component :is="showCard ? CardContent : 'div'" class="space-y-4">
             <!-- Territorios -->
-            <div>
+            <div class="w-full">
                 <Label>Territorio{{ isMultipleMode ? 's' : '' }}</Label>
                 <Select 
                     :model-value="isMultipleMode ? selectedTerritorios.map(id => id.toString()) : (selectedTerritorios[0]?.toString() || '')"
@@ -285,7 +290,7 @@ const getSelectionText = (count: number, singular: string, plural: string) => {
                     :multiple="isMultipleMode"
                     :disabled="disabled || loading"
                 >
-                    <SelectTrigger>
+                    <SelectTrigger class="w-full">
                         <SelectValue :placeholder="`Seleccionar territorio${isMultipleMode ? 's' : ''}...`" />
                     </SelectTrigger>
                     <SelectContent>
@@ -304,7 +309,7 @@ const getSelectionText = (count: number, singular: string, plural: string) => {
             </div>
 
             <!-- Departamentos -->
-            <div v-if="departamentos.length > 0">
+            <div v-if="departamentos.length > 0" class="w-full">
                 <Label>Departamento{{ isMultipleMode ? 's' : '' }}</Label>
                 <Select 
                     :model-value="isMultipleMode ? selectedDepartamentos.map(id => id.toString()) : (selectedDepartamentos[0]?.toString() || '')"
@@ -312,7 +317,7 @@ const getSelectionText = (count: number, singular: string, plural: string) => {
                     :multiple="isMultipleMode"
                     :disabled="disabled || loading"
                 >
-                    <SelectTrigger>
+                    <SelectTrigger class="w-full">
                         <SelectValue :placeholder="`Seleccionar departamento${isMultipleMode ? 's' : ''}...`" />
                     </SelectTrigger>
                     <SelectContent>
@@ -331,7 +336,7 @@ const getSelectionText = (count: number, singular: string, plural: string) => {
             </div>
 
             <!-- Municipios -->
-            <div v-if="municipios.length > 0">
+            <div v-if="municipios.length > 0" class="w-full">
                 <Label>Municipio{{ isMultipleMode ? 's' : '' }}</Label>
                 <Select 
                     :model-value="isMultipleMode ? selectedMunicipios.map(id => id.toString()) : (selectedMunicipios[0]?.toString() || '')"
@@ -339,7 +344,7 @@ const getSelectionText = (count: number, singular: string, plural: string) => {
                     :multiple="isMultipleMode"
                     :disabled="disabled || loading"
                 >
-                    <SelectTrigger>
+                    <SelectTrigger class="w-full">
                         <SelectValue :placeholder="`Seleccionar municipio${isMultipleMode ? 's' : ''}...`" />
                     </SelectTrigger>
                     <SelectContent>
@@ -358,7 +363,7 @@ const getSelectionText = (count: number, singular: string, plural: string) => {
             </div>
 
             <!-- Localidades -->
-            <div v-if="localidades.length > 0">
+            <div v-if="localidades.length > 0" class="w-full">
                 <Label>Localidad{{ isMultipleMode ? 'es' : '' }}</Label>
                 <Select 
                     :model-value="isMultipleMode ? selectedLocalidades.map(id => id.toString()) : (selectedLocalidades[0]?.toString() || '')"
@@ -366,7 +371,7 @@ const getSelectionText = (count: number, singular: string, plural: string) => {
                     :multiple="isMultipleMode"
                     :disabled="disabled || loading"
                 >
-                    <SelectTrigger>
+                    <SelectTrigger class="w-full">
                         <SelectValue :placeholder="`Seleccionar localidad${isMultipleMode ? 'es' : ''}...`" />
                     </SelectTrigger>
                     <SelectContent>

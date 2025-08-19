@@ -25,6 +25,7 @@ class User extends Authenticatable
         'name',
         'email',
         'documento_identidad',
+        'tipo_documento',
         'password',
         'tenant_id',
         'territorio_id',
@@ -73,6 +74,20 @@ class User extends Authenticatable
         return Attribute::make(
             set: fn (?string $value) => $value ? Str::title(mb_strtolower(trim($value))) : $value
         );
+    }
+
+    /**
+     * Accessor para obtener el nombre completo del tipo de documento
+     */
+    public function getTipoDocumentoNombreAttribute(): string
+    {
+        return match($this->tipo_documento) {
+            'TI' => 'Tarjeta de Identidad',
+            'CC' => 'Cédula de Ciudadanía',
+            'CE' => 'Cédula de Extranjería',
+            'PA' => 'Pasaporte',
+            default => $this->tipo_documento ?? 'No especificado'
+        };
     }
 
     /**

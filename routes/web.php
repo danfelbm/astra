@@ -200,6 +200,14 @@ Route::middleware(['auth'])->prefix('api/geographic')->name('api.geographic.')->
     Route::get('localidades', [GeographicController::class, 'localidades'])->name('localidades');
 });
 
+// Public Geographic routes for registration (no auth required)
+Route::prefix('api/public/geographic')->name('api.public.geographic.')->group(function () {
+    Route::get('territorios', [GeographicController::class, 'territorios'])->name('territorios');
+    Route::get('departamentos', [GeographicController::class, 'departamentos'])->name('departamentos');
+    Route::get('municipios', [GeographicController::class, 'municipios'])->name('municipios');
+    Route::get('localidades', [GeographicController::class, 'localidades'])->name('localidades');
+});
+
 Route::get('admin/dashboard', function () {
     return Inertia::render('Admin/Dashboard');
 })->middleware(['auth', 'verified', 'admin'])->name('admin.dashboard');
