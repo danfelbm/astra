@@ -435,9 +435,9 @@ class CandidaturaController extends Controller
      */
     public function volverABorrador(Request $request, Candidatura $candidatura)
     {
-        // Validar que la candidatura esté aprobada o rechazada
-        if (!$candidatura->esAprobada() && !$candidatura->esRechazada()) {
-            return back()->withErrors(['error' => 'Solo se pueden volver a borrador candidaturas aprobadas o rechazadas.']);
+        // Validar que la candidatura esté aprobada, rechazada o pendiente
+        if (!$candidatura->esAprobada() && !$candidatura->esRechazada() && !$candidatura->estaPendiente()) {
+            return back()->withErrors(['error' => 'Solo se pueden volver a borrador candidaturas aprobadas, rechazadas o pendientes.']);
         }
 
         // Validar motivo opcional
