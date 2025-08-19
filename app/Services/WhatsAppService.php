@@ -68,11 +68,6 @@ class WhatsAppService
 
             // Verificar respuesta
             if ($response->successful()) {
-                $responseData = $response->json();
-                Log::info("WhatsApp OTP enviado exitosamente", [
-                    'phone' => $formattedPhone,
-                    'response' => $responseData
-                ]);
                 return true;
             } else {
                 Log::error("Error enviando WhatsApp OTP", [
@@ -84,10 +79,7 @@ class WhatsAppService
             }
 
         } catch (Exception $e) {
-            Log::error("Excepción enviando WhatsApp OTP: " . $e->getMessage(), [
-                'phone' => $phone,
-                'trace' => $e->getTraceAsString()
-            ]);
+            Log::error("No se pudo enviar el mensaje de WhatsApp: " . $e->getMessage());
             return false;
         }
     }

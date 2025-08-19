@@ -14,6 +14,9 @@ BLUE='\033[0;34m'
 NC='\033[0m'
 
 WORKER_COUNT=8
+OTP_EMAIL_WORKERS=2
+OTP_WHATSAPP_WORKERS=1
+ZOOM_WORKERS=1
 
 function show_status() {
     echo -e "${BLUE}📊 Estado de los Workers:${NC}"
@@ -23,6 +26,39 @@ function show_status() {
             echo -e "  Worker $i: ${GREEN}✓ $status${NC}"
         else
             echo -e "  Worker $i: ${RED}✗ $status${NC}"
+        fi
+    done
+    
+    echo ""
+    echo -e "${BLUE}📧 Estado de Workers OTP Email:${NC}"
+    for i in $(seq 1 $OTP_EMAIL_WORKERS); do
+        status=$(systemctl is-active laravel-otp-email-queue@$i.service)
+        if [ "$status" = "active" ]; then
+            echo -e "  OTP Email Worker $i: ${GREEN}✓ $status${NC}"
+        else
+            echo -e "  OTP Email Worker $i: ${RED}✗ $status${NC}"
+        fi
+    done
+    
+    echo ""
+    echo -e "${BLUE}💬 Estado de Workers OTP WhatsApp:${NC}"
+    for i in $(seq 1 $OTP_WHATSAPP_WORKERS); do
+        status=$(systemctl is-active laravel-otp-whatsapp-queue@$i.service)
+        if [ "$status" = "active" ]; then
+            echo -e "  OTP WhatsApp Worker $i: ${GREEN}✓ $status${NC}"
+        else
+            echo -e "  OTP WhatsApp Worker $i: ${RED}✗ $status${NC}"
+        fi
+    done
+    
+    echo ""
+    echo -e "${BLUE}🎥 Estado de Workers Zoom:${NC}"
+    for i in $(seq 1 $ZOOM_WORKERS); do
+        status=$(systemctl is-active laravel-zoom-queue@$i.service)
+        if [ "$status" = "active" ]; then
+            echo -e "  Zoom Worker $i: ${GREEN}✓ $status${NC}"
+        else
+            echo -e "  Zoom Worker $i: ${RED}✗ $status${NC}"
         fi
     done
     
@@ -42,6 +78,25 @@ function start_workers() {
         sudo systemctl start laravel-queue@$i.service
         echo "  Worker $i iniciado"
     done
+    
+    # Iniciar workers OTP Email
+    for i in $(seq 1 $OTP_EMAIL_WORKERS); do
+        sudo systemctl start laravel-otp-email-queue@$i.service
+        echo "  OTP Email Worker $i iniciado"
+    done
+    
+    # Iniciar workers OTP WhatsApp
+    for i in $(seq 1 $OTP_WHATSAPP_WORKERS); do
+        sudo systemctl start laravel-otp-whatsapp-queue@$i.service
+        echo "  OTP WhatsApp Worker $i iniciado"
+    done
+    
+    # Iniciar workers Zoom
+    for i in $(seq 1 $ZOOM_WORKERS); do
+        sudo systemctl start laravel-zoom-queue@$i.service
+        echo "  Zoom Worker $i iniciado"
+    done
+    
     # Iniciar scheduler también
     sudo systemctl start laravel-scheduler.timer
     echo "  Scheduler iniciado"
@@ -54,6 +109,25 @@ function stop_workers() {
         sudo systemctl stop laravel-queue@$i.service
         echo "  Worker $i detenido"
     done
+    
+    # Detener workers OTP Email
+    for i in $(seq 1 $OTP_EMAIL_WORKERS); do
+        sudo systemctl stop laravel-otp-email-queue@$i.service
+        echo "  OTP Email Worker $i detenido"
+    done
+    
+    # Detener workers OTP WhatsApp
+    for i in $(seq 1 $OTP_WHATSAPP_WORKERS); do
+        sudo systemctl stop laravel-otp-whatsapp-queue@$i.service
+        echo "  OTP WhatsApp Worker $i detenido"
+    done
+    
+    # Detener workers Zoom
+    for i in $(seq 1 $ZOOM_WORKERS); do
+        sudo systemctl stop laravel-zoom-queue@$i.service
+        echo "  Zoom Worker $i detenido"
+    done
+    
     # Detener scheduler también
     sudo systemctl stop laravel-scheduler.timer
     echo "  Scheduler detenido"
@@ -66,6 +140,25 @@ function restart_workers() {
         sudo systemctl restart laravel-queue@$i.service
         echo "  Worker $i reiniciado"
     done
+    
+    # Reiniciar workers OTP Email
+    for i in $(seq 1 $OTP_EMAIL_WORKERS); do
+        sudo systemctl restart laravel-otp-email-queue@$i.service
+        echo "  OTP Email Worker $i reiniciado"
+    done
+    
+    # Reiniciar workers OTP WhatsApp
+    for i in $(seq 1 $OTP_WHATSAPP_WORKERS); do
+        sudo systemctl restart laravel-otp-whatsapp-queue@$i.service
+        echo "  OTP WhatsApp Worker $i reiniciado"
+    done
+    
+    # Reiniciar workers Zoom
+    for i in $(seq 1 $ZOOM_WORKERS); do
+        sudo systemctl restart laravel-zoom-queue@$i.service
+        echo "  Zoom Worker $i reiniciado"
+    done
+    
     # Reiniciar scheduler también
     sudo systemctl restart laravel-scheduler.timer
     echo "  Scheduler reiniciado"
@@ -75,7 +168,7 @@ function restart_workers() {
 function show_logs() {
     echo -e "${BLUE}📜 Mostrando logs (Ctrl+C para salir)...${NC}"
     echo ""
-    journalctl -u "laravel-queue@*" -f
+    journalctl -u "laravel-queue@*" -u "laravel-otp-email-queue@*" -u "laravel-otp-whatsapp-queue@*" -u "laravel-zoom-queue@*" -f
 }
 
 function show_help() {

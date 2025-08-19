@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\ConfiguracionController;
 use App\Http\Controllers\Admin\ConvocatoriaController;
 use App\Http\Controllers\Admin\GeographicController;
 use App\Http\Controllers\Admin\ImportController;
+use App\Http\Controllers\Admin\OTPDashboardController;
 use App\Http\Controllers\Admin\PeriodoElectoralController;
 use App\Http\Controllers\Admin\PostulacionController as AdminPostulacionController;
 use App\Http\Controllers\Admin\AsambleaController;
@@ -174,6 +175,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('download', [FileUploadController::class, 'download'])->name('download');
         Route::get('info', [FileUploadController::class, 'info'])->name('info');
     });
+    
+    // Queue Status API routes
+    Route::prefix('api/queue')->name('api.queue.')->group(function () {
+        Route::get('status', [\App\Http\Controllers\Api\QueueStatusController::class, 'status'])->name('status');
+        Route::get('otp/estimate', [\App\Http\Controllers\Api\QueueStatusController::class, 'estimate'])->name('otp.estimate');
+        Route::get('otp/position/{identifier}', [\App\Http\Controllers\Api\QueueStatusController::class, 'position'])->name('otp.position');
+        Route::get('metrics', [\App\Http\Controllers\Api\QueueStatusController::class, 'metrics'])->name('metrics');
+    });
 });
 
 // API routes for results data (authenticated)
@@ -223,6 +232,26 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
     Route::post('segments/{segment}/clear-cache', [SegmentController::class, 'clearCache'])
         ->middleware('permission:segments.edit')
         ->name('segments.clear-cache');
+    
+    // OTP Dashboard routes
+    Route::get('otp-dashboard', [\App\Http\Controllers\Admin\OTPDashboardController::class, 'index'])
+        ->middleware('permission:admin.view_dashboard')
+        ->name('otp-dashboard');
+    Route::get('api/otp-dashboard/queue-status', [\App\Http\Controllers\Admin\OTPDashboardController::class, 'queueStatus'])
+        ->middleware('permission:admin.view_dashboard')
+        ->name('api.otp-dashboard.queue-status');
+    Route::get('api/otp-dashboard/otp-stats', [\App\Http\Controllers\Admin\OTPDashboardController::class, 'otpStats'])
+        ->middleware('permission:admin.view_dashboard')
+        ->name('api.otp-dashboard.otp-stats');
+    Route::get('api/otp-dashboard/queue/{queueName}/details', [\App\Http\Controllers\Admin\OTPDashboardController::class, 'queueDetails'])
+        ->middleware('permission:admin.manage_queues')
+        ->name('api.otp-dashboard.queue-details');
+    Route::post('api/otp-dashboard/retry-failed-jobs', [\App\Http\Controllers\Admin\OTPDashboardController::class, 'retryFailedJobs'])
+        ->middleware('permission:admin.manage_queues')
+        ->name('api.otp-dashboard.retry-failed');
+    Route::post('api/otp-dashboard/clean-failed-jobs', [\App\Http\Controllers\Admin\OTPDashboardController::class, 'cleanFailedJobs'])
+        ->middleware('permission:admin.manage_queues')
+        ->name('api.otp-dashboard.clean-failed');
     
     Route::resource('votaciones', VotacionController::class)
         ->except(['show'])

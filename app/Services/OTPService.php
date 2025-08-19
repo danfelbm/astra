@@ -114,7 +114,7 @@ class OTPService
     }
 
     /**
-     * Enviar email con código OTP
+     * Enviar email con código OTP usando cola dedicada con rate limiting
      */
     private function sendOTPEmail(string $email, string $codigo): void
     {
@@ -124,70 +124,17 @@ class OTPService
             $userName = $user ? $user->name : 'Usuario';
             $expirationMinutes = (int) config('services.otp.expiration_minutes', 10);
 
-            // Determinar si enviar inmediatamente o usar cola
-            $sendImmediately = config('services.otp.send_immediately', true);
+            // Envío mediante cola dedicada otp-emails con rate limiting
+            SendOTPEmailJob::dispatch($email, $codigo, $userName, $expirationMinutes)
+                ->onQueue(config('queue.otp_email_queue', 'otp-emails'));
             
-            if ($sendImmediately) {
-                // Envío inmediato (síncrono)
-                $mail = new OTPCodeMail($codigo, $userName, $expirationMinutes);
-                Mail::to($email)->send($mail);
-                Log::info("OTP enviado inmediatamente a {$email}");
-            } else {
-                // Envío mediante cola (asíncrono) usando Job
-                SendOTPEmailJob::dispatch($email, $codigo, $userName, $expirationMinutes);
-                Log::info("OTP encolado para envío a {$email}");
-            }
+            Log::info("OTP encolado para envío en cola dedicada otp-emails", [
+                'email' => $email,
+                'queue' => config('queue.otp_email_queue', 'otp-emails')
+            ]);
 
-        } catch (\Symfony\Component\Mailer\Exception\UnexpectedResponseException $e) {
-            // Manejar específicamente el error 450 de rate limiting
-            if ($this->isRateLimitError($e)) {
-                Log::info("Rate limit alcanzado enviando OTP inmediato a {$email}. Intentando con cola como fallback.", [
-                    'email' => $email,
-                    'response_code' => $this->extractResponseCode($e->getMessage()),
-                    'error_type' => 'rate_limit'
-                ]);
-                
-                // Intentar con cola como fallback para rate limiting
-                if (config('services.otp.send_immediately', true)) {
-                    try {
-                        $user = User::where('email', $email)->first();
-                        $userName = $user ? $user->name : 'Usuario';
-                        SendOTPEmailJob::dispatch($email, $codigo, $userName, 10);
-                        Log::info("OTP encolado exitosamente como fallback para rate limit en {$email}");
-                    } catch (\Exception $fallbackError) {
-                        Log::error("Fallback de cola también falló para {$email}: " . $fallbackError->getMessage());
-                    }
-                }
-            } else {
-                // Para otros errores SMTP, log como error
-                Log::error("Error SMTP enviando email OTP a {$email}: " . $e->getMessage());
-                
-                // Intentar fallback para cualquier error SMTP si está configurado
-                if (config('services.otp.send_immediately', true)) {
-                    try {
-                        Log::info("Intentando envío mediante cola como fallback para {$email}");
-                        $user = User::where('email', $email)->first();
-                        $userName = $user ? $user->name : 'Usuario';
-                        SendOTPEmailJob::dispatch($email, $codigo, $userName, 10);
-                    } catch (\Exception $fallbackError) {
-                        Log::error("Fallback también falló: " . $fallbackError->getMessage());
-                    }
-                }
-            }
         } catch (\Exception $e) {
-            Log::error("Error enviando email OTP a {$email}: " . $e->getMessage());
-            
-            // En caso de error con envío inmediato, intentar con cola como fallback
-            if (config('services.otp.send_immediately', true)) {
-                try {
-                    Log::info("Intentando envío mediante cola como fallback para {$email}");
-                    $user = User::where('email', $email)->first();
-                    $userName = $user ? $user->name : 'Usuario';
-                    SendOTPEmailJob::dispatch($email, $codigo, $userName, 10);
-                } catch (\Exception $fallbackError) {
-                    Log::error("Fallback también falló: " . $fallbackError->getMessage());
-                }
-            }
+            Log::error("Error encolando email OTP a {$email}: " . $e->getMessage());
             
             // No propagar el error para no bloquear la generación del OTP
             // El usuario puede solicitar reenvío si no recibe el email
@@ -257,7 +204,7 @@ class OTPService
     }
 
     /**
-     * Enviar OTP por WhatsApp
+     * Enviar OTP por WhatsApp usando cola dedicada con rate limiting
      */
     private function sendOTPWhatsApp(?string $phone, string $codigo, string $email): void
     {
@@ -272,39 +219,18 @@ class OTPService
             $userName = $user ? $user->name : 'Usuario';
             $expirationMinutes = (int) config('services.otp.expiration_minutes', 10);
 
-            // Determinar si enviar inmediatamente o usar cola
-            $sendImmediately = config('services.otp.send_immediately', true);
+            // Envío mediante cola dedicada otp-whatsapp con rate limiting
+            SendOTPWhatsAppJob::dispatch($phone, $codigo, $userName, $expirationMinutes)
+                ->onQueue(config('queue.otp_whatsapp_queue', 'otp-whatsapp'));
             
-            if ($sendImmediately) {
-                // Envío inmediato (síncrono)
-                $whatsappService = new WhatsAppService();
-                $message = $whatsappService->getOTPMessageTemplate($codigo, $userName, $expirationMinutes);
-                $sent = $whatsappService->sendMessage($phone, $message);
-                
-                if ($sent) {
-                    Log::info("OTP enviado inmediatamente por WhatsApp a {$phone}");
-                    
-                    // Actualizar timestamp de envío
-                    OTP::where('email', $email)
-                        ->where('codigo', $codigo)
-                        ->update(['whatsapp_sent_at' => Carbon::now()]);
-                } else {
-                    Log::error("Fallo al enviar OTP por WhatsApp a {$phone}");
-                    
-                    // Fallback a email si está configurado
-                    if (config('services.otp.channel') === 'whatsapp') {
-                        Log::info("Intentando fallback a email para {$email}");
-                        $this->sendOTPEmail($email, $codigo);
-                    }
-                }
-            } else {
-                // Envío mediante cola (asíncrono) usando Job
-                SendOTPWhatsAppJob::dispatch($phone, $codigo, $userName, $expirationMinutes);
-                Log::info("OTP encolado para envío por WhatsApp a {$phone}");
-            }
+            Log::info("OTP encolado para envío en cola dedicada otp-whatsapp", [
+                'phone' => $phone,
+                'email' => $email,
+                'queue' => config('queue.otp_whatsapp_queue', 'otp-whatsapp')
+            ]);
 
         } catch (\Exception $e) {
-            Log::error("Error enviando OTP por WhatsApp a {$phone}: " . $e->getMessage());
+            Log::error("Error encolando WhatsApp OTP a {$phone}: " . $e->getMessage());
             
             // En caso de error, intentar con email como fallback si el canal principal es WhatsApp
             if (config('services.otp.channel') === 'whatsapp') {

@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Jobs\Middleware\WithRateLimiting;
 use App\Services\WhatsAppService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -12,7 +13,7 @@ use Illuminate\Support\Facades\Log;
 
 class SendZoomAccessWhatsAppJob implements ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels, WithRateLimiting;
 
     /**
      * El número de veces que el job puede ser intentado.
@@ -53,6 +54,8 @@ class SendZoomAccessWhatsAppJob implements ShouldQueue
     public function __construct(array $notificationData)
     {
         $this->notificationData = $notificationData;
+        // Inicializar la cola dedicada para WhatsApp (compartida con OTP)
+        $this->initializeRateLimitedQueue();
     }
 
     /**
