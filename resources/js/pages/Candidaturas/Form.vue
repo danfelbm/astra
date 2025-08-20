@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import FileUploadField from '@/components/forms/FileUploadField.vue';
 import ConvocatoriaSelector from '@/components/forms/ConvocatoriaSelector.vue';
+import ConvocatoriaSeleccionada from '@/components/forms/ConvocatoriaSeleccionada.vue';
 import DatePickerField from '@/components/forms/DatePickerField.vue';
 import DisclaimerField from '@/components/forms/DisclaimerField.vue';
 import RepeaterField from '@/components/forms/RepeaterField.vue';
@@ -32,10 +33,25 @@ interface Candidatura {
     comentarios_admin?: string;
 }
 
+interface PostulacionExistente {
+    id: number;
+    convocatoria: {
+        id: number;
+        nombre: string;
+        cargo: string;
+        periodo: string;
+        fecha_cierre: string;
+        estado_temporal: string;
+    };
+    estado: string;
+    fecha_postulacion: string | null;
+}
+
 interface Props {
     candidatura: Candidatura | null;
     configuracion_campos: FormField[];
     is_editing: boolean;
+    postulacion_existente?: PostulacionExistente | null;
 }
 
 const props = defineProps<Props>();
@@ -326,18 +342,32 @@ const submitButtonText = computed(() => {
     return 'Crear Candidatura';
 });
 
+// Determinar si mostrar el selector de convocatoria o la convocatoria fija
+const debeOcultarCampoConvocatoria = computed(() => {
+    // Si no estamos editando, nunca ocultar
+    if (!props.is_editing) return false;
+    
+    // Si hay postulación existente y estamos en borrador o rechazado
+    // NO ocultar, pero se mostrará el componente de solo lectura
+    if (props.postulacion_existente && ['borrador', 'rechazado'].includes(props.candidatura?.estado || '')) {
+        return false;
+    }
+    
+    // Si estamos en pendiente o aprobado, siempre ocultar
+    if (['pendiente', 'aprobado'].includes(props.candidatura?.estado || '')) {
+        return true;
+    }
+    
+    return false;
+});
+
 // Filtrar campos según estado de candidatura y condiciones
 const camposVisibles = computed(() => {
     let campos = [...visibleFields.value]; // Usar campos visibles según condiciones
     
-    // Si estamos editando, excluir campos de tipo 'convocatoria' SOLO si:
-    // - La candidatura está en estado pendiente o aprobado (ya no se puede cambiar)
-    // - En borrador o rechazado SÍ permitir editar convocatoria
-    if (props.is_editing && props.candidatura) {
-        const estadosNoEditablesConvocatoria = ['pendiente', 'aprobado'];
-        if (estadosNoEditablesConvocatoria.includes(props.candidatura.estado)) {
-            campos = campos.filter(campo => campo.type !== 'convocatoria');
-        }
+    // Excluir campos de convocatoria cuando corresponda
+    if (debeOcultarCampoConvocatoria.value) {
+        campos = campos.filter(campo => campo.type !== 'convocatoria');
     }
     
     // Si está editando una candidatura aprobada, mostrar solo campos editables
@@ -759,14 +789,21 @@ const toggleSidebar = () => {
 
                             <!-- Campo Convocatoria -->
                             <div v-else-if="campo.type === 'convocatoria'">
+                                <!-- Si hay postulación existente en borrador/rechazado, mostrar componente de solo lectura -->
+                                <ConvocatoriaSeleccionada
+                                    v-if="postulacion_existente && ['borrador', 'rechazado'].includes(candidatura?.estado || '')"
+                                    :postulacion="postulacion_existente"
+                                />
+                                <!-- Si no hay postulación existente, mostrar selector normal -->
                                 <ConvocatoriaSelector
+                                    v-else
                                     v-model="form.formulario_data[campo.id]"
                                     :required="campo.required"
                                     :disabled="form.processing || (is_editing && candidatura?.estado !== 'borrador')"
                                     :filtrar-por-ubicacion="campo.convocatoriaConfig?.filtrarPorUbicacion ?? true"
                                     :show-postulacion-warning="true"
                                 />
-                                <div v-if="hasFieldError(campo.id)" class="text-red-500 text-sm mt-1">
+                                <div v-if="hasFieldError(campo.id) && !postulacion_existente" class="text-red-500 text-sm mt-1">
                                     {{ form.errors[`formulario_data.${campo.id}`] }}
                                 </div>
                             </div>
