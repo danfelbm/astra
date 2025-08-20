@@ -533,23 +533,72 @@ class VotacionController extends Controller
     }
 
     /**
+     * Search users for voting assignment with pagination
+     */
+    public function searchUsers(Request $request, Votacion $votacione)
+    {
+        $query = $request->input('query', '');
+        $page = $request->input('page', 1);
+        $perPage = 20;
+        
+        // Si no hay búsqueda, retornar vacío
+        if (strlen($query) < 2) {
+            return response()->json([
+                'users' => [],
+                'has_more' => false,
+                'total' => 0,
+            ]);
+        }
+        
+        // Obtener IDs de votantes ya asignados
+        $votantesAsignadosIds = $votacione->votantes()->pluck('users.id');
+        
+        // Construir consulta de búsqueda
+        $usersQuery = User::whereDoesntHave('roles', function($q) {
+                $q->whereIn('name', ['admin', 'super_admin']);
+            })
+            ->where('activo', true)
+            ->whereNotIn('id', $votantesAsignadosIds)
+            ->where(function($q) use ($query) {
+                $q->where('name', 'like', "%{$query}%")
+                  ->orWhere('email', 'like', "%{$query}%")
+                  ->orWhere('documento_identidad', 'like', "%{$query}%")
+                  ->orWhere('telefono', 'like', "%{$query}%");
+            })
+            ->select('id', 'name', 'email', 'documento_identidad', 'telefono')
+            ->orderBy('name');
+        
+        // Obtener total antes de paginar
+        $total = $usersQuery->count();
+        
+        // Aplicar paginación
+        $users = $usersQuery
+            ->limit($perPage)
+            ->offset(($page - 1) * $perPage)
+            ->get();
+        
+        return response()->json([
+            'users' => $users,
+            'has_more' => $total > ($page * $perPage),
+            'total' => $total,
+            'page' => $page,
+        ]);
+    }
+    
+    /**
      * Manage voters for a specific votacion
      */
     public function manageVotantes(Request $request, Votacion $votacione)
     {
         if ($request->isMethod('GET')) {
-            // Obtener votantes asignados y disponibles
-            $votantesAsignados = $votacione->votantes()->get();
-            $votantesDisponibles = User::whereDoesntHave('roles', function($query) {
-                    $query->whereIn('name', ['admin', 'super_admin']);
-                })
-                ->where('activo', true)
-                ->whereNotIn('id', $votantesAsignados->pluck('id'))
+            // Solo obtener votantes asignados (no cargar todos los disponibles)
+            $votantesAsignados = $votacione->votantes()
+                ->select('users.id', 'users.name', 'users.email', 'users.documento_identidad', 'users.telefono')
                 ->get();
 
             return response()->json([
                 'votantes_asignados' => $votantesAsignados,
-                'votantes_disponibles' => $votantesDisponibles,
+                'votantes_disponibles' => [], // Ya no cargamos todos, usar searchUsers en su lugar
             ]);
         }
 
@@ -596,9 +645,27 @@ class VotacionController extends Controller
 
     /**
      * Importar votantes desde un archivo CSV (usando jobs en background)
+     * 
+     * @deprecated desde v2.0 - Usar ImportController::storeWithVotacion con el nuevo CsvImportWizard
+     * Este método se mantiene para retrocompatibilidad con integraciones existentes.
+     * El nuevo sistema ofrece mapeo dinámico de campos, mejor resolución de conflictos y UX mejorada.
+     * 
+     * @param Request $request
+     * @param Votacion $votacione
+     * @return RedirectResponse
      */
     public function importarVotantes(Request $request, Votacion $votacione): RedirectResponse
     {
+        // Log de uso de método deprecado para futuro análisis
+        \Log::warning('Uso de método deprecado VotacionController::importarVotantes', [
+            'votacion_id' => $votacione->id,
+            'user_id' => Auth::id(),
+            'user_email' => Auth::user()->email ?? 'N/A',
+            'timestamp' => now()->toIso8601String(),
+            'ip' => $request->ip(),
+            'user_agent' => substr($request->userAgent() ?? '', 0, 200),
+        ]);
+        
         $validator = Validator::make($request->all(), [
             'csv_file' => 'required|file|mimes:csv,txt|max:2048',
             'motivo' => 'required|string|max:1000',

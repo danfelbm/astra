@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { type BreadcrumbItemType } from '@/types';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Head, router } from '@inertiajs/vue3';
-import { CheckCircle, Clock, XCircle, Eye, ArrowLeft, Search, FileText, Users } from 'lucide-vue-next';
+import { CheckCircle, Clock, XCircle, Eye, ArrowLeft, Search, FileText, Users, Plus } from 'lucide-vue-next';
 import { ref, computed } from 'vue';
 
 interface CsvImport {
@@ -33,7 +33,7 @@ interface Votacion {
 }
 
 interface Props {
-    votacion: Votacion;
+    votacion?: Votacion;
     imports: {
         data: CsvImport[];
         current_page: number;
@@ -46,6 +46,7 @@ interface Props {
             active: boolean;
         }>;
     };
+    isGeneral?: boolean; // Indica si es la vista general de importaciones de usuarios
 }
 
 const props = defineProps<Props>();
@@ -53,10 +54,14 @@ const props = defineProps<Props>();
 const searchTerm = ref('');
 const statusFilter = ref('all');
 
-const breadcrumbs: BreadcrumbItemType[] = [
+const breadcrumbs: BreadcrumbItemType[] = props.isGeneral ? [
+    { title: 'Admin', href: '/admin/dashboard' },
+    { title: 'Usuarios', href: '/admin/usuarios' },
+    { title: 'Importaciones', href: '#' },
+] : [
     { title: 'Admin', href: '/admin/dashboard' },
     { title: 'Votaciones', href: '/admin/votaciones' },
-    { title: props.votacion.titulo, href: `/admin/votaciones/${props.votacion.id}/edit` },
+    { title: props.votacion!.titulo, href: `/admin/votaciones/${props.votacion!.id}/edit` },
     { title: 'Historial de Importaciones', href: '#' },
 ];
 
@@ -101,7 +106,17 @@ const getStatusConfig = (status: CsvImport['status']) => {
 
 // Funciones de navegación
 const goBackToVotacion = () => {
-    router.get(`/admin/votaciones/${props.votacion.id}/edit`);
+    if (props.votacion) {
+        router.get(`/admin/votaciones/${props.votacion.id}/edit`);
+    }
+};
+
+const goBackToUsers = () => {
+    router.get('/admin/usuarios');
+};
+
+const createImport = () => {
+    router.get('/admin/imports/create');
 };
 
 const viewProgress = (importId: number) => {
@@ -134,22 +149,34 @@ const getResultSummary = (imp: CsvImport) => {
 </script>
 
 <template>
-    <Head title="Historial de Importaciones" />
+    <Head :title="isGeneral ? 'Importaciones de Usuarios' : 'Historial de Importaciones'" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex h-full flex-1 flex-col gap-6 rounded-xl p-4">
             <!-- Header -->
             <div class="flex items-center justify-between">
                 <div>
-                    <h1 class="text-3xl font-bold">Historial de Importaciones</h1>
+                    <h1 class="text-3xl font-bold">
+                        {{ isGeneral ? 'Importaciones de Usuarios' : 'Historial de Importaciones' }}
+                    </h1>
                     <p class="text-muted-foreground">
-                        Votación: {{ votacion.titulo }}
+                        {{ isGeneral ? 'Gestiona las importaciones CSV de usuarios' : `Votación: ${votacion!.titulo}` }}
                     </p>
                 </div>
-                <Button variant="outline" @click="goBackToVotacion">
-                    <ArrowLeft class="mr-2 h-4 w-4" />
-                    Volver a Votación
-                </Button>
+                <div class="flex gap-2">
+                    <Button v-if="isGeneral" @click="createImport">
+                        <Plus class="mr-2 h-4 w-4" />
+                        Nueva Importación
+                    </Button>
+                    <Button v-if="isGeneral" variant="outline" @click="goBackToUsers">
+                        <ArrowLeft class="mr-2 h-4 w-4" />
+                        Volver a Usuarios
+                    </Button>
+                    <Button v-if="!isGeneral" variant="outline" @click="goBackToVotacion">
+                        <ArrowLeft class="mr-2 h-4 w-4" />
+                        Volver a Votación
+                    </Button>
+                </div>
             </div>
 
             <!-- Resumen -->
@@ -254,13 +281,14 @@ const getResultSummary = (imp: CsvImport) => {
                 <CardContent>
                     <div v-if="imports.data.length === 0" class="text-center py-8 text-muted-foreground">
                         <FileText class="mx-auto h-12 w-12 mb-4" />
-                        <p>No hay importaciones registradas para esta votación</p>
+                        <p v-if="isGeneral">No hay importaciones de usuarios registradas</p>
+                        <p v-else>No hay importaciones registradas para esta votación</p>
                         <Button 
                             variant="outline" 
                             class="mt-4"
-                            @click="goBackToVotacion"
+                            @click="isGeneral ? createImport() : goBackToVotacion()"
                         >
-                            Realizar Primera Importación
+                            {{ isGeneral ? 'Crear Primera Importación' : 'Realizar Primera Importación' }}
                         </Button>
                     </div>
 

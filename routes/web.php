@@ -270,6 +270,9 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
     Route::match(['GET', 'POST', 'DELETE'], 'votaciones/{votacione}/votantes', [VotacionController::class, 'manageVotantes'])
         ->middleware('permission:votaciones.manage_voters')
         ->name('votaciones.manage-votantes');
+    Route::get('votaciones/{votacione}/search-users', [VotacionController::class, 'searchUsers'])
+        ->middleware('permission:votaciones.manage_voters')
+        ->name('votaciones.search-users');
     Route::post('votaciones/{votacione}/importar-votantes', [VotacionController::class, 'importarVotantes'])
         ->middleware('permission:votaciones.manage_voters')
         ->name('votaciones.importar-votantes');
@@ -397,12 +400,45 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
     // Route::resource('formulario-categorias', \App\Http\Controllers\Admin\FormularioCategoriaController::class)
     //     ->middleware('permission'); // El middleware inferirá el permiso de la acción
     
-    // Import routes
-    Route::get('imports/{import}', [ImportController::class, 'show'])->name('imports.show');
-    Route::get('imports/{import}/status', [ImportController::class, 'status'])->name('imports.status');
-    Route::get('votaciones/{votacion}/imports', [ImportController::class, 'index'])->name('votaciones.imports');
-    Route::get('votaciones/{votacion}/imports/recent', [ImportController::class, 'recent'])->name('votaciones.imports.recent');
-    Route::get('votaciones/{votacion}/imports/active', [ImportController::class, 'active'])->name('votaciones.imports.active');
+    // Import routes - General (usuarios)
+    Route::get('imports', [ImportController::class, 'indexGeneral'])
+        ->middleware('permission:users.import')
+        ->name('imports.index');
+    Route::get('imports/create', [ImportController::class, 'create'])
+        ->middleware('permission:users.import')
+        ->name('imports.create');
+    Route::post('imports', [ImportController::class, 'store'])
+        ->middleware('permission:users.import')
+        ->name('imports.store');
+    Route::post('imports/analyze', [ImportController::class, 'analyze'])
+        ->middleware('permission:users.import')
+        ->name('imports.analyze');
+    Route::post('imports/{import}/resolve-conflict', [ImportController::class, 'resolveConflict'])
+        ->middleware('permission:users.import')
+        ->name('imports.resolve-conflict');
+    Route::post('imports/{import}/refresh-conflict-data', [ImportController::class, 'refreshConflictData'])
+        ->middleware('permission:users.import')
+        ->name('imports.refresh-conflict-data');
+    
+    // Import routes - Específicas
+    Route::get('imports/{import}', [ImportController::class, 'show'])
+        ->middleware('permission:users.import')
+        ->name('imports.show');
+    Route::get('imports/{import}/status', [ImportController::class, 'status'])
+        ->middleware('permission:users.import')
+        ->name('imports.status');
+    Route::get('votaciones/{votacion}/imports', [ImportController::class, 'index'])
+        ->middleware('permission:votaciones.manage_voters')
+        ->name('votaciones.imports');
+    Route::get('votaciones/{votacion}/imports/recent', [ImportController::class, 'recent'])
+        ->middleware('permission:votaciones.manage_voters')
+        ->name('votaciones.imports.recent');
+    Route::get('votaciones/{votacion}/imports/active', [ImportController::class, 'active'])
+        ->middleware('permission:votaciones.manage_voters')
+        ->name('votaciones.imports.active');
+    Route::post('votaciones/{votacion}/imports/store', [ImportController::class, 'storeWithVotacion'])
+        ->middleware('permission:votaciones.manage_voters')
+        ->name('votaciones.imports.store');
     
     // Configuration routes
     Route::get('configuracion', [ConfiguracionController::class, 'index'])

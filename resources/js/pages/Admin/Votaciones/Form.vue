@@ -20,6 +20,8 @@ import { ref, computed, watch, onMounted } from 'vue';
 import DynamicFormBuilder from '@/components/forms/DynamicFormBuilder.vue';
 import GeographicRestrictions from '@/components/forms/GeographicRestrictions.vue';
 import TimezoneSelector from '@/components/forms/TimezoneSelector.vue';
+import CsvImportWizard from '@/components/imports/CsvImportWizard.vue';
+import { UserMultiSelectCombobox } from '@/components/ui/user-search-combobox';
 import type { FormField, GeographicRestrictions as GeographicRestrictionsType } from '@/types/forms';
 
 interface Categoria {
@@ -261,12 +263,8 @@ const canProceedToVotantes = computed(() => {
 });
 
 // Gestión de votantes
-const votantesFile = ref<File | null>(null);
-const motivoImportacion = ref('');
 const votantesAsignados = ref(props.votacion?.votantes || []);
-const votantesDisponibles = ref<Array<{id: number; name: string; email: string}>>([]);
-const selectedVotanteId = ref<string>('');
-const searchVotante = ref('');
+const showImportWizard = ref(false);
 
 // Estado de importaciones recientes
 const recentImports = ref<CsvImport[]>([]);
@@ -321,40 +319,35 @@ const formatImportDate = (dateString: string) => {
     });
 };
 
-// Cargar votantes disponibles si está en modo edición
-const loadVotantesDisponibles = async () => {
-    if (!isEditing.value || !props.votacion?.id) return;
-    
-    try {
-        const response = await fetch(`/admin/votaciones/${props.votacion.id}/votantes`);
-        const data = await response.json();
-        votantesDisponibles.value = data.votantes_disponibles || [];
-    } catch (error) {
-        console.error('Error loading votantes disponibles:', error);
-    }
-};
+// Ya no necesitamos cargar todos los votantes disponibles
+// El componente UserSearchCombobox maneja la búsqueda con lazy loading
 
-// Agregar votante individual
-const addVotante = () => {
-    if (!selectedVotanteId.value || !isEditing.value || !props.votacion?.id) return;
+// Agregar votantes (ahora acepta múltiples usuarios)
+const addVotantes = (users: any[]) => {
+    if (!users || users.length === 0 || !isEditing.value || !props.votacion?.id) return;
+    
+    const votanteIds = users.map(u => u.id.toString());
     
     router.post(`/admin/votaciones/${props.votacion.id}/votantes`, {
-        votante_ids: [selectedVotanteId.value]
+        votante_ids: votanteIds
     }, {
         preserveScroll: true,
         onSuccess: () => {
-            // Recargar votantes disponibles
-            loadVotantesDisponibles();
             // Agregar a la lista local
-            const addedVotante = votantesDisponibles.value.find(v => v.id.toString() === selectedVotanteId.value);
-            if (addedVotante) {
-                votantesAsignados.value.push(addedVotante);
-            }
-            selectedVotanteId.value = '';
+            users.forEach(user => {
+                // Verificar que no esté ya en la lista
+                if (!votantesAsignados.value.some(v => v.id === user.id)) {
+                    votantesAsignados.value.push({
+                        id: user.id,
+                        name: user.name,
+                        email: user.email
+                    });
+                }
+            });
         },
         onError: (errors) => {
-            console.error('Error adding votante:', errors);
-            alert('Error al agregar votante');
+            console.error('Error adding votantes:', errors);
+            alert('Error al agregar votantes');
         }
     });
 };
@@ -371,8 +364,6 @@ const removeVotante = (votanteId: number) => {
         onSuccess: () => {
             // Remover de la lista local
             votantesAsignados.value = votantesAsignados.value.filter(v => v.id !== votanteId);
-            // Recargar votantes disponibles
-            loadVotantesDisponibles();
         },
         onError: (errors) => {
             console.error('Error removing votante:', errors);
@@ -381,58 +372,19 @@ const removeVotante = (votanteId: number) => {
     });
 };
 
-const handleFileUpload = (event: Event) => {
-    const target = event.target as HTMLInputElement;
-    if (target.files && target.files[0]) {
-        votantesFile.value = target.files[0];
-    }
+// Manejar éxito de importación
+const handleImportSuccess = (importId: number) => {
+    showImportWizard.value = false;
+    // Recargar listas de votantes
+    loadRecentImports();
+    
+    // Redirigir a la página de progreso de importación
+    router.get(`/admin/imports/${importId}`);
 };
 
-// Procesar archivo CSV
-const processingFile = ref(false);
-const processCSVFile = () => {
-    if (!votantesFile.value || !isEditing.value || !props.votacion?.id) return;
-    
-    processingFile.value = true;
-    
-    const formData = new FormData();
-    formData.append('csv_file', votantesFile.value);
-    formData.append('motivo', motivoImportacion.value);
-    
-    router.post(`/admin/votaciones/${props.votacion.id}/importar-votantes`, formData, {
-        preserveScroll: true,
-        onSuccess: (response) => {
-            processingFile.value = false;
-            votantesFile.value = null;
-            motivoImportacion.value = '';
-            // Reset file input
-            const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-            if (fileInput) fileInput.value = '';
-            
-            // Recargar listas de votantes
-            loadVotantesDisponibles();
-            
-            // Actualizar lista de votantes asignados (recargar desde props)
-            if (props.votacion?.id) {
-                // Forzar recarga de la página para obtener datos actualizados
-                router.get(`/admin/votaciones/${props.votacion.id}/edit`, {}, {
-                    preserveScroll: true,
-                    preserveState: false,
-                    only: ['votacion']
-                });
-            }
-            
-            // Mensaje de éxito (será manejado por el backend con session flash)
-        },
-        onError: (errors) => {
-            processingFile.value = false;
-            console.error('Error processing CSV:', errors);
-            
-            // Mostrar errores específicos
-            const errorMessage = Object.values(errors).flat().join(', ');
-            alert(`Error al procesar archivo: ${errorMessage}`);
-        }
-    });
+// Manejar cancelación del wizard
+const handleImportCancel = () => {
+    showImportWizard.value = false;
 };
 
 // Watcher para actualizar el formulario cuando cambien los props
@@ -452,9 +404,8 @@ watch(() => props.votacion, (newVotacion) => {
         form.formulario_config = newData.formulario_config;
         form.timezone = newData.timezone;
         
-        // También cargar votantes disponibles y importaciones recientes cuando lleguen los datos
+        // También cargar importaciones recientes cuando lleguen los datos
         if (isEditing.value) {
-            loadVotantesDisponibles();
             loadRecentImports();
         }
     }
@@ -727,7 +678,7 @@ onMounted(() => {
                             </div>
 
                             <!-- Upload CSV -->
-                            <Card>
+                            <Card v-if="!showImportWizard">
                                 <CardHeader>
                                     <CardTitle class="flex items-center gap-2">
                                         <Upload class="h-5 w-5" />
@@ -737,72 +688,51 @@ onMounted(() => {
                                 <CardContent>
                                     <div class="space-y-4">
                                         <p class="text-sm text-muted-foreground">
-                                            Sube un archivo CSV con los datos de los votantes. 
-                                            El archivo debe contener las columnas: nombre, email, documento_identidad, territorio_id, departamento_id, municipio_id
+                                            Importa votantes desde un archivo CSV con mapeo dinámico de campos.
+                                            Los usuarios importados serán asignados automáticamente a esta votación.
                                         </p>
                                         <p class="text-sm text-blue-600">
-                                            <a href="/ejemplo-votantes.csv" download class="underline">
-                                                📥 Descargar ejemplo de formato CSV
+                                            <a href="/ejemplo-usuarios.csv" download class="underline">
+                                                📥 Descargar plantilla CSV de ejemplo
                                             </a>
                                         </p>
-                                        <div class="space-y-2">
-                                            <Label for="motivo-importacion">Motivo de la importación</Label>
-                                            <Textarea
-                                                id="motivo-importacion"
-                                                v-model="motivoImportacion"
-                                                placeholder="Describe el motivo por el cual se están importando estos votantes..."
-                                                rows="3"
-                                                class="resize-none"
-                                            />
-                                        </div>
-                                        <Input
-                                            type="file"
-                                            accept=".csv"
-                                            @change="handleFileUpload"
-                                        />
                                         <Button 
                                             variant="outline" 
-                                            :disabled="!votantesFile || !motivoImportacion.trim() || processingFile"
-                                            @click="processCSVFile"
+                                            @click="showImportWizard = true"
                                         >
                                             <Upload class="mr-2 h-4 w-4" />
-                                            {{ processingFile ? 'Procesando...' : 'Procesar Archivo' }}
+                                            Iniciar Importación
                                         </Button>
                                     </div>
                                 </CardContent>
                             </Card>
 
-                            <!-- Agregar votantes individualmente -->
+                            <!-- Wizard de Importación -->
+                            <CsvImportWizard
+                                v-if="showImportWizard && isEditing && votacion"
+                                mode="votacion"
+                                :votacion-id="votacion.id"
+                                :votacion-titulo="votacion.titulo"
+                                :redirect-on-success="false"
+                                @success="handleImportSuccess"
+                                @cancel="handleImportCancel"
+                            />
+
+                            <!-- Agregar votantes (selección múltiple) -->
                             <Card v-if="isEditing">
                                 <CardHeader>
                                     <CardTitle class="flex items-center gap-2">
                                         <Plus class="h-5 w-5" />
-                                        Agregar Votante
+                                        Agregar Votantes
                                     </CardTitle>
                                 </CardHeader>
                                 <CardContent>
-                                    <div class="flex gap-4">
-                                        <div class="flex-1">
-                                            <Select v-model="selectedVotanteId">
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="Seleccionar usuario..." />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem 
-                                                        v-for="votante in votantesDisponibles" 
-                                                        :key="votante.id" 
-                                                        :value="votante.id.toString()"
-                                                    >
-                                                        {{ votante.name }} ({{ votante.email }})
-                                                    </SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                        <Button @click="addVotante" :disabled="!selectedVotanteId">
-                                            <Plus class="mr-2 h-4 w-4" />
-                                            Agregar
-                                        </Button>
-                                    </div>
+                                    <UserMultiSelectCombobox
+                                        v-if="props.votacion?.id"
+                                        :votacion-id="props.votacion.id"
+                                        placeholder="Buscar usuarios por nombre, email, cédula o teléfono..."
+                                        @add-users="addVotantes"
+                                    />
                                 </CardContent>
                             </Card>
 

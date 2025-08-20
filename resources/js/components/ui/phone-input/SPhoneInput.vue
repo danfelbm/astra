@@ -28,6 +28,7 @@
                                     :key="option.iso2"
                                     :value="option.name"
                                     class="gap-2"
+                                    :inputmode="'numeric'"
                                     @select="
                                         () => {
                                             updateInputValue(option.iso2)
