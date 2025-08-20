@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Candidatura;
 use App\Models\CandidaturaConfig;
 use App\Models\CandidaturaCampoAprobacion;
+use App\Models\Convocatoria;
 use App\Models\User;
 use App\Traits\HasAdvancedFilters;
 use Illuminate\Http\Request;
@@ -22,16 +23,28 @@ class CandidaturaController extends Controller
     public function index(Request $request)
     {
         $query = Candidatura::with(['user', 'aprobadoPor'])
-            ->latest();
+            ->join('users', 'candidaturas.user_id', '=', 'users.id')
+            ->select('candidaturas.*')
+            ->latest('candidaturas.created_at');
 
+        // Obtener campo de convocatoria dinámicamente
+        $convocatoriaFieldId = $this->getConvocatoriaFieldId();
+        
         // Definir campos permitidos para filtrar
         $allowedFields = [
-            'user_id', 'estado', 'version', 'aprobado_por', 'aprobado_at',
-            'created_at', 'updated_at'
+            'candidaturas.user_id', 'candidaturas.estado', 'candidaturas.version', 
+            'candidaturas.aprobado_por', 'candidaturas.aprobado_at',
+            'candidaturas.created_at', 'candidaturas.updated_at',
+            'user.name', 'user.email', 'candidaturas.comentarios_admin'
         ];
         
+        // Añadir campo de convocatoria si existe
+        if ($convocatoriaFieldId) {
+            $allowedFields[] = "candidaturas.formulario_data->{$convocatoriaFieldId}";
+        }
+        
         // Campos para búsqueda rápida
-        $quickSearchFields = ['user.name', 'user.email', 'comentarios_admin'];
+        $quickSearchFields = ['users.name', 'users.email', 'candidaturas.comentarios_admin'];
 
         // Aplicar filtros avanzados
         $this->applyAdvancedFilters($query, $request, $allowedFields, $quickSearchFields);
@@ -99,7 +112,7 @@ class CandidaturaController extends Controller
         // Solo aplicar si no hay filtros avanzados
         if (!$request->filled('advanced_filters')) {
             if ($request->filled('estado')) {
-                $query->where('estado', $request->estado);
+                $query->where('candidaturas.estado', $request->estado);
             }
         }
     }
@@ -117,54 +130,102 @@ class CandidaturaController extends Controller
             'label' => $u->name
         ]);
         
-        return [
+        // Obtener convocatorias para el filtro
+        $convocatorias = Convocatoria::select('id', 'nombre')
+            ->orderBy('nombre')
+            ->get()
+            ->map(fn($c) => [
+                'value' => $c->id,
+                'label' => $c->nombre
+            ]);
+            
+        // Obtener campo de convocatoria dinámicamente
+        $convocatoriaFieldId = $this->getConvocatoriaFieldId();
+        
+        $fields = [
             [
-                'name' => 'user.name',
+                'name' => 'users.name',
                 'label' => 'Nombre del Usuario',
                 'type' => 'text',
             ],
             [
-                'name' => 'user.email',
+                'name' => 'users.email',
                 'label' => 'Email del Usuario',
                 'type' => 'text',
             ],
             [
-                'name' => 'estado',
+                'name' => 'candidaturas.estado',
                 'label' => 'Estado',
                 'type' => 'select',
                 'options' => [
                     ['value' => 'borrador', 'label' => 'Borrador'],
+                    ['value' => 'pendiente', 'label' => 'Pendiente'],
                     ['value' => 'aprobado', 'label' => 'Aprobado'],
                     ['value' => 'rechazado', 'label' => 'Rechazado'],
                 ],
             ],
             [
-                'name' => 'version',
+                'name' => 'candidaturas.version',
                 'label' => 'Versión',
                 'type' => 'number',
             ],
             [
-                'name' => 'aprobado_por',
+                'name' => 'candidaturas.aprobado_por',
                 'label' => 'Aprobado Por',
                 'type' => 'select',
                 'options' => $revisores->toArray(),
             ],
             [
-                'name' => 'aprobado_at',
+                'name' => 'candidaturas.aprobado_at',
                 'label' => 'Fecha de Aprobación',
                 'type' => 'datetime',
             ],
             [
-                'name' => 'comentarios_admin',
+                'name' => 'candidaturas.comentarios_admin',
                 'label' => 'Comentarios del Admin',
                 'type' => 'text',
             ],
             [
-                'name' => 'created_at',
+                'name' => 'candidaturas.created_at',
                 'label' => 'Fecha de Creación',
                 'type' => 'datetime',
             ],
         ];
+        
+        // Añadir filtro de convocatoria si el campo existe
+        if ($convocatoriaFieldId && $convocatorias->isNotEmpty()) {
+            $fields[] = [
+                'name' => "candidaturas.formulario_data->{$convocatoriaFieldId}",
+                'label' => 'Convocatoria',
+                'type' => 'select',
+                'operator' => 'json_extract_equals',
+                'options' => $convocatorias->toArray(),
+            ];
+        }
+        
+        return $fields;
+    }
+    
+    /**
+     * Obtener el ID del campo de convocatoria dinámicamente
+     */
+    protected function getConvocatoriaFieldId(): ?string
+    {
+        $config = CandidaturaConfig::obtenerConfiguracionActiva();
+        
+        if (!$config) {
+            return null;
+        }
+        
+        $campos = $config->obtenerCampos();
+        
+        foreach ($campos as $campo) {
+            if (isset($campo['type']) && $campo['type'] === 'convocatoria') {
+                return $campo['id'];
+            }
+        }
+        
+        return null;
     }
 
     /**
