@@ -386,4 +386,17 @@ class Postulacion extends Model
             ->where('convocatoria_id', $convocatoriaId)
             ->exists();
     }
+
+    /**
+     * Obtener postulación vinculada a una candidatura específica
+     * 
+     * @param int $candidaturaId
+     * @return Postulacion|null
+     */
+    public static function obtenerPorCandidaturaOrigen(int $candidaturaId)
+    {
+        return static::where('candidatura_id_origen', $candidaturaId)
+            ->with(['convocatoria.cargo', 'convocatoria.periodoElectoral'])
+            ->first();
+    }
 }

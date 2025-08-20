@@ -311,10 +311,14 @@ class CandidaturaController extends Controller
                 ->with('error', 'No puedes editar esta candidatura en su estado actual.');
         }
 
+        // Detectar si existe una postulación vinculada a esta candidatura
+        $postulacionExistente = Postulacion::obtenerPorCandidaturaOrigen($candidatura->id);
+        
         // Log para depuración de datos del formulario
         \Log::info('Datos de candidatura para edición:', [
             'candidatura_id' => $candidatura->id,
             'formulario_data' => $candidatura->formulario_data,
+            'postulacion_existente' => $postulacionExistente ? $postulacionExistente->id : null,
         ]);
 
         return Inertia::render('Candidaturas/Form', [
@@ -328,6 +332,20 @@ class CandidaturaController extends Controller
             ],
             'configuracion_campos' => $config->obtenerCampos(),
             'is_editing' => true,
+            'postulacion_existente' => $postulacionExistente ? [
+                'id' => $postulacionExistente->id,
+                'convocatoria' => [
+                    'id' => $postulacionExistente->convocatoria->id,
+                    'nombre' => $postulacionExistente->convocatoria->nombre,
+                    'cargo' => $postulacionExistente->convocatoria->cargo->nombre,
+                    'periodo' => $postulacionExistente->convocatoria->periodoElectoral->nombre,
+                    'fecha_cierre' => $postulacionExistente->convocatoria->fecha_cierre->format('d/m/Y H:i'),
+                    'estado_temporal' => $postulacionExistente->convocatoria->getEstadoTemporal(),
+                ],
+                'estado' => $postulacionExistente->estado,
+                'fecha_postulacion' => $postulacionExistente->fecha_postulacion ? 
+                    $postulacionExistente->fecha_postulacion->format('d/m/Y H:i') : null,
+            ] : null,
         ]);
     }
 
@@ -438,21 +456,26 @@ class CandidaturaController extends Controller
         $postulacionCreada = false;
         
         if ($estadoFinal === Candidatura::ESTADO_PENDIENTE && $nuevoEstado === Candidatura::ESTADO_PENDIENTE) {
-            // Buscar si hay convocatoria en los datos del formulario
-            $convocatoriaId = null;
-            foreach ($configuracionCampos as $campo) {
-                if ($campo['type'] === 'convocatoria' && isset($datosNuevos[$campo['id']])) {
-                    $convocatoriaId = $datosNuevos[$campo['id']];
-                    break;
-                }
-            }
+            // Primero verificar si ya existe una postulación vinculada a esta candidatura
+            $postulacionExistente = Postulacion::obtenerPorCandidaturaOrigen($candidatura->id);
             
-            if ($convocatoriaId) {
-                // Verificar que la convocatoria existe y está disponible
-                $convocatoria = \App\Models\Convocatoria::find($convocatoriaId);
-                if ($convocatoria && $convocatoria->esDisponibleParaUsuario($candidatura->user_id)) {
-                    // Verificar si NO existe ya una postulación
-                    if (!Postulacion::usuarioTienePostulacion($candidatura->user_id, $convocatoriaId)) {
+            // Solo proceder si NO existe ya una postulación vinculada
+            if (!$postulacionExistente) {
+                // Buscar si hay convocatoria en los datos del formulario
+                $convocatoriaId = null;
+                foreach ($configuracionCampos as $campo) {
+                    if ($campo['type'] === 'convocatoria' && isset($datosNuevos[$campo['id']])) {
+                        $convocatoriaId = $datosNuevos[$campo['id']];
+                        break;
+                    }
+                }
+                
+                if ($convocatoriaId) {
+                    // Verificar que la convocatoria existe y está disponible
+                    $convocatoria = \App\Models\Convocatoria::find($convocatoriaId);
+                    if ($convocatoria && $convocatoria->esDisponibleParaUsuario($candidatura->user_id)) {
+                        // Verificar si NO existe ya una postulación del usuario para esta convocatoria
+                        if (!Postulacion::usuarioTienePostulacion($candidatura->user_id, $convocatoriaId)) {
                         // Crear postulación automática
                         $postulacion = Postulacion::create([
                             'convocatoria_id' => $convocatoriaId,
@@ -475,9 +498,16 @@ class CandidaturaController extends Controller
                             'Postulación creada automáticamente desde actualización de candidatura'
                         );
                         
-                        $postulacionCreada = true;
+                            $postulacionCreada = true;
+                        }
                     }
                 }
+            } else {
+                // Log que ya existe una postulación vinculada
+                \Log::info('No se crea nueva postulación porque ya existe una vinculada a la candidatura', [
+                    'candidatura_id' => $candidatura->id,
+                    'postulacion_existente_id' => $postulacionExistente->id,
+                ]);
             }
         }
 
