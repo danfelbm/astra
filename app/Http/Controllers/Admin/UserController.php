@@ -53,6 +53,7 @@ class UserController extends Controller
             'users' => $users,
             'filters' => $request->only(['search', 'territorio_id', 'departamento_id', 'advanced_filters']),
             'filterFieldsConfig' => $this->getFilterFieldsConfig(),
+            'canImport' => auth()->user()->can('users.import'), // Solo si tiene permiso de importación
         ]);
     }
     

@@ -15,6 +15,12 @@ class CsvImport extends Model
         'votacion_id',
         'filename',
         'original_filename',
+        'name',
+        'import_type',
+        'import_mode',
+        'field_mappings',
+        'update_fields',
+        'conflict_resolution',
         'status',
         'total_rows',
         'processed_rows',
@@ -30,6 +36,9 @@ class CsvImport extends Model
 
     protected $casts = [
         'errors' => 'array',
+        'field_mappings' => 'array',
+        'update_fields' => 'array',
+        'conflict_resolution' => 'array',
         'started_at' => 'datetime',
         'completed_at' => 'datetime',
         'total_rows' => 'integer',
@@ -66,6 +75,16 @@ class CsvImport extends Model
         return $query->orderBy('created_at', 'desc');
     }
 
+    public function scopeForUsers(Builder $query): Builder
+    {
+        return $query->where('import_type', 'users');
+    }
+
+    public function scopeForGeneral(Builder $query): Builder
+    {
+        return $query->whereIn('import_type', ['users', 'general']);
+    }
+
     // Accessors
     public function getProgressPercentageAttribute(): float
     {
@@ -94,6 +113,16 @@ class CsvImport extends Model
     public function getHasErrorsAttribute(): bool
     {
         return !empty($this->errors) || $this->failed_rows > 0;
+    }
+
+    public function getHasConflictsAttribute(): bool
+    {
+        return !empty($this->conflict_resolution);
+    }
+
+    public function getConflictCountAttribute(): int
+    {
+        return is_array($this->conflict_resolution) ? count($this->conflict_resolution) : 0;
     }
 
     public function getErrorCountAttribute(): int
@@ -153,5 +182,15 @@ class CsvImport extends Model
             'failed_rows' => $failed,
             'errors' => array_merge($this->errors ?? [], $newErrors),
         ]);
+    }
+
+    /**
+     * Agregar un error al registro
+     */
+    public function addError(string $error): void
+    {
+        $currentErrors = $this->errors ?? [];
+        $currentErrors[] = $error;
+        $this->update(['errors' => $currentErrors]);
     }
 }

@@ -23,7 +23,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Plus, Edit, Trash, Power, ChevronLeft, ChevronRight } from 'lucide-vue-next';
+import { Plus, Edit, Trash, Power, ChevronLeft, ChevronRight, Upload } from 'lucide-vue-next';
 import AdvancedFilters from '@/components/filters/AdvancedFilters.vue';
 import type { AdvancedFilterConfig } from '@/types/filters';
 import { type BreadcrumbItemType } from '@/types';
@@ -63,6 +63,7 @@ interface Props {
         advanced_filters?: string;
     };
     filterFieldsConfig: any[];
+    canImport?: boolean;
 }
 
 const props = defineProps<Props>();
@@ -151,12 +152,18 @@ const changePage = (page: number) => {
                         Administra los usuarios del sistema
                     </p>
                 </div>
-                <Link :href="route('admin.usuarios.create')">
-                    <Button>
-                        <Plus class="mr-2 h-4 w-4" />
-                        Nuevo Usuario
+                <div class="flex gap-2">
+                    <Button v-if="canImport" variant="outline" @click="router.visit('/admin/imports')">
+                        <Upload class="mr-2 h-4 w-4" />
+                        Importar CSV
                     </Button>
-                </Link>
+                    <Link :href="route('admin.usuarios.create')">
+                        <Button>
+                            <Plus class="mr-2 h-4 w-4" />
+                            Nuevo Usuario
+                        </Button>
+                    </Link>
+                </div>
             </div>
 
             <!-- Advanced Filters -->

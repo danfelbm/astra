@@ -233,6 +233,14 @@ class User extends Authenticatable
     }
     
     /**
+     * Alias de hasPermission para compatibilidad con Laravel's authorization
+     */
+    public function can($permission, $arguments = []): bool
+    {
+        return $this->hasPermission($permission);
+    }
+    
+    /**
      * Verificar si el usuario tiene algún rol administrativo
      * (roles que pueden acceder a /admin)
      */

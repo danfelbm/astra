@@ -1,0 +1,3 @@
+name,email,documento_identidad,tipo_documento,telefono,direccion,territorio,departamento,municipio,localidad,activo,es_miembro
+Juan Carlos Pérez García,juan.perez@ejemplo.com,12345678,CC,3001234567,Calle 10 #20-30,Colombia,Antioquia,Medellín,Centro,1,1
+María Fernanda López Rodríguez,maria.lopez@ejemplo.com,87654321,CC,3107654321,Carrera 15 #45-60 Apto 301,Colombia,Valle del Cauca,Cali,San Antonio,1,0
