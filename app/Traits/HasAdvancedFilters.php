@@ -37,7 +37,11 @@ trait HasAdvancedFilters
             $filters = json_decode($request->advanced_filters, true);
             
             if ($filters) {
-                $this->applyFilterGroup($query, $filters, $allowedFields);
+                // Obtener configuración de campos si está disponible
+                $fieldsConfig = method_exists($this, 'getFilterFieldsConfig') ? 
+                    $this->getFilterFieldsConfig() : [];
+                    
+                $this->applyFilterGroup($query, $filters, $allowedFields, $fieldsConfig);
             }
         }
 
@@ -53,26 +57,27 @@ trait HasAdvancedFilters
      * @param Builder $query
      * @param array $group
      * @param array $allowedFields
+     * @param array $fieldsConfig
      */
-    protected function applyFilterGroup(Builder $query, array $group, array $allowedFields): void
+    protected function applyFilterGroup(Builder $query, array $group, array $allowedFields, array $fieldsConfig = []): void
     {
         $operator = strtoupper($group['operator'] ?? 'AND');
         $conditions = $group['conditions'] ?? [];
         $subgroups = $group['groups'] ?? [];
 
         if ($operator === 'OR') {
-            $query->where(function ($q) use ($conditions, $subgroups, $allowedFields) {
+            $query->where(function ($q) use ($conditions, $subgroups, $allowedFields, $fieldsConfig) {
                 // Aplicar condiciones con OR
                 foreach ($conditions as $condition) {
-                    $q->orWhere(function ($subQ) use ($condition, $allowedFields) {
-                        $this->applyCondition($subQ, $condition, $allowedFields);
+                    $q->orWhere(function ($subQ) use ($condition, $allowedFields, $fieldsConfig) {
+                        $this->applyCondition($subQ, $condition, $allowedFields, $fieldsConfig);
                     });
                 }
 
                 // Aplicar subgrupos con OR
                 foreach ($subgroups as $subgroup) {
-                    $q->orWhere(function ($subQ) use ($subgroup, $allowedFields) {
-                        $this->applyFilterGroup($subQ, $subgroup, $allowedFields);
+                    $q->orWhere(function ($subQ) use ($subgroup, $allowedFields, $fieldsConfig) {
+                        $this->applyFilterGroup($subQ, $subgroup, $allowedFields, $fieldsConfig);
                     });
                 }
             });
@@ -80,13 +85,13 @@ trait HasAdvancedFilters
             // AND es el operador por defecto
             // Aplicar condiciones con AND
             foreach ($conditions as $condition) {
-                $this->applyCondition($query, $condition, $allowedFields);
+                $this->applyCondition($query, $condition, $allowedFields, $fieldsConfig);
             }
 
             // Aplicar subgrupos con AND
             foreach ($subgroups as $subgroup) {
-                $query->where(function ($q) use ($subgroup, $allowedFields) {
-                    $this->applyFilterGroup($q, $subgroup, $allowedFields);
+                $query->where(function ($q) use ($subgroup, $allowedFields, $fieldsConfig) {
+                    $this->applyFilterGroup($q, $subgroup, $allowedFields, $fieldsConfig);
                 });
             }
         }
@@ -98,8 +103,9 @@ trait HasAdvancedFilters
      * @param Builder $query
      * @param array $condition
      * @param array $allowedFields
+     * @param array $fieldsConfig
      */
-    protected function applyCondition(Builder $query, array $condition, array $allowedFields): void
+    protected function applyCondition(Builder $query, array $condition, array $allowedFields, array $fieldsConfig = []): void
     {
         // Soportar ambas claves: 'field' y 'name' para compatibilidad
         $field = $condition['field'] ?? $condition['name'] ?? null;
@@ -114,6 +120,16 @@ trait HasAdvancedFilters
         // Si no se pasan campos permitidos o el campo está en la lista
         if (!empty($allowedFields) && !in_array($field, $allowedFields)) {
             return;
+        }
+        
+        // Verificar si hay un operador específico configurado para este campo
+        foreach ($fieldsConfig as $fieldConfig) {
+            if (isset($fieldConfig['name']) && $fieldConfig['name'] === $field) {
+                if (isset($fieldConfig['operator'])) {
+                    $operator = $fieldConfig['operator'];
+                }
+                break;
+            }
         }
 
         // Aplicar según el operador
@@ -189,7 +205,35 @@ trait HasAdvancedFilters
                     $query->whereNotIn($field, $value);
                 }
                 break;
+                
+            case 'json_extract_equals':
+                // Para campos JSON: JSON_UNQUOTE(JSON_EXTRACT(column, '$.path')) = value
+                $this->applyJsonExtractCondition($query, $field, $value);
+                break;
         }
+    }
+
+    /**
+     * Aplicar condición JSON usando JSON_EXTRACT
+     * 
+     * @param Builder $query
+     * @param string $field Formato: "table.column->json_path"
+     * @param mixed $value
+     */
+    protected function applyJsonExtractCondition(Builder $query, string $field, $value): void
+    {
+        // Parsear el campo JSON: "table.column->json_path"
+        if (!str_contains($field, '->')) {
+            return;
+        }
+        
+        [$column, $jsonPath] = explode('->', $field, 2);
+        
+        // Construir la consulta JSON
+        $query->whereRaw(
+            "JSON_UNQUOTE(JSON_EXTRACT({$column}, ?)) = ?",
+            ['$.' . $jsonPath, $value]
+        );
     }
 
     /**
@@ -276,7 +320,7 @@ trait HasAdvancedFilters
             'equals', 'not_equals', 'contains', 'not_contains',
             'starts_with', 'ends_with', 'is_empty', 'is_not_empty',
             'greater_than', 'less_than', 'greater_or_equal', 'less_or_equal',
-            'between', 'in', 'not_in'
+            'between', 'in', 'not_in', 'json_extract_equals'
         ];
 
         if (!in_array($condition['operator'], $validOperators)) {
