@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\SendCandidaturaReminderEmailJob;
+use App\Jobs\SendCandidaturaReminderWhatsAppJob;
 use App\Models\Candidatura;
 use App\Models\CandidaturaConfig;
 use App\Models\CandidaturaCampoAprobacion;
@@ -11,6 +13,7 @@ use App\Models\User;
 use App\Traits\HasAdvancedFilters;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
@@ -691,6 +694,137 @@ class CandidaturaController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Candidatura aprobada globalmente',
+        ]);
+    }
+
+    /**
+     * Enviar recordatorios masivos a candidaturas en borrador
+     */
+    public function enviarRecordatoriosBorrador(Request $request)
+    {
+        // Verificar permisos (solo admins pueden enviar recordatorios)
+        if (!Auth::user()->hasRole('admin') && !Auth::user()->hasRole('super_admin')) {
+            return response()->json(['error' => 'No tienes permisos para enviar recordatorios masivos'], 403);
+        }
+
+        // Validar parámetros opcionales
+        $request->validate([
+            'incluir_email' => 'boolean',
+            'incluir_whatsapp' => 'boolean',
+        ]);
+
+        $incluirEmail = $request->get('incluir_email', true);
+        $incluirWhatsApp = $request->get('incluir_whatsapp', true);
+
+        // Obtener candidaturas en borrador con usuarios
+        $candidatusBorrador = Candidatura::borradores()
+            ->with(['user'])
+            ->get();
+
+        if ($candidatusBorrador->isEmpty()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No hay candidaturas en borrador para enviar recordatorios',
+                'total_candidaturas' => 0,
+            ]);
+        }
+
+        $contadores = [
+            'total_candidaturas' => $candidatusBorrador->count(),
+            'emails_enviados' => 0,
+            'whatsapps_enviados' => 0,
+            'errores' => 0,
+        ];
+
+        // Procesar cada candidatura
+        foreach ($candidatusBorrador as $candidatura) {
+            $usuario = $candidatura->user;
+
+            if (!$usuario) {
+                $contadores['errores']++;
+                Log::warning("Candidatura {$candidatura->id} no tiene usuario asociado", [
+                    'candidatura_id' => $candidatura->id
+                ]);
+                continue;
+            }
+
+            try {
+                // Enviar email si está habilitado
+                if ($incluirEmail && !empty($usuario->email)) {
+                    SendCandidaturaReminderEmailJob::dispatch(
+                        $usuario->email,
+                        $usuario->name,
+                        $candidatura->id
+                    );
+                    $contadores['emails_enviados']++;
+                }
+
+                // Enviar WhatsApp si está habilitado y el usuario tiene teléfono
+                if ($incluirWhatsApp && !empty($usuario->telefono)) {
+                    SendCandidaturaReminderWhatsAppJob::dispatch(
+                        $usuario->telefono,
+                        $usuario->name,
+                        $candidatura->id
+                    );
+                    $contadores['whatsapps_enviados']++;
+                }
+
+            } catch (\Exception $e) {
+                $contadores['errores']++;
+                Log::error("Error procesando candidatura {$candidatura->id} para recordatorio", [
+                    'candidatura_id' => $candidatura->id,
+                    'usuario_id' => $usuario->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        // Log de la operación
+        Log::info("Recordatorios masivos de candidaturas enviados", [
+            'admin_id' => Auth::id(),
+            'admin_name' => Auth::user()->name,
+            'incluir_email' => $incluirEmail,
+            'incluir_whatsapp' => $incluirWhatsApp,
+            'contadores' => $contadores,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => "Recordatorios enviados exitosamente",
+            'contadores' => $contadores,
+            'detalle' => [
+                'candidaturas_procesadas' => $contadores['total_candidaturas'],
+                'emails_programados' => $contadores['emails_enviados'],
+                'whatsapps_programados' => $contadores['whatsapps_enviados'],
+                'errores_encontrados' => $contadores['errores'],
+            ],
+            'nota' => 'Los mensajes se están procesando en segundo plano respetando los límites de velocidad configurados'
+        ]);
+    }
+
+    /**
+     * Obtener estadísticas de candidaturas en borrador (para el modal)
+     */
+    public function getEstadisticasBorrador()
+    {
+        $candidaturasBorrador = Candidatura::borradores()
+            ->with(['user'])
+            ->get();
+
+        $conEmail = $candidaturasBorrador->filter(function ($candidatura) {
+            return $candidatura->user && !empty($candidatura->user->email);
+        })->count();
+
+        $conTelefono = $candidaturasBorrador->filter(function ($candidatura) {
+            return $candidatura->user && !empty($candidatura->user->telefono);
+        })->count();
+
+        return response()->json([
+            'total_borradores' => $candidaturasBorrador->count(),
+            'con_email' => $conEmail,
+            'con_telefono' => $conTelefono,
+            'sin_email' => $candidaturasBorrador->count() - $conEmail,
+            'sin_telefono' => $candidaturasBorrador->count() - $conTelefono,
         ]);
     }
 }

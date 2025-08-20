@@ -368,6 +368,14 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
         ->middleware('permission:candidaturas.approve')
         ->name('candidaturas.aprobar-global');
     
+    // Rutas para recordatorios masivos de candidaturas
+    Route::post('candidaturas/recordatorios/enviar', [AdminCandidaturaController::class, 'enviarRecordatoriosBorrador'])
+        ->middleware('permission:candidaturas.approve')
+        ->name('candidaturas.enviar-recordatorios');
+    Route::get('candidaturas/recordatorios/estadisticas', [AdminCandidaturaController::class, 'getEstadisticasBorrador'])
+        ->middleware('permission:candidaturas.view')
+        ->name('candidaturas.estadisticas-borradores');
+    
     // Postulaciones admin routes  
     Route::resource('postulaciones', AdminPostulacionController::class)
         ->only(['index', 'show'])
