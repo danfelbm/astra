@@ -67,6 +67,7 @@ const selectedFiles = ref<File[]>([]);
 const previewUrls = ref<Map<string, string>>(new Map());
 const uploadProgress = ref<Map<string, number>>(new Map());
 const uploadErrors = ref<Map<string, string>>(new Map());
+const isUploadingFiles = ref(false);
 
 // Computed
 const existingFiles = computed(() => {
@@ -361,7 +362,9 @@ defineExpose({
 
         <!-- Archivos seleccionados pendientes de carga -->
         <div v-if="selectedFiles.length > 0" class="space-y-2">
-            <Label class="text-xs text-muted-foreground">Archivos pendientes de carga:</Label>
+            <Label class="text-xs text-muted-foreground">
+                {{ uploadProgress.size > 0 ? 'Subiendo archivos...' : 'Archivos pendientes de carga:' }}
+            </Label>
             <div class="space-y-2">
                 <Card
                     v-for="(file, index) in selectedFiles"
@@ -400,12 +403,18 @@ defineExpose({
                         </div>
                         
                         <!-- Barra de progreso si hay carga en proceso -->
-                        <div v-if="uploadProgress.has(file.name)" class="w-full">
-                            <div class="w-full bg-gray-200 rounded-full h-1.5">
+                        <div v-if="uploadProgress.has(file.name)" class="w-full space-y-1">
+                            <div class="flex justify-between text-xs text-muted-foreground">
+                                <span>Subiendo...</span>
+                                <span>{{ uploadProgress.get(file.name) }}%</span>
+                            </div>
+                            <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
                                 <div 
-                                    class="bg-primary h-1.5 rounded-full transition-all duration-300"
+                                    class="bg-gradient-to-r from-blue-500 to-blue-600 h-2 rounded-full transition-all duration-300 ease-out"
                                     :style="{ width: `${uploadProgress.get(file.name)}%` }"
-                                ></div>
+                                >
+                                    <div class="h-full bg-white/30 animate-pulse"></div>
+                                </div>
                             </div>
                         </div>
                         

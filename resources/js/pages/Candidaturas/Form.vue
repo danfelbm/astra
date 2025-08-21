@@ -400,6 +400,9 @@ const hayCamposOcultos = computed(() => {
     return hayConvocatoriaOculta;
 });
 
+// Referencias para FileUploadField
+const fileUploadRefs = ref<Record<string, any>>({});
+
 // Manejar selección de archivos con subida inmediata para autoguardado
 const handleFilesSelected = async (fieldId: string, files: File[]) => {
     // Guardar temporalmente para validación
@@ -408,15 +411,18 @@ const handleFilesSelected = async (fieldId: string, files: File[]) => {
     // Si hay archivos nuevos, subirlos inmediatamente para el autoguardado
     if (files && files.length > 0) {
         try {
-            // Mostrar indicador de carga
-            toast.info('Subiendo archivos...', {
-                duration: 2000,
-            });
+            // NO mostrar toast, el componente mostrará progreso visual
             
-            // Subir archivos inmediatamente
+            // Subir archivos inmediatamente con callback de progreso
             const uploadedFiles = await uploadFiles(files, {
                 module: 'candidaturas',
                 fieldId: fieldId,
+                onProgress: (fileName: string, progress: number) => {
+                    // Actualizar progreso en el componente FileUploadField
+                    if (fileUploadRefs.value[fieldId]) {
+                        fileUploadRefs.value[fieldId].uploadProgress.set(fileName, progress);
+                    }
+                },
             });
             
             // Guardar las rutas de los archivos subidos
@@ -434,12 +440,29 @@ const handleFilesSelected = async (fieldId: string, files: File[]) => {
             // Limpiar archivos pendientes ya que se subieron
             pendingFiles.value[fieldId] = [];
             
-            toast.success('Archivos subidos correctamente', {
+            // Limpiar progreso del componente después de un delay
+            setTimeout(() => {
+                if (fileUploadRefs.value[fieldId]) {
+                    fileUploadRefs.value[fieldId].uploadProgress.clear();
+                }
+            }, 1500);
+            
+            toast.success('✅ Archivos subidos correctamente', {
                 duration: 2000,
             });
         } catch (error) {
             console.error('Error al subir archivos:', error);
-            toast.error('Error al subir archivos', {
+            
+            // Marcar error en el componente
+            if (fileUploadRefs.value[fieldId]) {
+                files.forEach(file => {
+                    fileUploadRefs.value[fieldId].uploadErrors.set(file.name, 'Error al subir el archivo');
+                });
+                // Limpiar progreso
+                fileUploadRefs.value[fieldId].uploadProgress.clear();
+            }
+            
+            toast.error('❌ Error al subir archivos', {
                 description: 'Por favor, intente nuevamente',
                 duration: 3000,
             });
@@ -770,6 +793,7 @@ const toggleSidebar = () => {
                             <!-- Campo File -->
                             <div v-else-if="campo.type === 'file'">
                                 <FileUploadField
+                                    :ref="(el) => fileUploadRefs[campo.id] = el"
                                     v-model="form.formulario_data[campo.id]"
                                     @filesSelected="(files) => handleFilesSelected(campo.id, files)"
                                     :label="''"
