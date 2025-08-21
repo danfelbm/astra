@@ -24,9 +24,15 @@ interface Usuario {
     email: string;
 }
 
+interface Convocatoria {
+    id: number;
+    nombre: string;
+}
+
 interface Candidatura {
     id: number;
     usuario: Usuario;
+    convocatoria?: Convocatoria;
     estado: string;
     estado_label: string;
     estado_color: string;
@@ -435,6 +441,7 @@ const enviarRecordatorios = async () => {
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>Usuario</TableHead>
+                                    <TableHead>Convocatoria</TableHead>
                                     <TableHead>Estado</TableHead>
                                     <TableHead>Datos Completados</TableHead>
                                     <TableHead>Actualizado</TableHead>
@@ -449,6 +456,12 @@ const enviarRecordatorios = async () => {
                                             <p class="font-medium">{{ candidatura.usuario.name }}</p>
                                             <p class="text-sm text-muted-foreground">{{ candidatura.usuario.email }}</p>
                                         </div>
+                                    </TableCell>
+                                    <TableCell>
+                                        <div v-if="candidatura.convocatoria">
+                                            <p class="font-medium text-sm">{{ candidatura.convocatoria.nombre }}</p>
+                                        </div>
+                                        <span v-else class="text-sm text-muted-foreground">Sin convocatoria</span>
                                     </TableCell>
                                     <TableCell>
                                         <Badge :class="candidatura.estado_color">
