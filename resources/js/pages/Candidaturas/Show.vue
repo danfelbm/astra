@@ -161,7 +161,7 @@ const formatearFecha = (fecha: string) => {
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <p class="text-blue-700 dark:text-blue-300">{{ candidatura.comentarios_admin }}</p>
+                    <div class="text-blue-700 dark:text-blue-300 prose prose-sm max-w-none" v-html="candidatura.comentarios_admin"></div>
                 </CardContent>
             </Card>
 
