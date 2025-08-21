@@ -63,7 +63,7 @@ class CandidaturaController extends Controller
         $totalCampos = $configuracionActiva ? $configuracionActiva->contarCampos() : 0;
 
         // Enriquecer datos para el frontend
-        $candidaturas->through(function ($candidatura) use ($totalCampos) {
+        $candidaturas->through(function ($candidatura) use ($totalCampos, $convocatoriaFieldId) {
             // Calcular campos llenados
             $camposLlenados = 0;
             if (!empty($candidatura->formulario_data) && is_array($candidatura->formulario_data)) {
@@ -74,6 +74,19 @@ class CandidaturaController extends Controller
                 }
             }
 
+            // Obtener información de la convocatoria
+            $convocatoriaInfo = null;
+            if ($convocatoriaFieldId && !empty($candidatura->formulario_data[$convocatoriaFieldId])) {
+                $convocatoriaId = $candidatura->formulario_data[$convocatoriaFieldId];
+                $convocatoria = \App\Models\Convocatoria::find($convocatoriaId);
+                if ($convocatoria) {
+                    $convocatoriaInfo = [
+                        'id' => $convocatoria->id,
+                        'nombre' => $convocatoria->nombre,
+                    ];
+                }
+            }
+
             return [
                 'id' => $candidatura->id,
                 'usuario' => [
@@ -81,6 +94,7 @@ class CandidaturaController extends Controller
                     'name' => $candidatura->user->name,
                     'email' => $candidatura->user->email,
                 ],
+                'convocatoria' => $convocatoriaInfo,
                 'estado' => $candidatura->estado,
                 'estado_label' => $candidatura->estado_label,
                 'estado_color' => $candidatura->estado_color,
