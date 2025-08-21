@@ -21,6 +21,9 @@ trait WithRateLimiting
             case 'App\Jobs\SendZoomAccessEmailJob':
             case 'App\Jobs\SendCandidaturaReminderEmailJob':
             case 'App\Jobs\SendCandidaturaPendienteEmailJob':
+            case 'App\Jobs\SendCandidaturaAprobadaEmailJob':
+            case 'App\Jobs\SendCandidaturaRechazadaEmailJob':
+            case 'App\Jobs\SendCandidaturaBorradorEmailJob':
                 $middlewares[] = RateLimited::forEmail();
                 break;
                 
@@ -28,6 +31,9 @@ trait WithRateLimiting
             case 'App\Jobs\SendZoomAccessWhatsAppJob':
             case 'App\Jobs\SendCandidaturaReminderWhatsAppJob':
             case 'App\Jobs\SendCandidaturaPendienteWhatsAppJob':
+            case 'App\Jobs\SendCandidaturaAprobadaWhatsAppJob':
+            case 'App\Jobs\SendCandidaturaRechazadaWhatsAppJob':
+            case 'App\Jobs\SendCandidaturaBorradorWhatsAppJob':
                 $middlewares[] = RateLimited::forWhatsApp();
                 break;
                 
@@ -63,6 +69,9 @@ trait WithRateLimiting
             case 'App\Jobs\SendZoomAccessEmailJob':
             case 'App\Jobs\SendCandidaturaReminderEmailJob':
             case 'App\Jobs\SendCandidaturaPendienteEmailJob':
+            case 'App\Jobs\SendCandidaturaAprobadaEmailJob':
+            case 'App\Jobs\SendCandidaturaRechazadaEmailJob':
+            case 'App\Jobs\SendCandidaturaBorradorEmailJob':
                 $this->onQueue(config('queue.otp_email_queue', 'otp-emails'));
                 break;
                 
@@ -70,6 +79,9 @@ trait WithRateLimiting
             case 'App\Jobs\SendZoomAccessWhatsAppJob':
             case 'App\Jobs\SendCandidaturaReminderWhatsAppJob':
             case 'App\Jobs\SendCandidaturaPendienteWhatsAppJob':
+            case 'App\Jobs\SendCandidaturaAprobadaWhatsAppJob':
+            case 'App\Jobs\SendCandidaturaRechazadaWhatsAppJob':
+            case 'App\Jobs\SendCandidaturaBorradorWhatsAppJob':
                 $this->onQueue(config('queue.otp_whatsapp_queue', 'otp-whatsapp'));
                 break;
                 

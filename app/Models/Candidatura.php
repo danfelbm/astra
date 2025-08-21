@@ -2,12 +2,19 @@
 
 namespace App\Models;
 
+use App\Jobs\SendCandidaturaAprobadaEmailJob;
+use App\Jobs\SendCandidaturaAprobadaWhatsAppJob;
+use App\Jobs\SendCandidaturaRechazadaEmailJob;
+use App\Jobs\SendCandidaturaRechazadaWhatsAppJob;
+use App\Jobs\SendCandidaturaBorradorEmailJob;
+use App\Jobs\SendCandidaturaBorradorWhatsAppJob;
 use App\Traits\HasTenant;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 
 class Candidatura extends Model
@@ -122,7 +129,8 @@ class Candidatura extends Model
             'comentarios_admin' => $comentarios,
         ]);
 
-        // TODO: Enviar email de notificación al usuario
+        // Enviar notificaciones al usuario
+        $this->enviarNotificacionAprobacion($comentarios);
         
         return true;
     }
@@ -136,19 +144,23 @@ class Candidatura extends Model
             'comentarios_admin' => $comentarios,
         ]);
 
-        // TODO: Enviar email de notificación al usuario
+        // Enviar notificaciones al usuario
+        $this->enviarNotificacionRechazo($comentarios);
 
         return true;
     }
 
-    public function volverABorrador(): bool
+    public function volverABorrador(?string $motivo = null): bool
     {
         $this->update([
             'estado' => self::ESTADO_BORRADOR,
             'aprobado_por' => null,
             'aprobado_at' => null,
-            'comentarios_admin' => null,
+            'comentarios_admin' => $motivo,
         ]);
+
+        // Enviar notificaciones al usuario
+        $this->enviarNotificacionVueltaBorrador($motivo);
 
         return true;
     }
@@ -395,5 +407,149 @@ class Candidatura extends Model
 
         // Verificar que todos los campos requeridos estén aprobados
         return $this->todosCamposRequeridosAprobados($camposRequeridos);
+    }
+
+    /**
+     * Enviar notificaciones de aprobación al usuario
+     */
+    private function enviarNotificacionAprobacion(?string $comentarios = null): void
+    {
+        try {
+            $usuario = $this->user;
+            
+            if (!$usuario) {
+                Log::warning("Candidatura {$this->id} no tiene usuario asociado para notificar aprobación");
+                return;
+            }
+
+            // Enviar email si el usuario tiene dirección de correo
+            if (!empty($usuario->email)) {
+                SendCandidaturaAprobadaEmailJob::dispatch(
+                    $usuario->email,
+                    $usuario->name,
+                    $this->id,
+                    $comentarios
+                );
+            }
+
+            // Enviar WhatsApp si el usuario tiene teléfono
+            if (!empty($usuario->telefono)) {
+                SendCandidaturaAprobadaWhatsAppJob::dispatch(
+                    $usuario->telefono,
+                    $usuario->name,
+                    $this->id
+                );
+            }
+
+            Log::info("Notificaciones de aprobación enviadas", [
+                'candidatura_id' => $this->id,
+                'usuario_id' => $usuario->id,
+                'con_email' => !empty($usuario->email),
+                'con_whatsapp' => !empty($usuario->telefono)
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error("Error enviando notificaciones de aprobación", [
+                'candidatura_id' => $this->id,
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Enviar notificaciones de rechazo al usuario
+     */
+    private function enviarNotificacionRechazo(string $comentarios): void
+    {
+        try {
+            $usuario = $this->user;
+            
+            if (!$usuario) {
+                Log::warning("Candidatura {$this->id} no tiene usuario asociado para notificar rechazo");
+                return;
+            }
+
+            // Enviar email si el usuario tiene dirección de correo
+            if (!empty($usuario->email)) {
+                SendCandidaturaRechazadaEmailJob::dispatch(
+                    $usuario->email,
+                    $usuario->name,
+                    $this->id,
+                    $comentarios
+                );
+            }
+
+            // Enviar WhatsApp si el usuario tiene teléfono
+            if (!empty($usuario->telefono)) {
+                SendCandidaturaRechazadaWhatsAppJob::dispatch(
+                    $usuario->telefono,
+                    $usuario->name,
+                    $this->id,
+                    $comentarios
+                );
+            }
+
+            Log::info("Notificaciones de rechazo enviadas", [
+                'candidatura_id' => $this->id,
+                'usuario_id' => $usuario->id,
+                'con_email' => !empty($usuario->email),
+                'con_whatsapp' => !empty($usuario->telefono)
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error("Error enviando notificaciones de rechazo", [
+                'candidatura_id' => $this->id,
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Enviar notificaciones de vuelta a borrador al usuario
+     */
+    private function enviarNotificacionVueltaBorrador(?string $motivo = null): void
+    {
+        try {
+            $usuario = $this->user;
+            
+            if (!$usuario) {
+                Log::warning("Candidatura {$this->id} no tiene usuario asociado para notificar vuelta a borrador");
+                return;
+            }
+
+            // Enviar email si el usuario tiene dirección de correo
+            if (!empty($usuario->email)) {
+                SendCandidaturaBorradorEmailJob::dispatch(
+                    $usuario->email,
+                    $usuario->name,
+                    $this->id,
+                    $motivo
+                );
+            }
+
+            // Enviar WhatsApp si el usuario tiene teléfono
+            if (!empty($usuario->telefono)) {
+                SendCandidaturaBorradorWhatsAppJob::dispatch(
+                    $usuario->telefono,
+                    $usuario->name,
+                    $this->id,
+                    $motivo
+                );
+            }
+
+            Log::info("Notificaciones de vuelta a borrador enviadas", [
+                'candidatura_id' => $this->id,
+                'usuario_id' => $usuario->id,
+                'con_email' => !empty($usuario->email),
+                'con_whatsapp' => !empty($usuario->telefono),
+                'con_motivo' => !empty($motivo)
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error("Error enviando notificaciones de vuelta a borrador", [
+                'candidatura_id' => $this->id,
+                'error' => $e->getMessage()
+            ]);
+        }
     }
 }
