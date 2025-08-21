@@ -16,6 +16,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Checkbox } from '@/components/ui/checkbox';
 import type { AdvancedFilterConfig } from '@/types/filters';
 import { ref, watch } from 'vue';
+import { stripHtml } from '@/utils/htmlHelpers';
 
 interface Usuario {
     id: number;
@@ -454,7 +455,7 @@ const enviarRecordatorios = async () => {
                                     <TableCell>
                                         <div v-if="candidatura.comentarios_admin" class="max-w-xs">
                                             <p class="text-sm text-blue-800 dark:text-blue-200 truncate">
-                                                {{ candidatura.comentarios_admin }}
+                                                {{ stripHtml(candidatura.comentarios_admin) }}
                                             </p>
                                         </div>
                                         <span v-else class="text-sm text-muted-foreground">-</span>
