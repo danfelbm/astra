@@ -333,13 +333,13 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
     
     // Candidaturas admin routes - Rutas específicas ANTES del resource
     Route::get('candidaturas/configuracion', [AdminCandidaturaController::class, 'configuracion'])
-        ->middleware('permission:candidaturas.view')
+        ->middleware('permission:candidaturas.configuracion')
         ->name('candidaturas.configuracion');
     Route::post('candidaturas/configuracion', [AdminCandidaturaController::class, 'guardarConfiguracion'])
-        ->middleware('permission:candidaturas.create')
+        ->middleware('permission:candidaturas.configuracion')
         ->name('candidaturas.guardar-configuracion');
     Route::post('candidaturas/configuracion/{configuracion}/activar', [AdminCandidaturaController::class, 'activarConfiguracion'])
-        ->middleware('permission:candidaturas.approve')
+        ->middleware('permission:candidaturas.configuracion')
         ->name('candidaturas.activar-configuracion');
     Route::get('candidaturas-por-estado/{estado}', [AdminCandidaturaController::class, 'getCandidaturasPorEstado'])
         ->middleware('permission:candidaturas.view')
