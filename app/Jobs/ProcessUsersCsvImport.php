@@ -522,46 +522,82 @@ class ProcessUsersCsvImport implements ShouldQueue
     }
     
     /**
-     * Asignar usuario a votación si la importación está asociada a una
+     * Asignar usuario a votación o asamblea si la importación está asociada
      */
     private function assignToVotacionIfApplicable(User $user): void
     {
         // Verificar si la importación tiene una votación asociada
-        if (!$this->csvImport->votacion_id) {
-            return;
-        }
-        
-        try {
-            // Verificar si el usuario ya está asignado a la votación
-            $existingAssignment = DB::table('votacion_usuario')
-                ->where('votacion_id', $this->csvImport->votacion_id)
-                ->where('usuario_id', $user->id)
-                ->first();
-            
-            if (!$existingAssignment) {
-                // Obtener el tenant_id de la votación misma
-                $votacion = \App\Models\Votacion::find($this->csvImport->votacion_id);
-                if (!$votacion) {
-                    Log::error("Votación {$this->csvImport->votacion_id} no encontrada");
-                    return;
+        if ($this->csvImport->votacion_id) {
+            try {
+                // Verificar si el usuario ya está asignado a la votación
+                $existingAssignment = DB::table('votacion_usuario')
+                    ->where('votacion_id', $this->csvImport->votacion_id)
+                    ->where('usuario_id', $user->id)
+                    ->first();
+                
+                if (!$existingAssignment) {
+                    // Obtener el tenant_id de la votación misma
+                    $votacion = \App\Models\Votacion::find($this->csvImport->votacion_id);
+                    if (!$votacion) {
+                        Log::error("Votación {$this->csvImport->votacion_id} no encontrada");
+                        return;
+                    }
+                    
+                    // Asignar usuario a la votación
+                    DB::table('votacion_usuario')->insert([
+                        'votacion_id' => $this->csvImport->votacion_id,
+                        'usuario_id' => $user->id,
+                        'tenant_id' => $votacion->tenant_id,
+                        'created_at' => now(),
+                        'updated_at' => now()
+                    ]);
+                    
+                    Log::info("Usuario {$user->id} asignado a votación {$this->csvImport->votacion_id}");
+                } else {
+                    Log::info("Usuario {$user->id} ya estaba asignado a votación {$this->csvImport->votacion_id}");
                 }
                 
-                // Asignar usuario a la votación
-                DB::table('votacion_usuario')->insert([
-                    'votacion_id' => $this->csvImport->votacion_id,
-                    'usuario_id' => $user->id,
-                    'tenant_id' => $votacion->tenant_id,
-                    'created_at' => now(),
-                    'updated_at' => now()
-                ]);
-                
-                Log::info("Usuario {$user->id} asignado a votación {$this->csvImport->votacion_id}");
-            } else {
-                Log::info("Usuario {$user->id} ya estaba asignado a votación {$this->csvImport->votacion_id}");
+            } catch (\Throwable $e) {
+                Log::error("Error asignando usuario {$user->id} a votación {$this->csvImport->votacion_id}: " . $e->getMessage());
             }
-            
-        } catch (\Throwable $e) {
-            Log::error("Error asignando usuario {$user->id} a votación {$this->csvImport->votacion_id}: " . $e->getMessage());
+        }
+        
+        // Verificar si la importación tiene una asamblea asociada
+        if ($this->csvImport->asamblea_id) {
+            try {
+                // Verificar si el usuario ya está asignado a la asamblea
+                $existingAssignment = DB::table('asamblea_usuario')
+                    ->where('asamblea_id', $this->csvImport->asamblea_id)
+                    ->where('usuario_id', $user->id)
+                    ->first();
+                
+                if (!$existingAssignment) {
+                    // Obtener el tenant_id de la asamblea
+                    $asamblea = \App\Models\Asamblea::find($this->csvImport->asamblea_id);
+                    if (!$asamblea) {
+                        Log::error("Asamblea {$this->csvImport->asamblea_id} no encontrada");
+                        return;
+                    }
+                    
+                    // Asignar usuario a la asamblea
+                    DB::table('asamblea_usuario')->insert([
+                        'asamblea_id' => $this->csvImport->asamblea_id,
+                        'usuario_id' => $user->id,
+                        'tenant_id' => $asamblea->tenant_id,
+                        'tipo_participacion' => 'asistente',
+                        'asistio' => false,
+                        'created_at' => now(),
+                        'updated_at' => now()
+                    ]);
+                    
+                    Log::info("Usuario {$user->id} asignado a asamblea {$this->csvImport->asamblea_id}");
+                } else {
+                    Log::info("Usuario {$user->id} ya estaba asignado a asamblea {$this->csvImport->asamblea_id}");
+                }
+                
+            } catch (\Throwable $e) {
+                Log::error("Error asignando usuario {$user->id} a asamblea {$this->csvImport->asamblea_id}: " . $e->getMessage());
+            }
         }
     }
 

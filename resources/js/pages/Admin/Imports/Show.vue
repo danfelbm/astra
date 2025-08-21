@@ -17,10 +17,11 @@ import { ref, computed, onMounted, onUnmounted } from 'vue';
 interface CsvImport {
     id: number;
     votacion_id?: number;
+    asamblea_id?: number;
     filename: string;
     original_filename: string;
     name?: string;
-    import_type?: 'votacion' | 'users' | 'general';
+    import_type?: 'votacion' | 'users' | 'general' | 'asamblea';
     import_mode?: 'insert' | 'update' | 'both';
     status: 'pending' | 'processing' | 'completed' | 'failed';
     total_rows: number;
@@ -38,6 +39,10 @@ interface CsvImport {
         id: number;
         titulo: string;
     };
+    asamblea?: {
+        id: number;
+        nombre: string;
+    };
     created_by: {
         name: string;
     };
@@ -52,17 +57,31 @@ const props = defineProps<Props>();
 const importData = ref<CsvImport>(props.import);
 let pollingInterval: NodeJS.Timeout | null = null;
 
-const breadcrumbs: BreadcrumbItemType[] = importData.value.import_type === 'users' ? [
-    { title: 'Admin', href: '/admin/dashboard' },
-    { title: 'Usuarios', href: '/admin/usuarios' },
-    { title: 'Importaciones', href: '/admin/imports' },
-    { title: 'Progreso', href: '#' },
-] : [
-    { title: 'Admin', href: '/admin/dashboard' },
-    { title: 'Votaciones', href: '/admin/votaciones' },
-    { title: importData.value.votacion?.titulo || 'Votación', href: `/admin/votaciones/${importData.value.votacion_id}/edit` },
-    { title: 'Progreso de Importación', href: '#' },
-];
+const breadcrumbs: BreadcrumbItemType[] = (() => {
+    if (importData.value.import_type === 'users') {
+        return [
+            { title: 'Admin', href: '/admin/dashboard' },
+            { title: 'Usuarios', href: '/admin/usuarios' },
+            { title: 'Importaciones', href: '/admin/imports' },
+            { title: 'Progreso', href: '#' },
+        ];
+    } else if (importData.value.import_type === 'asamblea') {
+        return [
+            { title: 'Admin', href: '/admin/dashboard' },
+            { title: 'Asambleas', href: '/admin/asambleas' },
+            { title: importData.value.asamblea?.nombre || 'Asamblea', href: `/admin/asambleas/${importData.value.asamblea_id}` },
+            { title: 'Progreso de Importación', href: '#' },
+        ];
+    } else {
+        // Para votaciones y general
+        return [
+            { title: 'Admin', href: '/admin/dashboard' },
+            { title: 'Votaciones', href: '/admin/votaciones' },
+            { title: importData.value.votacion?.titulo || 'Votación', href: `/admin/votaciones/${importData.value.votacion_id}/edit` },
+            { title: 'Progreso de Importación', href: '#' },
+        ];
+    }
+})();
 
 // Estados computados
 const statusConfig = computed(() => {
@@ -221,6 +240,8 @@ const goBack = () => {
         router.get('/admin/imports');
     } else if (importData.value.votacion_id) {
         router.get(`/admin/votaciones/${importData.value.votacion_id}/edit`);
+    } else if (importData.value.asamblea_id) {
+        router.get(`/admin/asambleas/${importData.value.asamblea_id}`);
     } else {
         router.get('/admin/usuarios');
     }
@@ -232,6 +253,8 @@ const viewAllImports = () => {
         router.get('/admin/imports');
     } else if (importData.value.votacion_id) {
         router.get(`/admin/votaciones/${importData.value.votacion_id}/imports`);
+    } else if (importData.value.asamblea_id) {
+        router.get(`/admin/asambleas/${importData.value.asamblea_id}`);
     }
 };
 
@@ -473,6 +496,7 @@ onUnmounted(() => {
                     <p class="text-muted-foreground">
                         {{ importData.name || importData.original_filename }}
                         {{ importData.votacion ? ` - ${importData.votacion.titulo}` : '' }}
+                        {{ importData.asamblea ? ` - ${importData.asamblea.nombre}` : '' }}
                     </p>
                 </div>
                 <div class="flex gap-2">

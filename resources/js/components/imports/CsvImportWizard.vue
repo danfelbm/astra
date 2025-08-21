@@ -14,9 +14,11 @@ import { Upload, FileText, GitBranch, AlertCircle } from 'lucide-vue-next';
 
 // Props del componente
 interface Props {
-    mode: 'general' | 'votacion';
+    mode: 'general' | 'votacion' | 'asamblea';
     votacionId?: number;
     votacionTitulo?: string;
+    asambleaId?: number;
+    asambleaTitulo?: string;
     redirectOnSuccess?: boolean;
 }
 
@@ -47,6 +49,7 @@ const form = useForm({
     field_mappings: {} as Record<string, string>,
     update_fields: [] as string[],
     votacion_id: props.votacionId || null,
+    asamblea_id: props.asambleaId || null,
 });
 
 const isAnalyzing = ref(false);
@@ -66,6 +69,9 @@ const wizardTitle = computed(() => {
     if (props.mode === 'votacion' && props.votacionTitulo) {
         return `Importar votantes para: ${props.votacionTitulo}`;
     }
+    if (props.mode === 'asamblea' && props.asambleaTitulo) {
+        return `Importar participantes para: ${props.asambleaTitulo}`;
+    }
     return 'Nueva Importación CSV';
 });
 
@@ -73,6 +79,9 @@ const wizardTitle = computed(() => {
 const wizardDescription = computed(() => {
     if (props.mode === 'votacion') {
         return 'Los usuarios importados serán asignados automáticamente a esta votación';
+    }
+    if (props.mode === 'asamblea') {
+        return 'Los usuarios importados serán asignados automáticamente como participantes de esta asamblea';
     }
     return 'Importa usuarios desde un archivo CSV';
 });
@@ -198,13 +207,30 @@ const toggleUpdateField = (field: string, checked: boolean) => {
 // Crear importación
 const createImport = () => {
     // Determinar la ruta según el modo
-    const url = props.mode === 'votacion' 
-        ? `/admin/votaciones/${props.votacionId}/imports/store`
-        : '/admin/imports';
+    let url = '/admin/imports';
+    if (props.mode === 'votacion') {
+        url = `/admin/votaciones/${props.votacionId}/imports/store`;
+    } else if (props.mode === 'asamblea') {
+        url = `/admin/asambleas/${props.asambleaId}/imports/store`;
+    }
+    
+    console.log('Creando importación:', {
+        url,
+        mode: props.mode,
+        name: form.name,
+        import_mode: form.import_mode,
+        field_mappings: form.field_mappings,
+        update_fields: form.update_fields,
+        csv_file: form.csv_file,
+        asamblea_id: props.asambleaId,
+        votacion_id: props.votacionId
+    });
     
     form.post(url, {
         preserveScroll: true,
+        forceFormData: true, // Forzar uso de FormData para archivos
         onSuccess: (page: any) => {
+            console.log('Respuesta exitosa:', page);
             // Extraer el ID de la importación de la respuesta
             const importId = page.props.import?.id || page.props.flash?.import_id;
             
@@ -215,11 +241,16 @@ const createImport = () => {
                 if (props.redirectOnSuccess) {
                     router.get(`/admin/imports/${importId}`);
                 }
+            } else {
+                console.error('No se recibió ID de importación en la respuesta');
             }
         },
         onError: (errors) => {
             console.error('Error al crear importación:', errors);
         },
+        onFinish: () => {
+            console.log('Petición finalizada');
+        }
     });
 };
 
@@ -325,7 +356,7 @@ const canCreateImport = computed(() => {
 
                         <div class="flex justify-end gap-2">
                             <Button 
-                                v-if="mode === 'votacion'"
+                                v-if="mode === 'votacion' || mode === 'asamblea'"
                                 variant="outline"
                                 @click="emit('cancel')"
                             >
@@ -352,6 +383,9 @@ const canCreateImport = computed(() => {
                                 Los campos <strong>Nombre</strong> y <strong>Email</strong> son obligatorios.
                                 <span v-if="mode === 'votacion'" class="block mt-1">
                                     Los usuarios serán asignados automáticamente a la votación.
+                                </span>
+                                <span v-if="mode === 'asamblea'" class="block mt-1">
+                                    Los usuarios serán asignados automáticamente como participantes de la asamblea.
                                 </span>
                             </AlertDescription>
                         </Alert>
@@ -423,7 +457,7 @@ const canCreateImport = computed(() => {
                             </Button>
                             <div class="flex gap-2">
                                 <Button 
-                                    v-if="mode === 'votacion'"
+                                    v-if="mode === 'votacion' || mode === 'asamblea'"
                                     variant="outline"
                                     @click="emit('cancel')"
                                 >
