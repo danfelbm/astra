@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import RichTextEditor from '@/components/ui/RichTextEditor.vue';
 import { type BreadcrumbItemType } from '@/types';
 import { type FormField } from '@/types/forms';
 import HistorialCandidatura from '@/components/forms/HistorialCandidatura.vue';
@@ -315,11 +316,10 @@ const formatearFecha = (fecha: string) => {
                 <CardContent class="space-y-4">
                     <div>
                         <Label for="approval_comments">Comentarios (opcional)</Label>
-                        <Textarea
-                            id="approval_comments"
+                        <RichTextEditor
                             v-model="approvalForm.comentarios"
                             placeholder="Comentarios adicionales para el usuario..."
-                            rows="3"
+                            :rows="3"
                         />
                     </div>
                     
@@ -349,12 +349,10 @@ const formatearFecha = (fecha: string) => {
                 <CardContent class="space-y-4">
                     <div>
                         <Label for="rejection_comments">Motivo del rechazo *</Label>
-                        <Textarea
-                            id="rejection_comments"
+                        <RichTextEditor
                             v-model="rejectionForm.comentarios"
                             placeholder="Explica al usuario qué debe corregir..."
-                            rows="4"
-                            :class="{ 'border-destructive': rejectionForm.errors.comentarios }"
+                            :rows="4"
                         />
                         <p v-if="rejectionForm.errors.comentarios" class="text-sm text-destructive mt-1">
                             {{ rejectionForm.errors.comentarios }}
@@ -397,12 +395,10 @@ const formatearFecha = (fecha: string) => {
 
                     <div>
                         <Label for="revert_reason">Motivo (opcional)</Label>
-                        <Textarea
-                            id="revert_reason"
+                        <RichTextEditor
                             v-model="revertForm.motivo"
                             placeholder="Explica al usuario por qué su candidatura volvió a borrador..."
-                            rows="3"
-                            :class="{ 'border-destructive': revertForm.errors.motivo }"
+                            :rows="3"
                         />
                         <p v-if="revertForm.errors.motivo" class="text-sm text-destructive mt-1">
                             {{ revertForm.errors.motivo }}
