@@ -11,6 +11,7 @@ use App\Models\CandidaturaCampoAprobacion;
 use App\Models\Convocatoria;
 use App\Models\User;
 use App\Traits\HasAdvancedFilters;
+use App\Traits\AuthorizesActions;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -19,7 +20,7 @@ use Inertia\Inertia;
 
 class CandidaturaController extends Controller
 {
-    use HasAdvancedFilters;
+    use HasAdvancedFilters, AuthorizesActions;
     /**
      * Lista de candidaturas para revisión
      */
@@ -345,6 +346,9 @@ class CandidaturaController extends Controller
      */
     public function configuracion()
     {
+        // Verificar permiso específico para configuración
+        $this->authorizeAction('candidaturas.configuracion');
+        
         $configuracionActiva = CandidaturaConfig::obtenerConfiguracionActiva();
         $historial = CandidaturaConfig::with('createdBy')
             ->orderBy('created_at', 'desc')
@@ -385,6 +389,9 @@ class CandidaturaController extends Controller
      */
     public function guardarConfiguracion(Request $request)
     {
+        // Verificar permiso específico para configuración
+        $this->authorizeAction('candidaturas.configuracion');
+        
         $request->validate([
             'campos' => 'required|array|min:1',
             'campos.*.id' => 'required|string',
@@ -489,6 +496,9 @@ class CandidaturaController extends Controller
      */
     public function activarConfiguracion(CandidaturaConfig $configuracion)
     {
+        // Verificar permiso específico para configuración
+        $this->authorizeAction('candidaturas.configuracion');
+        
         $configuracion->activar();
 
         return back()->with('success', 'Configuración activada correctamente.');

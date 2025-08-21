@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { type BreadcrumbItemType } from '@/types';
 import AppLayout from '@/layouts/AppLayout.vue';
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { Clock, Eye, Settings, UserCheck, AlertCircle, Mail, MessageSquare, Send, Filter } from 'lucide-vue-next';
 import AdvancedFilters from '@/components/filters/AdvancedFilters.vue';
 import Pagination from '@/components/ui/pagination/Pagination.vue';
@@ -60,6 +60,20 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+
+// Obtener permisos del usuario actual
+const page = usePage<any>();
+const authPermissions = page.props.auth?.permissions || [];
+const authIsSuperAdmin = page.props.auth?.isSuperAdmin || false;
+
+// Función para verificar si el usuario tiene un permiso específico
+const hasPermission = (permission: string): boolean => {
+    // Super admin siempre tiene todos los permisos
+    if (authIsSuperAdmin) return true;
+    
+    // Verificar si tiene el permiso específico
+    return authPermissions.includes(permission) || authPermissions.includes('*');
+};
 
 const breadcrumbs: BreadcrumbItemType[] = [
     { title: 'Admin', href: '/admin/dashboard' },
@@ -385,7 +399,10 @@ const enviarRecordatorios = async () => {
                     </Button>
                     
                     <!-- Botón de Configuración -->
-                    <Link href="/admin/candidaturas/configuracion">
+                    <Link 
+                        v-if="hasPermission('candidaturas.configuracion')"
+                        href="/admin/candidaturas/configuracion"
+                    >
                         <Button>
                             <Settings class="mr-2 h-4 w-4" />
                             Configuración

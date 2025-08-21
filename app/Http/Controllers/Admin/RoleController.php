@@ -385,6 +385,7 @@ class RoleController extends Controller
                         'candidaturas.create' => 'Crear candidaturas para otros',
                         'candidaturas.approve' => 'Aprobar candidaturas',
                         'candidaturas.reject' => 'Rechazar candidaturas',
+                        'candidaturas.configuracion' => 'Acceder a configuración de candidaturas',
                     ],
                 ],
                 'cargos' => [
