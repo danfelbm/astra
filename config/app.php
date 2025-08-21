@@ -89,8 +89,8 @@ return [
     | CSV Import Configuration
     |--------------------------------------------------------------------------
     */
-    'csv_import_batch_size' => env('CSV_IMPORT_BATCH_SIZE', 30),
-    'csv_import_timeout' => env('CSV_IMPORT_TIMEOUT', 300),
+    'csv_import_batch_size' => env('CSV_IMPORT_BATCH_SIZE', 300), // Aumentado para archivos grandes
+    'csv_import_timeout' => env('CSV_IMPORT_TIMEOUT', 1800), // 30 min para archivos grandes
     'csv_import_max_retries' => env('CSV_IMPORT_MAX_RETRIES', 3),
 
     /*

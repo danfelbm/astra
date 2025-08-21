@@ -18,8 +18,8 @@ class ProcessUsersCsvImport implements ShouldQueue
 {
     use Queueable, InteractsWithQueue, SerializesModels;
 
-    public int $timeout = 300;
-    public int $tries = 3;
+    public int $timeout = 1800; // 30 minutos para archivos grandes
+    public int $tries = 2; // Reducir intentos para jobs largos
     protected LocationResolverService $locationResolver;
 
     public function __construct(
@@ -29,83 +29,149 @@ class ProcessUsersCsvImport implements ShouldQueue
     }
 
     /**
-     * Ejecutar el job principal
+     * Ejecutar el job principal - OPTIMIZADO PARA ARCHIVOS GRANDES
      */
     public function handle(): void
     {
         try {
             $this->csvImport->markAsProcessing();
             
-            // Leer y validar archivo CSV
-            $csvData = $this->readAndValidateCsv();
-            if (!$csvData) {
+            // Leer y validar archivo CSV (ahora usa streaming)
+            $csvInfo = $this->readAndValidateCsv();
+            if (!$csvInfo) {
                 return;
             }
             
-            // Obtener headers
-            $headers = array_shift($csvData);
-            $this->csvImport->update(['total_rows' => count($csvData)]);
+            // Extraer información
+            $headers = $csvInfo['headers'];
+            $fileObject = $csvInfo['file_object'];
+            $totalRows = $csvInfo['total_rows'];
             
-            // Procesar en chunks
-            $chunks = array_chunk($csvData, $this->csvImport->batch_size);
-            $totals = ['processed' => 0, 'successful' => 0, 'failed' => 0];
-            $allErrors = [];
-            $allConflicts = [];
+            Log::info("Iniciando procesamiento streaming", [
+                'import_id' => $this->csvImport->id,
+                'total_rows' => $totalRows,
+                'batch_size' => $this->csvImport->batch_size
+            ]);
             
-            foreach ($chunks as $chunkIndex => $chunk) {
-                $result = $this->processChunk($chunk, $headers, $chunkIndex);
-                
-                // Actualizar totales
-                $totals['processed'] += count($chunk);
-                $totals['failed'] += count($result['errors']);
-                $totals['successful'] = $totals['processed'] - $totals['failed'];
-                
-                // Acumular errores y conflictos
-                $allErrors = array_merge($allErrors, $result['errors']);
-                $allConflicts = array_merge($allConflicts, $result['conflicts']);
-                
-                // Actualizar progreso
-                $this->csvImport->updateProgress(
-                    $totals['processed'], 
-                    $totals['successful'], 
-                    $totals['failed'], 
-                    $result['errors']
-                );
-                
-                // Guardar conflictos
-                if (!empty($allConflicts)) {
-                    $this->csvImport->update(['conflict_resolution' => $allConflicts]);
-                }
-                
-                usleep(100000); // Pausa de 0.1s entre chunks
-            }
+            // Procesar archivo usando streaming chunks
+            $this->processFileInChunks($fileObject, $headers, $totalRows);
             
             $this->csvImport->markAsCompleted();
             
         } catch (\Throwable $e) {
-            Log::error("ProcessUsersCsvImport failed: " . $e->getMessage());
+            Log::error("ProcessUsersCsvImport failed: " . $e->getMessage(), [
+                'import_id' => $this->csvImport->id,
+                'trace' => $e->getTraceAsString()
+            ]);
             $this->csvImport->markAsFailed(["Error: " . $e->getMessage()]);
             throw $e;
         }
     }
+    
+    /**
+     * Procesar archivo en chunks usando streaming - SIN CARGAR TODO A MEMORIA
+     */
+    private function processFileInChunks(\SplFileObject $file, array $headers, int $totalRows): void
+    {
+        $totals = ['processed' => 0, 'successful' => 0, 'failed' => 0];
+        $allErrors = [];
+        $allConflicts = [];
+        $chunkIndex = 0;
+        
+        // Posicionarse después del header
+        $file->rewind();
+        $file->next();
+        
+        // Procesar archivo en chunks
+        while (!$file->eof()) {
+            // Leer chunk actual
+            $chunk = $this->readChunk($file, $this->csvImport->batch_size);
+            
+            if (empty($chunk)) {
+                break;
+            }
+            
+            // Procesar chunk actual
+            $result = $this->processChunk($chunk, $headers, $chunkIndex);
+            
+            // Actualizar totales
+            $totals['processed'] += count($chunk);
+            $totals['failed'] += count($result['errors']);
+            $totals['successful'] = $totals['processed'] - $totals['failed'];
+            
+            // Acumular errores y conflictos
+            $allErrors = array_merge($allErrors, $result['errors']);
+            $allConflicts = array_merge($allConflicts, $result['conflicts']);
+            
+            // Actualizar progreso en base de datos
+            $this->csvImport->updateProgress(
+                $totals['processed'], 
+                $totals['successful'], 
+                $totals['failed'], 
+                $result['errors']
+            );
+            
+            // Guardar conflictos si los hay
+            if (!empty($allConflicts)) {
+                $this->csvImport->update(['conflict_resolution' => $allConflicts]);
+            }
+            
+            // Log de progreso cada 10 chunks
+            if ($chunkIndex % 10 === 0) {
+                Log::info("Progreso CSV - Chunk {$chunkIndex}", [
+                    'processed' => $totals['processed'],
+                    'successful' => $totals['successful'], 
+                    'failed' => $totals['failed'],
+                    'percentage' => round(($totals['processed'] / $totalRows) * 100, 1)
+                ]);
+            }
+            
+            $chunkIndex++;
+            
+            // Pausa breve entre chunks para no saturar
+            usleep(50000); // 0.05s
+        }
+        
+        Log::info("Procesamiento CSV completado", [
+            'import_id' => $this->csvImport->id,
+            'total_chunks' => $chunkIndex,
+            'final_totals' => $totals
+        ]);
+    }
+    
+    /**
+     * Leer un chunk de filas del archivo sin cargar todo a memoria
+     */
+    private function readChunk(\SplFileObject $file, int $batchSize): array
+    {
+        $chunk = [];
+        $count = 0;
+        
+        while (!$file->eof() && $count < $batchSize) {
+            $row = $file->current();
+            
+            // Solo incluir filas con datos válidos
+            if (!empty($row) && is_array($row) && count(array_filter($row)) > 0) {
+                $chunk[] = $row;
+                $count++;
+            }
+            
+            $file->next();
+        }
+        
+        return $chunk;
+    }
 
     /**
-     * Leer y validar el archivo CSV
+     * Leer y validar el archivo CSV - OPTIMIZADO PARA ARCHIVOS GRANDES
      */
     private function readAndValidateCsv(): ?array
     {
         $filePath = "imports/{$this->csvImport->filename}";
+        $fullPath = Storage::path($filePath);
         
         if (!Storage::exists($filePath)) {
             $this->csvImport->markAsFailed(["Archivo no encontrado: {$filePath}"]);
-            return null;
-        }
-        
-        $fileContent = Storage::get($filePath);
-        $csvData = array_map('str_getcsv', explode("\n", trim($fileContent)));
-        
-        if (empty($csvData)) {
-            $this->csvImport->markAsFailed(['El archivo CSV está vacío']);
             return null;
         }
         
@@ -123,7 +189,68 @@ class ProcessUsersCsvImport implements ShouldQueue
             }
         }
         
-        return $csvData;
+        // Usar SplFileObject para lectura eficiente
+        try {
+            $file = new \SplFileObject($fullPath, 'r');
+            $file->setFlags(\SplFileObject::READ_CSV | \SplFileObject::SKIP_EMPTY);
+            
+            // Leer solo el header para validación inicial
+            $file->rewind();
+            $headers = $file->current();
+            
+            if (empty($headers) || !is_array($headers)) {
+                $this->csvImport->markAsFailed(['El archivo CSV está vacío o no tiene headers válidos']);
+                return null;
+            }
+            
+            // Contar filas de manera eficiente para archivos grandes
+            $totalRows = $this->countCsvRows($file);
+            
+            if ($totalRows === 0) {
+                $this->csvImport->markAsFailed(['El archivo CSV no tiene datos (solo headers)']);
+                return null;
+            }
+            
+            // Actualizar total_rows en base de datos
+            $this->csvImport->update(['total_rows' => $totalRows]);
+            
+            Log::info("Archivo CSV validado - {$totalRows} filas a procesar", [
+                'filename' => $this->csvImport->filename,
+                'import_id' => $this->csvImport->id
+            ]);
+            
+            // Para streaming, retornamos los headers y el objeto file
+            // El contenido se leerá chunk por chunk en processChunks()
+            return [
+                'headers' => $headers,
+                'file_object' => $file,
+                'total_rows' => $totalRows
+            ];
+            
+        } catch (\Exception $e) {
+            $this->csvImport->markAsFailed(["Error leyendo CSV: " . $e->getMessage()]);
+            return null;
+        }
+    }
+    
+    /**
+     * Contar filas del CSV de manera eficiente
+     */
+    private function countCsvRows(\SplFileObject $file): int
+    {
+        $count = 0;
+        $file->rewind();
+        $file->next(); // Saltar header
+        
+        while (!$file->eof()) {
+            $row = $file->current();
+            if (!empty($row) && is_array($row) && count(array_filter($row)) > 0) {
+                $count++;
+            }
+            $file->next();
+        }
+        
+        return $count;
     }
 
     /**

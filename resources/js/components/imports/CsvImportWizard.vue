@@ -40,6 +40,9 @@ const csvAnalysis = ref<{
     sample_data: string[][];
     available_fields: Record<string, string>;
     total_rows: number;
+    file_size: number;
+    is_large_file: boolean;
+    estimated: boolean;
 } | null>(null);
 
 const form = useForm({
@@ -265,6 +268,29 @@ const canCreateImport = computed(() => {
     
     return hasName && hasEmail;
 });
+
+// Formatear tamaño de archivo
+const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return '0 Bytes';
+    
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    
+    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
+};
+
+// Obtener batch size configurado (estimación)
+const getBatchSize = (): number => {
+    // Valor por defecto o estimado basado en configuración
+    return 300;
+};
+
+// Verificar si es un archivo grande (>5MB)
+const isLargeFile = (bytes: number): boolean => {
+    const fiveMB = 5 * 1024 * 1024; // 5MB
+    return bytes > fiveMB;
+};
 </script>
 
 <template>
@@ -323,8 +349,35 @@ const canCreateImport = computed(() => {
                             <p v-if="form.errors.csv_file" class="text-sm text-red-500">
                                 {{ form.errors.csv_file }}
                             </p>
+                            
+                            <!-- Información del archivo seleccionado -->
+                            <div v-if="csvFile" class="mt-2">
+                                <div class="flex items-center gap-2 text-sm text-muted-foreground">
+                                    <FileText class="h-4 w-4" />
+                                    <span>{{ csvFile.name }}</span>
+                                    <span>·</span>
+                                    <span>{{ formatFileSize(csvFile.size) }}</span>
+                                </div>
+                                
+                                <!-- Advertencia para archivos grandes antes del análisis -->
+                                <div v-if="isLargeFile(csvFile.size)" class="mt-2 p-3 bg-orange-50 border border-orange-200 rounded">
+                                    <div class="flex items-start gap-2">
+                                        <AlertCircle class="h-4 w-4 text-orange-600 mt-0.5 flex-shrink-0" />
+                                        <div class="text-sm text-orange-700">
+                                            <strong>Archivo grande detectado ({{ formatFileSize(csvFile.size) }})</strong>
+                                            <p class="mt-1">Este archivo tardará varios minutos en procesar. Se recomienda:</p>
+                                            <ul class="mt-1 space-y-0.5 list-disc list-inside">
+                                                <li>Tener una conexión estable a internet</li>
+                                                <li>No cerrar la pestaña durante el proceso</li>
+                                                <li>Verificar que el mapeo sea correcto antes de iniciar</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
                             <p class="text-sm text-muted-foreground">
-                                El archivo debe contener al menos las columnas: nombre y email
+                                El archivo debe contener al menos las columnas: nombre y email (máximo 50MB)
                             </p>
                             <p class="text-sm text-blue-600">
                                 <a href="/ejemplo-usuarios.csv" download class="underline">
@@ -376,17 +429,48 @@ const canCreateImport = computed(() => {
                 <!-- Tab 2: Mapeo de Campos -->
                 <TabsContent value="mapping" class="space-y-6">
                     <div v-if="csvAnalysis">
-                        <Alert class="mb-4">
+                        <!-- Información del archivo -->
+                        <Alert class="mb-4" :class="{'border-orange-200 bg-orange-50': csvAnalysis.is_large_file}">
                             <AlertCircle class="h-4 w-4" />
                             <AlertDescription>
-                                Se encontraron <strong>{{ csvAnalysis.total_rows }}</strong> registros. 
-                                Los campos <strong>Nombre</strong> y <strong>Email</strong> son obligatorios.
-                                <span v-if="mode === 'votacion'" class="block mt-1">
-                                    Los usuarios serán asignados automáticamente a la votación.
-                                </span>
-                                <span v-if="mode === 'asamblea'" class="block mt-1">
-                                    Los usuarios serán asignados automáticamente como participantes de la asamblea.
-                                </span>
+                                <div class="space-y-2">
+                                    <div>
+                                        <span v-if="csvAnalysis.estimated">
+                                            Se encontraron aproximadamente <strong>~{{ csvAnalysis.total_rows.toLocaleString() }}</strong> registros
+                                            <span class="text-sm text-muted-foreground">(estimación)</span>
+                                        </span>
+                                        <span v-else>
+                                            Se encontraron <strong>{{ csvAnalysis.total_rows.toLocaleString() }}</strong> registros
+                                        </span>
+                                        · Tamaño: <strong>{{ formatFileSize(csvAnalysis.file_size) }}</strong>
+                                    </div>
+                                    
+                                    <!-- Advertencia para archivos grandes -->
+                                    <div v-if="csvAnalysis.is_large_file" class="p-3 bg-orange-100 border border-orange-200 rounded">
+                                        <div class="flex items-start gap-2">
+                                            <AlertCircle class="h-4 w-4 text-orange-600 mt-0.5 flex-shrink-0" />
+                                            <div class="text-sm">
+                                                <strong class="text-orange-800">Archivo grande detectado</strong>
+                                                <ul class="mt-1 text-orange-700 space-y-1">
+                                                    <li>• El procesamiento tomará varios minutos</li>
+                                                    <li>• Se procesará en batches de {{ getBatchSize() }} registros</li>
+                                                    <li>• Puedes seguir el progreso en tiempo real</li>
+                                                    <li>• No cierres esta pestaña durante el proceso</li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="text-sm">
+                                        Los campos <strong>Nombre</strong> y <strong>Email</strong> son obligatorios.
+                                        <span v-if="mode === 'votacion'" class="block mt-1">
+                                            Los usuarios serán asignados automáticamente a la votación.
+                                        </span>
+                                        <span v-if="mode === 'asamblea'" class="block mt-1">
+                                            Los usuarios serán asignados automáticamente como participantes de la asamblea.
+                                        </span>
+                                    </div>
+                                </div>
                             </AlertDescription>
                         </Alert>
 
