@@ -21,6 +21,7 @@ class ProcessUsersCsvImport implements ShouldQueue
     public int $timeout = 1800; // 30 minutos para archivos grandes
     public int $tries = 2; // Reducir intentos para jobs largos
     protected LocationResolverService $locationResolver;
+    protected int $updateFrequency = 5; // Actualizar progreso cada 5 chunks
 
     public function __construct(
         public CsvImport $csvImport
@@ -103,13 +104,15 @@ class ProcessUsersCsvImport implements ShouldQueue
             $allErrors = array_merge($allErrors, $result['errors']);
             $allConflicts = array_merge($allConflicts, $result['conflicts']);
             
-            // Actualizar progreso en base de datos
-            $this->csvImport->updateProgress(
-                $totals['processed'], 
-                $totals['successful'], 
-                $totals['failed'], 
-                $result['errors']
-            );
+            // Actualizar progreso solo cada X chunks para evitar deadlocks
+            if ($chunkIndex % $this->updateFrequency === 0 || empty($chunk)) {
+                $this->updateProgressWithRetry(
+                    $totals['processed'], 
+                    $totals['successful'], 
+                    $totals['failed'], 
+                    $result['errors']
+                );
+            }
             
             // Guardar conflictos si los hay
             if (!empty($allConflicts)) {
@@ -131,6 +134,14 @@ class ProcessUsersCsvImport implements ShouldQueue
             // Pausa breve entre chunks para no saturar
             usleep(50000); // 0.05s
         }
+        
+        // Actualización final del progreso
+        $this->updateProgressWithRetry(
+            $totals['processed'], 
+            $totals['successful'], 
+            $totals['failed'], 
+            $allErrors
+        );
         
         Log::info("Procesamiento CSV completado", [
             'import_id' => $this->csvImport->id,
@@ -729,12 +740,85 @@ class ProcessUsersCsvImport implements ShouldQueue
     }
 
     /**
+     * Actualizar progreso con reintentos para manejar deadlocks
+     */
+    private function updateProgressWithRetry(
+        int $processed, 
+        int $successful, 
+        int $failed, 
+        array $errors,
+        int $attempts = 3
+    ): void {
+        $attempt = 0;
+        $lastException = null;
+        
+        while ($attempt < $attempts) {
+            try {
+                // Usar transacción corta con timeout
+                DB::transaction(function () use ($processed, $successful, $failed, $errors) {
+                    $this->csvImport->updateProgress(
+                        $processed, 
+                        $successful, 
+                        $failed, 
+                        $errors
+                    );
+                }, 1); // Timeout de 1 intento de transacción
+                
+                return; // Éxito, salir del método
+                
+            } catch (\Illuminate\Database\QueryException $e) {
+                $lastException = $e;
+                
+                // Si es un deadlock (código 1213), reintentar
+                if ($e->getCode() === '40001' || strpos($e->getMessage(), '1213') !== false) {
+                    $attempt++;
+                    
+                    Log::warning("Deadlock detectado al actualizar progreso, intento {$attempt}/{$attempts}", [
+                        'import_id' => $this->csvImport->id,
+                        'processed' => $processed
+                    ]);
+                    
+                    // Esperar un tiempo aleatorio antes de reintentar (entre 100ms y 500ms)
+                    usleep(rand(100000, 500000));
+                    
+                } else {
+                    // Si no es un deadlock, lanzar la excepción
+                    throw $e;
+                }
+            }
+        }
+        
+        // Si llegamos aquí, agotamos los reintentos
+        Log::error("No se pudo actualizar progreso después de {$attempts} intentos", [
+            'import_id' => $this->csvImport->id,
+            'error' => $lastException?->getMessage()
+        ]);
+        
+        // NO lanzar excepción para no interrumpir el procesamiento
+        // El progreso no se actualizó pero el procesamiento puede continuar
+    }
+    
+    /**
      * Manejar fallo del job
      */
     public function failed(?\Throwable $exception): void
     {
-        $this->csvImport->markAsFailed([
-            "Job falló: " . ($exception?->getMessage() ?? 'Error desconocido')
-        ]);
+        // Solo marcar como fallida si no es un deadlock temporal
+        $isDeadlock = false;
+        
+        if ($exception instanceof \Illuminate\Database\QueryException) {
+            $isDeadlock = $exception->getCode() === '40001' || 
+                         strpos($exception->getMessage(), '1213') !== false;
+        }
+        
+        if (!$isDeadlock) {
+            $this->csvImport->markAsFailed([
+                "Job falló: " . ($exception?->getMessage() ?? 'Error desconocido')
+            ]);
+        } else {
+            Log::warning("Job terminó por deadlock pero el procesamiento puede haber continuado", [
+                'import_id' => $this->csvImport->id
+            ]);
+        }
     }
 }
