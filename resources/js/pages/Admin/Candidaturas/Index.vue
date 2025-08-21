@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { type BreadcrumbItemType } from '@/types';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Head, Link, router } from '@inertiajs/vue3';
@@ -307,7 +308,7 @@ const enviarRecordatorios = async () => {
                 }"
             />
 
-            <!-- Lista de Candidaturas -->
+            <!-- Tabla de Candidaturas -->
             <Card>
                 <CardContent class="pt-6">
                     <div v-if="candidaturas.data.length === 0" class="text-center py-8">
@@ -316,75 +317,64 @@ const enviarRecordatorios = async () => {
                         <p class="text-muted-foreground">No se encontraron candidaturas con los filtros aplicados.</p>
                     </div>
 
-                    <div v-else class="space-y-4">
-                        <div
-                            v-for="candidatura in candidaturas.data"
-                            :key="candidatura.id"
-                            class="border rounded-lg p-4 hover:bg-muted/50 transition-colors"
-                        >
-                            <div class="flex items-start justify-between">
-                                <div class="flex-1">
-                                    <div class="flex items-center gap-2 mb-2">
-                                        <h3 class="text-lg font-semibold">{{ candidatura.usuario.name }}</h3>
+                    <div v-else class="rounded-md border">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Usuario</TableHead>
+                                    <TableHead>Estado</TableHead>
+                                    <TableHead>Datos Completados</TableHead>
+                                    <TableHead>Actualizado</TableHead>
+                                    <TableHead>Comentarios</TableHead>
+                                    <TableHead class="text-right">Acciones</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                <TableRow v-for="candidatura in candidaturas.data" :key="candidatura.id">
+                                    <TableCell>
+                                        <div>
+                                            <p class="font-medium">{{ candidatura.usuario.name }}</p>
+                                            <p class="text-sm text-muted-foreground">{{ candidatura.usuario.email }}</p>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell>
                                         <Badge :class="candidatura.estado_color">
                                             {{ candidatura.estado_label }}
                                         </Badge>
-                                        <Badge v-if="candidatura.esta_pendiente" variant="outline" class="bg-blue-50 text-blue-700">
-                                            Pendiente Revisión
-                                        </Badge>
-                                    </div>
-                                    
-                                    <p class="text-muted-foreground mb-3">
-                                        {{ candidatura.usuario.email }}
-                                    </p>
-
-                                    <div class="grid gap-2 md:grid-cols-2 lg:grid-cols-4 text-sm">
-                                        <div class="flex items-center gap-2">
-                                            <Clock class="h-4 w-4 text-muted-foreground" />
-                                            <span class="font-medium">Versión:</span>
-                                            <span>{{ candidatura.version }}</span>
-                                        </div>
-                                        
-                                        <div class="flex items-center gap-2">
-                                            <AlertCircle class="h-4 w-4 text-muted-foreground" />
-                                            <span class="font-medium">Datos:</span>
-                                            <span v-if="candidatura.total_campos > 0">
+                                    </TableCell>
+                                    <TableCell>
+                                        <div v-if="candidatura.total_campos > 0">
+                                            <p class="text-sm">
                                                 {{ candidatura.campos_llenados }} / {{ candidatura.total_campos }}
-                                                <span class="text-muted-foreground">({{ candidatura.porcentaje_completado }}%)</span>
-                                            </span>
-                                            <span v-else>Sin configuración</span>
+                                            </p>
+                                            <p class="text-xs text-muted-foreground">
+                                                ({{ candidatura.porcentaje_completado }}%)
+                                            </p>
                                         </div>
-                                        
-                                        <div v-if="candidatura.aprobado_por" class="flex items-center gap-2">
-                                            <UserCheck class="h-4 w-4 text-muted-foreground" />
-                                            <span class="font-medium">Aprobado por:</span>
-                                            <span>{{ candidatura.aprobado_por.name }}</span>
+                                        <span v-else class="text-sm text-muted-foreground">Sin configuración</span>
+                                    </TableCell>
+                                    <TableCell>
+                                        <p class="text-sm">{{ formatearFecha(candidatura.updated_at) }}</p>
+                                    </TableCell>
+                                    <TableCell>
+                                        <div v-if="candidatura.comentarios_admin" class="max-w-xs">
+                                            <p class="text-sm text-blue-800 dark:text-blue-200 truncate">
+                                                {{ candidatura.comentarios_admin }}
+                                            </p>
                                         </div>
-                                        
-                                        <div class="flex items-center gap-2">
-                                            <Clock class="h-4 w-4 text-muted-foreground" />
-                                            <span class="font-medium">Actualizado:</span>
-                                            <span>{{ formatearFecha(candidatura.updated_at) }}</span>
-                                        </div>
-                                    </div>
-
-                                    <div v-if="candidatura.comentarios_admin" class="mt-3 p-2 bg-blue-50 dark:bg-blue-950/20 rounded border-l-4 border-blue-200 dark:border-blue-800">
-                                        <p class="text-sm text-blue-800 dark:text-blue-200">
-                                            <span class="font-medium">Comentarios de la comisión:</span>
-                                            {{ candidatura.comentarios_admin }}
-                                        </p>
-                                    </div>
-                                </div>
-
-                                <div class="flex items-center gap-2 ml-4">
-                                    <Link :href="`/admin/candidaturas/${candidatura.id}`">
-                                        <Button variant="outline" size="sm">
-                                            <Eye class="h-4 w-4" />
-                                        </Button>
-                                    </Link>
-                                </div>
-                            </div>
-                        </div>
+                                        <span v-else class="text-sm text-muted-foreground">-</span>
+                                    </TableCell>
+                                    <TableCell class="text-right">
+                                        <Link :href="`/admin/candidaturas/${candidatura.id}`">
+                                            <Button variant="outline" size="sm">
+                                                <Eye class="mr-2 h-4 w-4" />
+                                                Ver candidatura
+                                            </Button>
+                                        </Link>
+                                    </TableCell>
+                                </TableRow>
+                            </TableBody>
+                        </Table>
                     </div>
 
                     <!-- Paginación -->
