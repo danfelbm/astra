@@ -187,12 +187,43 @@ class CsvImport extends Model
 
     public function updateProgress(int $processed, int $successful, int $failed, array $newErrors = []): void
     {
-        $this->update([
-            'processed_rows' => $processed,
-            'successful_rows' => $successful,
-            'failed_rows' => $failed,
-            'errors' => array_merge($this->errors ?? [], $newErrors),
-        ]);
+        try {
+            // Intentar usar el procedimiento almacenado si existe (más eficiente, previene deadlocks)
+            $errors = array_merge($this->errors ?? [], $newErrors);
+            
+            DB::statement('CALL update_csv_import_progress(?, ?, ?, ?, ?)', [
+                $this->id,
+                $processed,
+                $successful,
+                $failed,
+                json_encode($errors)
+            ]);
+            
+            // Actualizar el modelo en memoria
+            $this->processed_rows = $processed;
+            $this->successful_rows = $successful;
+            $this->failed_rows = $failed;
+            $this->errors = $errors;
+            
+        } catch (\Exception $e) {
+            // Si el procedimiento no existe o falla, usar actualización normal
+            // pero con query optimizada sin locks innecesarios
+            DB::table('csv_imports')
+                ->where('id', $this->id)
+                ->update([
+                    'processed_rows' => $processed,
+                    'successful_rows' => $successful,
+                    'failed_rows' => $failed,
+                    'errors' => json_encode(array_merge($this->errors ?? [], $newErrors)),
+                    'updated_at' => now()
+                ]);
+            
+            // Actualizar el modelo en memoria
+            $this->processed_rows = $processed;
+            $this->successful_rows = $successful;
+            $this->failed_rows = $failed;
+            $this->errors = array_merge($this->errors ?? [], $newErrors);
+        }
     }
 
     /**
