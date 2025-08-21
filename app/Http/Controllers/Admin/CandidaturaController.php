@@ -509,17 +509,10 @@ class CandidaturaController extends Controller
             'motivo' => 'nullable|string|max:500',
         ]);
 
-        // Volver a borrador
-        $candidatura->update([
-            'estado' => Candidatura::ESTADO_BORRADOR,
-            'aprobado_por' => null,
-            'aprobado_at' => null,
-            'comentarios_admin' => $request->motivo,
-        ]);
+        // Volver a borrador usando el método del modelo (que envía notificaciones)
+        $candidatura->volverABorrador($request->motivo);
 
-        // TODO: Enviar notificación al usuario sobre el cambio de estado
-
-        return back()->with('success', 'Candidatura devuelta a estado borrador correctamente.');
+        return back()->with('success', 'Candidatura devuelta a estado borrador correctamente. Se han enviado las notificaciones al usuario.');
     }
 
     /**
