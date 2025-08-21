@@ -307,6 +307,20 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
         ->middleware('permission:asambleas.view')
         ->name('asambleas.participantes-list');
     
+    // Rutas de importación para asambleas
+    Route::get('asambleas/{asamblea}/imports', [ImportController::class, 'indexForAsamblea'])
+        ->middleware('permission:asambleas.manage_participants')
+        ->name('asambleas.imports.index');
+    Route::get('asambleas/{asamblea}/imports/recent', [ImportController::class, 'recentForAsamblea'])
+        ->middleware('permission:asambleas.manage_participants')
+        ->name('asambleas.imports.recent');
+    Route::get('asambleas/{asamblea}/imports/active', [ImportController::class, 'activeForAsamblea'])
+        ->middleware('permission:asambleas.manage_participants')
+        ->name('asambleas.imports.active');
+    Route::post('asambleas/{asamblea}/imports/store', [ImportController::class, 'storeWithAsamblea'])
+        ->middleware('permission:asambleas.manage_participants')
+        ->name('asambleas.imports.store');
+    
     // Convocatorias routes
     Route::resource('convocatorias', ConvocatoriaController::class)
         ->middleware('permission'); // El middleware inferirá el permiso de la acción

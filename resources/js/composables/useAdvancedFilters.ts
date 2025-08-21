@@ -438,16 +438,23 @@ export function useAdvancedFilters(options: UseAdvancedFiltersOptions) {
     return validateGroup(state.value.rootGroup);
   };
 
-  // Watch para auto-apply
-  if (config.autoApply) {
-    watch(
-      () => state.value.quickSearch,
-      () => {
+  // Watch para detectar cambios en quickSearch
+  watch(
+    () => state.value.quickSearch,
+    (newValue, oldValue) => {
+      // Marcar como hasChanges si el valor cambió
+      if (newValue !== oldValue) {
         state.value.hasChanges = true;
+      }
+      // Si autoApply está activado, aplicar filtros automáticamente
+      if (config.autoApply) {
         applyFiltersDebounced();
       }
-    );
-    
+    }
+  );
+
+  // Watch para auto-apply en cambios del rootGroup
+  if (config.autoApply) {
     watch(
       () => state.value.rootGroup,
       () => {

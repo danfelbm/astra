@@ -13,6 +13,7 @@ class CsvImport extends Model
     use HasTenant;
     protected $fillable = [
         'votacion_id',
+        'asamblea_id',
         'filename',
         'original_filename',
         'name',
@@ -54,6 +55,11 @@ class CsvImport extends Model
         return $this->belongsTo(Votacion::class);
     }
 
+    public function asamblea(): BelongsTo
+    {
+        return $this->belongsTo(Asamblea::class);
+    }
+
     public function createdBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
@@ -68,6 +74,11 @@ class CsvImport extends Model
     public function scopeForVotacion(Builder $query, int $votacionId): Builder
     {
         return $query->where('votacion_id', $votacionId);
+    }
+
+    public function scopeForAsamblea(Builder $query, int $asambleaId): Builder
+    {
+        return $query->where('asamblea_id', $asambleaId);
     }
 
     public function scopeRecent(Builder $query): Builder

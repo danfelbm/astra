@@ -7,6 +7,7 @@ use App\Jobs\ProcessUsersCsvImport;
 use App\Models\CsvImport;
 use App\Models\User;
 use App\Models\Votacion;
+use App\Models\Asamblea;
 use App\Services\LocationResolverService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -26,7 +27,7 @@ class ImportController extends Controller
      */
     public function show(CsvImport $import): Response
     {
-        $import->load(['votacion', 'createdBy']);
+        $import->load(['votacion', 'asamblea', 'createdBy']);
         
         return Inertia::render('Admin/Imports/Show', [
             'import' => $import,
@@ -666,9 +667,125 @@ class ImportController extends Controller
             return back()->with('error', 'Error al iniciar importación: ' . $e->getMessage());
         }
     }
+
+    /**
+     * Crear nueva importación de usuarios para una asamblea específica
+     */
+    public function storeWithAsamblea(Request $request, Asamblea $asamblea): RedirectResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'name' => 'required|string|max:255',
+            'csv_file' => 'required|file|mimes:csv,txt|max:2048',
+            'import_mode' => 'required|in:insert,update,both',
+            'field_mappings' => 'required|array',
+            'update_fields' => 'nullable|array',
+        ], [
+            'name.required' => 'El nombre de la importación es requerido.',
+            'csv_file.required' => 'Debe seleccionar un archivo CSV.',
+            'csv_file.mimes' => 'El archivo debe ser un CSV válido.',
+            'csv_file.max' => 'El archivo no puede exceder 2MB.',
+            'import_mode.required' => 'Debe seleccionar un modo de importación.',
+            'field_mappings.required' => 'Debe mapear al menos un campo.',
+        ]);
+
+        if ($validator->fails()) {
+            return back()->withErrors($validator->errors())->withInput();
+        }
+
+        try {
+            $file = $request->file('csv_file');
+            $originalName = $file->getClientOriginalName();
+            
+            // Generar nombre único para el archivo
+            $filename = time() . '_' . str_replace(' ', '_', $originalName);
+            
+            // Almacenar archivo en storage/app/imports/
+            $filePath = $file->storeAs('imports', $filename);
+            
+            // Crear registro de importación con asamblea_id
+            $csvImport = CsvImport::create([
+                'asamblea_id' => $asamblea->id,
+                'name' => $request->input('name'),
+                'filename' => $filename,
+                'original_filename' => $originalName,
+                'import_type' => 'asamblea',
+                'import_mode' => $request->input('import_mode'),
+                'field_mappings' => $request->input('field_mappings'),
+                'update_fields' => $request->input('update_fields', []),
+                'status' => 'pending',
+                'batch_size' => config('app.csv_import_batch_size', 50),
+                'created_by' => Auth::id(),
+            ]);
+            
+            // Despachar job para procesar en background
+            ProcessUsersCsvImport::dispatch($csvImport);
+            
+            // Log para debugging
+            \Log::info('Importación de asamblea creada', [
+                'import_id' => $csvImport->id,
+                'asamblea_id' => $asamblea->id,
+                'filename' => $filename
+            ]);
+            
+            // Devolver respuesta igual que en votaciones
+            return redirect()
+                ->route('admin.imports.show', $csvImport)
+                ->with('success', 'Importación de participantes iniciada. El archivo se está procesando en segundo plano.')
+                ->with('import_id', $csvImport->id);
+            
+        } catch (\Exception $e) {
+            \Log::error('Error en storeWithAsamblea: ' . $e->getMessage(), [
+                'asamblea_id' => $asamblea->id,
+                'trace' => $e->getTraceAsString()
+            ]);
+            return back()->with('error', 'Error al iniciar importación: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Obtener importaciones recientes de una asamblea
+     */
+    public function recentForAsamblea(Asamblea $asamblea): JsonResponse
+    {
+        $imports = CsvImport::forAsamblea($asamblea->id)
+            ->with(['createdBy'])
+            ->recent()
+            ->limit(5)
+            ->get();
+
+        return response()->json($imports);
+    }
+
+    /**
+     * Obtener importación activa de una asamblea
+     */
+    public function activeForAsamblea(Asamblea $asamblea): JsonResponse
+    {
+        $activeImport = CsvImport::forAsamblea($asamblea->id)
+            ->active()
+            ->first();
+
+        return response()->json($activeImport);
+    }
     
     /**
-     * Asignar usuario a votación desde un conflicto si la importación está asociada a una
+     * Listar todas las importaciones de una asamblea
+     */
+    public function indexForAsamblea(Asamblea $asamblea): Response
+    {
+        $imports = CsvImport::forAsamblea($asamblea->id)
+            ->with(['createdBy'])
+            ->recent()
+            ->paginate(10);
+
+        return Inertia::render('Admin/Imports/Index', [
+            'asamblea' => $asamblea,
+            'imports' => $imports,
+        ]);
+    }
+    
+    /**
+     * Asignar usuario a votación o asamblea desde un conflicto si la importación está asociada
      */
     private function assignUserToVotacionFromConflict(User $user, array $conflict): void
     {
@@ -680,39 +797,78 @@ class ImportController extends Controller
         
         // Obtener la importación
         $import = CsvImport::find($importId);
-        if (!$import || !$import->votacion_id) {
+        if (!$import) {
             return;
         }
         
-        try {
-            // Verificar si el usuario ya está asignado a la votación
-            $existingAssignment = DB::table('votacion_usuario')
-                ->where('votacion_id', $import->votacion_id)
-                ->where('usuario_id', $user->id)
-                ->first();
-            
-            if (!$existingAssignment) {
-                // Obtener el tenant_id de la votación
-                $votacion = Votacion::find($import->votacion_id);
-                if (!$votacion) {
-                    Log::error("Votación {$import->votacion_id} no encontrada para asignación desde conflicto");
-                    return;
+        // Si es una importación de votación
+        if ($import->votacion_id) {
+            try {
+                // Verificar si el usuario ya está asignado a la votación
+                $existingAssignment = DB::table('votacion_usuario')
+                    ->where('votacion_id', $import->votacion_id)
+                    ->where('usuario_id', $user->id)
+                    ->first();
+                
+                if (!$existingAssignment) {
+                    // Obtener el tenant_id de la votación
+                    $votacion = Votacion::find($import->votacion_id);
+                    if (!$votacion) {
+                        Log::error("Votación {$import->votacion_id} no encontrada para asignación desde conflicto");
+                        return;
+                    }
+                    
+                    // Asignar usuario a la votación
+                    DB::table('votacion_usuario')->insert([
+                        'votacion_id' => $import->votacion_id,
+                        'usuario_id' => $user->id,
+                        'tenant_id' => $votacion->tenant_id,
+                        'created_at' => now(),
+                        'updated_at' => now()
+                    ]);
+                    
+                    Log::info("Usuario {$user->id} asignado a votación {$import->votacion_id} desde resolución de conflicto");
                 }
                 
-                // Asignar usuario a la votación
-                DB::table('votacion_usuario')->insert([
-                    'votacion_id' => $import->votacion_id,
-                    'usuario_id' => $user->id,
-                    'tenant_id' => $votacion->tenant_id,
-                    'created_at' => now(),
-                    'updated_at' => now()
-                ]);
-                
-                Log::info("Usuario {$user->id} asignado a votación {$import->votacion_id} desde resolución de conflicto");
+            } catch (\Throwable $e) {
+                Log::error("Error asignando usuario {$user->id} a votación desde conflicto: " . $e->getMessage());
             }
-            
-        } catch (\Throwable $e) {
-            Log::error("Error asignando usuario {$user->id} a votación desde conflicto: " . $e->getMessage());
+        }
+        
+        // Si es una importación de asamblea
+        if ($import->asamblea_id) {
+            try {
+                // Verificar si el usuario ya está asignado a la asamblea
+                $existingAssignment = DB::table('asamblea_usuario')
+                    ->where('asamblea_id', $import->asamblea_id)
+                    ->where('usuario_id', $user->id)
+                    ->first();
+                
+                if (!$existingAssignment) {
+                    // Obtener el tenant_id de la asamblea
+                    $asamblea = Asamblea::find($import->asamblea_id);
+                    if (!$asamblea) {
+                        Log::error("Asamblea {$import->asamblea_id} no encontrada para asignación desde conflicto");
+                        return;
+                    }
+                    
+                    // Asignar usuario a la asamblea
+                    DB::table('asamblea_usuario')->insert([
+                        'asamblea_id' => $import->asamblea_id,
+                        'usuario_id' => $user->id,
+                        'tenant_id' => $asamblea->tenant_id,
+                        'tipo_participacion' => 'asistente',
+                        'asistio' => false,
+                        'created_at' => now(),
+                        'updated_at' => now()
+                    ]);
+                    
+                    Log::info("Usuario {$user->id} asignado a asamblea {$import->asamblea_id} desde resolución de conflicto");
+                }
+                
+            } catch (\Throwable $e) {
+                Log::error("Error asignando usuario {$user->id} a asamblea desde conflicto: " . $e->getMessage());
+            }
         }
     }
 }

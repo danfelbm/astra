@@ -5,6 +5,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import AdvancedFilters from '@/components/filters/AdvancedFilters.vue';
 import type { AdvancedFilterConfig } from '@/types/filters';
+import CsvImportWizard from '@/components/imports/CsvImportWizard.vue';
+import ImportHistory from '@/components/imports/ImportHistory.vue';
 import {
     Dialog,
     DialogContent,
@@ -32,7 +34,9 @@ import {
     XCircle,
     FileText,
     ChevronLeft,
-    ChevronRight
+    ChevronRight,
+    Upload,
+    History
 } from 'lucide-vue-next';
 import { ref, computed, onMounted, watch } from 'vue';
 import { format } from 'date-fns';
@@ -156,6 +160,12 @@ const participantesInicializados = ref(false);
 
 // Estado para registrar asistencia
 const registrandoAsistencia = ref<number | null>(null);
+
+// Estado para el wizard de importación CSV
+const showImportWizard = ref(false);
+const showImportHistory = ref(false);
+const recentImports = ref<any[]>([]);
+const importHistoryRef = ref<InstanceType<typeof ImportHistory> | null>(null);
 
 // Formatear fecha
 const formatearFecha = (fecha: string) => {
@@ -494,6 +504,37 @@ const volver = () => {
     router.visit(route('admin.asambleas.index'));
 };
 
+// Funciones para el wizard de importación CSV
+const loadRecentImports = async () => {
+    if (!props.asamblea?.id) return;
+    
+    try {
+        const response = await fetch(`/admin/asambleas/${props.asamblea.id}/imports/recent`);
+        recentImports.value = await response.json();
+    } catch (error) {
+        console.error('Error cargando importaciones recientes:', error);
+    }
+};
+
+const handleImportSuccess = (importId: number) => {
+    showImportWizard.value = false;
+    // Recargar listas de participantes
+    loadRecentImports();
+    cargarParticipantes();
+    
+    // Recargar historial si está visible
+    if (importHistoryRef.value) {
+        importHistoryRef.value.loadRecentImports();
+    }
+    
+    // Redirigir a la página de progreso de importación
+    router.get(`/admin/imports/${importId}`);
+};
+
+const handleImportCancel = () => {
+    showImportWizard.value = false;
+};
+
 // Cargar SOLO la primera página de participantes al montar (verdadero lazy loading)
 onMounted(() => {
     // Siempre cargar la primera página (solo 20 registros)
@@ -645,12 +686,42 @@ onMounted(() => {
                     </div>
                 </CardHeader>
                 <CardContent>
-                    <div v-if="puede_gestionar_participantes" class="mb-4">
+                    <div v-if="puede_gestionar_participantes" class="mb-4 flex gap-2">
                         <Button @click="abrirModalAñadir">
                             <UserPlus class="mr-2 h-4 w-4" />
                             Añadir Participantes
                         </Button>
+                        <Button variant="outline" @click="showImportWizard = true">
+                            <Upload class="mr-2 h-4 w-4" />
+                            Importar CSV
+                        </Button>
+                        <Button variant="outline" @click="showImportHistory = !showImportHistory">
+                            <History class="mr-2 h-4 w-4" />
+                            {{ showImportHistory ? 'Ocultar' : 'Ver' }} Historial
+                        </Button>
                     </div>
+                    
+                    <!-- Wizard de Importación CSV -->
+                    <CsvImportWizard
+                        v-if="showImportWizard"
+                        mode="asamblea"
+                        :asamblea-id="asamblea.id"
+                        :asamblea-titulo="asamblea.nombre"
+                        :redirect-on-success="true"
+                        @success="handleImportSuccess"
+                        @cancel="handleImportCancel"
+                        class="mb-4"
+                    />
+                    
+                    <!-- Historial de Importaciones -->
+                    <ImportHistory
+                        v-if="showImportHistory"
+                        ref="importHistoryRef"
+                        type="asamblea"
+                        :entity-id="asamblea.id"
+                        title="Historial de Importaciones"
+                        class="mb-4"
+                    />
 
                     <div v-if="loadingParticipantes" class="flex justify-center py-8">
                         <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
