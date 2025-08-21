@@ -127,12 +127,13 @@ class ImportController extends Controller
     }
 
     /**
-     * Analizar archivo CSV y devolver estructura para mapeo
+     * Analizar archivo CSV y devolver estructura para mapeo - OPTIMIZADO PARA ARCHIVOS GRANDES
      */
     public function analyze(Request $request): JsonResponse
     {
+        // Aumentar límite de archivo a 50MB para archivos grandes
         $validator = Validator::make($request->all(), [
-            'csv_file' => 'required|file|mimes:csv,txt|max:2048',
+            'csv_file' => 'required|file|mimes:csv,txt|max:51200', // 50MB
         ]);
 
         if ($validator->fails()) {
@@ -141,25 +142,38 @@ class ImportController extends Controller
 
         try {
             $file = $request->file('csv_file');
+            $filePath = $file->getPathname();
+            $fileSize = $file->getSize();
             
-            // Leer primeras líneas del CSV para análisis
-            $fileContent = file_get_contents($file->getPathname());
-            $lines = explode("\n", trim($fileContent));
+            // Usar SplFileObject para lectura eficiente línea por línea
+            $csvFile = new \SplFileObject($filePath, 'r');
+            $csvFile->setFlags(\SplFileObject::READ_CSV | \SplFileObject::SKIP_EMPTY);
             
-            if (empty($lines)) {
-                return response()->json(['error' => 'El archivo CSV está vacío.'], 400);
+            // Obtener headers (primera línea)
+            $csvFile->rewind();
+            $headers = $csvFile->current();
+            
+            if (empty($headers) || (is_array($headers) && count(array_filter($headers)) === 0)) {
+                return response()->json(['error' => 'El archivo CSV está vacío o no tiene headers válidos.'], 400);
             }
             
-            // Obtener headers
-            $headers = str_getcsv($lines[0]);
-            
-            // Obtener muestra de datos (primeras 5 filas)
+            // Obtener muestra de datos (máximo 10 filas para preview)
             $sampleData = [];
-            for ($i = 1; $i <= min(5, count($lines) - 1); $i++) {
-                if (!empty(trim($lines[$i]))) {
-                    $sampleData[] = str_getcsv($lines[$i]);
+            $maxSampleRows = 10;
+            $rowCount = 0;
+            
+            $csvFile->next(); // Saltar header
+            while (!$csvFile->eof() && $rowCount < $maxSampleRows) {
+                $row = $csvFile->current();
+                if (!empty($row) && is_array($row) && count(array_filter($row)) > 0) {
+                    $sampleData[] = $row;
+                    $rowCount++;
                 }
+                $csvFile->next();
             }
+            
+            // Estimación inteligente del total de filas basada en tamaño de archivo
+            $estimatedRows = $this->estimateRowCount($filePath, $fileSize);
             
             // Campos disponibles del modelo User para mapeo
             $availableFields = [
@@ -181,11 +195,76 @@ class ImportController extends Controller
                 'headers' => $headers,
                 'sample_data' => $sampleData,
                 'available_fields' => $availableFields,
-                'total_rows' => count($lines) - 1, // Sin contar header
+                'total_rows' => $estimatedRows,
+                'file_size' => $fileSize,
+                'is_large_file' => $estimatedRows > 10000,
+                'estimated' => $estimatedRows > 1000, // Indicar si es estimación
             ]);
             
         } catch (\Exception $e) {
             return response()->json(['error' => 'Error al analizar archivo: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Estimar número de filas basado en tamaño de archivo y muestra
+     */
+    private function estimateRowCount(string $filePath, int $fileSize): int
+    {
+        try {
+            // Para archivos pequeños (<1MB), contar exactamente
+            if ($fileSize < 1048576) { // 1MB
+                $lineCount = 0;
+                $file = new \SplFileObject($filePath, 'r');
+                while (!$file->eof()) {
+                    $file->current();
+                    $lineCount++;
+                    $file->next();
+                }
+                return max(0, $lineCount - 1); // Menos header
+            }
+            
+            // Para archivos grandes, estimar basado en las primeras 1000 líneas
+            $sampleSize = 1000;
+            $file = new \SplFileObject($filePath, 'r');
+            $file->setFlags(\SplFileObject::READ_CSV | \SplFileObject::SKIP_EMPTY);
+            
+            $sampleBytes = 0;
+            $sampleLines = 0;
+            
+            // Saltar header
+            $file->current();
+            $file->next();
+            
+            while (!$file->eof() && $sampleLines < $sampleSize) {
+                $currentPos = $file->ftell();
+                $row = $file->current();
+                
+                if (!empty($row) && is_array($row)) {
+                    $sampleLines++;
+                    $sampleBytes = $file->ftell();
+                }
+                $file->next();
+            }
+            
+            if ($sampleLines > 0 && $sampleBytes > 0) {
+                // Calcular bytes promedio por línea
+                $bytesPerLine = $sampleBytes / $sampleLines;
+                
+                // Estimar total de líneas
+                $estimatedLines = intval($fileSize / $bytesPerLine);
+                
+                // Aplicar factor de corrección conservador
+                return max(1, intval($estimatedLines * 0.95)); // 5% menos para ser conservador
+            }
+            
+            // Fallback: estimación básica
+            return max(1, intval($fileSize / 100)); // Asume ~100 bytes por línea
+            
+        } catch (\Exception $e) {
+            Log::warning("Error estimando filas del CSV: " . $e->getMessage());
+            // Fallback muy básico
+            return max(1, intval($fileSize / 100));
         }
     }
 
@@ -196,7 +275,7 @@ class ImportController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
-            'csv_file' => 'required|file|mimes:csv,txt|max:2048',
+            'csv_file' => 'required|file|mimes:csv,txt|max:51200', // 50MB para archivos grandes
             'import_mode' => 'required|in:insert,update,both',
             'field_mappings' => 'required|array',
             'update_fields' => 'nullable|array',
@@ -204,7 +283,7 @@ class ImportController extends Controller
             'name.required' => 'El nombre de la importación es requerido.',
             'csv_file.required' => 'Debe seleccionar un archivo CSV.',
             'csv_file.mimes' => 'El archivo debe ser un CSV válido.',
-            'csv_file.max' => 'El archivo no puede exceder 2MB.',
+            'csv_file.max' => 'El archivo no puede exceder 50MB.',
             'import_mode.required' => 'Debe seleccionar un modo de importación.',
             'field_mappings.required' => 'Debe mapear al menos un campo.',
         ]);
@@ -613,7 +692,7 @@ class ImportController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
-            'csv_file' => 'required|file|mimes:csv,txt|max:2048',
+            'csv_file' => 'required|file|mimes:csv,txt|max:51200', // 50MB para archivos grandes
             'import_mode' => 'required|in:insert,update,both',
             'field_mappings' => 'required|array',
             'update_fields' => 'nullable|array',
@@ -621,7 +700,7 @@ class ImportController extends Controller
             'name.required' => 'El nombre de la importación es requerido.',
             'csv_file.required' => 'Debe seleccionar un archivo CSV.',
             'csv_file.mimes' => 'El archivo debe ser un CSV válido.',
-            'csv_file.max' => 'El archivo no puede exceder 2MB.',
+            'csv_file.max' => 'El archivo no puede exceder 50MB.',
             'import_mode.required' => 'Debe seleccionar un modo de importación.',
             'field_mappings.required' => 'Debe mapear al menos un campo.',
         ]);
@@ -675,7 +754,7 @@ class ImportController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
-            'csv_file' => 'required|file|mimes:csv,txt|max:2048',
+            'csv_file' => 'required|file|mimes:csv,txt|max:51200', // 50MB para archivos grandes
             'import_mode' => 'required|in:insert,update,both',
             'field_mappings' => 'required|array',
             'update_fields' => 'nullable|array',
@@ -683,7 +762,7 @@ class ImportController extends Controller
             'name.required' => 'El nombre de la importación es requerido.',
             'csv_file.required' => 'Debe seleccionar un archivo CSV.',
             'csv_file.mimes' => 'El archivo debe ser un CSV válido.',
-            'csv_file.max' => 'El archivo no puede exceder 2MB.',
+            'csv_file.max' => 'El archivo no puede exceder 50MB.',
             'import_mode.required' => 'Debe seleccionar un modo de importación.',
             'field_mappings.required' => 'Debe mapear al menos un campo.',
         ]);
