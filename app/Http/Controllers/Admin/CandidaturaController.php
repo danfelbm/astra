@@ -827,4 +827,135 @@ class CandidaturaController extends Controller
             'sin_telefono' => $candidaturasBorrador->count() - $conTelefono,
         ]);
     }
+
+    /**
+     * Enviar notificaciones masivas a candidaturas pendientes de revisión
+     */
+    public function enviarNotificacionesPendientes(Request $request)
+    {
+        // Verificar permisos (solo admins pueden enviar notificaciones)
+        if (!Auth::user()->hasRole('admin') && !Auth::user()->hasRole('super_admin')) {
+            return response()->json(['error' => 'No tienes permisos para enviar notificaciones masivas'], 403);
+        }
+
+        // Validar parámetros opcionales
+        $request->validate([
+            'incluir_email' => 'boolean',
+            'incluir_whatsapp' => 'boolean',
+        ]);
+
+        $incluirEmail = $request->get('incluir_email', true);
+        $incluirWhatsApp = $request->get('incluir_whatsapp', true);
+
+        // Obtener candidaturas pendientes con usuarios
+        $candidaturasPendientes = Candidatura::pendientes()
+            ->with(['user'])
+            ->get();
+
+        if ($candidaturasPendientes->isEmpty()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No hay candidaturas pendientes para enviar notificaciones',
+                'total_candidaturas' => 0,
+            ]);
+        }
+
+        $contadores = [
+            'total_candidaturas' => $candidaturasPendientes->count(),
+            'emails_enviados' => 0,
+            'whatsapps_enviados' => 0,
+            'errores' => 0,
+        ];
+
+        // Procesar cada candidatura
+        foreach ($candidaturasPendientes as $candidatura) {
+            $usuario = $candidatura->user;
+
+            if (!$usuario) {
+                $contadores['errores']++;
+                Log::warning("Candidatura {$candidatura->id} no tiene usuario asociado", [
+                    'candidatura_id' => $candidatura->id
+                ]);
+                continue;
+            }
+
+            try {
+                // Enviar email si está habilitado
+                if ($incluirEmail && !empty($usuario->email)) {
+                    \App\Jobs\SendCandidaturaPendienteEmailJob::dispatch(
+                        $usuario->email,
+                        $usuario->name,
+                        $candidatura->id
+                    );
+                    $contadores['emails_enviados']++;
+                }
+
+                // Enviar WhatsApp si está habilitado y el usuario tiene teléfono
+                if ($incluirWhatsApp && !empty($usuario->telefono)) {
+                    \App\Jobs\SendCandidaturaPendienteWhatsAppJob::dispatch(
+                        $usuario->telefono,
+                        $usuario->name,
+                        $candidatura->id
+                    );
+                    $contadores['whatsapps_enviados']++;
+                }
+
+            } catch (\Exception $e) {
+                $contadores['errores']++;
+                Log::error("Error procesando candidatura {$candidatura->id} para notificación", [
+                    'candidatura_id' => $candidatura->id,
+                    'usuario_id' => $usuario->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        // Log de la operación
+        Log::info("Notificaciones masivas de candidaturas pendientes enviadas", [
+            'admin_id' => Auth::id(),
+            'admin_name' => Auth::user()->name,
+            'incluir_email' => $incluirEmail,
+            'incluir_whatsapp' => $incluirWhatsApp,
+            'contadores' => $contadores,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => "Notificaciones enviadas exitosamente",
+            'contadores' => $contadores,
+            'detalle' => [
+                'candidaturas_procesadas' => $contadores['total_candidaturas'],
+                'emails_programados' => $contadores['emails_enviados'],
+                'whatsapps_programados' => $contadores['whatsapps_enviados'],
+                'errores_encontrados' => $contadores['errores'],
+            ],
+            'nota' => 'Los mensajes se están procesando en segundo plano respetando los límites de velocidad configurados'
+        ]);
+    }
+
+    /**
+     * Obtener estadísticas de candidaturas pendientes (para el modal)
+     */
+    public function getEstadisticasPendientes()
+    {
+        $candidaturasPendientes = Candidatura::pendientes()
+            ->with(['user'])
+            ->get();
+
+        $conEmail = $candidaturasPendientes->filter(function ($candidatura) {
+            return $candidatura->user && !empty($candidatura->user->email);
+        })->count();
+
+        $conTelefono = $candidaturasPendientes->filter(function ($candidatura) {
+            return $candidatura->user && !empty($candidatura->user->telefono);
+        })->count();
+
+        return response()->json([
+            'total_pendientes' => $candidaturasPendientes->count(),
+            'con_email' => $conEmail,
+            'con_telefono' => $conTelefono,
+            'sin_email' => $candidaturasPendientes->count() - $conEmail,
+            'sin_telefono' => $candidaturasPendientes->count() - $conTelefono,
+        ]);
+    }
 }

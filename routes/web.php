@@ -390,6 +390,14 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
         ->middleware('permission:candidaturas.view')
         ->name('candidaturas.estadisticas-borradores');
     
+    // Rutas para notificaciones de candidaturas pendientes
+    Route::post('candidaturas/notificaciones/enviar', [AdminCandidaturaController::class, 'enviarNotificacionesPendientes'])
+        ->middleware('permission:candidaturas.approve')
+        ->name('candidaturas.enviar-notificaciones');
+    Route::get('candidaturas/notificaciones/estadisticas', [AdminCandidaturaController::class, 'getEstadisticasPendientes'])
+        ->middleware('permission:candidaturas.view')
+        ->name('candidaturas.estadisticas-pendientes');
+    
     // Postulaciones admin routes  
     Route::resource('postulaciones', AdminPostulacionController::class)
         ->only(['index', 'show'])
