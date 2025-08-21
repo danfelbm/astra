@@ -112,6 +112,19 @@ const estadisticasBorradores = ref({
     sin_telefono: 0
 });
 
+// Variables para el modal de notificaciones pendientes
+const modalNotificacionesAbierto = ref(false);
+const enviandoNotificaciones = ref(false);
+const incluirEmailNotificacion = ref(true);
+const incluirWhatsAppNotificacion = ref(true);
+const estadisticasPendientes = ref({
+    total_pendientes: 0,
+    con_email: 0,
+    con_telefono: 0,
+    sin_email: 0,
+    sin_telefono: 0
+});
+
 // Código de estadísticas removido - se moverá a un dashboard unificado
 
 // Función para formatear fecha
@@ -136,6 +149,63 @@ const abrirModalRecordatorios = async () => {
     } catch (error) {
         console.error('Error cargando estadísticas:', error);
         alert('Error cargando estadísticas de candidaturas en borrador');
+    }
+};
+
+// Función para abrir modal de notificaciones (pendientes)
+const abrirModalNotificaciones = async () => {
+    try {
+        // Obtener estadísticas de candidaturas pendientes
+        const response = await fetch(route('admin.candidaturas.estadisticas-pendientes'));
+        const stats = await response.json();
+        estadisticasPendientes.value = stats;
+        modalNotificacionesAbierto.value = true;
+    } catch (error) {
+        console.error('Error cargando estadísticas:', error);
+        alert('Error cargando estadísticas de candidaturas pendientes');
+    }
+};
+
+// Función para enviar notificaciones (pendientes)
+const enviarNotificaciones = async () => {
+    if (!incluirEmailNotificacion.value && !incluirWhatsAppNotificacion.value) {
+        alert('Debes seleccionar al menos un tipo de notificación (email o WhatsApp)');
+        return;
+    }
+
+    enviandoNotificaciones.value = true;
+    
+    try {
+        const response = await fetch(route('admin.candidaturas.enviar-notificaciones'), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+            },
+            body: JSON.stringify({
+                incluir_email: incluirEmailNotificacion.value,
+                incluir_whatsapp: incluirWhatsAppNotificacion.value
+            })
+        });
+
+        const result = await response.json();
+        
+        if (result.success) {
+            modalNotificacionesAbierto.value = false;
+            alert(`Notificaciones enviadas exitosamente!\n\n` +
+                  `• Candidaturas procesadas: ${result.contadores.total_candidaturas}\n` +
+                  `• Correos programados: ${result.contadores.emails_enviados}\n` +
+                  `• WhatsApps programados: ${result.contadores.whatsapps_enviados}\n` +
+                  `• Errores: ${result.contadores.errores}\n\n` +
+                  `Los mensajes se están enviando en segundo plano respetando los límites de velocidad configurados.`);
+        } else {
+            alert(`Error: ${result.message}`);
+        }
+    } catch (error) {
+        console.error('Error enviando notificaciones:', error);
+        alert('Error enviando notificaciones. Por favor intenta de nuevo.');
+    } finally {
+        enviandoNotificaciones.value = false;
     }
 };
 
@@ -197,7 +267,17 @@ const enviarRecordatorios = async () => {
                     </p>
                 </div>
                 <div class="flex gap-3">
-                    <!-- Botón de Recordatorios -->
+                    <!-- Botón de Notificaciones (Pendientes) -->
+                    <Button 
+                        @click="abrirModalNotificaciones"
+                        variant="outline"
+                        class="bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 hover:border-blue-300"
+                    >
+                        <Mail class="mr-2 h-4 w-4" />
+                        Notificaciones
+                    </Button>
+                    
+                    <!-- Botón de Recordatorios (Borradores) -->
                     <Button 
                         @click="abrirModalRecordatorios"
                         variant="outline"
@@ -419,6 +499,118 @@ const enviarRecordatorios = async () => {
                         >
                             <Send class="mr-2 h-4 w-4" />
                             {{ enviandoRecordatorios ? 'Enviando...' : `Enviar Recordatorios (${estadisticasBorradores.total_borradores})` }}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <!-- Modal de Notificaciones (Pendientes) -->
+            <Dialog v-model:open="modalNotificacionesAbierto">
+                <DialogContent class="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle class="flex items-center gap-2">
+                            <Mail class="h-5 w-5 text-blue-600" />
+                            Enviar Notificaciones de Estado
+                        </DialogTitle>
+                        <DialogDescription>
+                            Envía notificaciones por correo y/o WhatsApp a todas las candidaturas en estado pendiente de revisión.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div class="space-y-6">
+                        <!-- Estadísticas de candidaturas pendientes -->
+                        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                            <div class="flex items-center gap-2 mb-3">
+                                <AlertCircle class="h-5 w-5 text-blue-600" />
+                                <h3 class="font-medium text-blue-900">Candidaturas Pendientes de Revisión</h3>
+                            </div>
+                            
+                            <div class="grid grid-cols-2 gap-3 text-sm">
+                                <div class="flex justify-between">
+                                    <span class="text-blue-700">Total pendientes:</span>
+                                    <span class="font-medium text-blue-900">{{ estadisticasPendientes.total_pendientes }}</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-blue-700">Con email:</span>
+                                    <span class="font-medium text-blue-900">{{ estadisticasPendientes.con_email }}</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-blue-700">Con teléfono:</span>
+                                    <span class="font-medium text-blue-900">{{ estadisticasPendientes.con_telefono }}</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-red-600">Sin contacto:</span>
+                                    <span class="font-medium text-red-700">
+                                        {{ Math.max(0, estadisticasPendientes.total_pendientes - Math.max(estadisticasPendientes.con_email, estadisticasPendientes.con_telefono)) }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Opciones de envío -->
+                        <div class="space-y-4">
+                            <h4 class="font-medium text-gray-900">Selecciona los tipos de notificación:</h4>
+                            
+                            <div class="space-y-3">
+                                <div class="flex items-center space-x-3">
+                                    <Checkbox 
+                                        :id="'include-email-notif'" 
+                                        v-model="incluirEmailNotificacion" 
+                                        :disabled="estadisticasPendientes.con_email === 0"
+                                    />
+                                    <div class="flex items-center gap-2">
+                                        <Mail class="h-4 w-4 text-blue-600" />
+                                        <Label :for="'include-email-notif'" class="flex-1">
+                                            Correo electrónico
+                                            <span class="text-sm text-muted-foreground ml-1">
+                                                ({{ estadisticasPendientes.con_email }} candidaturas)
+                                            </span>
+                                        </Label>
+                                    </div>
+                                </div>
+
+                                <div class="flex items-center space-x-3">
+                                    <Checkbox 
+                                        :id="'include-whatsapp-notif'" 
+                                        v-model="incluirWhatsAppNotificacion"
+                                        :disabled="estadisticasPendientes.con_telefono === 0"
+                                    />
+                                    <div class="flex items-center gap-2">
+                                        <MessageSquare class="h-4 w-4 text-green-600" />
+                                        <Label :for="'include-whatsapp-notif'" class="flex-1">
+                                            WhatsApp
+                                            <span class="text-sm text-muted-foreground ml-1">
+                                                ({{ estadisticasPendientes.con_telefono }} candidaturas)
+                                            </span>
+                                        </Label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Información adicional -->
+                        <div class="text-xs text-muted-foreground bg-gray-50 border border-gray-200 rounded p-3">
+                            <p class="mb-1">• Se notificará que la candidatura fue recibida exitosamente</p>
+                            <p class="mb-1">• Emails: 2 por segundo | WhatsApp: 5 por segundo</p>
+                            <p>• El proceso se ejecuta en segundo plano</p>
+                        </div>
+                    </div>
+
+                    <DialogFooter>
+                        <Button 
+                            variant="outline" 
+                            @click="modalNotificacionesAbierto = false"
+                            :disabled="enviandoNotificaciones"
+                        >
+                            Cancelar
+                        </Button>
+                        <Button 
+                            @click="enviarNotificaciones"
+                            :disabled="enviandoNotificaciones || estadisticasPendientes.total_pendientes === 0 || (!incluirEmailNotificacion && !incluirWhatsAppNotificacion)"
+                            class="bg-blue-600 hover:bg-blue-700"
+                        >
+                            <Mail class="mr-2 h-4 w-4" />
+                            {{ enviandoNotificaciones ? 'Enviando...' : `Enviar Notificaciones (${estadisticasPendientes.total_pendientes})` }}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

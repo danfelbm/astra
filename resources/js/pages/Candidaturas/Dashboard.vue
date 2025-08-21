@@ -171,8 +171,15 @@ const formatearFecha = (fecha: string | null | undefined) => {
                             
                             <div class="flex-1">
                                 <h3 class="text-xl font-semibold mb-1">
-                                    {{ hasCandidatura ? candidatura!.estado_label : 'Sin Candidatura' }}
+                                    {{ hasCandidatura 
+                                        ? (candidatura!.estado === 'pendiente' ? 'Candidatura enviada' : candidatura!.estado_label)
+                                        : 'Sin Candidatura' 
+                                    }}
                                 </h3>
+                                
+                                <p v-if="candidatura?.estado === 'pendiente'" class="text-muted-foreground mb-1">
+                                    Tu Candidatura ahora está pendiente de revisión
+                                </p>
                                 
                                 <p class="text-muted-foreground mb-2">
                                     {{ hasCandidatura 

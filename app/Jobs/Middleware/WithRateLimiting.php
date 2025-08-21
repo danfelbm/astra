@@ -20,12 +20,14 @@ trait WithRateLimiting
             case 'App\Jobs\SendOTPEmailJob':
             case 'App\Jobs\SendZoomAccessEmailJob':
             case 'App\Jobs\SendCandidaturaReminderEmailJob':
+            case 'App\Jobs\SendCandidaturaPendienteEmailJob':
                 $middlewares[] = RateLimited::forEmail();
                 break;
                 
             case 'App\Jobs\SendOTPWhatsAppJob':
             case 'App\Jobs\SendZoomAccessWhatsAppJob':
             case 'App\Jobs\SendCandidaturaReminderWhatsAppJob':
+            case 'App\Jobs\SendCandidaturaPendienteWhatsAppJob':
                 $middlewares[] = RateLimited::forWhatsApp();
                 break;
                 
@@ -60,12 +62,14 @@ trait WithRateLimiting
             case 'App\Jobs\SendOTPEmailJob':
             case 'App\Jobs\SendZoomAccessEmailJob':
             case 'App\Jobs\SendCandidaturaReminderEmailJob':
+            case 'App\Jobs\SendCandidaturaPendienteEmailJob':
                 $this->onQueue(config('queue.otp_email_queue', 'otp-emails'));
                 break;
                 
             case 'App\Jobs\SendOTPWhatsAppJob':
             case 'App\Jobs\SendZoomAccessWhatsAppJob':
             case 'App\Jobs\SendCandidaturaReminderWhatsAppJob':
+            case 'App\Jobs\SendCandidaturaPendienteWhatsAppJob':
                 $this->onQueue(config('queue.otp_whatsapp_queue', 'otp-whatsapp'));
                 break;
                 
