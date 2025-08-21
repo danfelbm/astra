@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { type BreadcrumbItemType } from '@/types';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Head, Link, router } from '@inertiajs/vue3';
-import { Clock, Eye, Settings, UserCheck, AlertCircle, Mail, MessageSquare, Send } from 'lucide-vue-next';
+import { Clock, Eye, Settings, UserCheck, AlertCircle, Mail, MessageSquare, Send, Filter } from 'lucide-vue-next';
 import AdvancedFilters from '@/components/filters/AdvancedFilters.vue';
 import Pagination from '@/components/ui/pagination/Pagination.vue';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -99,6 +99,61 @@ const filterConfig: AdvancedFilterConfig = {
 
 // Helper para obtener route
 const { route } = window as any;
+
+// Estado del filtro rápido de estado
+const estadoFiltroRapido = ref('todos');
+
+// Detectar estado actual desde filtros avanzados
+const detectarEstadoActual = () => {
+    if (props.filters.advanced_filters) {
+        try {
+            const parsed = JSON.parse(props.filters.advanced_filters);
+            const estadoCondition = parsed.conditions?.find(
+                (c: any) => c.field === 'candidaturas.estado' && c.operator === 'equals'
+            );
+            if (estadoCondition) {
+                return estadoCondition.value;
+            }
+        } catch (e) {
+            // Ignorar errores de parsing
+        }
+    }
+    return 'todos';
+};
+
+// Inicializar con el estado actual
+estadoFiltroRapido.value = detectarEstadoActual();
+
+// Aplicar filtro rápido de estado
+const aplicarFiltroEstado = (estado: string) => {
+    estadoFiltroRapido.value = estado;
+    
+    if (estado === 'todos') {
+        // Limpiar filtros de estado
+        router.get('/admin/candidaturas', {}, {
+            preserveState: true,
+            replace: true,
+        });
+    } else {
+        // Generar estructura de filtro avanzado para el estado seleccionado
+        const advancedFilter = {
+            operator: 'AND',
+            conditions: [{
+                field: 'candidaturas.estado',
+                operator: 'equals',
+                value: estado
+            }],
+            groups: []
+        };
+        
+        router.get('/admin/candidaturas', {
+            advanced_filters: JSON.stringify(advancedFilter)
+        }, {
+            preserveState: true,
+            replace: true,
+        });
+    }
+};
 
 // Variables reactivas para el modal de recordatorios
 const modalAbierto = ref(false);
@@ -267,7 +322,47 @@ const enviarRecordatorios = async () => {
                         Revisa y gestiona los perfiles de candidatura de los usuarios
                     </p>
                 </div>
-                <div class="flex gap-3">
+                <div class="flex gap-3 items-center">
+                    <!-- Dropdown de filtro rápido por estado -->
+                    <Select v-model="estadoFiltroRapido" @update:model-value="aplicarFiltroEstado">
+                        <SelectTrigger class="w-[180px]">
+                            <div class="flex items-center gap-2">
+                                <Filter class="h-4 w-4" />
+                                <SelectValue placeholder="Filtrar por estado" />
+                            </div>
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="todos">
+                                <div class="flex items-center gap-2">
+                                    <span class="font-medium">Todos</span>
+                                </div>
+                            </SelectItem>
+                            <SelectItem value="pendiente">
+                                <div class="flex items-center gap-2">
+                                    <Badge class="bg-blue-100 text-blue-800 border-0">Pendiente</Badge>
+                                </div>
+                            </SelectItem>
+                            <SelectItem value="borrador">
+                                <div class="flex items-center gap-2">
+                                    <Badge class="bg-yellow-100 text-yellow-800 border-0">Borrador</Badge>
+                                </div>
+                            </SelectItem>
+                            <SelectItem value="aprobado">
+                                <div class="flex items-center gap-2">
+                                    <Badge class="bg-green-100 text-green-800 border-0">Aprobado</Badge>
+                                </div>
+                            </SelectItem>
+                            <SelectItem value="rechazado">
+                                <div class="flex items-center gap-2">
+                                    <Badge class="bg-red-100 text-red-800 border-0">Rechazado</Badge>
+                                </div>
+                            </SelectItem>
+                        </SelectContent>
+                    </Select>
+                    
+                    <!-- Separador vertical -->
+                    <div class="h-8 w-px bg-border" />
+                    
                     <!-- Botón de Notificaciones (Pendientes) -->
                     <Button 
                         @click="abrirModalNotificaciones"
