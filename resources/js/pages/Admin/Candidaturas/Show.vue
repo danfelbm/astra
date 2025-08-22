@@ -542,8 +542,9 @@ const formatearFecha = (fecha: string) => {
                                 Volver a Borrador
                             </Button>
                             
-                            <!-- Toggle de Subsanación -->
+                            <!-- Toggle de Subsanación - Solo mostrar si es BORRADOR -->
                             <Button
+                                v-if="candidatura.estado === 'borrador'"
                                 @click="toggleSubsanar"
                                 :disabled="toggleLoading"
                                 :variant="subsanarEstado ? 'default' : 'outline'"
