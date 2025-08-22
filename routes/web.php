@@ -49,6 +49,18 @@ Route::get('formularios/{slug}', [\App\Http\Controllers\FormularioPublicControll
 Route::post('formularios/{slug}/responder', [\App\Http\Controllers\FormularioPublicController::class, 'store'])->name('formularios.store');
 Route::get('formularios/{slug}/success', [\App\Http\Controllers\FormularioPublicController::class, 'success'])->name('formularios.success');
 
+// Rutas públicas de consulta de participantes de asambleas (sin autenticación, con rate limiting)
+use App\Http\Controllers\AsambleaPublicParticipantsController;
+Route::get('asambleas/{asamblea}/participantes-publico', [AsambleaPublicParticipantsController::class, 'show'])
+    ->middleware('throttle:60,1') // 60 requests por minuto
+    ->name('asambleas.public.participants');
+Route::get('api/asambleas/{asamblea}/participantes-publico', [AsambleaPublicParticipantsController::class, 'getParticipants'])
+    ->middleware('throttle:60,1') // 60 requests por minuto
+    ->name('api.asambleas.public.participants');
+Route::post('api/asambleas/{asamblea}/buscar-participante', [AsambleaPublicParticipantsController::class, 'search'])
+    ->middleware('throttle:30,1') // 30 búsquedas por minuto (más restrictivo)
+    ->name('api.asambleas.public.search');
+
 // API de formularios para autoguardado (requiere autenticación)
 Route::middleware(['auth'])->prefix('api/formularios')->name('api.formularios.')->group(function () {
     Route::post('autosave', [\App\Http\Controllers\Api\FormularioController::class, 'autosave'])->name('autosave');
