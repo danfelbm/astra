@@ -4,17 +4,21 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import RichTextEditor from '@/components/ui/RichTextEditor.vue';
 import { type BreadcrumbItemType } from '@/types';
 import { type FormField } from '@/types/forms';
 import HistorialCandidatura from '@/components/forms/HistorialCandidatura.vue';
 import AprobacionCampo from '@/components/AprobacionCampo.vue';
+import ComentariosHistorial from '@/components/candidaturas/ComentariosHistorial.vue';
 import FileFieldDisplay from '@/components/display/FileFieldDisplay.vue';
 import RepeaterFieldDisplay from '@/components/display/RepeaterFieldDisplay.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
-import { Head, useForm, router } from '@inertiajs/vue3';
-import { ArrowLeft, CheckCircle, Clock, User, XCircle, MessageSquare, AlertTriangle, Undo2, CheckSquare, XSquare } from 'lucide-vue-next';
-import { ref, computed, reactive } from 'vue';
+import { Head, useForm, router, usePage } from '@inertiajs/vue3';
+import { ArrowLeft, CheckCircle, Clock, User, XCircle, MessageSquare, AlertTriangle, Undo2, CheckSquare, XSquare, Plus, History, CheckCircle2, Loader2 } from 'lucide-vue-next';
+import { ref, computed, reactive, Transition } from 'vue';
+import axios from 'axios';
 
 interface Usuario {
     id: number;
@@ -59,15 +63,39 @@ interface ResumenAprobaciones {
     porcentaje_aprobado: number;
 }
 
+interface Comentario {
+    id: number;
+    comentario: string;
+    tipo: string;
+    tipo_label: string;
+    tipo_color: string;
+    tipo_icon: string;
+    version_candidatura: number;
+    enviado_por_email: boolean;
+    created_by?: {
+        id: number;
+        name: string;
+        email: string;
+    };
+    fecha: string;
+    fecha_formateada: string;
+    fecha_relativa: string;
+}
+
 interface Props {
     candidatura: Candidatura;
     configuracion_campos: FormField[];
     campo_aprobaciones?: Record<string, CampoAprobacion>;
     resumen_aprobaciones?: ResumenAprobaciones;
     puede_aprobar_campos?: boolean;
+    comentarios?: Comentario[];
 }
 
 const props = defineProps<Props>();
+
+// Obtener usuario actual
+const page = usePage<any>();
+const currentUser = page.props.auth?.user || null;
 
 // Estado reactivo para las aprobaciones
 const campoAprobaciones = reactive<Record<string, CampoAprobacion>>(
@@ -108,6 +136,20 @@ const revertForm = useForm({
     motivo: '',
 });
 
+// Estado para comentarios
+const showComentarioForm = ref(false);
+const comentariosReactivos = ref<Comentario[]>(props.comentarios || []);
+const mostrarHistorialComentarios = ref(false);
+const guardandoComentario = ref(false);
+const mensajeExito = ref('');
+
+// Formulario para nuevo comentario
+const comentarioForm = useForm({
+    comentario: '',
+    tipo: 'general',
+    enviar_email: false,
+});
+
 // Computadas
 const canApprove = computed(() => {
     return props.candidatura.estado === 'pendiente' && !empty(props.candidatura.formulario_data);
@@ -131,6 +173,18 @@ const aprobar = () => {
     approvalForm.post(`/admin/candidaturas/${props.candidatura.id}/aprobar`, {
         onSuccess: () => {
             showApprovalForm.value = false;
+            
+            // Agregar comentario de aprobación al historial reactivo
+            if (approvalForm.comentarios) {
+                const nuevoComentario = crearComentarioReactivo(approvalForm.comentarios, 'aprobacion');
+                comentariosReactivos.value.unshift(nuevoComentario);
+                
+                // Actualizar el comentario actual mostrado
+                props.candidatura.comentarios_admin = approvalForm.comentarios;
+                
+                // Mostrar historial automáticamente
+                mostrarHistorialComentarios.value = true;
+            }
         }
     });
 };
@@ -143,6 +197,16 @@ const rechazar = () => {
     rejectionForm.post(`/admin/candidaturas/${props.candidatura.id}/rechazar`, {
         onSuccess: () => {
             showRejectionForm.value = false;
+            
+            // Agregar comentario de rechazo al historial reactivo
+            const nuevoComentario = crearComentarioReactivo(rejectionForm.comentarios, 'rechazo');
+            comentariosReactivos.value.unshift(nuevoComentario);
+            
+            // Actualizar el comentario actual mostrado
+            props.candidatura.comentarios_admin = rejectionForm.comentarios;
+            
+            // Mostrar historial automáticamente
+            mostrarHistorialComentarios.value = true;
         }
     });
 };
@@ -161,6 +225,18 @@ const volverABorrador = () => {
     revertForm.post(`/admin/candidaturas/${props.candidatura.id}/volver-borrador`, {
         onSuccess: () => {
             showRevertForm.value = false;
+            
+            // Agregar comentario de vuelta a borrador al historial reactivo
+            if (revertForm.motivo) {
+                const nuevoComentario = crearComentarioReactivo(revertForm.motivo, 'borrador');
+                comentariosReactivos.value.unshift(nuevoComentario);
+                
+                // Actualizar el comentario actual mostrado
+                props.candidatura.comentarios_admin = revertForm.motivo;
+                
+                // Mostrar historial automáticamente
+                mostrarHistorialComentarios.value = true;
+            }
         }
     });
 };
@@ -168,6 +244,122 @@ const volverABorrador = () => {
 const cancelRevert = () => {
     revertForm.reset();
     showRevertForm.value = false;
+};
+
+// Helper para crear objeto de comentario reactivo
+const crearComentarioReactivo = (comentario: string, tipo: string): Comentario => {
+    const now = new Date();
+    const tipoLabels: Record<string, string> = {
+        'general': 'Comentario General',
+        'aprobacion': 'Aprobación',
+        'rechazo': 'Rechazo',
+        'borrador': 'Vuelta a Borrador',
+        'nota_admin': 'Nota Administrativa',
+    };
+    
+    const tipoColors: Record<string, string> = {
+        'general': 'bg-blue-100 text-blue-800',
+        'aprobacion': 'bg-green-100 text-green-800',
+        'rechazo': 'bg-red-100 text-red-800',
+        'borrador': 'bg-yellow-100 text-yellow-800',
+        'nota_admin': 'bg-gray-100 text-gray-800',
+    };
+    
+    const tipoIcons: Record<string, string> = {
+        'general': 'message-circle',
+        'aprobacion': 'check-circle',
+        'rechazo': 'x-circle',
+        'borrador': 'rotate-ccw',
+        'nota_admin': 'sticky-note',
+    };
+    
+    return {
+        id: Date.now(), // ID temporal
+        comentario: comentario,
+        tipo: tipo,
+        tipo_label: tipoLabels[tipo] || 'Desconocido',
+        tipo_color: tipoColors[tipo] || 'bg-gray-100 text-gray-800',
+        tipo_icon: tipoIcons[tipo] || 'message-square',
+        version_candidatura: props.candidatura.version,
+        enviado_por_email: true,
+        created_by: currentUser ? {
+            id: currentUser.id,
+            name: currentUser.name,
+            email: currentUser.email,
+        } : undefined,
+        fecha: now.toISOString(),
+        fecha_formateada: now.toLocaleDateString('es-ES') + ' ' + now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
+        fecha_relativa: 'hace unos segundos',
+    };
+};
+
+// Métodos para comentarios
+const agregarComentario = async () => {
+    if (!comentarioForm.comentario.trim()) {
+        return;
+    }
+
+    guardandoComentario.value = true;
+    
+    try {
+        const response = await axios.post(`/admin/candidaturas/${props.candidatura.id}/comentarios`, {
+            comentario: comentarioForm.comentario,
+            tipo: comentarioForm.tipo,
+            enviar_email: comentarioForm.enviar_email,
+        });
+
+        if (response.data.success) {
+            // Agregar el nuevo comentario al inicio de la lista
+            comentariosReactivos.value.unshift(response.data.comentario);
+            
+            // Actualizar el comentario actual mostrado en el card principal
+            props.candidatura.comentarios_admin = response.data.comentario.comentario;
+            
+            // Limpiar formulario y cerrar modal
+            comentarioForm.reset();
+            showComentarioForm.value = false;
+            
+            // Mostrar automáticamente el historial de comentarios
+            mostrarHistorialComentarios.value = true;
+            
+            // Mostrar mensaje de éxito
+            mensajeExito.value = response.data.message || 'Comentario agregado exitosamente';
+            setTimeout(() => {
+                mensajeExito.value = '';
+            }, 5000);
+            
+            // Scroll suave al historial de comentarios
+            setTimeout(() => {
+                const historialElement = document.querySelector('#historial-comentarios');
+                if (historialElement) {
+                    historialElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
+            }, 100);
+        }
+    } catch (error) {
+        console.error('Error al agregar comentario:', error);
+        // Aquí podrías mostrar un mensaje de error si tienes un sistema de notificaciones
+    } finally {
+        guardandoComentario.value = false;
+    }
+};
+
+const cancelComentario = () => {
+    comentarioForm.reset();
+    showComentarioForm.value = false;
+};
+
+// Método para abrir el formulario de comentario y hacer scroll
+const abrirFormularioComentario = () => {
+    showComentarioForm.value = true;
+    
+    // Hacer scroll al formulario después de un pequeño delay para que Vue renderice el componente
+    setTimeout(() => {
+        const formularioElement = document.querySelector('#formulario-comentario');
+        if (formularioElement) {
+            formularioElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }, 100);
 };
 
 // Función para obtener valor formateado de un campo
@@ -274,7 +466,7 @@ const formatearFecha = (fecha: string) => {
                             </div>
                         </div>
 
-                        <div v-if="!showApprovalForm && !showRejectionForm && !showRevertForm" class="flex gap-2">
+                        <div v-if="!showApprovalForm && !showRejectionForm && !showRevertForm && !showComentarioForm" class="flex gap-2">
                             <Button
                                 v-if="canApprove"
                                 @click="showApprovalForm = true"
@@ -299,6 +491,14 @@ const formatearFecha = (fecha: string) => {
                             >
                                 <Undo2 class="mr-2 h-4 w-4" />
                                 Volver a Borrador
+                            </Button>
+                            <Button
+                                variant="outline"
+                                @click="abrirFormularioComentario"
+                                class="border-indigo-300 text-indigo-600 hover:bg-indigo-50"
+                            >
+                                <MessageSquare class="mr-2 h-4 w-4" />
+                                Agregar Comentario
                             </Button>
                         </div>
                     </div>
@@ -503,18 +703,131 @@ const formatearFecha = (fecha: string) => {
                 </CardContent>
             </Card>
 
+            <!-- Mensaje de éxito -->
+            <Transition
+                enter-active-class="transition ease-out duration-300"
+                enter-from-class="transform opacity-0 scale-95"
+                enter-to-class="transform opacity-100 scale-100"
+                leave-active-class="transition ease-in duration-200"
+                leave-from-class="transform opacity-100 scale-100"
+                leave-to-class="transform opacity-0 scale-95"
+            >
+                <Alert v-if="mensajeExito" class="border-green-200 bg-green-50 dark:bg-green-950/20">
+                    <CheckCircle2 class="h-4 w-4 text-green-600" />
+                    <AlertDescription class="text-green-800 dark:text-green-200">
+                        {{ mensajeExito }}
+                    </AlertDescription>
+                </Alert>
+            </Transition>
+
             <!-- Comentarios de la Comisión -->
             <Card v-if="candidatura.comentarios_admin" class="border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/20">
                 <CardHeader>
                     <CardTitle class="text-blue-800 dark:text-blue-200 flex items-center gap-2">
                         <MessageSquare class="h-5 w-5" />
-                        Comentarios de la comisión
+                        Comentarios de la comisión (actual)
+                        <Transition
+                            enter-active-class="transition ease-out duration-200"
+                            enter-from-class="transform opacity-0 scale-75"
+                            enter-to-class="transform opacity-100 scale-100"
+                        >
+                            <Badge v-if="comentariosReactivos.length > 1" variant="secondary" :key="comentariosReactivos.length">
+                                +{{ comentariosReactivos.length - 1 }} históricos
+                            </Badge>
+                        </Transition>
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
                     <div class="text-blue-700 dark:text-blue-300 prose prose-sm max-w-none" v-html="candidatura.comentarios_admin"></div>
+                    
+                    <!-- Botón para ver historial -->
+                    <div v-if="comentariosReactivos.length > 0" class="mt-4 pt-4 border-t border-blue-200 dark:border-blue-700">
+                        <Button 
+                            @click="mostrarHistorialComentarios = !mostrarHistorialComentarios"
+                            variant="ghost"
+                            size="sm"
+                            class="text-blue-600 hover:text-blue-700"
+                        >
+                            <History class="h-4 w-4 mr-2" />
+                            {{ mostrarHistorialComentarios ? 'Ocultar' : 'Ver' }} historial de comentarios
+                        </Button>
+                    </div>
                 </CardContent>
             </Card>
+
+            <!-- Formulario para nuevo comentario -->
+            <Card id="formulario-comentario" v-if="showComentarioForm" class="border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-950/20">
+                <CardHeader>
+                    <CardTitle class="text-indigo-800 dark:text-indigo-200 flex items-center gap-2">
+                        <Plus class="h-5 w-5" />
+                        Agregar Comentario
+                    </CardTitle>
+                </CardHeader>
+                <CardContent class="space-y-4">
+                    <div>
+                        <Label for="nuevo_comentario">Comentario *</Label>
+                        <RichTextEditor
+                            v-model="comentarioForm.comentario"
+                            placeholder="Escribe tu comentario aquí..."
+                            :rows="4"
+                        />
+                    </div>
+                    
+                    <div class="flex items-center space-x-3">
+                        <Checkbox 
+                            :id="'enviar-email'" 
+                            v-model:checked="comentarioForm.enviar_email"
+                        />
+                        <Label :for="'enviar-email'" class="cursor-pointer">
+                            Notificar al usuario por correo electrónico
+                        </Label>
+                    </div>
+                    
+                    <div class="flex justify-end gap-2">
+                        <Button 
+                            variant="outline" 
+                            @click="cancelComentario"
+                            :disabled="guardandoComentario"
+                        >
+                            Cancelar
+                        </Button>
+                        <Button 
+                            @click="agregarComentario" 
+                            :disabled="!comentarioForm.comentario.trim() || guardandoComentario"
+                            class="bg-indigo-600 hover:bg-indigo-700"
+                        >
+                            <Loader2 v-if="guardandoComentario" class="mr-2 h-4 w-4 animate-spin" />
+                            {{ guardandoComentario ? 'Guardando...' : 'Guardar comentario' }}
+                        </Button>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <!-- Historial de Comentarios -->
+            <Transition
+                enter-active-class="transition ease-out duration-300"
+                enter-from-class="transform opacity-0 translate-y-4"
+                enter-to-class="transform opacity-100 translate-y-0"
+                leave-active-class="transition ease-in duration-200"
+                leave-from-class="transform opacity-100 translate-y-0"
+                leave-to-class="transform opacity-0 translate-y-4"
+            >
+                <Card id="historial-comentarios" v-if="mostrarHistorialComentarios && comentariosReactivos.length > 0">
+                <CardHeader>
+                    <CardTitle class="flex items-center gap-2">
+                        <History class="h-5 w-5" />
+                        Historial de Comentarios
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <ComentariosHistorial 
+                        :comentarios="comentariosReactivos"
+                        :puede-agregar="true"
+                        @agregar-comentario="abrirFormularioComentario"
+                    />
+                </CardContent>
+                </Card>
+            </Transition>
 
             <!-- Datos del Formulario -->
             <Card>

@@ -368,6 +368,14 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
         ->middleware('permission:candidaturas.approve')
         ->name('candidaturas.volver-borrador');
     
+    // Rutas para comentarios
+    Route::post('candidaturas/{candidatura}/comentarios', [AdminCandidaturaController::class, 'updateComentarios'])
+        ->middleware('permission:candidaturas.approve')
+        ->name('candidaturas.comentarios.store');
+    Route::get('candidaturas/{candidatura}/comentarios', [AdminCandidaturaController::class, 'getComentarios'])
+        ->middleware('permission:candidaturas.view')
+        ->name('candidaturas.comentarios.index');
+    
     // Rutas para aprobación de campos individuales
     Route::post('candidaturas/{candidatura}/campos/{campoId}/aprobar', [AdminCandidaturaController::class, 'aprobarCampo'])
         ->middleware('permission:candidaturas.approve')

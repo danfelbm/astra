@@ -87,6 +87,16 @@ class CandidaturaController extends Controller
                 }
             }
 
+            // Obtener comentario más reciente de la versión actual
+            $comentarioActual = \App\Models\CandidaturaComentario::where('candidatura_id', $candidatura->id)
+                ->where('version_candidatura', $candidatura->version)
+                ->orderBy('created_at', 'desc')
+                ->first();
+            
+            // Contar total de comentarios históricos
+            $totalComentarios = \App\Models\CandidaturaComentario::where('candidatura_id', $candidatura->id)
+                ->count();
+
             return [
                 'id' => $candidatura->id,
                 'usuario' => [
@@ -100,6 +110,13 @@ class CandidaturaController extends Controller
                 'estado_color' => $candidatura->estado_color,
                 'version' => $candidatura->version,
                 'comentarios_admin' => $candidatura->comentarios_admin,
+                'comentario_actual' => $comentarioActual ? [
+                    'comentario' => $comentarioActual->comentario,
+                    'tipo' => $comentarioActual->tipo,
+                    'fecha' => $comentarioActual->created_at->toISOString(),
+                    'fecha_relativa' => $comentarioActual->fecha_relativa,
+                ] : null,
+                'total_comentarios' => $totalComentarios,
                 'aprobado_por' => $candidatura->aprobadoPor ? [
                     'name' => $candidatura->aprobadoPor->name,
                     'email' => $candidatura->aprobadoPor->email,
@@ -272,6 +289,32 @@ class CandidaturaController extends Controller
                 : 0,
         ];
 
+        // Cargar comentarios históricos
+        $comentarios = $candidatura->comentarios()
+            ->with('createdBy:id,name,email')
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($comentario) {
+                return [
+                    'id' => $comentario->id,
+                    'comentario' => $comentario->comentario,
+                    'tipo' => $comentario->tipo,
+                    'tipo_label' => $comentario->tipo_label,
+                    'tipo_color' => $comentario->tipo_color,
+                    'tipo_icon' => $comentario->tipo_icon,
+                    'version_candidatura' => $comentario->version_candidatura,
+                    'enviado_por_email' => $comentario->enviado_por_email,
+                    'created_by' => $comentario->createdBy ? [
+                        'id' => $comentario->createdBy->id,
+                        'name' => $comentario->createdBy->name,
+                        'email' => $comentario->createdBy->email,
+                    ] : null,
+                    'fecha' => $comentario->created_at->toISOString(),
+                    'fecha_formateada' => $comentario->fecha_formateada,
+                    'fecha_relativa' => $comentario->fecha_relativa,
+                ];
+            });
+
         return Inertia::render('Admin/Candidaturas/Show', [
             'candidatura' => [
                 'id' => $candidatura->id,
@@ -294,6 +337,7 @@ class CandidaturaController extends Controller
                 'created_at' => $candidatura->created_at->toISOString(),
                 'updated_at' => $candidatura->updated_at->toISOString(),
             ],
+            'comentarios' => $comentarios,
             'configuracion_campos' => $config ? $config->obtenerCampos() : [],
             'campo_aprobaciones' => $campoAprobaciones->map(function ($aprobacion) {
                 return [
@@ -353,6 +397,86 @@ class CandidaturaController extends Controller
         $candidatura->rechazar(Auth::user(), $request->comentarios);
 
         return back()->with('success', 'Candidatura rechazada. El usuario podrá editarla y reenviarla.');
+    }
+
+    /**
+     * Agregar o actualizar comentario sin cambiar estado
+     */
+    public function updateComentarios(Request $request, Candidatura $candidatura)
+    {
+        // Verificar permisos - usar approve ya que solo admins deberían poder comentar
+        if (!Auth::user()->hasPermission('candidaturas.approve')) {
+            return response()->json(['error' => 'No tienes permisos para agregar comentarios'], 403);
+        }
+
+        $request->validate([
+            'comentario' => 'required|string|max:2000',
+            'tipo' => 'in:general,nota_admin',
+            'enviar_email' => 'boolean',
+        ]);
+
+        $tipo = $request->tipo ?? 'general';
+        $enviarEmail = $request->enviar_email ?? false;
+
+        // Agregar comentario usando el método del modelo
+        $comentario = $candidatura->agregarComentario(
+            $request->comentario,
+            $tipo,
+            $enviarEmail
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => $enviarEmail ? 'Comentario agregado y notificación enviada' : 'Comentario agregado',
+            'comentario' => [
+                'id' => $comentario->id,
+                'comentario' => $comentario->comentario,
+                'tipo' => $comentario->tipo,
+                'tipo_label' => $comentario->tipo_label,
+                'tipo_color' => $comentario->tipo_color,
+                'created_by' => [
+                    'id' => Auth::user()->id,
+                    'name' => Auth::user()->name,
+                    'email' => Auth::user()->email,
+                ],
+                'fecha' => $comentario->created_at->toISOString(),
+                'fecha_formateada' => $comentario->fecha_formateada,
+                'fecha_relativa' => $comentario->fecha_relativa,
+            ]
+        ]);
+    }
+
+    /**
+     * Obtener comentarios históricos de una candidatura
+     */
+    public function getComentarios(Request $request, Candidatura $candidatura)
+    {
+        $comentarios = $candidatura->comentarios()
+            ->with('createdBy:id,name,email')
+            ->orderBy('created_at', 'desc')
+            ->paginate(20)
+            ->through(function ($comentario) {
+                return [
+                    'id' => $comentario->id,
+                    'comentario' => $comentario->comentario,
+                    'tipo' => $comentario->tipo,
+                    'tipo_label' => $comentario->tipo_label,
+                    'tipo_color' => $comentario->tipo_color,
+                    'tipo_icon' => $comentario->tipo_icon,
+                    'version_candidatura' => $comentario->version_candidatura,
+                    'enviado_por_email' => $comentario->enviado_por_email,
+                    'created_by' => $comentario->createdBy ? [
+                        'id' => $comentario->createdBy->id,
+                        'name' => $comentario->createdBy->name,
+                        'email' => $comentario->createdBy->email,
+                    ] : null,
+                    'fecha' => $comentario->created_at->toISOString(),
+                    'fecha_formateada' => $comentario->fecha_formateada,
+                    'fecha_relativa' => $comentario->fecha_relativa,
+                ];
+            });
+
+        return response()->json($comentarios);
     }
 
     /**
