@@ -14,6 +14,8 @@ import AdvancedFilters from '@/components/filters/AdvancedFilters.vue';
 import Pagination from '@/components/ui/pagination/Pagination.vue';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { ExternalLink } from 'lucide-vue-next';
 import type { AdvancedFilterConfig } from '@/types/filters';
 import { ref, watch } from 'vue';
 import { stripHtml } from '@/utils/htmlHelpers';
@@ -351,8 +353,8 @@ const enviarRecordatorios = async () => {
                     </p>
                 </div>
                 <div class="flex gap-3 items-center">
-                    <!-- Dropdown de filtro rápido por estado -->
-                    <Select v-model="estadoFiltroRapido" @update:model-value="aplicarFiltroEstado">
+                    <!-- Dropdown de filtro rápido por estado (TEMPORALMENTE OCULTO) -->
+                    <!-- <Select v-model="estadoFiltroRapido" @update:model-value="aplicarFiltroEstado">
                         <SelectTrigger class="w-[180px]">
                             <div class="flex items-center gap-2">
                                 <Filter class="h-4 w-4" />
@@ -386,7 +388,7 @@ const enviarRecordatorios = async () => {
                                 </div>
                             </SelectItem>
                         </SelectContent>
-                    </Select>
+                    </Select> -->
                     
                     <!-- Separador vertical -->
                     <div class="h-8 w-px bg-border" />
@@ -506,12 +508,26 @@ const enviarRecordatorios = async () => {
                                         <span v-else class="text-sm text-muted-foreground">-</span>
                                     </TableCell>
                                     <TableCell class="text-right">
-                                        <Link :href="`/admin/candidaturas/${candidatura.id}`">
-                                            <Button variant="outline" size="sm">
-                                                <Eye class="mr-2 h-4 w-4" />
-                                                Ver candidatura
-                                            </Button>
-                                        </Link>
+                                        <TooltipProvider>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <a 
+                                                        :href="`/admin/candidaturas/${candidatura.id}`" 
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                    >
+                                                        <Button variant="outline" size="sm">
+                                                            <Eye class="mr-2 h-4 w-4" />
+                                                            Ver candidatura
+                                                            <ExternalLink class="ml-1 h-3 w-3" />
+                                                        </Button>
+                                                    </a>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <p>Abrir en nueva ventana</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
                                     </TableCell>
                                 </TableRow>
                             </TableBody>
