@@ -69,6 +69,13 @@ interface Props {
 const props = defineProps<Props>();
 const { route } = window as any;
 
+// Computed para los filtros iniciales del componente AdvancedFilters
+// Esto asegura que sea reactivo cuando cambien los props
+const initialFiltersForAdvanced = computed(() => ({
+    quickSearch: props.filters.search || '',
+    rootGroup: props.filters.advanced_filters ? JSON.parse(props.filters.advanced_filters) : undefined
+}));
+
 const breadcrumbs: BreadcrumbItemType[] = [
     { title: 'Admin', href: '/admin/dashboard' },
     { title: 'Usuarios', href: '/admin/usuarios' },
@@ -170,10 +177,7 @@ const changePage = (page: number) => {
             <AdvancedFilters
                 :config="filterConfig"
                 :route="route('admin.usuarios.index')"
-                :initial-filters="{
-                    quickSearch: filters.search,
-                    rootGroup: filters.advanced_filters ? JSON.parse(filters.advanced_filters) : undefined
-                }"
+                :initial-filters="initialFiltersForAdvanced"
             />
 
             <!-- Table -->

@@ -11,7 +11,7 @@ import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { Calendar, Clock, Eye, MapPin, Megaphone, Pencil, Plus, Trash2, Users } from 'lucide-vue-next';
 import AdvancedFilters from '@/components/filters/AdvancedFilters.vue';
 import type { AdvancedFilterConfig } from '@/types/filters';
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
 
 interface Cargo {
     id: number;
@@ -110,6 +110,13 @@ const filterConfig: AdvancedFilterConfig = {
 // Helper para obtener route
 const { route } = window as any;
 
+// Computed para los filtros iniciales del componente AdvancedFilters
+// Esto asegura que sea reactivo cuando cambien los props
+const initialFiltersForAdvanced = computed(() => ({
+    quickSearch: props.filters.search || '',
+    rootGroup: props.filters.advanced_filters ? JSON.parse(props.filters.advanced_filters) : undefined
+}));
+
 // Código de estadísticas removido - se moverá a un dashboard unificado
 
 // Función para eliminar convocatoria
@@ -160,10 +167,7 @@ const formatearFecha = (fecha: string) => {
             <AdvancedFilters
                 :config="filterConfig"
                 :route="route('admin.convocatorias.index')"
-                :initial-filters="{
-                    quickSearch: filters.search,
-                    rootGroup: filters.advanced_filters ? JSON.parse(filters.advanced_filters) : undefined
-                }"
+                :initial-filters="initialFiltersForAdvanced"
             />
 
             <!-- Lista de Convocatorias -->

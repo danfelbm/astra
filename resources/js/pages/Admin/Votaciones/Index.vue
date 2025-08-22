@@ -103,6 +103,13 @@ const verResultados = (votacionId: number) => {
 // Helper para obtener route
 const { route } = window as any;
 
+// Computed para los filtros iniciales del componente AdvancedFilters
+// Esto asegura que sea reactivo cuando cambien los props
+const initialFiltersForAdvanced = computed(() => ({
+    quickSearch: filters.search,
+    rootGroup: filters.advanced_filters ? JSON.parse(filters.advanced_filters) : undefined
+}));
+
 // Eliminar votación
 const deleteVotacion = (id: number) => {
     router.delete(`/admin/votaciones/${id}`, {
@@ -196,10 +203,7 @@ const formatDate = (dateString: string) => {
             <AdvancedFilters
                 :config="filterConfig"
                 :route="route('admin.votaciones.index')"
-                :initial-filters="{
-                    quickSearch: filters.search,
-                    rootGroup: filters.advanced_filters ? JSON.parse(filters.advanced_filters) : undefined
-                }"
+                :initial-filters="initialFiltersForAdvanced"
             />
 
             <!-- Tabla de Votaciones -->
