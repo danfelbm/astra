@@ -166,7 +166,7 @@
         <div class="warning">
             <p class="warning-text">
                 <strong>Importante:</strong> Una vez que completes y envíes tu candidatura, nuestro equipo la revisará y te notificaremos sobre su estado. 
-                Solo podrás enviar tu Candidatura hasta el <b>21 de agosto</b> a media noche. Si tienes dudas escribe a <b>soporte@colombiahumana.co</b>
+                Si tienes dudas escribe a <b>soporte@colombiahumana.co</b>
             </p>
         </div>
 

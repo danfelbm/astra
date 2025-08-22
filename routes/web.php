@@ -29,7 +29,23 @@ use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
 Route::get('/', function () {
-    return Inertia::render('Welcome');
+    $user = auth()->user();
+    $redirectRoute = 'dashboard'; // Valor por defecto
+    
+    if ($user) {
+        // Obtener el primer rol del usuario
+        $userRole = $user->roles()->first();
+        
+        if ($userRole && method_exists($userRole, 'getRedirectRoute')) {
+            $redirectRoute = $userRole->getRedirectRoute();
+        } elseif ($user->isAdmin() || $user->isSuperAdmin()) {
+            $redirectRoute = 'admin.dashboard';
+        }
+    }
+    
+    return Inertia::render('Welcome', [
+        'redirectRoute' => $redirectRoute
+    ]);
 })->name('home');
 
 // Public token verification routes (no authentication required)
@@ -343,6 +359,12 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
         ->middleware('permission:convocatorias.view')
         ->name('convocatorias.por-estado');
     
+    // Dashboard de Candidaturas
+    Route::get('candidaturas-dashboard', function () {
+        return Inertia::render('Admin/CandidaturasDashboard');
+    })->middleware('permission:candidaturas.view')
+      ->name('candidaturas.dashboard');
+
     // Candidaturas admin routes - Rutas específicas ANTES del resource
     Route::get('candidaturas/configuracion', [AdminCandidaturaController::class, 'configuracion'])
         ->middleware('permission:candidaturas.configuracion')

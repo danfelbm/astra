@@ -11,8 +11,9 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Switch } from '@/components/ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ref, computed, watch } from 'vue';
-import { ArrowLeft, Save, Shield, Users, Target, Lock } from 'lucide-vue-next';
+import { ArrowLeft, Save, Shield, Users, Target, Lock, Home } from 'lucide-vue-next';
 import InputError from '@/components/InputError.vue';
 import type { BreadcrumbItem } from '@/types';
 
@@ -58,9 +59,36 @@ const form = useForm({
     display_name: '',
     description: '',
     is_administrative: true,
+    redirect_after_login: '' as string,
     permissions: [] as string[],
     allowed_modules: [] as string[],
     segment_ids: [] as number[],
+});
+
+// Opciones de redirección disponibles
+const redirectOptions = [
+    { value: '', label: 'Por defecto (según tipo de rol)' },
+    { value: 'admin.dashboard', label: 'Dashboard Administrativo', group: 'admin' },
+    { value: 'admin.candidaturas.dashboard', label: 'Dashboard Candidaturas', group: 'admin' },
+    { value: 'dashboard', label: 'Dashboard Usuario', group: 'user' },
+    { value: 'votaciones.index', label: 'Votaciones', group: 'user' },
+    { value: 'asambleas.index', label: 'Asambleas', group: 'user' },
+    { value: 'formularios.index', label: 'Formularios', group: 'user' },
+    { value: 'postulaciones.index', label: 'Postulaciones', group: 'user' },
+    { value: 'admin.otp-dashboard', label: 'Dashboard OTP', group: 'admin' },
+    { value: 'admin.configuracion.index', label: 'Configuración', group: 'admin' },
+    { value: 'admin.users.index', label: 'Usuarios', group: 'admin' },
+    { value: 'admin.roles.index', label: 'Roles y Permisos', group: 'admin' },
+    { value: 'admin.candidaturas.index', label: 'Candidaturas (Lista)', group: 'admin' },
+];
+
+// Computed para filtrar opciones según el tipo de rol
+const availableRedirectOptions = computed(() => {
+    if (form.is_administrative) {
+        return redirectOptions;
+    }
+    // Para roles no administrativos, no mostrar rutas admin
+    return redirectOptions.filter(opt => opt.group !== 'admin' || opt.value === '');
 });
 
 const selectAllInGroup = ref<Record<string, boolean>>({});
@@ -286,6 +314,32 @@ const getPermissionCount = computed(() => {
                                         />
                                     </div>
                                     <InputError :message="form.errors.is_administrative" />
+                                </div>
+
+                                <div class="space-y-2">
+                                    <Label htmlFor="redirect_after_login">
+                                        <Home class="inline-block h-4 w-4 mr-1" />
+                                        Página de Inicio Después del Login
+                                    </Label>
+                                    <Select v-model="form.redirect_after_login">
+                                        <SelectTrigger id="redirect_after_login">
+                                            <SelectValue placeholder="Seleccione la página de destino" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem 
+                                                v-for="option in availableRedirectOptions" 
+                                                :key="option.value"
+                                                :value="option.value"
+                                            >
+                                                {{ option.label }}
+                                            </SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    <p class="text-xs text-muted-foreground">
+                                        Define a qué página se redirigirá al usuario después de autenticarse.
+                                        Si no se especifica, usará el comportamiento por defecto.
+                                    </p>
+                                    <InputError :message="form.errors.redirect_after_login" />
                                 </div>
                             </CardContent>
                         </Card>

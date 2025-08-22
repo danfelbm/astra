@@ -117,6 +117,7 @@ class RoleController extends Controller
             'display_name' => 'required|string|max:255',
             'description' => 'nullable|string',
             'is_administrative' => 'nullable|boolean',
+            'redirect_after_login' => 'nullable|string|max:255',
             'permissions' => 'array',
             'permissions.*' => 'string',
             'allowed_modules' => 'array',
@@ -139,6 +140,7 @@ class RoleController extends Controller
             'display_name' => $validated['display_name'],
             'description' => $validated['description'] ?? null,
             'is_administrative' => $validated['is_administrative'] ?? false,
+            'redirect_after_login' => $validated['redirect_after_login'] ?? null,
             'permissions' => $validated['permissions'] ?? [],
             'allowed_modules' => $validated['allowed_modules'] ?? [],
         ]);
@@ -213,6 +215,7 @@ class RoleController extends Controller
             'display_name' => 'required|string|max:255',
             'description' => 'nullable|string',
             'is_administrative' => 'nullable|boolean',
+            'redirect_after_login' => 'nullable|string|max:255',
             'permissions' => 'array',
             'permissions.*' => 'string',
             'allowed_modules' => 'array',
@@ -226,6 +229,7 @@ class RoleController extends Controller
             'display_name' => $validated['display_name'],
             'description' => $validated['description'] ?? null,
             'is_administrative' => $validated['is_administrative'] ?? false,
+            'redirect_after_login' => $validated['redirect_after_login'] ?? null,
             'permissions' => $validated['permissions'] ?? [],
             'allowed_modules' => $validated['allowed_modules'] ?? [],
         ]);
