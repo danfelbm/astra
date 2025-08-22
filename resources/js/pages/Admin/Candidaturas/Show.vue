@@ -16,7 +16,7 @@ import FileFieldDisplay from '@/components/display/FileFieldDisplay.vue';
 import RepeaterFieldDisplay from '@/components/display/RepeaterFieldDisplay.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Head, useForm, router, usePage } from '@inertiajs/vue3';
-import { ArrowLeft, CheckCircle, Clock, User, XCircle, MessageSquare, AlertTriangle, Undo2, CheckSquare, XSquare, Plus, History, CheckCircle2, Loader2 } from 'lucide-vue-next';
+import { ArrowLeft, CheckCircle, Clock, User, XCircle, MessageSquare, AlertTriangle, Undo2, CheckSquare, XSquare, Plus, History, CheckCircle2, Loader2, Wrench, ToggleLeft, ToggleRight } from 'lucide-vue-next';
 import { ref, computed, reactive, Transition } from 'vue';
 import axios from 'axios';
 
@@ -39,6 +39,7 @@ interface Candidatura {
     fecha_aprobacion?: string;
     created_at: string;
     updated_at: string;
+    subsanar: boolean;
 }
 
 interface CampoAprobacion {
@@ -122,6 +123,11 @@ const breadcrumbs: BreadcrumbItemType[] = [
 const showApprovalForm = ref(false);
 const showRejectionForm = ref(false);
 const showRevertForm = ref(false);
+
+// Estado para subsanación
+const subsanarEstado = ref(props.candidatura.subsanar);
+const toggleLoading = ref(false);
+const toggleMessage = ref('');
 
 // Formularios
 const approvalForm = useForm({
@@ -226,6 +232,9 @@ const volverABorrador = () => {
         onSuccess: () => {
             showRevertForm.value = false;
             
+            // Actualizar automáticamente el estado de subsanar a true
+            subsanarEstado.value = true;
+            
             // Agregar comentario de vuelta a borrador al historial reactivo
             if (revertForm.motivo) {
                 const nuevoComentario = crearComentarioReactivo(revertForm.motivo, 'borrador');
@@ -237,6 +246,12 @@ const volverABorrador = () => {
                 // Mostrar historial automáticamente
                 mostrarHistorialComentarios.value = true;
             }
+            
+            // Mostrar mensaje de subsanación habilitada
+            toggleMessage.value = 'Candidatura devuelta a borrador con subsanación habilitada';
+            setTimeout(() => {
+                toggleMessage.value = '';
+            }, 3000);
         }
     });
 };
@@ -347,6 +362,40 @@ const agregarComentario = async () => {
 const cancelComentario = () => {
     comentarioForm.reset();
     showComentarioForm.value = false;
+};
+
+// Función para toggle de subsanar
+const toggleSubsanar = async () => {
+    toggleLoading.value = true;
+    toggleMessage.value = '';
+    
+    try {
+        const response = await axios.post(`/admin/candidaturas/${props.candidatura.id}/toggle-subsanar`);
+        
+        if (response.data.success) {
+            subsanarEstado.value = response.data.subsanar;
+            toggleMessage.value = response.data.message;
+            
+            // Agregar comentario al historial reactivo
+            const mensaje = response.data.subsanar 
+                ? 'Se habilitó la subsanación para esta candidatura' 
+                : 'Se deshabilitó la subsanación para esta candidatura';
+            const nuevoComentario = crearComentarioReactivo(mensaje, 'nota_admin');
+            comentariosReactivos.value.unshift(nuevoComentario);
+            
+            setTimeout(() => {
+                toggleMessage.value = '';
+            }, 3000);
+        }
+    } catch (error) {
+        console.error('Error al cambiar estado de subsanación:', error);
+        toggleMessage.value = 'Error al cambiar el estado de subsanación';
+        setTimeout(() => {
+            toggleMessage.value = '';
+        }, 3000);
+    } finally {
+        toggleLoading.value = false;
+    }
 };
 
 // Método para abrir el formulario de comentario y hacer scroll
@@ -492,6 +541,19 @@ const formatearFecha = (fecha: string) => {
                                 <Undo2 class="mr-2 h-4 w-4" />
                                 Volver a Borrador
                             </Button>
+                            
+                            <!-- Toggle de Subsanación -->
+                            <Button
+                                @click="toggleSubsanar"
+                                :disabled="toggleLoading"
+                                :variant="subsanarEstado ? 'default' : 'outline'"
+                                :class="subsanarEstado ? 'bg-blue-600 hover:bg-blue-700' : 'border-gray-300 text-gray-700 hover:bg-gray-50'"
+                            >
+                                <Loader2 v-if="toggleLoading" class="mr-2 h-4 w-4 animate-spin" />
+                                <component v-else :is="subsanarEstado ? ToggleRight : ToggleLeft" class="mr-2 h-4 w-4" />
+                                {{ subsanarEstado ? 'Subsanación Habilitada' : 'Habilitar Subsanación' }}
+                            </Button>
+                            
                             <Button
                                 variant="outline"
                                 @click="abrirFormularioComentario"
@@ -716,6 +778,23 @@ const formatearFecha = (fecha: string) => {
                     <CheckCircle2 class="h-4 w-4 text-green-600" />
                     <AlertDescription class="text-green-800 dark:text-green-200">
                         {{ mensajeExito }}
+                    </AlertDescription>
+                </Alert>
+            </Transition>
+
+            <!-- Mensaje de toggle subsanación -->
+            <Transition
+                enter-active-class="transition ease-out duration-300"
+                enter-from-class="transform opacity-0 scale-95"
+                enter-to-class="transform opacity-100 scale-100"
+                leave-active-class="transition ease-in duration-200"
+                leave-from-class="transform opacity-100 scale-100"
+                leave-to-class="transform opacity-0 scale-95"
+            >
+                <Alert v-if="toggleMessage" class="border-blue-200 bg-blue-50 dark:bg-blue-950/20">
+                    <Wrench class="h-4 w-4 text-blue-600" />
+                    <AlertDescription class="text-blue-800 dark:text-blue-200">
+                        {{ toggleMessage }}
                     </AlertDescription>
                 </Alert>
             </Transition>

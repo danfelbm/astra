@@ -6,6 +6,7 @@ use App\Models\Candidatura;
 use App\Models\CandidaturaConfig;
 use App\Models\Convocatoria;
 use App\Models\Postulacion;
+use App\Services\ConfiguracionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -32,11 +33,25 @@ class CandidaturaController extends Controller
             ]);
         }
 
+        // Obtener configuración de bloqueo
+        $configuracionBloqueo = ConfiguracionService::obtenerConfiguracionCandidaturas();
+        $bloqueoActivo = $configuracionBloqueo['bloqueo_activo'];
+
         // Verificar si hay campos editables para candidaturas aprobadas
         $hayEditables = $config->obtenerCampos() ? collect($config->obtenerCampos())->some('editable', true) : false;
-        $puedeEditar = $candidatura ? 
-                      ($candidatura->esBorrador() || $candidatura->esRechazada() || 
-                      ($candidatura->esAprobada() && $hayEditables)) : false;
+        
+        // Determinar si puede editar considerando el bloqueo
+        $puedeEditar = false;
+        if ($candidatura) {
+            if ($candidatura->esRechazada()) {
+                $puedeEditar = true;
+            } elseif ($candidatura->esAprobada() && $hayEditables) {
+                $puedeEditar = true;
+            } elseif ($candidatura->esBorrador()) {
+                // Para borradores, considerar el bloqueo y la excepción de subsanar
+                $puedeEditar = !$bloqueoActivo || $candidatura->subsanar;
+            }
+        }
 
         // Obtener resumen de aprobaciones si existe candidatura
         $resumenAprobaciones = null;
@@ -68,11 +83,18 @@ class CandidaturaController extends Controller
                 'hay_campos_editables' => $hayEditables,
                 'resumen_aprobaciones' => $resumenAprobaciones,
                 'campos_rechazados' => $camposRechazados,
+                'subsanar' => $candidatura->subsanar,
             ] : null,
             'configuracion' => [
                 'disponible' => true,
                 'resumen' => $config->resumen,
                 'version' => $config->version,
+            ],
+            'bloqueo' => [
+                'activo' => $bloqueoActivo,
+                'titulo' => $configuracionBloqueo['bloqueo_titulo'],
+                'mensaje' => $configuracionBloqueo['bloqueo_mensaje'],
+                'puede_crear' => !$bloqueoActivo, // No puede crear si hay bloqueo
             ],
         ]);
     }
@@ -83,6 +105,17 @@ class CandidaturaController extends Controller
     public function create()
     {
         $usuario = Auth::user();
+        
+        // Verificar si el bloqueo está activo
+        $configuracionBloqueo = ConfiguracionService::obtenerConfiguracionCandidaturas();
+        if ($configuracionBloqueo['bloqueo_activo']) {
+            // Si hay bloqueo, mostrar mensaje personalizado
+            return Inertia::render('Candidaturas/Bloqueado', [
+                'titulo' => $configuracionBloqueo['bloqueo_titulo'],
+                'mensaje' => $configuracionBloqueo['bloqueo_mensaje'],
+                'tipo' => 'crear',
+            ]);
+        }
         
         // Verificar si ya tiene una candidatura
         $candidaturaExistente = Candidatura::delUsuario($usuario->id)->first();
@@ -300,6 +333,18 @@ class CandidaturaController extends Controller
         if ($candidatura->estaPendiente()) {
             return redirect()->route('candidaturas.index')
                 ->with('error', 'No puedes editar una candidatura que está pendiente de revisión administrativa.');
+        }
+        
+        // Verificar bloqueo para candidaturas en estado BORRADOR
+        $configuracionBloqueo = ConfiguracionService::obtenerConfiguracionCandidaturas();
+        if ($candidatura->esBorrador() && $configuracionBloqueo['bloqueo_activo'] && !$candidatura->subsanar) {
+            // Si es borrador, hay bloqueo activo y NO tiene subsanar=1, mostrar mensaje de bloqueo
+            return Inertia::render('Candidaturas/Bloqueado', [
+                'titulo' => $configuracionBloqueo['bloqueo_titulo'],
+                'mensaje' => $configuracionBloqueo['bloqueo_mensaje'],
+                'tipo' => 'editar',
+                'candidatura_id' => $candidatura->id,
+            ]);
         }
         
         $hayEditables = collect($config->obtenerCampos())->some('editable', true);

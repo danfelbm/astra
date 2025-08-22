@@ -229,4 +229,67 @@ class ConfiguracionService
     {
         Configuracion::limpiarCache();
     }
+
+    /**
+     * Obtener configuración de control de candidaturas
+     */
+    public static function obtenerConfiguracionCandidaturas(): array
+    {
+        return [
+            'bloqueo_activo' => self::obtener('candidaturas.bloqueo_activo', false),
+            'bloqueo_titulo' => self::obtener('candidaturas.bloqueo_titulo', 'Sistema de Candidaturas Temporalmente Cerrado'),
+            'bloqueo_mensaje' => self::obtener('candidaturas.bloqueo_mensaje', 'En este momento no es posible crear o editar candidaturas. Por favor, intente más tarde o contacte al administrador para más información.'),
+        ];
+    }
+
+    /**
+     * Establecer configuración de control de candidaturas
+     */
+    public static function configurarControlCandidaturas(array $datos): bool
+    {
+        $configuraciones = [
+            [
+                'clave' => 'candidaturas.bloqueo_activo',
+                'valor' => $datos['bloqueo_activo'] ?? false,
+                'tipo' => 'boolean',
+                'opciones' => [
+                    'categoria' => 'candidaturas',
+                    'publico' => false,
+                    'descripcion' => 'Bloquear creación y edición de candidaturas en estado borrador',
+                ]
+            ],
+            [
+                'clave' => 'candidaturas.bloqueo_titulo',
+                'valor' => $datos['bloqueo_titulo'] ?? 'Sistema de Candidaturas Temporalmente Cerrado',
+                'tipo' => 'string',
+                'opciones' => [
+                    'categoria' => 'candidaturas',
+                    'publico' => false,
+                    'descripcion' => 'Título del mensaje de bloqueo de candidaturas',
+                    'validacion' => ['required', 'string', 'max:255']
+                ]
+            ],
+            [
+                'clave' => 'candidaturas.bloqueo_mensaje',
+                'valor' => $datos['bloqueo_mensaje'] ?? 'En este momento no es posible crear o editar candidaturas.',
+                'tipo' => 'string',
+                'opciones' => [
+                    'categoria' => 'candidaturas',
+                    'publico' => false,
+                    'descripcion' => 'Mensaje detallado del bloqueo de candidaturas',
+                    'validacion' => ['required', 'string', 'max:1000']
+                ]
+            ]
+        ];
+
+        return self::configurarVarios($configuraciones);
+    }
+
+    /**
+     * Verificar si el bloqueo de candidaturas está activo
+     */
+    public static function bloqueoCandidaturasActivo(): bool
+    {
+        return (bool) self::obtener('candidaturas.bloqueo_activo', false);
+    }
 }

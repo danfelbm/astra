@@ -15,10 +15,12 @@ class ConfiguracionController extends Controller
      */
     public function index(): Response
     {
-        $configuracion = ConfiguracionService::obtenerConfiguracionLogo();
+        $configuracionLogo = ConfiguracionService::obtenerConfiguracionLogo();
+        $configuracionCandidaturas = ConfiguracionService::obtenerConfiguracionCandidaturas();
 
         return Inertia::render('Admin/Configuracion', [
-            'configuracion' => $configuracion,
+            'configuracion' => $configuracionLogo,
+            'configuracionCandidaturas' => $configuracionCandidaturas,
         ]);
     }
 
@@ -60,5 +62,26 @@ class ConfiguracionController extends Controller
         ConfiguracionService::configurarLogo($datos);
 
         return back()->with('success', 'Configuración actualizada correctamente.');
+    }
+
+    /**
+     * Actualizar configuración de control de candidaturas
+     */
+    public function updateCandidaturas(Request $request)
+    {
+        $request->validate([
+            'bloqueo_activo' => 'required|boolean',
+            'bloqueo_titulo' => 'required|string|max:255',
+            'bloqueo_mensaje' => 'required|string|max:1000',
+        ]);
+
+        // Guardar configuración de candidaturas
+        ConfiguracionService::configurarControlCandidaturas([
+            'bloqueo_activo' => $request->bloqueo_activo,
+            'bloqueo_titulo' => $request->bloqueo_titulo,
+            'bloqueo_mensaje' => $request->bloqueo_mensaje,
+        ]);
+
+        return back()->with('success', 'Configuración de candidaturas actualizada correctamente.');
     }
 }

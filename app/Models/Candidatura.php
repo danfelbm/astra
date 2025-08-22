@@ -31,6 +31,7 @@ class Candidatura extends Model
         'aprobado_at',
         'version',
         'ultimo_autoguardado',
+        'subsanar',
     ];
 
     protected $casts = [
@@ -38,6 +39,7 @@ class Candidatura extends Model
         'aprobado_at' => 'datetime',
         'ultimo_autoguardado' => 'datetime',
         'version' => 'integer',
+        'subsanar' => 'boolean',
     ];
 
     protected $attributes = [
@@ -124,6 +126,30 @@ class Candidatura extends Model
         return $this->estado === self::ESTADO_PENDIENTE;
     }
 
+    /**
+     * Verifica si la candidatura puede ser editada considerando el bloqueo global
+     * 
+     * @param bool $bloqueoActivo Si el bloqueo global está activo
+     * @return bool
+     */
+    public function puedeEditarConBloqueo(bool $bloqueoActivo = false): bool
+    {
+        // Si está pendiente, nunca se puede editar
+        if ($this->estaPendiente()) {
+            return false;
+        }
+
+        // Si es borrador y hay bloqueo activo
+        if ($this->esBorrador() && $bloqueoActivo) {
+            // Solo permitir si tiene la marca de subsanar
+            return $this->subsanar === true;
+        }
+
+        // Para otros estados, aplicar reglas normales
+        // (borrador sin bloqueo, rechazado, o aprobado con campos editables)
+        return true;
+    }
+
     // Métodos de acción
     public function aprobar(User $admin, ?string $comentarios = null): bool
     {
@@ -182,6 +208,7 @@ class Candidatura extends Model
             'aprobado_por' => null,
             'aprobado_at' => null,
             'comentarios_admin' => $motivo,
+            'subsanar' => true, // Automáticamente habilitar subsanación al volver a borrador
         ]);
 
         // Crear registro en histórico de comentarios
