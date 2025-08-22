@@ -10,7 +10,12 @@ use App\Models\CandidaturaConfig;
 use App\Models\CandidaturaCampoAprobacion;
 use App\Models\Convocatoria;
 use App\Models\User;
+use App\Models\Territorio;
+use App\Models\Departamento;
+use App\Models\Municipio;
+use App\Models\Localidad;
 use App\Traits\HasAdvancedFilters;
+use App\Traits\HasSegmentScope;
 use App\Traits\AuthorizesActions;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -20,7 +25,7 @@ use Inertia\Inertia;
 
 class CandidaturaController extends Controller
 {
-    use HasAdvancedFilters, AuthorizesActions;
+    use HasAdvancedFilters, HasSegmentScope, AuthorizesActions;
     /**
      * Lista de candidaturas para revisión
      */
@@ -31,15 +36,23 @@ class CandidaturaController extends Controller
             ->select('candidaturas.*')
             ->latest('candidaturas.created_at');
 
+        // Aplicar scope del segmento si el usuario tiene un rol con segmento
+        // Esto filtrará las candidaturas basándose en los criterios del segmento
+        $segmentInfo = $this->applySegmentScope($query, 'users');
+
         // Obtener campo de convocatoria dinámicamente
         $convocatoriaFieldId = $this->getConvocatoriaFieldId();
         
-        // Definir campos permitidos para filtrar
+        // Definir campos permitidos para filtrar - EXPANDIDO con campos de ubicación
         $allowedFields = [
             'candidaturas.user_id', 'candidaturas.estado', 'candidaturas.version', 
             'candidaturas.aprobado_por', 'candidaturas.aprobado_at',
             'candidaturas.created_at', 'candidaturas.updated_at',
-            'users.name', 'users.email', 'users.documento_identidad', 'candidaturas.comentarios_admin'
+            'users.name', 'users.email', 'users.documento_identidad', 'candidaturas.comentarios_admin',
+            // Campos de ubicación del usuario
+            'users.territorio_id', 'users.departamento_id', 
+            'users.municipio_id', 'users.localidad_id',
+            'users.activo', 'users.es_miembro'
         ];
         
         // Añadir campo de convocatoria si existe
@@ -50,7 +63,7 @@ class CandidaturaController extends Controller
         // Campos para búsqueda rápida
         $quickSearchFields = ['users.name', 'users.email', 'users.documento_identidad', 'candidaturas.comentarios_admin'];
 
-        // Aplicar filtros avanzados
+        // Aplicar filtros avanzados (estos se aplicarán DESPUÉS del segmento)
         $this->applyAdvancedFilters($query, $request, $allowedFields, $quickSearchFields);
         
         // Mantener compatibilidad con filtros simples existentes
@@ -137,6 +150,7 @@ class CandidaturaController extends Controller
             'candidaturas' => $candidaturas,
             'filters' => $request->only(['estado', 'search', 'advanced_filters']),
             'filterFieldsConfig' => $this->getFilterFieldsConfig(),
+            'segmentInfo' => $segmentInfo, // Información del segmento aplicado
         ]);
     }
     
@@ -243,6 +257,77 @@ class CandidaturaController extends Controller
                 'options' => $convocatorias->toArray(),
             ];
         }
+        
+        // Añadir campos de ubicación del usuario
+        // Cargar opciones de ubicación
+        $territorios = Territorio::select('id', 'nombre')
+            ->orderBy('nombre')
+            ->get()
+            ->map(fn($t) => ['value' => $t->id, 'label' => $t->nombre]);
+            
+        $departamentos = Departamento::select('id', 'nombre')
+            ->orderBy('nombre')
+            ->get()
+            ->map(fn($d) => ['value' => $d->id, 'label' => $d->nombre]);
+            
+        $municipios = Municipio::select('id', 'nombre')
+            ->orderBy('nombre')
+            ->get()
+            ->map(fn($m) => ['value' => $m->id, 'label' => $m->nombre]);
+            
+        $localidades = Localidad::select('id', 'nombre')
+            ->orderBy('nombre')
+            ->get()
+            ->map(fn($l) => ['value' => $l->id, 'label' => $l->nombre]);
+        
+        // Añadir campos de ubicación
+        $fields[] = [
+            'name' => 'users.territorio_id',
+            'label' => 'Territorio',
+            'type' => 'select',
+            'options' => $territorios->toArray(),
+        ];
+        
+        $fields[] = [
+            'name' => 'users.departamento_id',
+            'label' => 'Departamento',
+            'type' => 'select',
+            'options' => $departamentos->toArray(),
+        ];
+        
+        $fields[] = [
+            'name' => 'users.municipio_id',
+            'label' => 'Municipio',
+            'type' => 'select',
+            'options' => $municipios->toArray(),
+        ];
+        
+        $fields[] = [
+            'name' => 'users.localidad_id',
+            'label' => 'Localidad',
+            'type' => 'select',
+            'options' => $localidades->toArray(),
+        ];
+        
+        $fields[] = [
+            'name' => 'users.activo',
+            'label' => 'Usuario Activo',
+            'type' => 'select',
+            'options' => [
+                ['value' => '1', 'label' => 'Activo'],
+                ['value' => '0', 'label' => 'Inactivo'],
+            ],
+        ];
+        
+        $fields[] = [
+            'name' => 'users.es_miembro',
+            'label' => 'Es Miembro',
+            'type' => 'select',
+            'options' => [
+                ['value' => '1', 'label' => 'Sí'],
+                ['value' => '0', 'label' => 'No'],
+            ],
+        ];
         
         return $fields;
     }

@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { type BreadcrumbItemType } from '@/types';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
-import { Clock, Eye, Settings, UserCheck, AlertCircle, Mail, MessageSquare, Send, Filter } from 'lucide-vue-next';
+import { Clock, Eye, Settings, UserCheck, AlertCircle, Mail, MessageSquare, Send, Filter, Users2, Info } from 'lucide-vue-next';
 import AdvancedFilters from '@/components/filters/AdvancedFilters.vue';
 import Pagination from '@/components/ui/pagination/Pagination.vue';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -59,6 +59,17 @@ interface Candidatura {
     esta_pendiente: boolean;
 }
 
+interface SegmentInfo {
+    applied: boolean;
+    segments: Array<{
+        id: number;
+        name: string;
+        description: string;
+        user_count: number;
+    }>;
+    message: string;
+}
+
 interface Props {
     candidaturas: {
         data: Candidatura[];
@@ -73,6 +84,7 @@ interface Props {
     
         advanced_filters?: string;};
     filterFieldsConfig: any[];
+    segmentInfo?: SegmentInfo | null;
 }
 
 const props = defineProps<Props>();
@@ -425,6 +437,54 @@ const enviarRecordatorios = async () => {
                         </Button>
                     </Link>
                 </div>
+            </div>
+
+            <!-- Indicador de Segmento Aplicado -->
+            <div v-if="props.segmentInfo?.applied" class="mb-4">
+                <Card class="border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/20">
+                    <CardContent class="p-4">
+                        <div class="flex items-start gap-3">
+                            <div class="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30">
+                                <Users2 class="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                            </div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-2">
+                                    <h3 class="font-semibold text-sm text-blue-900 dark:text-blue-100">
+                                        Filtro de Segmento Activo
+                                    </h3>
+                                    <TooltipProvider>
+                                        <Tooltip>
+                                            <TooltipTrigger>
+                                                <Info class="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p class="max-w-xs">
+                                                    Tu rol tiene un segmento asignado que filtra automáticamente 
+                                                    los datos que puedes ver. Los filtros adicionales se aplicarán 
+                                                    sobre este conjunto de datos.
+                                                </p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+                                </div>
+                                <p class="text-sm text-blue-700 dark:text-blue-300 mt-1">
+                                    {{ props.segmentInfo.message }}
+                                </p>
+                                <div v-if="props.segmentInfo.segments.length > 0" class="mt-2 flex flex-wrap gap-2">
+                                    <Badge 
+                                        v-for="segment in props.segmentInfo.segments" 
+                                        :key="segment.id"
+                                        variant="secondary"
+                                        class="bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300"
+                                    >
+                                        <span class="font-medium">{{ segment.name }}</span>
+                                        <span class="ml-1 opacity-75">({{ segment.user_count }} usuarios)</span>
+                                    </Badge>
+                                </div>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
             </div>
 
             <!-- Advanced Filters -->
