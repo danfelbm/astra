@@ -7,7 +7,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { type BreadcrumbItemType } from '@/types';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Head, router, useForm } from '@inertiajs/vue3';
-import { Settings, ImageIcon, Type, Upload, X } from 'lucide-vue-next';
+import { Settings, ImageIcon, Type, Upload, X, Users, AlertCircle, ToggleLeft, ToggleRight } from 'lucide-vue-next';
 import { ref, watch, computed } from 'vue';
 
 interface Configuracion {
@@ -16,8 +16,15 @@ interface Configuracion {
     logo_file: string | null;
 }
 
+interface ConfiguracionCandidaturas {
+    bloqueo_activo: boolean;
+    bloqueo_titulo: string;
+    bloqueo_mensaje: string;
+}
+
 interface Props {
     configuracion: Configuracion;
+    configuracionCandidaturas: ConfiguracionCandidaturas;
 }
 
 const props = defineProps<Props>();
@@ -36,6 +43,7 @@ const form = useForm({
 });
 
 const isLoading = ref(false);
+const isLoadingCandidaturas = ref(false);
 const fileInputRef = ref<HTMLInputElement>();
 const previewImage = ref<string | null>(null);
 
@@ -96,6 +104,22 @@ const saveConfiguration = () => {
         },
         onFinish: () => {
             isLoading.value = false;
+        },
+    });
+};
+
+// Form para candidaturas
+const formCandidaturas = useForm({
+    bloqueo_activo: props.configuracionCandidaturas.bloqueo_activo,
+    bloqueo_titulo: props.configuracionCandidaturas.bloqueo_titulo,
+    bloqueo_mensaje: props.configuracionCandidaturas.bloqueo_mensaje,
+});
+
+const saveCandidaturasConfiguration = () => {
+    isLoadingCandidaturas.value = true;
+    formCandidaturas.post(route('admin.configuracion.update.candidaturas'), {
+        onFinish: () => {
+            isLoadingCandidaturas.value = false;
         },
     });
 };
@@ -265,6 +289,138 @@ const saveConfiguration = () => {
                                 >
                                     <Settings class="mr-2 h-4 w-4" />
                                     {{ isLoading ? 'Guardando...' : 'Guardar Cambios' }}
+                                </Button>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                <!-- Control de Candidaturas -->
+                <div class="relative overflow-hidden rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
+                    <Card class="border-0 shadow-none">
+                        <CardHeader>
+                            <CardTitle class="flex items-center gap-2">
+                                <Users class="h-5 w-5" />
+                                Control de Candidaturas
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent class="space-y-6">
+                            <!-- Toggle de Bloqueo -->
+                            <div class="space-y-3">
+                                <div class="flex items-center justify-between">
+                                    <div class="space-y-1">
+                                        <Label class="text-base font-medium">Bloqueo de Candidaturas</Label>
+                                        <p class="text-sm text-muted-foreground">
+                                            Cuando está activo, los usuarios no podrán crear nuevas candidaturas ni editar las que están en estado borrador
+                                        </p>
+                                    </div>
+                                    <Button
+                                        @click="formCandidaturas.bloqueo_activo = !formCandidaturas.bloqueo_activo"
+                                        :variant="formCandidaturas.bloqueo_activo ? 'default' : 'outline'"
+                                        size="sm"
+                                        class="min-w-24"
+                                    >
+                                        <component 
+                                            :is="formCandidaturas.bloqueo_activo ? ToggleRight : ToggleLeft" 
+                                            class="mr-2 h-4 w-4" 
+                                        />
+                                        {{ formCandidaturas.bloqueo_activo ? 'Activo' : 'Inactivo' }}
+                                    </Button>
+                                </div>
+                                
+                                <!-- Indicador de estado -->
+                                <div v-if="formCandidaturas.bloqueo_activo" 
+                                     class="flex items-center gap-2 p-3 bg-yellow-50 dark:bg-yellow-950/20 rounded-lg">
+                                    <AlertCircle class="h-5 w-5 text-yellow-600" />
+                                    <span class="text-sm text-yellow-700 dark:text-yellow-400">
+                                        El sistema de candidaturas está bloqueado. Los usuarios verán el mensaje configurado abajo.
+                                    </span>
+                                </div>
+                            </div>
+
+                            <!-- Título del Mensaje -->
+                            <div class="space-y-3">
+                                <Label for="bloqueo_titulo" class="text-base font-medium">
+                                    Título del Mensaje de Bloqueo
+                                </Label>
+                                <Input
+                                    id="bloqueo_titulo"
+                                    v-model="formCandidaturas.bloqueo_titulo"
+                                    placeholder="Ej: Sistema de Candidaturas Temporalmente Cerrado"
+                                    maxlength="255"
+                                    class="max-w-full"
+                                />
+                                <p class="text-sm text-muted-foreground">
+                                    Este título se mostrará cuando los usuarios intenten crear o editar candidaturas
+                                </p>
+                            </div>
+
+                            <!-- Mensaje Detallado -->
+                            <div class="space-y-3">
+                                <Label for="bloqueo_mensaje" class="text-base font-medium">
+                                    Mensaje Detallado
+                                </Label>
+                                <textarea
+                                    id="bloqueo_mensaje"
+                                    v-model="formCandidaturas.bloqueo_mensaje"
+                                    placeholder="Ingresa el mensaje que verán los usuarios..."
+                                    maxlength="1000"
+                                    rows="4"
+                                    class="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                />
+                                <p class="text-sm text-muted-foreground">
+                                    Explica por qué el sistema está bloqueado y cuándo estará disponible (máximo 1000 caracteres)
+                                </p>
+                            </div>
+
+                            <!-- Vista Previa -->
+                            <div v-if="formCandidaturas.bloqueo_activo" class="border-t pt-4">
+                                <Label class="text-base font-medium mb-3 block">Vista Previa del Mensaje</Label>
+                                <div class="bg-muted/50 rounded-lg p-4">
+                                    <div class="flex items-start gap-3">
+                                        <AlertCircle class="h-6 w-6 text-yellow-600 flex-shrink-0 mt-0.5" />
+                                        <div class="flex-1">
+                                            <h3 class="font-semibold text-lg mb-2">
+                                                {{ formCandidaturas.bloqueo_titulo || 'Sin título' }}
+                                            </h3>
+                                            <p class="text-sm text-muted-foreground whitespace-pre-wrap">
+                                                {{ formCandidaturas.bloqueo_mensaje || 'Sin mensaje' }}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Información Adicional -->
+                            <div class="bg-blue-50 dark:bg-blue-950/20 rounded-lg p-4">
+                                <h4 class="font-medium text-sm mb-2 text-blue-800 dark:text-blue-200">
+                                    Excepciones al Bloqueo:
+                                </h4>
+                                <ul class="space-y-1 text-sm text-blue-700 dark:text-blue-300">
+                                    <li class="flex items-start gap-2">
+                                        <span class="text-blue-500 mt-0.5">•</span>
+                                        <span>Las candidaturas en estado PENDIENTE, APROBADO o RECHAZADO no se ven afectadas</span>
+                                    </li>
+                                    <li class="flex items-start gap-2">
+                                        <span class="text-blue-500 mt-0.5">•</span>
+                                        <span>Las candidaturas marcadas con "subsanar = 1" pueden editarse aunque esté el bloqueo activo</span>
+                                    </li>
+                                    <li class="flex items-start gap-2">
+                                        <span class="text-blue-500 mt-0.5">•</span>
+                                        <span>Los administradores pueden marcar candidaturas individuales para subsanación desde el panel administrativo</span>
+                                    </li>
+                                </ul>
+                            </div>
+
+                            <!-- Save Button -->
+                            <div class="flex justify-end pt-4 border-t">
+                                <Button 
+                                    @click="saveCandidaturasConfiguration"
+                                    :disabled="isLoadingCandidaturas || !formCandidaturas.isDirty"
+                                    class="min-w-32"
+                                >
+                                    <Settings class="mr-2 h-4 w-4" />
+                                    {{ isLoadingCandidaturas ? 'Guardando...' : 'Guardar Cambios' }}
                                 </Button>
                             </div>
                         </CardContent>

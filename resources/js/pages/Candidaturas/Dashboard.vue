@@ -15,9 +15,17 @@ interface Configuracion {
     version: number;
 }
 
+interface Bloqueo {
+    activo: boolean;
+    titulo: string;
+    mensaje: string;
+    puede_crear: boolean;
+}
+
 interface Props {
     candidatura: Candidatura | null;
     configuracion: Configuracion;
+    bloqueo: Bloqueo;
 }
 
 const props = defineProps<Props>();
@@ -69,6 +77,10 @@ const statusColor = computed(() => {
 
 const nextAction = computed(() => {
     if (!props.candidatura) {
+        // Si hay bloqueo activo, no mostrar acción de crear
+        if (props.bloqueo.activo) {
+            return null;
+        }
         return {
             text: 'Crear Perfil de Candidatura',
             href: '/candidaturas/create',
@@ -81,7 +93,10 @@ const nextAction = computed(() => {
         let text = 'Editar Candidatura';
         let description = 'Completa o actualiza la información de tu candidatura';
         
-        if (props.candidatura.estado === 'rechazado') {
+        // Si es borrador y hay bloqueo activo (pero puede editar por subsanar=1)
+        if (props.candidatura.estado === 'borrador' && props.bloqueo.activo && props.candidatura.subsanar) {
+            description = 'Tu candidatura ha sido habilitada para subsanación. Puedes editarla aunque el sistema esté bloqueado.';
+        } else if (props.candidatura.estado === 'rechazado') {
             description = 'Corrige los aspectos señalados y reenvía tu candidatura';
         } else if (props.candidatura.estado === 'aprobado') {
             text = 'Editar Campos Permitidos';
@@ -159,6 +174,24 @@ const formatearFecha = (fecha: string | null | undefined) => {
                     </p>
                 </div>
             </div>
+
+            <!-- Mensaje de Bloqueo (cuando aplica) -->
+            <Card v-if="bloqueo.activo && (!candidatura || (candidatura.estado === 'borrador' && !candidatura.subsanar))" 
+                  class="border-yellow-200 dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-950/20">
+                <CardContent class="p-6">
+                    <div class="flex items-start gap-3">
+                        <AlertCircle class="h-6 w-6 text-yellow-600 flex-shrink-0 mt-0.5" />
+                        <div class="flex-1">
+                            <h3 class="font-semibold text-lg mb-2 text-yellow-800 dark:text-yellow-200">
+                                {{ bloqueo.titulo }}
+                            </h3>
+                            <p class="text-yellow-700 dark:text-yellow-300 whitespace-pre-wrap">
+                                {{ bloqueo.mensaje }}
+                            </p>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
 
             <!-- Estado Actual -->
             <Card class="border-2">

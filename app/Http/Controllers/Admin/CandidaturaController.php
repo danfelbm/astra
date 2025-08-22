@@ -342,6 +342,7 @@ class CandidaturaController extends Controller
                 'fecha_aprobacion' => $candidatura->fecha_aprobacion,
                 'created_at' => $candidatura->created_at->toISOString(),
                 'updated_at' => $candidatura->updated_at->toISOString(),
+                'subsanar' => $candidatura->subsanar,
             ],
             'comentarios' => $comentarios,
             'configuracion_campos' => $config ? $config->obtenerCampos() : [],
@@ -1103,6 +1104,49 @@ class CandidaturaController extends Controller
             'con_telefono' => $conTelefono,
             'sin_email' => $candidaturasPendientes->count() - $conEmail,
             'sin_telefono' => $candidaturasPendientes->count() - $conTelefono,
+        ]);
+    }
+
+    /**
+     * Toggle del estado de subsanación de una candidatura
+     */
+    public function toggleSubsanar(Request $request, Candidatura $candidatura)
+    {
+        // Verificar permisos
+        if (!Auth::user()->hasPermission('candidaturas.approve')) {
+            return response()->json(['error' => 'No tienes permisos para modificar el estado de subsanación'], 403);
+        }
+
+        // Toggle el estado de subsanar
+        $nuevoEstado = !$candidatura->subsanar;
+        $candidatura->update(['subsanar' => $nuevoEstado]);
+
+        // Crear comentario en el historial
+        $mensaje = $nuevoEstado 
+            ? 'Se habilitó la subsanación para esta candidatura' 
+            : 'Se deshabilitó la subsanación para esta candidatura';
+        
+        \App\Models\CandidaturaComentario::crearComentario(
+            $candidatura,
+            $mensaje,
+            'nota_admin',
+            auth()->user(),
+            false // No enviar por email
+        );
+
+        Log::info("Estado de subsanación modificado", [
+            'candidatura_id' => $candidatura->id,
+            'nuevo_estado' => $nuevoEstado,
+            'admin_id' => Auth::id(),
+            'admin_name' => Auth::user()->name,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'subsanar' => $nuevoEstado,
+            'message' => $nuevoEstado 
+                ? 'Subsanación habilitada exitosamente' 
+                : 'Subsanación deshabilitada exitosamente',
         ]);
     }
 }

@@ -367,6 +367,9 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
     Route::post('candidaturas/{candidatura}/volver-borrador', [AdminCandidaturaController::class, 'volverABorrador'])
         ->middleware('permission:candidaturas.approve')
         ->name('candidaturas.volver-borrador');
+    Route::post('candidaturas/{candidatura}/toggle-subsanar', [AdminCandidaturaController::class, 'toggleSubsanar'])
+        ->middleware('permission:candidaturas.approve')
+        ->name('candidaturas.toggle-subsanar');
     
     // Rutas para comentarios
     Route::post('candidaturas/{candidatura}/comentarios', [AdminCandidaturaController::class, 'updateComentarios'])
@@ -485,6 +488,9 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
     Route::post('configuracion', [ConfiguracionController::class, 'update'])
         ->middleware('permission:settings.edit')
         ->name('configuracion.update');
+    Route::post('configuracion/candidaturas', [ConfiguracionController::class, 'updateCandidaturas'])
+        ->middleware('permission:settings.edit')
+        ->name('configuracion.update.candidaturas');
     
     // Users management routes
     Route::resource('usuarios', UserController::class)
