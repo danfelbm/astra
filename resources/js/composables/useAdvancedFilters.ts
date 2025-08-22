@@ -466,6 +466,40 @@ export function useAdvancedFilters(options: UseAdvancedFiltersOptions) {
     );
   }
 
+  // Watch para actualizar el estado cuando cambien los initialFilters
+  // Esto es crucial para cuando se navega por paginación o se accede con URL con filtros
+  watch(
+    () => initialFilters,
+    (newInitialFilters) => {
+      if (!newInitialFilters) return;
+      
+      // Actualizar quickSearch si cambió
+      if (newInitialFilters.quickSearch !== undefined && newInitialFilters.quickSearch !== state.value.quickSearch) {
+        state.value.quickSearch = newInitialFilters.quickSearch;
+      }
+      
+      // Actualizar rootGroup si cambió
+      if (newInitialFilters.rootGroup) {
+        const processedGroup = processInitialGroup(newInitialFilters.rootGroup);
+        // Solo actualizar si realmente hay diferencias
+        if (JSON.stringify(processedGroup) !== JSON.stringify(state.value.rootGroup)) {
+          state.value.rootGroup = processedGroup;
+          // No marcar hasChanges como true ya que estos son los filtros actuales de la URL
+          state.value.hasChanges = false;
+        }
+      }
+      
+      // Si no hay rootGroup en initialFilters pero el estado actual tiene condiciones,
+      // significa que los filtros fueron limpiados
+      if (!newInitialFilters.rootGroup && 
+          (state.value.rootGroup.conditions.length > 0 || state.value.rootGroup.groups.length > 0)) {
+        state.value.rootGroup = createEmptyFilterGroup();
+        state.value.hasChanges = false;
+      }
+    },
+    { deep: true, immediate: false }
+  );
+
   // Inicializar
   loadSavedFilters();
 

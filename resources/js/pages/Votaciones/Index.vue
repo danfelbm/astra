@@ -74,6 +74,13 @@ const mostrarPasadas = ref(props.mostrar_pasadas || false);
 // Helper para obtener route
 const { route } = window as any;
 
+// Computed para los filtros iniciales del componente AdvancedFilters
+// Esto asegura que sea reactivo cuando cambien los props
+const initialFiltersForAdvanced = computed(() => ({
+    quickSearch: props.filters.search || '',
+    rootGroup: props.filters.advanced_filters ? JSON.parse(props.filters.advanced_filters) : undefined
+}));
+
 // Configuración para el componente de filtros avanzados
 const filterConfig: AdvancedFilterConfig = {
     fields: props.filterFieldsConfig || [],
@@ -235,10 +242,7 @@ const formatDate = (dateString: string) => {
                 <AdvancedFilters
                     :config="filterConfig"
                     :route="route('votaciones.index')"
-                    :initial-filters="{
-                        quickSearch: filters.search,
-                        rootGroup: filters.advanced_filters ? JSON.parse(filters.advanced_filters) : undefined
-                    }"
+                    :initial-filters="initialFiltersForAdvanced"
                     class="flex-1"
                 />
                 <div class="flex items-center space-x-2">

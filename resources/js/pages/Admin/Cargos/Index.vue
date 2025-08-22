@@ -87,6 +87,13 @@ const filterConfig: AdvancedFilterConfig = {
 // Helper para obtener route
 const { route } = window as any;
 
+// Computed para los filtros iniciales del componente AdvancedFilters
+// Esto asegura que sea reactivo cuando cambien los props
+const initialFiltersForAdvanced = computed(() => ({
+    quickSearch: props.filters.search || '',
+    rootGroup: props.filters.advanced_filters ? JSON.parse(props.filters.advanced_filters) : undefined
+}));
+
 // Cambiar entre vistas
 const toggleView = (view: 'lista' | 'arbol') => {
     currentView.value = view;
@@ -184,10 +191,7 @@ const getEstadoBadge = (activo: boolean) => {
                 <AdvancedFilters
                     :config="filterConfig"
                     :route="route('admin.cargos.index')"
-                    :initial-filters="{
-                        quickSearch: filters.search,
-                        rootGroup: filters.advanced_filters ? JSON.parse(filters.advanced_filters) : undefined
-                    }"
+                    :initial-filters="initialFiltersForAdvanced"
                 />
                         </div>
 

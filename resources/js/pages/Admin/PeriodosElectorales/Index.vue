@@ -22,7 +22,7 @@ import { Head, Link, router } from '@inertiajs/vue3';
 import { Edit, Plus, Search, Trash2, Calendar, Clock, CheckCircle } from 'lucide-vue-next';
 import AdvancedFilters from '@/components/filters/AdvancedFilters.vue';
 import type { AdvancedFilterConfig } from '@/types/filters';
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 
 interface PeriodoElectoral {
     id: number;
@@ -83,6 +83,13 @@ const filterConfig: AdvancedFilterConfig = {
 
 // Helper para obtener route
 const { route } = window as any;
+
+// Computed para los filtros iniciales del componente AdvancedFilters
+// Esto asegura que sea reactivo cuando cambien los props
+const initialFiltersForAdvanced = computed(() => ({
+    quickSearch: props.filters.search || '',
+    rootGroup: props.filters.advanced_filters ? JSON.parse(props.filters.advanced_filters) : undefined
+}));
 
 const searchQuery = ref(props.filters.search || '');
 const selectedEstado = ref(props.filters.estado || 'all');
@@ -163,10 +170,7 @@ const formatearFecha = (fecha: string) => {
             <AdvancedFilters
                 :config="filterConfig"
                 :route="route('admin.periodos-electorales.index')"
-                :initial-filters="{
-                    quickSearch: filters.search,
-                    rootGroup: filters.advanced_filters ? JSON.parse(filters.advanced_filters) : undefined
-                }"
+                :initial-filters="initialFiltersForAdvanced"
             />
 
             <!-- Lista de Periodos -->
