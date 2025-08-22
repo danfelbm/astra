@@ -9,6 +9,7 @@ use App\Jobs\SendCandidaturaRechazadaWhatsAppJob;
 use App\Jobs\SendCandidaturaBorradorEmailJob;
 use App\Jobs\SendCandidaturaBorradorWhatsAppJob;
 use App\Traits\HasTenant;
+use App\Traits\HasAuditLog;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -19,7 +20,12 @@ use Carbon\Carbon;
 
 class Candidatura extends Model
 {
-    use HasFactory, HasTenant;
+    use HasFactory, HasTenant, HasAuditLog;
+
+    /**
+     * Nombre del log para el sistema de auditoría
+     */
+    protected $auditLogName = 'candidaturas';
 
 
     protected $fillable = [
@@ -153,11 +159,22 @@ class Candidatura extends Model
     // Métodos de acción
     public function aprobar(User $admin, ?string $comentarios = null): bool
     {
+        // Registrar estado anterior para auditoría
+        $estadoAnterior = $this->estado;
+        
         $this->update([
             'estado' => self::ESTADO_APROBADO,
             'aprobado_por' => $admin->id,
             'aprobado_at' => Carbon::now(),
             'comentarios_admin' => $comentarios,
+        ]);
+
+        // Registrar en auditoría
+        $this->logAction('aprobó', $comentarios, [
+            'estado_anterior' => $estadoAnterior,
+            'estado_nuevo' => self::ESTADO_APROBADO,
+            'aprobado_por' => $admin->name,
+            'con_comentarios' => !empty($comentarios),
         ]);
 
         // Crear registro en histórico de comentarios
@@ -179,11 +196,21 @@ class Candidatura extends Model
 
     public function rechazar(User $admin, string $comentarios): bool
     {
+        // Registrar estado anterior para auditoría
+        $estadoAnterior = $this->estado;
+        
         $this->update([
             'estado' => self::ESTADO_RECHAZADO,
             'aprobado_por' => null,
             'aprobado_at' => null,
             'comentarios_admin' => $comentarios,
+        ]);
+
+        // Registrar en auditoría
+        $this->logAction('rechazó', $comentarios, [
+            'estado_anterior' => $estadoAnterior,
+            'estado_nuevo' => self::ESTADO_RECHAZADO,
+            'motivo_rechazo' => $comentarios,
         ]);
 
         // Crear registro en histórico de comentarios
@@ -203,12 +230,23 @@ class Candidatura extends Model
 
     public function volverABorrador(?string $motivo = null): bool
     {
+        // Registrar estado anterior para auditoría
+        $estadoAnterior = $this->estado;
+        
         $this->update([
             'estado' => self::ESTADO_BORRADOR,
             'aprobado_por' => null,
             'aprobado_at' => null,
             'comentarios_admin' => $motivo,
             'subsanar' => true, // Automáticamente habilitar subsanación al volver a borrador
+        ]);
+
+        // Registrar en auditoría
+        $this->logAction('devolvió a borrador', $motivo, [
+            'estado_anterior' => $estadoAnterior,
+            'estado_nuevo' => self::ESTADO_BORRADOR,
+            'subsanacion_habilitada' => true,
+            'con_motivo' => !empty($motivo),
         ]);
 
         // Crear registro en histórico de comentarios
@@ -230,7 +268,14 @@ class Candidatura extends Model
 
     public function incrementarVersion(): void
     {
+        $versionAnterior = $this->version;
         $this->increment('version');
+        
+        // Registrar en auditoría
+        $this->logAction('incrementó versión', null, [
+            'version_anterior' => $versionAnterior,
+            'version_nueva' => $this->version,
+        ]);
     }
 
     /**
@@ -251,6 +296,19 @@ class Candidatura extends Model
             auth()->user(),
             $enviarEmail
         );
+
+        // Registrar en auditoría
+        $tipoLabel = match($tipo) {
+            'general' => 'comentario general',
+            'nota_admin' => 'nota administrativa',
+            default => 'comentario'
+        };
+        
+        $this->logAction('agregó ' . $tipoLabel, null, [
+            'tipo_comentario' => $tipo,
+            'email_enviado' => $enviarEmail,
+            'comentario_id' => $comentarioObj->id,
+        ]);
 
         // Si se debe enviar por email y no es una nota interna
         if ($enviarEmail && $tipo !== CandidaturaComentario::TIPO_NOTA_ADMIN) {

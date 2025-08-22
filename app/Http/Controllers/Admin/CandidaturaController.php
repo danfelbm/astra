@@ -361,6 +361,9 @@ class CandidaturaController extends Controller
     {
         $candidatura->load(['user', 'aprobadoPor', 'campoAprobaciones.aprobadoPor']);
 
+        // Registrar acceso en auditoría
+        $candidatura->logAccess('Vista de detalles administrativos');
+
         // Obtener configuración activa para mostrar estructura de campos
         $config = CandidaturaConfig::obtenerConfiguracionActiva();
 
@@ -671,6 +674,18 @@ class CandidaturaController extends Controller
             Auth::user()
         );
 
+        // Registrar en auditoría
+        activity('configuracion')
+            ->causedBy(Auth::user())
+            ->withProperties([
+                'config_id' => $configuracion->id,
+                'version' => $configuracion->version,
+                'cantidad_campos' => count($request->campos),
+                'ip' => request()->ip(),
+                'user_agent' => request()->userAgent(),
+            ])
+            ->log(Auth::user()->name . ' actualizó la configuración de campos de candidaturas');
+
         return back()->with('success', 'Configuración de candidaturas actualizada correctamente.');
     }
 
@@ -730,6 +745,17 @@ class CandidaturaController extends Controller
         $this->authorizeAction('candidaturas.configuracion');
         
         $configuracion->activar();
+
+        // Registrar en auditoría
+        activity('configuracion')
+            ->causedBy(Auth::user())
+            ->withProperties([
+                'config_id' => $configuracion->id,
+                'version' => $configuracion->version,
+                'ip' => request()->ip(),
+                'user_agent' => request()->userAgent(),
+            ])
+            ->log(Auth::user()->name . ' activó la configuración versión ' . $configuracion->version);
 
         return back()->with('success', 'Configuración activada correctamente.');
     }
@@ -816,6 +842,14 @@ class CandidaturaController extends Controller
             $valorActual
         );
 
+        // Registrar en auditoría
+        $candidatura->logAction('aprobó campo individual', "Campo: {$campoId}", [
+            'campo_id' => $campoId,
+            'campo_aprobado' => true,
+            'con_comentario' => !empty($request->comentario),
+            'aprobado_por' => Auth::user()->name,
+        ]);
+
         return response()->json([
             'success' => true,
             'message' => 'Campo aprobado correctamente',
@@ -859,6 +893,14 @@ class CandidaturaController extends Controller
             $request->comentario,
             $valorActual
         );
+
+        // Registrar en auditoría
+        $candidatura->logAction('rechazó campo individual', "Campo: {$campoId} - Motivo: {$request->comentario}", [
+            'campo_id' => $campoId,
+            'campo_aprobado' => false,
+            'motivo_rechazo' => $request->comentario,
+            'rechazado_por' => Auth::user()->name,
+        ]);
 
         return response()->json([
             'success' => true,
@@ -1021,6 +1063,21 @@ class CandidaturaController extends Controller
             'contadores' => $contadores,
         ]);
 
+        // Registrar en auditoría
+        activity('candidaturas')
+            ->causedBy(Auth::user())
+            ->withProperties([
+                'accion' => 'recordatorios_masivos',
+                'candidaturas_procesadas' => $contadores['total_candidaturas'],
+                'emails_enviados' => $contadores['emails_enviados'],
+                'whatsapps_enviados' => $contadores['whatsapps_enviados'],
+                'errores' => $contadores['errores'],
+                'incluir_email' => $incluirEmail,
+                'incluir_whatsapp' => $incluirWhatsApp,
+                'ip' => request()->ip(),
+            ])
+            ->log(Auth::user()->name . ' envió recordatorios masivos a ' . $contadores['total_candidaturas'] . ' candidaturas en borrador');
+
         return response()->json([
             'success' => true,
             'message' => "Recordatorios enviados exitosamente",
@@ -1152,6 +1209,21 @@ class CandidaturaController extends Controller
             'contadores' => $contadores,
         ]);
 
+        // Registrar en auditoría
+        activity('candidaturas')
+            ->causedBy(Auth::user())
+            ->withProperties([
+                'accion' => 'notificaciones_masivas',
+                'candidaturas_procesadas' => $contadores['total_candidaturas'],
+                'emails_enviados' => $contadores['emails_enviados'],
+                'whatsapps_enviados' => $contadores['whatsapps_enviados'],
+                'errores' => $contadores['errores'],
+                'incluir_email' => $incluirEmail,
+                'incluir_whatsapp' => $incluirWhatsApp,
+                'ip' => request()->ip(),
+            ])
+            ->log(Auth::user()->name . ' envió notificaciones masivas a ' . $contadores['total_candidaturas'] . ' candidaturas pendientes');
+
         return response()->json([
             'success' => true,
             'message' => "Notificaciones enviadas exitosamente",
@@ -1205,6 +1277,14 @@ class CandidaturaController extends Controller
         // Toggle el estado de subsanar
         $nuevoEstado = !$candidatura->subsanar;
         $candidatura->update(['subsanar' => $nuevoEstado]);
+
+        // Registrar en auditoría
+        $accion = $nuevoEstado ? 'habilitó subsanación' : 'deshabilitó subsanación';
+        $candidatura->logAction($accion, null, [
+            'estado_anterior' => !$nuevoEstado,
+            'estado_nuevo' => $nuevoEstado,
+            'modificado_por' => Auth::user()->name,
+        ]);
 
         // Crear comentario en el historial
         $mensaje = $nuevoEstado 
