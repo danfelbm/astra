@@ -408,6 +408,7 @@ const enviarRecordatorios = async () => {
                     
                     <!-- Botón de Notificaciones (Pendientes) -->
                     <Button 
+                        v-if="hasPermission('candidaturas.notificaciones')"
                         @click="abrirModalNotificaciones"
                         variant="outline"
                         class="bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 hover:border-blue-300"
@@ -418,6 +419,7 @@ const enviarRecordatorios = async () => {
                     
                     <!-- Botón de Recordatorios (Borradores) -->
                     <Button 
+                        v-if="hasPermission('candidaturas.recordatorios')"
                         @click="abrirModalRecordatorios"
                         variant="outline"
                         class="bg-orange-50 border-orange-200 text-orange-700 hover:bg-orange-100 hover:border-orange-300"

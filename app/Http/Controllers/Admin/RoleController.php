@@ -390,6 +390,8 @@ class RoleController extends Controller
                         'candidaturas.approve' => 'Aprobar candidaturas',
                         'candidaturas.reject' => 'Rechazar candidaturas',
                         'candidaturas.configuracion' => 'Acceder a configuración de candidaturas',
+                        'candidaturas.notificaciones' => 'Enviar notificaciones de estado pendiente',
+                        'candidaturas.recordatorios' => 'Enviar recordatorios a borradores',
                     ],
                 ],
                 'cargos' => [

@@ -977,8 +977,8 @@ class CandidaturaController extends Controller
      */
     public function enviarRecordatoriosBorrador(Request $request)
     {
-        // Verificar permisos (solo admins pueden enviar recordatorios)
-        if (!Auth::user()->hasRole('admin') && !Auth::user()->hasRole('super_admin')) {
+        // Verificar permisos específicos para enviar recordatorios
+        if (!Auth::user()->hasPermission('candidaturas.recordatorios')) {
             return response()->json(['error' => 'No tienes permisos para enviar recordatorios masivos'], 403);
         }
 
@@ -1097,6 +1097,11 @@ class CandidaturaController extends Controller
      */
     public function getEstadisticasBorrador()
     {
+        // Verificar permisos específicos para enviar recordatorios
+        if (!Auth::user()->hasPermission('candidaturas.recordatorios')) {
+            return response()->json(['error' => 'No tienes permisos para ver estadísticas de borradores'], 403);
+        }
+
         $candidaturasBorrador = Candidatura::borradores()
             ->with(['user'])
             ->get();
@@ -1123,8 +1128,8 @@ class CandidaturaController extends Controller
      */
     public function enviarNotificacionesPendientes(Request $request)
     {
-        // Verificar permisos (solo admins pueden enviar notificaciones)
-        if (!Auth::user()->hasRole('admin') && !Auth::user()->hasRole('super_admin')) {
+        // Verificar permisos específicos para enviar notificaciones
+        if (!Auth::user()->hasPermission('candidaturas.notificaciones')) {
             return response()->json(['error' => 'No tienes permisos para enviar notificaciones masivas'], 403);
         }
 
@@ -1243,6 +1248,11 @@ class CandidaturaController extends Controller
      */
     public function getEstadisticasPendientes()
     {
+        // Verificar permisos específicos para enviar notificaciones
+        if (!Auth::user()->hasPermission('candidaturas.notificaciones')) {
+            return response()->json(['error' => 'No tienes permisos para ver estadísticas de pendientes'], 403);
+        }
+
         $candidaturasPendientes = Candidatura::pendientes()
             ->with(['user'])
             ->get();

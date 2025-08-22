@@ -482,6 +482,12 @@ class CandidaturaController extends Controller
             'estado' => $nuevoEstado,
         ];
 
+        // Si el estado cambia a PENDIENTE, resetear subsanar
+        // Cuando se envía una candidatura, cualquier permiso especial de subsanación debe ser removido
+        if ($nuevoEstado === Candidatura::ESTADO_PENDIENTE) {
+            $updateData['subsanar'] = false;
+        }
+
         if ($limpiarCamposAdmin) {
             $updateData['aprobado_por'] = null;
             $updateData['aprobado_at'] = null;
