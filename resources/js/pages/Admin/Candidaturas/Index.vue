@@ -24,6 +24,7 @@ interface Usuario {
     id: number;
     name: string;
     email: string;
+    documento_identidad?: string;
 }
 
 interface Convocatoria {
@@ -119,8 +120,8 @@ watch(filters, (newFilters) => {
 const filterConfig: AdvancedFilterConfig = {
     fields: props.filterFieldsConfig || [],
     showQuickSearch: true,
-    quickSearchPlaceholder: 'Buscar por nombre o email...',
-    quickSearchFields: ['user.name', 'user.email'],
+    quickSearchPlaceholder: 'Buscar por nombre, email o documento...',
+    quickSearchFields: ['user.name', 'user.email', 'user.documento_identidad'],
     maxNestingLevel: 2,
     allowSaveFilters: true,
     debounceTime: 500,
@@ -464,6 +465,7 @@ const enviarRecordatorios = async () => {
                                         <div>
                                             <p class="font-medium">{{ candidatura.usuario.name }}</p>
                                             <p class="text-sm text-muted-foreground">{{ candidatura.usuario.email }}</p>
+                                            <p class="text-xs text-muted-foreground">{{ candidatura.usuario.documento_identidad || 'Sin documento' }}</p>
                                         </div>
                                     </TableCell>
                                     <TableCell>
