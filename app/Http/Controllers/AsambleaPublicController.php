@@ -448,4 +448,81 @@ class AsambleaPublicController extends Controller
             'message' => 'Asistencia registrada exitosamente'
         ]);
     }
+
+    /**
+     * Marcar asistencia de un participante específico (solo para moderadores)
+     */
+    public function marcarAsistenciaParticipante(Request $request, Asamblea $asamblea, User $participante)
+    {
+        $user = Auth::user();
+        
+        // Verificar que el usuario actual sea moderador de esta asamblea
+        $esModerador = $asamblea->participantes()
+            ->where('usuario_id', $user->id)
+            ->wherePivot('tipo_participacion', 'moderador')
+            ->exists();
+        
+        if (!$esModerador) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No tienes permisos para registrar asistencia. Solo los moderadores pueden hacerlo.'
+            ], 403);
+        }
+        
+        // Verificar que la asamblea esté en curso
+        if ($asamblea->estado !== 'en_curso') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Solo se puede registrar asistencia cuando la asamblea está en curso'
+            ], 400);
+        }
+        
+        // Verificar que el participante objetivo sea parte de la asamblea
+        $esParticipante = $asamblea->participantes()
+            ->where('usuario_id', $participante->id)
+            ->exists();
+        
+        if (!$esParticipante) {
+            return response()->json([
+                'success' => false,
+                'message' => 'El usuario no es participante de esta asamblea'
+            ], 404);
+        }
+        
+        // Validar el valor de asistencia
+        $request->validate([
+            'asistio' => 'required|boolean'
+        ]);
+        
+        // Actualizar asistencia
+        $updateData = [
+            'asistio' => $request->asistio,
+            'updated_by' => $user->id  // Registrar quién marcó la asistencia
+        ];
+        
+        // Si se marca como presente, registrar la hora
+        if ($request->asistio) {
+            $updateData['hora_registro'] = now();
+        } else {
+            // Si se marca como ausente, limpiar la hora de registro
+            $updateData['hora_registro'] = null;
+        }
+        
+        $asamblea->participantes()->updateExistingPivot($participante->id, $updateData);
+        
+        return response()->json([
+            'success' => true,
+            'message' => $request->asistio 
+                ? "{$participante->name} marcado como presente" 
+                : "{$participante->name} marcado como ausente",
+            'participante' => [
+                'id' => $participante->id,
+                'name' => $participante->name,
+                'asistio' => $request->asistio,
+                'hora_registro' => $updateData['hora_registro'] ?? null,
+                'updated_by' => $user->id,
+                'updated_by_name' => $user->name
+            ]
+        ]);
+    }
 }

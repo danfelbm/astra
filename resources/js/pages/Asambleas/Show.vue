@@ -5,12 +5,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Checkbox } from '@/components/ui/checkbox';
 import AdvancedFilters from '@/components/filters/AdvancedFilters.vue';
 import type { AdvancedFilterConfig } from '@/types/filters';
 import { type BreadcrumbItemType } from '@/types';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import axios from 'axios';
+import { toast } from 'vue-sonner';
 import { 
     ArrowLeft, 
     Calendar, 
@@ -294,6 +296,89 @@ const applyFilters = debounce((filters: any) => {
     fetchParticipantes(1, filters);
 }, 300);
 
+// Estado para registrar asistencia
+const registrandoAsistencia = ref<number | null>(null);
+
+// Verificar si el usuario actual es moderador
+const esModerador = computed(() => {
+    return props.miParticipacion?.tipo === 'moderador';
+});
+
+// Verificar si se puede tomar asistencia
+const puedoTomarAsistencia = computed(() => {
+    return esModerador.value && props.asamblea.estado === 'en_curso';
+});
+
+// Registrar asistencia de un participante (solo para moderadores)
+const registrarAsistencia = async (participanteId: number, asistio: boolean) => {
+    // Evitar múltiples clicks mientras se procesa
+    if (registrandoAsistencia.value === participanteId) return;
+    
+    registrandoAsistencia.value = participanteId;
+    
+    // Actualización optimista: actualizar el estado local inmediatamente
+    const participante = participantes.value.find(p => p.id === participanteId);
+    const nombreParticipante = participante?.name || 'Participante';
+    
+    // Guardar estado anterior para rollback en caso de error
+    const estadoAnterior = participante?.asistio;
+    const horaAnterior = participante?.hora_registro;
+    
+    if (participante) {
+        participante.asistio = asistio;
+        if (asistio) {
+            participante.hora_registro = new Date().toISOString();
+        } else {
+            participante.hora_registro = undefined;
+        }
+    }
+    
+    try {
+        const response = await axios.put(
+            route('asambleas.marcar-asistencia-participante', {
+                asamblea: props.asamblea.id,
+                participante: participanteId
+            }),
+            { asistio: asistio }
+        );
+        
+        if (response.data.success) {
+            // Mostrar notificación de éxito
+            if (asistio) {
+                toast.success(`${nombreParticipante} marcado como presente`, {
+                    duration: 2000,
+                });
+            } else {
+                toast.info(`${nombreParticipante} marcado como ausente`, {
+                    duration: 2000,
+                });
+            }
+            
+            // Actualizar con datos del servidor si están disponibles
+            if (response.data.participante && participante) {
+                participante.hora_registro = response.data.participante.hora_registro;
+                participante.updated_by = response.data.participante.updated_by;
+                participante.updated_by_name = response.data.participante.updated_by_name;
+            }
+        }
+    } catch (error: any) {
+        // Si hay error, revertir el cambio optimista
+        if (participante) {
+            participante.asistio = estadoAnterior ?? false;
+            participante.hora_registro = horaAnterior;
+        }
+        
+        // Mostrar mensaje de error
+        const mensaje = error.response?.data?.message || 'Error al actualizar la asistencia';
+        toast.error(mensaje, {
+            description: 'Por favor intenta nuevamente',
+            duration: 3000,
+        });
+    } finally {
+        registrandoAsistencia.value = null;
+    }
+};
+
 // Volver al listado
 const volver = () => {
     router.visit(route('asambleas.index'));
@@ -558,8 +643,17 @@ onMounted(() => {
                         <div class="text-muted-foreground">Cargando participantes...</div>
                     </div>
 
+                    <!-- Mensaje informativo para moderadores -->
+                    <Alert v-if="!loadingParticipantes && puedoTomarAsistencia" class="mb-4 border-blue-200">
+                        <Info class="h-4 w-4 text-blue-600" />
+                        <AlertTitle>Toma de Asistencia Habilitada</AlertTitle>
+                        <AlertDescription>
+                            Como moderador, puedes marcar la asistencia de los participantes usando los checkboxes en la tabla.
+                        </AlertDescription>
+                    </Alert>
+
                     <!-- Tabla de Participantes -->
-                    <div v-else>
+                    <div v-if="!loadingParticipantes">
                         <Table>
                             <TableHeader>
                                 <TableRow>
@@ -585,17 +679,46 @@ onMounted(() => {
                                         </Badge>
                                     </TableCell>
                                     <TableCell>
-                                        <Badge v-if="participante.asistio" class="bg-green-100 text-green-800">
-                                            <CheckCircle class="mr-1 h-3 w-3" />
-                                            Presente
-                                        </Badge>
-                                        <Badge v-else-if="asamblea.estado === 'finalizada'" class="bg-red-100 text-red-800">
-                                            <XCircle class="mr-1 h-3 w-3" />
-                                            Ausente
-                                        </Badge>
-                                        <Badge v-else variant="outline">
-                                            Pendiente
-                                        </Badge>
+                                        <!-- Checkbox para moderadores cuando la asamblea está en curso -->
+                                        <div v-if="puedoTomarAsistencia" class="flex items-center gap-2">
+                                            <div class="relative">
+                                                <Checkbox
+                                                    :checked="participante.asistio || false"
+                                                    :disabled="registrandoAsistencia === participante.id"
+                                                    @update:checked="(value) => registrarAsistencia(participante.id, value)"
+                                                    :class="registrandoAsistencia === participante.id ? 'opacity-50' : ''"
+                                                />
+                                                <div v-if="registrandoAsistencia === participante.id" class="absolute inset-0 flex items-center justify-center">
+                                                    <div class="animate-spin rounded-full h-3 w-3 border-b-2 border-primary"></div>
+                                                </div>
+                                            </div>
+                                            <span 
+                                                v-if="participante.asistio" 
+                                                class="text-green-600 transition-all duration-300"
+                                            >
+                                                Presente
+                                            </span>
+                                            <span 
+                                                v-else 
+                                                class="text-gray-400 transition-all duration-300"
+                                            >
+                                                Ausente
+                                            </span>
+                                        </div>
+                                        <!-- Vista solo lectura para no moderadores o cuando la asamblea no está en curso -->
+                                        <div v-else>
+                                            <Badge v-if="participante.asistio" class="bg-green-100 text-green-800">
+                                                <CheckCircle class="mr-1 h-3 w-3" />
+                                                Presente
+                                            </Badge>
+                                            <Badge v-else-if="asamblea.estado === 'finalizada'" class="bg-red-100 text-red-800">
+                                                <XCircle class="mr-1 h-3 w-3" />
+                                                Ausente
+                                            </Badge>
+                                            <Badge v-else variant="outline">
+                                                Pendiente
+                                            </Badge>
+                                        </div>
                                     </TableCell>
                                     <TableCell>
                                         {{ participante.hora_registro ? formatearFechaHora(participante.hora_registro) : '-' }}
