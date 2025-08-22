@@ -75,8 +75,8 @@ class AsambleaPublicParticipantsController extends Controller
         // Generar clave de caché única para esta consulta
         $cacheKey = 'asamblea_' . $asamblea->id . '_public_participants_' . md5(json_encode($request->all()));
         
-        // Intentar obtener de caché (5 minutos)
-        $result = Cache::remember($cacheKey, 300, function () use ($request, $asamblea) {
+        // Intentar obtener de caché (1 minuto)
+        $result = Cache::remember($cacheKey, 60, function () use ($request, $asamblea) {
             // Construir query con joins para incluir datos geográficos
             $query = User::query()
                 ->join('asamblea_usuario', 'users.id', '=', 'asamblea_usuario.usuario_id')
