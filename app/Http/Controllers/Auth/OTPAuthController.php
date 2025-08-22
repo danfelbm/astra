@@ -250,8 +250,20 @@ class OTPAuthController extends Controller
         // Regenerar sesión por seguridad
         $request->session()->regenerate();
 
-        // Redirigir según tipo de usuario
-        $redirectRoute = ($user->isAdmin() || $user->isSuperAdmin()) ? 'admin.dashboard' : 'dashboard';
+        // Redirigir según configuración del rol o tipo de usuario
+        $redirectRoute = 'dashboard'; // Valor por defecto
+        
+        // Obtener el primer rol del usuario
+        $userRole = $user->roles()->first();
+        
+        if ($userRole && method_exists($userRole, 'getRedirectRoute')) {
+            // Usar la configuración del rol
+            $redirectRoute = $userRole->getRedirectRoute();
+        } else {
+            // Fallback al comportamiento anterior
+            $redirectRoute = ($user->isAdmin() || $user->isSuperAdmin()) ? 'admin.dashboard' : 'dashboard';
+        }
+        
         return redirect()->route($redirectRoute)->with('success', 'Autenticación exitosa.');
     }
 

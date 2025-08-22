@@ -25,7 +25,8 @@ class Role extends Model
         'permissions',
         'allowed_modules',
         'is_system',
-        'is_administrative'
+        'is_administrative',
+        'redirect_after_login'
     ];
 
     /**
@@ -208,5 +209,20 @@ class Role extends Model
     public function scopeNonAdministrative($query)
     {
         return $query->where('is_administrative', false);
+    }
+    
+    /**
+     * Obtener la ruta de redirección después del login
+     * Si no está configurada, usa el comportamiento por defecto
+     */
+    public function getRedirectRoute(): string
+    {
+        // Si tiene configuración específica, usarla
+        if ($this->redirect_after_login) {
+            return $this->redirect_after_login;
+        }
+        
+        // Comportamiento por defecto basado en el tipo de rol
+        return $this->isAdministrative() ? 'admin.dashboard' : 'dashboard';
     }
 }
