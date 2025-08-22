@@ -160,6 +160,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('asambleas/{asamblea}/marcar-asistencia', [AsambleaPublicController::class, 'marcarAsistencia'])
         ->middleware('permission:asambleas.view_public')
         ->name('asambleas.marcar-asistencia');
+    Route::put('asambleas/{asamblea}/participantes/{participante}/asistencia', [AsambleaPublicController::class, 'marcarAsistenciaParticipante'])
+        ->middleware('permission:asambleas.view_public')
+        ->name('asambleas.marcar-asistencia-participante');
     
     // API routes para Zoom (dentro del grupo auth)
     Route::prefix('api/zoom')->name('api.zoom.')->group(function () {
