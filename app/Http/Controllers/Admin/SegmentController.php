@@ -322,6 +322,56 @@ class SegmentController extends Controller
      */
     protected function getUserFilterFieldsConfig(): array
     {
+        // Cargar opciones dinámicamente para los campos geográficos
+        $territorios = \App\Models\Territorio::activos()
+            ->select('id', 'nombre')
+            ->orderBy('nombre')
+            ->get()
+            ->map(fn($territorio) => [
+                'value' => (string) $territorio->id,
+                'label' => $territorio->nombre
+            ])
+            ->toArray();
+
+        $departamentos = \App\Models\Departamento::activos()
+            ->with('territorio:id,nombre')
+            ->select('id', 'nombre', 'territorio_id')
+            ->orderBy('nombre')
+            ->get()
+            ->map(fn($departamento) => [
+                'value' => (string) $departamento->id,
+                'label' => $departamento->territorio ? 
+                    "{$departamento->territorio->nombre} - {$departamento->nombre}" : 
+                    $departamento->nombre
+            ])
+            ->toArray();
+
+        $municipios = \App\Models\Municipio::activos()
+            ->with(['departamento:id,nombre', 'departamento.territorio:id,nombre'])
+            ->select('id', 'nombre', 'departamento_id')
+            ->orderBy('nombre')
+            ->get()
+            ->map(fn($municipio) => [
+                'value' => (string) $municipio->id,
+                'label' => $municipio->departamento && $municipio->departamento->territorio ? 
+                    "{$municipio->departamento->territorio->nombre} - {$municipio->departamento->nombre} - {$municipio->nombre}" :
+                    $municipio->nombre
+            ])
+            ->toArray();
+
+        $localidades = \App\Models\Localidad::activos()
+            ->with(['municipio:id,nombre', 'municipio.departamento:id,nombre', 'municipio.departamento.territorio:id,nombre'])
+            ->select('id', 'nombre', 'municipio_id')
+            ->orderBy('nombre')
+            ->get()
+            ->map(fn($localidad) => [
+                'value' => (string) $localidad->id,
+                'label' => $localidad->municipio && $localidad->municipio->departamento && $localidad->municipio->departamento->territorio ? 
+                    "{$localidad->municipio->departamento->territorio->nombre} - {$localidad->municipio->departamento->nombre} - {$localidad->municipio->nombre} - {$localidad->nombre}" :
+                    $localidad->nombre
+            ])
+            ->toArray();
+
         return [
             [
                 'name' => 'name',
@@ -351,19 +401,25 @@ class SegmentController extends Controller
                 'name' => 'territorio_id',
                 'label' => 'Territorio',
                 'type' => 'select',
-                'options' => [], // Se cargarán dinámicamente
+                'options' => $territorios,
             ],
             [
                 'name' => 'departamento_id',
                 'label' => 'Departamento',
                 'type' => 'select',
-                'options' => [], // Se cargarán dinámicamente
+                'options' => $departamentos,
             ],
             [
                 'name' => 'municipio_id',
                 'label' => 'Municipio',
                 'type' => 'select',
-                'options' => [], // Se cargarán dinámicamente
+                'options' => $municipios,
+            ],
+            [
+                'name' => 'localidad_id',
+                'label' => 'Localidad',
+                'type' => 'select',
+                'options' => $localidades,
             ],
         ];
     }
