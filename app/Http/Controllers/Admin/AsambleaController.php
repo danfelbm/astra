@@ -275,6 +275,9 @@ class AsambleaController extends Controller
             'zoom_registration_open_date' => 'nullable|date',
             'zoom_join_url' => 'nullable|string|max:500',
             'zoom_start_url' => 'nullable|string|max:500',
+            // Campos de consulta pública de participantes
+            'public_participants_enabled' => 'boolean',
+            'public_participants_mode' => 'nullable|in:list,search',
         ], [
             'nombre.required' => 'El nombre es requerido.',
             'tipo.required' => 'El tipo de asamblea es requerido.',
@@ -422,6 +425,9 @@ class AsambleaController extends Controller
             'zoom_registration_open_date' => 'nullable|date',
             'zoom_join_url' => 'nullable|string|max:500',
             'zoom_start_url' => 'nullable|string|max:500',
+            // Campos de consulta pública de participantes
+            'public_participants_enabled' => 'boolean',
+            'public_participants_mode' => 'nullable|in:list,search',
         ], [
             'nombre.required' => 'El nombre es requerido.',
             'tipo.required' => 'El tipo de asamblea es requerido.',

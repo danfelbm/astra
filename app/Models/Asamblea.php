@@ -43,6 +43,9 @@ class Asamblea extends Model
         'zoom_occurrence_ids',
         'zoom_prefix',
         'zoom_registration_open_date',
+        // Campos para consulta pública de participantes
+        'public_participants_enabled',
+        'public_participants_mode',
     ];
 
     protected $casts = [
@@ -55,6 +58,9 @@ class Asamblea extends Model
         'zoom_settings' => 'array',
         'zoom_created_at' => 'datetime',
         'zoom_registration_open_date' => 'datetime',
+        // Casts para campos de consulta pública
+        'public_participants_enabled' => 'boolean',
+        'public_participants_mode' => 'string',
     ];
 
     // Relación con participantes (usuarios)

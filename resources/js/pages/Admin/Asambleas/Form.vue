@@ -9,10 +9,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { DateTimePicker } from '@/components/ui/datetime-picker';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { type BreadcrumbItemType } from '@/types';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Head, useForm, router } from '@inertiajs/vue3';
-import { ArrowLeft, MapPin, Save, Video, Settings, Users, Mic, Camera } from 'lucide-vue-next';
+import { ArrowLeft, MapPin, Save, Video, Settings, Users, Mic, Camera, Info } from 'lucide-vue-next';
 import { ref, computed, watch } from 'vue';
 
 interface Asamblea {
@@ -50,6 +51,9 @@ interface Asamblea {
     zoom_created_at?: string;
     zoom_join_url?: string;
     zoom_start_url?: string;
+    // Campos de consulta pública de participantes
+    public_participants_enabled?: boolean;
+    public_participants_mode?: 'list' | 'search';
 }
 
 interface Territorio {
@@ -128,6 +132,9 @@ const form = useForm({
         mute_upon_entry: true,
         auto_recording: 'none'
     },
+    // Campos de consulta pública de participantes
+    public_participants_enabled: props.asamblea?.public_participants_enabled ?? false,
+    public_participants_mode: props.asamblea?.public_participants_mode || 'list',
 });
 
 // Validaciones de fecha
@@ -745,6 +752,105 @@ const cancelar = () => {
                         
                         <span v-if="form.errors.zoom_enabled" class="text-sm text-red-500">
                             {{ form.errors.zoom_enabled }}
+                        </span>
+                    </CardContent>
+                </Card>
+
+                <!-- Configuración de Consulta Pública de Participantes -->
+                <Card>
+                    <CardHeader>
+                        <CardTitle>
+                            <Users class="inline-block mr-2 h-5 w-5" />
+                            Consulta Pública de Participantes
+                        </CardTitle>
+                        <CardDescription>
+                            Configure el acceso público sin autenticación para consultar participantes de la asamblea
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent class="space-y-6">
+                        <!-- Toggle principal -->
+                        <div class="flex items-center space-x-2">
+                            <Switch 
+                                id="public_participants"
+                                v-model="form.public_participants_enabled"
+                            />
+                            <Label for="public_participants">
+                                Habilitar consulta pública de participantes (sin autenticación)
+                            </Label>
+                        </div>
+                        
+                        <!-- Opciones de modo (solo si está habilitado) -->
+                        <div v-if="form.public_participants_enabled" class="space-y-4">
+                            <div class="space-y-2">
+                                <Label>Modo de visualización pública</Label>
+                                <RadioGroup v-model="form.public_participants_mode">
+                                    <div class="flex items-start space-x-2 mb-3">
+                                        <RadioGroupItem value="list" id="mode_list" />
+                                        <div class="space-y-1">
+                                            <Label for="mode_list" class="font-medium cursor-pointer">
+                                                Modo Listado
+                                            </Label>
+                                            <p class="text-sm text-muted-foreground">
+                                                Muestra tabla completa con filtros avanzados. Los visitantes pueden ver:
+                                                nombre, departamento, municipio y localidad de todos los participantes.
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-start space-x-2">
+                                        <RadioGroupItem value="search" id="mode_search" />
+                                        <div class="space-y-1">
+                                            <Label for="mode_search" class="font-medium cursor-pointer">
+                                                Modo Búsqueda
+                                            </Label>
+                                            <p class="text-sm text-muted-foreground">
+                                                Solo muestra un campo de búsqueda. Los visitantes pueden buscar por nombre,
+                                                cédula o correo, y ver únicamente si la persona es o no participante.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </RadioGroup>
+                            </div>
+                            
+                            <!-- Preview de URL -->
+                            <Alert>
+                                <Info class="h-4 w-4" />
+                                <AlertTitle>URL Pública</AlertTitle>
+                                <AlertDescription>
+                                    <p class="mb-2">Los participantes estarán disponibles públicamente en:</p>
+                                    <code class="block bg-gray-100 p-2 rounded text-sm">
+                                        https://votaciones.test/asambleas/{{ asamblea?.id || '{id}' }}/participantes-publico
+                                    </code>
+                                    <p class="mt-2 text-xs">
+                                        Esta URL será accesible sin necesidad de autenticación cuando la asamblea esté activa.
+                                    </p>
+                                </AlertDescription>
+                            </Alert>
+                            
+                            <!-- Información de seguridad -->
+                            <Alert variant="outline">
+                                <Info class="h-4 w-4" />
+                                <AlertTitle>Información de Privacidad</AlertTitle>
+                                <AlertDescription>
+                                    <ul class="list-disc list-inside text-sm space-y-1">
+                                        <li v-if="form.public_participants_mode === 'list'">
+                                            En modo listado, NO se mostrarán: correo electrónico, teléfono, documento de identidad,
+                                            ni información de asistencia.
+                                        </li>
+                                        <li v-else>
+                                            En modo búsqueda, solo se confirmará si la persona es participante o no.
+                                            No se revelará ningún dato personal adicional.
+                                        </li>
+                                        <li>Los datos expuestos cumplen con las políticas de privacidad.</li>
+                                    </ul>
+                                </AlertDescription>
+                            </Alert>
+                        </div>
+                        
+                        <span v-if="form.errors.public_participants_enabled" class="text-sm text-red-500">
+                            {{ form.errors.public_participants_enabled }}
+                        </span>
+                        <span v-if="form.errors.public_participants_mode" class="text-sm text-red-500">
+                            {{ form.errors.public_participants_mode }}
                         </span>
                     </CardContent>
                 </Card>
