@@ -72,6 +72,11 @@ class Candidatura extends Model
         return $this->hasMany(CandidaturaCampoAprobacion::class);
     }
 
+    public function comentarios(): HasMany
+    {
+        return $this->hasMany(CandidaturaComentario::class);
+    }
+
     // Scopes
     public function scopeBorradores(Builder $query): Builder
     {
@@ -129,6 +134,17 @@ class Candidatura extends Model
             'comentarios_admin' => $comentarios,
         ]);
 
+        // Crear registro en histórico de comentarios
+        if ($comentarios) {
+            CandidaturaComentario::crearComentario(
+                $this,
+                $comentarios,
+                CandidaturaComentario::TIPO_APROBACION,
+                $admin,
+                true // Se enviará por email
+            );
+        }
+
         // Enviar notificaciones al usuario
         $this->enviarNotificacionAprobacion($comentarios);
         
@@ -143,6 +159,15 @@ class Candidatura extends Model
             'aprobado_at' => null,
             'comentarios_admin' => $comentarios,
         ]);
+
+        // Crear registro en histórico de comentarios
+        CandidaturaComentario::crearComentario(
+            $this,
+            $comentarios,
+            CandidaturaComentario::TIPO_RECHAZO,
+            $admin,
+            true // Se enviará por email
+        );
 
         // Enviar notificaciones al usuario
         $this->enviarNotificacionRechazo($comentarios);
@@ -159,6 +184,17 @@ class Candidatura extends Model
             'comentarios_admin' => $motivo,
         ]);
 
+        // Crear registro en histórico de comentarios
+        if ($motivo) {
+            CandidaturaComentario::crearComentario(
+                $this,
+                $motivo,
+                CandidaturaComentario::TIPO_BORRADOR,
+                auth()->user(),
+                true // Se enviará por email
+            );
+        }
+
         // Enviar notificaciones al usuario
         $this->enviarNotificacionVueltaBorrador($motivo);
 
@@ -168,6 +204,74 @@ class Candidatura extends Model
     public function incrementarVersion(): void
     {
         $this->increment('version');
+    }
+
+    /**
+     * Agregar un comentario sin cambiar el estado
+     */
+    public function agregarComentario(string $comentario, string $tipo = 'general', bool $enviarEmail = false): CandidaturaComentario
+    {
+        \Log::info("Agregando comentario a candidatura", [
+            'candidatura_id' => $this->id,
+            'tipo' => $tipo,
+            'enviar_email' => $enviarEmail
+        ]);
+        
+        $comentarioObj = CandidaturaComentario::crearComentario(
+            $this,
+            $comentario,
+            $tipo,
+            auth()->user(),
+            $enviarEmail
+        );
+
+        // Si se debe enviar por email y no es una nota interna
+        if ($enviarEmail && $tipo !== CandidaturaComentario::TIPO_NOTA_ADMIN) {
+            \Log::info("Intentando enviar notificación de comentario", [
+                'candidatura_id' => $this->id,
+                'tipo' => $tipo
+            ]);
+            $this->enviarNotificacionComentario($comentario);
+        }
+
+        return $comentarioObj;
+    }
+
+    /**
+     * Obtener el comentario más reciente de la versión actual
+     */
+    public function obtenerComentarioActual(): ?CandidaturaComentario
+    {
+        return $this->comentarios()
+            ->where('version_candidatura', $this->version)
+            ->orderBy('created_at', 'desc')
+            ->first();
+    }
+
+    /**
+     * Obtener el último comentario (independiente de la versión)
+     */
+    public function obtenerUltimoComentario(): ?CandidaturaComentario
+    {
+        return $this->comentarios()
+            ->orderBy('created_at', 'desc')
+            ->first();
+    }
+
+    /**
+     * Contar total de comentarios
+     */
+    public function contarComentarios(): int
+    {
+        return $this->comentarios()->count();
+    }
+
+    /**
+     * Verificar si tiene comentarios históricos
+     */
+    public function tieneComentariosHistoricos(): bool
+    {
+        return $this->contarComentarios() > 1;
     }
 
     // Determinar si cambios requieren re-aprobación
@@ -547,6 +651,55 @@ class Candidatura extends Model
 
         } catch (\Exception $e) {
             Log::error("Error enviando notificaciones de vuelta a borrador", [
+                'candidatura_id' => $this->id,
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Enviar notificación de comentario general al usuario
+     */
+    private function enviarNotificacionComentario(string $comentario): void
+    {
+        try {
+            $usuario = $this->user;
+            
+            if (!$usuario) {
+                Log::warning("Candidatura {$this->id} no tiene usuario asociado para notificar comentario");
+                return;
+            }
+
+            // Enviar email si el usuario tiene dirección de correo
+            if (!empty($usuario->email)) {
+                Log::info("Despachando job SendCandidaturaComentarioEmailJob", [
+                    'email' => $usuario->email,
+                    'candidatura_id' => $this->id
+                ]);
+                
+                \App\Jobs\SendCandidaturaComentarioEmailJob::dispatch(
+                    $usuario->email,
+                    $usuario->name,
+                    $this->id,
+                    $comentario
+                );
+                
+                Log::info("Job despachado exitosamente");
+            } else {
+                Log::warning("Usuario sin email, no se puede enviar notificación", [
+                    'usuario_id' => $usuario->id,
+                    'candidatura_id' => $this->id
+                ]);
+            }
+
+            Log::info("Notificación de comentario enviada", [
+                'candidatura_id' => $this->id,
+                'usuario_id' => $usuario->id,
+                'con_email' => !empty($usuario->email)
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error("Error enviando notificación de comentario", [
                 'candidatura_id' => $this->id,
                 'error' => $e->getMessage()
             ]);

@@ -24,6 +24,7 @@ trait WithRateLimiting
             case 'App\Jobs\SendCandidaturaAprobadaEmailJob':
             case 'App\Jobs\SendCandidaturaRechazadaEmailJob':
             case 'App\Jobs\SendCandidaturaBorradorEmailJob':
+            case 'App\Jobs\SendCandidaturaComentarioEmailJob':
                 $middlewares[] = RateLimited::forEmail();
                 break;
                 
@@ -72,6 +73,7 @@ trait WithRateLimiting
             case 'App\Jobs\SendCandidaturaAprobadaEmailJob':
             case 'App\Jobs\SendCandidaturaRechazadaEmailJob':
             case 'App\Jobs\SendCandidaturaBorradorEmailJob':
+            case 'App\Jobs\SendCandidaturaComentarioEmailJob':
                 $this->onQueue(config('queue.otp_email_queue', 'otp-emails'));
                 break;
                 

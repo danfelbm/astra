@@ -38,6 +38,13 @@ interface Candidatura {
     estado_color: string;
     version: number;
     comentarios_admin?: string;
+    comentario_actual?: {
+        comentario: string;
+        tipo: string;
+        fecha: string;
+        fecha_relativa: string;
+    };
+    total_comentarios?: number;
     aprobado_por?: Usuario;
     fecha_aprobacion?: string;
     created_at: string;
@@ -483,10 +490,18 @@ const enviarRecordatorios = async () => {
                                         <p class="text-sm">{{ formatearFecha(candidatura.updated_at) }}</p>
                                     </TableCell>
                                     <TableCell>
-                                        <div v-if="candidatura.comentarios_admin" class="max-w-xs">
+                                        <div v-if="candidatura.comentario_actual || candidatura.comentarios_admin" class="max-w-xs space-y-1">
                                             <p class="text-sm text-blue-800 dark:text-blue-200 truncate">
-                                                {{ stripHtml(candidatura.comentarios_admin) }}
+                                                {{ stripHtml(candidatura.comentario_actual?.comentario || candidatura.comentarios_admin || '') }}
                                             </p>
+                                            <div class="flex items-center gap-2">
+                                                <span v-if="candidatura.comentario_actual" class="text-xs text-muted-foreground">
+                                                    {{ candidatura.comentario_actual.fecha_relativa }}
+                                                </span>
+                                                <Badge v-if="candidatura.total_comentarios && candidatura.total_comentarios > 1" variant="secondary" class="text-xs">
+                                                    +{{ candidatura.total_comentarios - 1 }} más
+                                                </Badge>
+                                            </div>
                                         </div>
                                         <span v-else class="text-sm text-muted-foreground">-</span>
                                     </TableCell>
