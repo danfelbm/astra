@@ -98,6 +98,14 @@ const breadcrumbs: BreadcrumbItemType[] = [
 // Helper para obtener route
 const { route } = window as any;
 
+// Computed para obtener la URL base de forma segura
+const baseUrl = computed(() => {
+    if (typeof window !== 'undefined') {
+        return window.location.origin;
+    }
+    return '';
+});
+
 // Formulario reactivo
 const form = useForm({
     nombre: props.asamblea?.nombre || '',
@@ -818,7 +826,7 @@ const cancelar = () => {
                                 <AlertDescription>
                                     <p class="mb-2">Los participantes estarán disponibles públicamente en:</p>
                                     <code class="block bg-gray-100 p-2 rounded text-sm">
-                                        https://votaciones.test/asambleas/{{ asamblea?.id || '{id}' }}/participantes-publico
+                                        {{ baseUrl }}/asambleas/{{ asamblea?.id || '{id}' }}/participantes-publico
                                     </code>
                                     <p class="mt-2 text-xs">
                                         Esta URL será accesible sin necesidad de autenticación cuando la asamblea esté activa.
