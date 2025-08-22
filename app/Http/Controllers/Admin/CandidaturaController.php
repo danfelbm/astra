@@ -39,7 +39,7 @@ class CandidaturaController extends Controller
             'candidaturas.user_id', 'candidaturas.estado', 'candidaturas.version', 
             'candidaturas.aprobado_por', 'candidaturas.aprobado_at',
             'candidaturas.created_at', 'candidaturas.updated_at',
-            'user.name', 'user.email', 'candidaturas.comentarios_admin'
+            'users.name', 'users.email', 'users.documento_identidad', 'candidaturas.comentarios_admin'
         ];
         
         // Añadir campo de convocatoria si existe
@@ -48,7 +48,7 @@ class CandidaturaController extends Controller
         }
         
         // Campos para búsqueda rápida
-        $quickSearchFields = ['users.name', 'users.email', 'candidaturas.comentarios_admin'];
+        $quickSearchFields = ['users.name', 'users.email', 'users.documento_identidad', 'candidaturas.comentarios_admin'];
 
         // Aplicar filtros avanzados
         $this->applyAdvancedFilters($query, $request, $allowedFields, $quickSearchFields);
@@ -103,6 +103,7 @@ class CandidaturaController extends Controller
                     'id' => $candidatura->user->id,
                     'name' => $candidatura->user->name,
                     'email' => $candidatura->user->email,
+                    'documento_identidad' => $candidatura->user->documento_identidad,
                 ],
                 'convocatoria' => $convocatoriaInfo,
                 'estado' => $candidatura->estado,
@@ -186,6 +187,11 @@ class CandidaturaController extends Controller
             [
                 'name' => 'users.email',
                 'label' => 'Email del Usuario',
+                'type' => 'text',
+            ],
+            [
+                'name' => 'users.documento_identidad',
+                'label' => 'Documento de Identidad',
                 'type' => 'text',
             ],
             [

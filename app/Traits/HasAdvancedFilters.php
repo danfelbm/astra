@@ -22,12 +22,16 @@ trait HasAdvancedFilters
         array $allowedFields = [], 
         array $quickSearchFields = []
     ): Builder {
-        // Búsqueda rápida
+        // Búsqueda rápida mejorada - busca en múltiples campos
         if ($request->filled('search') && !empty($quickSearchFields)) {
             $searchTerm = $request->search;
-            $query->where(function ($q) use ($searchTerm, $quickSearchFields) {
+            $query->where(function ($q) use ($searchTerm, $quickSearchFields, $allowedFields) {
                 foreach ($quickSearchFields as $field) {
-                    $q->orWhere($field, 'like', "%{$searchTerm}%");
+                    // Si hay campos permitidos definidos, validar que el campo esté permitido
+                    // Si no hay campos permitidos definidos, permitir todos los campos en quickSearchFields
+                    if (empty($allowedFields) || in_array($field, $allowedFields)) {
+                        $q->orWhere($field, 'like', "%{$searchTerm}%");
+                    }
                 }
             });
         }
