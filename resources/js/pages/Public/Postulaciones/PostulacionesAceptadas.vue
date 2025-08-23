@@ -285,8 +285,6 @@ onMounted(async () => {
                                         <TableHead>Cargo</TableHead>
                                         <TableHead>Periodo</TableHead>
                                         <TableHead>Ubicación</TableHead>
-                                        <TableHead class="text-center">Fecha Postulación</TableHead>
-                                        <TableHead class="text-center">Fecha Aceptación</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -324,18 +322,9 @@ onMounted(async () => {
                                                 </span>
                                             </div>
                                         </TableCell>
-                                        <TableCell class="text-center">
-                                            <span class="text-sm">{{ formatearFecha(postulacion.fecha_postulacion) }}</span>
-                                        </TableCell>
-                                        <TableCell class="text-center">
-                                            <Badge variant="outline" class="bg-green-50 text-green-700 border-green-300">
-                                                <FileCheck class="h-3 w-3 mr-1" />
-                                                {{ formatearFecha(postulacion.fecha_aceptacion) }}
-                                            </Badge>
-                                        </TableCell>
                                     </TableRow>
                                     <TableRow v-if="postulaciones.length === 0">
-                                        <TableCell :colspan="7" class="text-center py-8">
+                                        <TableCell :colspan="5" class="text-center py-8">
                                             <div class="flex flex-col items-center gap-2 text-muted-foreground">
                                                 <Award class="h-8 w-8" />
                                                 <p>No se encontraron postulaciones con los filtros aplicados</p>

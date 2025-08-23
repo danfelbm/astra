@@ -30,7 +30,26 @@ trait HasAdvancedFilters
                     // Si hay campos permitidos definidos, validar que el campo esté permitido
                     // Si no hay campos permitidos definidos, permitir todos los campos en quickSearchFields
                     if (empty($allowedFields) || in_array($field, $allowedFields)) {
-                        $q->orWhere($field, 'like', "%{$searchTerm}%");
+                        // Para campos de nombre, implementar búsqueda flexible por palabras
+                        if (in_array($field, ['name', 'users.name'])) {
+                            // Dividir el término de búsqueda en palabras
+                            $words = preg_split('/\s+/', trim($searchTerm));
+                            
+                            if (count($words) > 1) {
+                                // Si hay múltiples palabras, buscar que todas estén presentes
+                                $q->orWhere(function ($subQ) use ($field, $words) {
+                                    foreach ($words as $word) {
+                                        $subQ->where($field, 'like', "%{$word}%");
+                                    }
+                                });
+                            } else {
+                                // Búsqueda normal para una sola palabra
+                                $q->orWhere($field, 'like', "%{$searchTerm}%");
+                            }
+                        } else {
+                            // Búsqueda normal para otros campos
+                            $q->orWhere($field, 'like', "%{$searchTerm}%");
+                        }
                     }
                 }
             });

@@ -215,14 +215,15 @@ onMounted(() => {
                                 </div>
                             </div>
                         </div>
-                        <Button 
-                            variant="outline" 
-                            size="sm"
-                            @click="() => window.history.back()"
-                        >
-                            <ArrowLeft class="h-4 w-4 mr-2" />
-                            Volver
-                        </Button>
+                        <a href="/">
+                            <Button 
+                                variant="outline" 
+                                size="sm"
+                            >
+                                <ArrowLeft class="h-4 w-4 mr-2" />
+                                Volver al inicio
+                            </Button>
+                        </a>
                     </div>
                 </div>
             </div>

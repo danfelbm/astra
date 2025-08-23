@@ -169,8 +169,8 @@ const filterConfig = computed<AdvancedFilterConfig>(() => {
     return {
         fields: allFields,
         showQuickSearch: true,
-        quickSearchPlaceholder: 'Buscar participantes...',
-        quickSearchFields: ['name', 'email'],
+        quickSearchPlaceholder: 'Buscar por nombre o documento de identidad...',
+        quickSearchFields: ['users.name', 'users.email', 'users.documento_identidad'],
         maxNestingLevel: 2,
         allowSaveFilters: true,
         saveKey: `asamblea_${props.asamblea.id}_participantes_filters`,
