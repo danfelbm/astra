@@ -300,12 +300,13 @@ class AsambleaPublicController extends Controller
 
         // Definir campos permitidos para filtrar (con tabla especificada para evitar ambigüedad)
         $allowedFields = [
-            'name', 'email', 'tipo_participacion', 'asistio',
+            'users.name', 'users.email', 'users.documento_identidad', 
+            'asamblea_usuario.tipo_participacion', 'asamblea_usuario.asistio',
             'users.territorio_id', 'users.departamento_id', 'users.municipio_id', 'users.localidad_id',
         ];
         
-        // Campos para búsqueda rápida
-        $quickSearchFields = ['name', 'email'];
+        // Campos para búsqueda rápida (con tabla especificada para evitar ambigüedad)
+        $quickSearchFields = ['users.name', 'users.email', 'users.documento_identidad'];
 
         // Aplicar filtros avanzados
         $this->applyAdvancedFilters($query, $request, $allowedFields, $quickSearchFields);
@@ -359,17 +360,22 @@ class AsambleaPublicController extends Controller
         // Los campos geográficos se añadirán dinámicamente en el frontend
         return [
             [
-                'name' => 'name',
+                'name' => 'users.name',
                 'label' => 'Nombre',
                 'type' => 'text',
             ],
             [
-                'name' => 'email',
+                'name' => 'users.email',
                 'label' => 'Email',
                 'type' => 'text',
             ],
             [
-                'name' => 'tipo_participacion',
+                'name' => 'users.documento_identidad',
+                'label' => 'Documento de Identidad',
+                'type' => 'text',
+            ],
+            [
+                'name' => 'asamblea_usuario.tipo_participacion',
                 'label' => 'Tipo de Participación',
                 'type' => 'select',
                 'options' => [
@@ -379,7 +385,7 @@ class AsambleaPublicController extends Controller
                 ],
             ],
             [
-                'name' => 'asistio',
+                'name' => 'asamblea_usuario.asistio',
                 'label' => 'Asistencia',
                 'type' => 'select',
                 'options' => [
