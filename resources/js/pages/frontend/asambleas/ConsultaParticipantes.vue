@@ -87,12 +87,12 @@ const getModeColor = (mode: string) => {
                             Asambleas con consulta pública de participantes habilitada
                         </p>
                     </div>
-                    <Link href="/">
+                    <a href="/">
                         <Button variant="outline">
                             <ArrowLeft class="h-4 w-4 mr-2" />
                             Volver al inicio
                         </Button>
-                    </Link>
+                    </a>
                 </div>
             </div>
         </div>

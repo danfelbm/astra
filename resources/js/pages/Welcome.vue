@@ -5,6 +5,12 @@ import { computed } from 'vue';
 // Verificar si el usuario está autenticado
 const page = usePage();
 const isAuthenticated = computed(() => !!(page.props as any).auth?.user);
+
+// Verificar si el usuario tiene rol id 15
+const hasRoleId15 = computed(() => {
+    const user = (page.props as any).auth?.user;
+    return user && user.roles && user.roles.some((role: any) => role.id === 15);
+});
 </script>
 
 <template>
@@ -107,8 +113,8 @@ const isAuthenticated = computed(() => !!(page.props as any).auth?.user);
                     <aside class="w-full max-w-[360px] flex-shrink-0 md:pl-32 flex flex-col md:justify-end md:items-end pt-10 md:pt-0 border-t md:border-t-0 md:border-l border-white/20">
                         <ul class="text-xl w-full sm:max-w-[240px]">
                             <li class="mb-3 font-bold text-white hover:text-white transition-colors">
-                                <Link href="/asambleas" class="flex items-center justify-between">
-                                    <span>Ver Asambleas</span>
+                                <Link :href="hasRoleId15 ? '/dashboard' : '/asambleas'" class="flex items-center justify-between">
+                                    <span>{{ hasRoleId15 ? 'Dashboard' : 'Ver Asambleas' }}</span>
                                     <svg class="fill-current w-2.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 7 12">
                                         <path d="m6.687 6-.53.53-4.5 4.5-.532.532L.063 10.5l.53-.53L4.563 6 .596 2.03.063 1.5 1.125.438l.53.53 4.5 4.5.532.532Z"></path>
                                     </svg>
@@ -130,7 +136,7 @@ const isAuthenticated = computed(() => !!(page.props as any).auth?.user);
                                     </svg>
                                 </Link>
                             </li>
-                            <li class="text-white/50 hover:text-white transition-colors">
+                            <li v-if="!hasRoleId15" class="text-white/50 hover:text-white transition-colors">
                                 <Link :href="isAuthenticated ? '/dashboard' : '/login'" class="flex items-center justify-between">
                                     <span>{{ isAuthenticated ? 'Dashboard' : 'Iniciar Sesión' }}</span>
                                     <svg class="fill-current w-2.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 7 12">

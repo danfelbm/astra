@@ -204,12 +204,12 @@ onMounted(async () => {
                                 Consulta pública de postulaciones aprobadas a convocatorias
                             </p>
                         </div>
-                        <Link href="/">
+                        <a href="/">
                             <Button variant="outline" size="sm">
                                 <ArrowLeft class="h-4 w-4 mr-2" />
                                 Volver al inicio
                             </Button>
-                        </Link>
+                        </a>
                     </div>
                 </div>
             </div>
