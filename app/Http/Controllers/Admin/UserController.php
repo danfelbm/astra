@@ -24,7 +24,7 @@ class UserController extends Controller
         // Verificación de permisos adicional como respaldo
         $this->authorizeAction('users.view');
         
-        $query = User::with(['territorio', 'departamento', 'municipio', 'localidad', 'cargo']);
+        $query = User::with(['territorio', 'departamento', 'municipio', 'localidad', 'cargo', 'roles']);
 
         // Definir campos permitidos para filtrar
         $allowedFields = [
@@ -164,30 +164,27 @@ class UserController extends Controller
         
         $cargos = Cargo::orderBy('nombre')->get();
         
-        // Obtener el tenant actual del usuario autenticado
-        $currentTenantId = auth()->user()->tenant_id;
+        // Obtener TODOS los roles del sistema
+        // Si el usuario es super_admin, mostrar todos los roles
+        // Si no, excluir super_admin
+        $rolesQuery = \App\Models\Role::query();
         
-        // Obtener roles disponibles para el tenant actual
-        // Incluye roles del sistema (excepto super_admin) y roles personalizados del tenant
-        $roles = \App\Models\Role::where(function($query) use ($currentTenantId) {
-            $query->where('tenant_id', $currentTenantId)
-                  ->orWhere(function($q) {
-                      $q->whereNull('tenant_id')
-                        ->where('is_system', true)
-                        ->where('name', '!=', 'super_admin'); // super_admin solo puede ser asignado por otro super_admin
-                  });
-        })
-        ->orderBy('display_name')
-        ->get()
-        ->map(function($role) {
-            return [
-                'value' => $role->id,
-                'label' => $role->display_name,
-                'name' => $role->name,
-                'is_system' => $role->is_system,
-                'description' => $role->description,
-            ];
-        });
+        if (!auth()->user()->hasRole('super_admin')) {
+            $rolesQuery->where('name', '!=', 'super_admin');
+        }
+        
+        $roles = $rolesQuery
+            ->orderBy('display_name')
+            ->get()
+            ->map(function($role) {
+                return [
+                    'value' => $role->id,
+                    'label' => $role->display_name,
+                    'name' => $role->name,
+                    'is_system' => $role->is_system,
+                    'description' => $role->description,
+                ];
+            });
         
         return Inertia::render('Admin/Usuarios/Create', [
             'cargos' => $cargos,
@@ -293,29 +290,27 @@ class UserController extends Controller
         $usuario->load(['territorio', 'departamento', 'municipio', 'localidad', 'cargo', 'roles']);
         $cargos = Cargo::orderBy('nombre')->get();
         
-        // Obtener el tenant actual del usuario autenticado
-        $currentTenantId = auth()->user()->tenant_id;
+        // Obtener TODOS los roles del sistema
+        // Si el usuario es super_admin, mostrar todos los roles
+        // Si no, excluir super_admin
+        $rolesQuery = \App\Models\Role::query();
         
-        // Obtener roles disponibles para el tenant actual
-        $roles = \App\Models\Role::where(function($query) use ($currentTenantId) {
-            $query->where('tenant_id', $currentTenantId)
-                  ->orWhere(function($q) {
-                      $q->whereNull('tenant_id')
-                        ->where('is_system', true)
-                        ->where('name', '!=', 'super_admin'); // super_admin solo puede ser asignado por otro super_admin
-                  });
-        })
-        ->orderBy('display_name')
-        ->get()
-        ->map(function($role) {
-            return [
-                'value' => $role->id,
-                'label' => $role->display_name,
-                'name' => $role->name,
-                'is_system' => $role->is_system,
-                'description' => $role->description,
-            ];
-        });
+        if (!auth()->user()->hasRole('super_admin')) {
+            $rolesQuery->where('name', '!=', 'super_admin');
+        }
+        
+        $roles = $rolesQuery
+            ->orderBy('display_name')
+            ->get()
+            ->map(function($role) {
+                return [
+                    'value' => $role->id,
+                    'label' => $role->display_name,
+                    'name' => $role->name,
+                    'is_system' => $role->is_system,
+                    'description' => $role->description,
+                ];
+            });
         
         // Agregar el ID del rol actual del usuario
         $usuario->role_id = $usuario->roles->first()?->id;

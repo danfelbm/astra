@@ -43,6 +43,9 @@ class Asamblea extends Model
         'zoom_occurrence_ids',
         'zoom_prefix',
         'zoom_registration_open_date',
+        'zoom_static_message',
+        'zoom_api_message_enabled',
+        'zoom_api_message',
         // Campos para consulta pública de participantes
         'public_participants_enabled',
         'public_participants_mode',
@@ -55,6 +58,7 @@ class Asamblea extends Model
         'quorum_minimo' => 'integer',
         // Casts para campos de Zoom
         'zoom_enabled' => 'boolean',
+        'zoom_api_message_enabled' => 'boolean',
         'zoom_settings' => 'array',
         'zoom_created_at' => 'datetime',
         'zoom_registration_open_date' => 'datetime',
@@ -558,6 +562,22 @@ class Asamblea extends Model
     public function usesZoomSdk(): bool
     {
         return $this->zoom_integration_type === 'sdk';
+    }
+    
+    /**
+     * Verificar si usa mensaje estático en lugar de videoconferencia
+     */
+    public function usesStaticMessage(): bool
+    {
+        return $this->zoom_integration_type === 'message';
+    }
+    
+    /**
+     * Verificar si tiene mensaje API habilitado
+     */
+    public function hasZoomApiMessage(): bool
+    {
+        return $this->zoom_api_message_enabled && !empty($this->zoom_api_message);
     }
     
     /**

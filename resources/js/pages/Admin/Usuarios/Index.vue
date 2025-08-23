@@ -32,7 +32,13 @@ interface User {
     id: number;
     name: string;
     email: string;
-    role: 'admin' | 'usuario';
+    role?: 'admin' | 'usuario'; // Mantener por compatibilidad temporal
+    roles?: Array<{
+        id: number;
+        name: string;
+        display_name: string;
+        is_system?: boolean;
+    }>;
     documento_identidad?: string;
     telefono?: string;
     direccion?: string;
@@ -121,6 +127,25 @@ const getRoleBadgeVariant = (role: string) => {
     return role === 'admin' ? 'default' : 'secondary';
 };
 
+const getRoleBadgeVariantForRole = (roleName: string) => {
+    // Asignar variantes basadas en el nombre del rol
+    switch(roleName) {
+        case 'super_admin':
+            return 'destructive'; // Rojo para super admin
+        case 'admin':
+        case 'Admin':
+            return 'default'; // Default para admin
+        case 'manager':
+        case 'Manager':
+            return 'default'; // Default para manager
+        case 'moderador':
+        case 'Moderador':
+            return 'outline'; // Outline para moderador
+        default:
+            return 'secondary'; // Secondary para otros roles
+    }
+};
+
 const getStatusBadgeVariant = (activo: boolean) => {
     return activo ? 'default' : 'destructive';
 };
@@ -204,11 +229,23 @@ const changePage = (page: number) => {
                                             <div v-if="user.documento_identidad" class="text-xs text-muted-foreground">
                                                 Doc: {{ user.documento_identidad }}
                                             </div>
+                                            <div class="text-xs text-muted-foreground">
+                                                ID: {{ user.id }}
+                                            </div>
                                         </div>
                                     </TableCell>
                                     <TableCell>
-                                        <Badge :variant="getRoleBadgeVariant(user.role)">
-                                            {{ user.role === 'admin' ? 'Administrador' : 'Usuario' }}
+                                        <div v-if="user.roles && user.roles.length > 0" class="flex flex-wrap gap-1">
+                                            <Badge 
+                                                v-for="role in user.roles" 
+                                                :key="role.id"
+                                                :variant="getRoleBadgeVariantForRole(role.name)"
+                                            >
+                                                {{ role.display_name }}
+                                            </Badge>
+                                        </div>
+                                        <Badge v-else variant="secondary">
+                                            Sin rol
                                         </Badge>
                                     </TableCell>
                                     <TableCell>

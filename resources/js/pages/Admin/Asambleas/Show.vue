@@ -140,8 +140,8 @@ const currentFilters = ref<any>({});
 const filterConfig: AdvancedFilterConfig = {
     fields: props.filterFieldsConfig || [],
     showQuickSearch: true,
-    quickSearchPlaceholder: 'Buscar por nombre o email...',
-    quickSearchFields: ['users.name', 'users.email'],
+    quickSearchPlaceholder: 'Buscar por nombre, email o documento...',
+    quickSearchFields: ['users.name', 'users.email', 'users.documento_identidad'],
     maxNestingLevel: 1,
     allowSaveFilters: false,
     debounceTime: 500,

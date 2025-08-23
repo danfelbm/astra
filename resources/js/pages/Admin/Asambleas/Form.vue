@@ -34,11 +34,14 @@ interface Asamblea {
     acta_url?: string;
     // Campos de videoconferencia
     zoom_enabled?: boolean;
-    zoom_integration_type?: 'sdk' | 'api';
+    zoom_integration_type?: 'sdk' | 'api' | 'message';
     zoom_meeting_id?: string;
     zoom_meeting_password?: string;
     zoom_occurrence_ids?: string;
     zoom_prefix?: string;
+    zoom_static_message?: string;
+    zoom_api_message_enabled?: boolean;
+    zoom_api_message?: string;
     zoom_registration_open_date?: string;
     zoom_meeting_type?: 'instant' | 'scheduled' | 'recurring';
     zoom_settings?: {
@@ -130,6 +133,9 @@ const form = useForm({
     zoom_occurrence_ids: props.asamblea?.zoom_occurrence_ids || '',
     zoom_prefix: props.asamblea?.zoom_prefix || '',
     zoom_registration_open_date: props.asamblea?.zoom_registration_open_date || '',
+    zoom_static_message: props.asamblea?.zoom_static_message || '',
+    zoom_api_message_enabled: props.asamblea?.zoom_api_message_enabled ?? false,
+    zoom_api_message: props.asamblea?.zoom_api_message || '',
     zoom_join_url: props.asamblea?.zoom_join_url || '',
     zoom_start_url: props.asamblea?.zoom_start_url || '',
     zoom_meeting_type: props.asamblea?.zoom_meeting_type || 'scheduled',
@@ -551,9 +557,15 @@ const cancelar = () => {
                                             API (Manual)
                                         </Label>
                                     </div>
+                                    <div class="flex items-center space-x-2">
+                                        <RadioGroupItem value="message" id="message" />
+                                        <Label for="message" class="cursor-pointer">
+                                            Mensaje estático
+                                        </Label>
+                                    </div>
                                 </RadioGroup>
                                 <p class="text-xs text-muted-foreground">
-                                    SDK: Reuniones generadas automáticamente. API: Configuración manual de reunión existente.
+                                    SDK: Reuniones generadas automáticamente. API: Configuración manual de reunión existente. Mensaje: Mostrar un mensaje personalizado.
                                 </p>
                             </div>
                             
@@ -717,6 +729,33 @@ const cancelar = () => {
                                     </p>
                                 </div>
                                 
+                                <!-- Mensaje personalizado para modo API -->
+                                <div class="space-y-4 p-4 border rounded-lg bg-gray-50">
+                                    <div class="flex items-center space-x-2">
+                                        <Switch
+                                            id="zoom_api_message_enabled"
+                                            v-model="form.zoom_api_message_enabled"
+                                        />
+                                        <Label for="zoom_api_message_enabled" class="cursor-pointer">
+                                            Mostrar mensaje personalizado encima del enlace
+                                        </Label>
+                                    </div>
+                                    
+                                    <div v-if="form.zoom_api_message_enabled" class="space-y-2">
+                                        <Label for="zoom_api_message">Mensaje a mostrar</Label>
+                                        <Textarea
+                                            id="zoom_api_message"
+                                            v-model="form.zoom_api_message"
+                                            placeholder="Escriba aquí el mensaje que se mostrará encima del enlace de Zoom..."
+                                            rows="4"
+                                            class="min-h-[100px]"
+                                        />
+                                        <p class="text-xs text-muted-foreground">
+                                            Este mensaje aparecerá destacado encima del botón de generar/acceder al enlace de Zoom.
+                                        </p>
+                                    </div>
+                                </div>
+                                
                                 <div class="grid gap-4 md:grid-cols-2">
                                     <div class="space-y-2">
                                         <Label for="zoom_meeting_password_api">Contraseña de la Reunión</Label>
@@ -753,6 +792,30 @@ const cancelar = () => {
                                     <p class="text-sm text-orange-800">
                                         <strong>Modo API:</strong> Los campos se completan manualmente. Los usuarios verán un botón 
                                         para generar su link personal de acceso a la reunión.
+                                    </p>
+                                </div>
+                            </div>
+                            
+                            <!-- Configuración para mensaje estático -->
+                            <div v-if="form.zoom_integration_type === 'message'" class="space-y-4">
+                                <div class="space-y-2">
+                                    <Label for="zoom_static_message">Mensaje a mostrar</Label>
+                                    <Textarea
+                                        id="zoom_static_message"
+                                        v-model="form.zoom_static_message"
+                                        placeholder="Escriba aquí el mensaje que se mostrará en lugar de la videoconferencia..."
+                                        rows="5"
+                                        class="min-h-[120px]"
+                                    />
+                                    <p class="text-xs text-muted-foreground">
+                                        Este mensaje se mostrará a los usuarios en el espacio donde normalmente aparecería la videoconferencia.
+                                    </p>
+                                </div>
+                                
+                                <div class="bg-blue-50 p-3 rounded-md">
+                                    <p class="text-sm text-blue-800">
+                                        <strong>Modo Mensaje:</strong> En lugar de una videoconferencia, los usuarios verán el mensaje 
+                                        personalizado que configure aquí.
                                     </p>
                                 </div>
                             </div>

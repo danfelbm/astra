@@ -7,6 +7,7 @@ import {
     AlertCircle, 
     CheckCircle2,
     Clock, 
+    Info,
     Video, 
     ExternalLink,
     Loader2,
@@ -379,6 +380,19 @@ onUnmounted(() => {
             <AlertTitle>Error</AlertTitle>
             <AlertDescription>{{ error }}</AlertDescription>
         </Alert>
+
+        <!-- Mensaje personalizado de API si está habilitado -->
+        <Card v-if="statusData?.asamblea?.zoom_api_message_enabled && statusData?.asamblea?.zoom_api_message" class="mb-4 border-blue-200 bg-blue-50">
+            <CardHeader>
+                <CardTitle class="flex items-center gap-2 text-blue-700">
+                    <Info class="h-5 w-5" />
+                    Información Importante
+                </CardTitle>
+            </CardHeader>
+            <CardContent>
+                <p class="whitespace-pre-wrap text-gray-700">{{ statusData.asamblea.zoom_api_message }}</p>
+            </CardContent>
+        </Card>
 
         <!-- Contenido principal -->
         <div v-if="statusData && !isLoading">
