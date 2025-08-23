@@ -27,6 +27,7 @@ const props = defineProps<{
     otpCredential?: string;
     otpChannel?: string;
     whatsappEnabled?: boolean;
+    intendedUrl?: string;
 }>();
 
 // Estados del proceso OTP
@@ -175,6 +176,21 @@ import { onMounted, onUnmounted } from 'vue';
 onMounted(() => {
     if (step.value === 'otp') {
         startResendTimer(60);
+    }
+    
+    // Verificar si hay una URL intended en localStorage
+    const intendedUrl = localStorage.getItem('intendedUrl');
+    if (intendedUrl && !props.intendedUrl) {
+        // Enviar la URL intended al servidor para guardarla en la sesión
+        fetch('/login?intended=' + encodeURIComponent(intendedUrl), {
+            method: 'GET',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+            }
+        }).then(() => {
+            // Limpiar localStorage después de enviar
+            localStorage.removeItem('intendedUrl');
+        });
     }
 });
 

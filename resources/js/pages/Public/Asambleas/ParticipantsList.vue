@@ -15,7 +15,8 @@ import {
     Info,
     ChevronLeft,
     ChevronRight,
-    Search
+    Search,
+    ArrowLeft
 } from 'lucide-vue-next';
 import { computed, ref, onMounted } from 'vue';
 import { format } from 'date-fns';
@@ -62,6 +63,11 @@ const participantesPagination = ref<any>({
 const loadingParticipantes = ref(false);
 const currentFilters = ref({});
 const filterFieldsConfig = ref<any[]>(props.filterFieldsConfig || []);
+
+// Control de lazy loading para optimizar rendimiento
+const datosInicialesCargados = ref(false);
+const filtrosGeograficosCargados = ref(false);
+const mostrandoParticipantes = ref(false);
 
 // Composable de filtros geográficos con endpoints públicos
 const geographicFilters = useGeographicFilters({
@@ -113,7 +119,7 @@ const loadParticipantes = async (filters: any = {}, page: number = 1) => {
             page,
         };
 
-        const response = await axios.get(`/api/asambleas/${props.asamblea.id}/participantes-publico`, {
+        const response = await axios.get(`/public-api/asambleas/${props.asamblea.id}/participantes`, {
             params,
         });
 
@@ -153,12 +159,35 @@ const changePage = (page: number) => {
     loadParticipantes(currentFilters.value, page);
 };
 
-// Cargar participantes al montar
-onMounted(async () => {
-    // Inicializar filtros geográficos
-    await geographicFilters.initialize();
-    // Cargar participantes
-    loadParticipantes();
+// Función para iniciar carga de participantes
+const iniciarCargaParticipantes = async () => {
+    if (!datosInicialesCargados.value) {
+        datosInicialesCargados.value = true;
+        mostrandoParticipantes.value = true;
+        
+        // Inicializar filtros geográficos si no están cargados
+        if (!filtrosGeograficosCargados.value) {
+            filtrosGeograficosCargados.value = true;
+            await geographicFilters.initialize();
+        }
+        
+        // Cargar primera página de participantes
+        await loadParticipantes();
+    }
+};
+
+// Función para cargar filtros geográficos cuando se abran los filtros avanzados
+const inicializarFiltrosGeograficos = async () => {
+    if (!filtrosGeograficosCargados.value) {
+        filtrosGeograficosCargados.value = true;
+        await geographicFilters.initialize();
+    }
+};
+
+// onMounted vacío - no carga datos automáticamente para optimizar rendimiento
+onMounted(() => {
+    // No cargar datos automáticamente
+    // El usuario debe hacer clic en "Ver Lista de Participantes"
 });
 </script>
 
@@ -170,20 +199,30 @@ onMounted(async () => {
             <!-- Header público -->
             <div class="bg-white shadow-sm border-b">
                 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-                    <div class="flex flex-col gap-4">
-                        <h1 class="text-2xl font-bold text-gray-900">
-                            {{ asamblea.nombre }}
-                        </h1>
-                        <div class="flex flex-wrap gap-4 text-sm text-gray-600">
-                            <div class="flex items-center gap-1">
-                                <Calendar class="h-4 w-4" />
-                                <span>{{ formatearFecha(asamblea.fecha_inicio) }} - {{ formatearFecha(asamblea.fecha_fin) }}</span>
-                            </div>
-                            <div v-if="asamblea.lugar" class="flex items-center gap-1">
-                                <MapPin class="h-4 w-4" />
-                                <span>{{ asamblea.ubicacion_completa }}</span>
+                    <div class="flex items-start justify-between">
+                        <div class="flex flex-col gap-4">
+                            <h1 class="text-2xl font-bold text-gray-900">
+                                {{ asamblea.nombre }}
+                            </h1>
+                            <div class="flex flex-wrap gap-4 text-sm text-gray-600">
+                                <div class="flex items-center gap-1">
+                                    <Calendar class="h-4 w-4" />
+                                    <span>{{ formatearFecha(asamblea.fecha_inicio) }} - {{ formatearFecha(asamblea.fecha_fin) }}</span>
+                                </div>
+                                <div v-if="asamblea.lugar" class="flex items-center gap-1">
+                                    <MapPin class="h-4 w-4" />
+                                    <span>{{ asamblea.ubicacion_completa }}</span>
+                                </div>
                             </div>
                         </div>
+                        <Button 
+                            variant="outline" 
+                            size="sm"
+                            @click="() => window.history.back()"
+                        >
+                            <ArrowLeft class="h-4 w-4 mr-2" />
+                            Volver
+                        </Button>
                     </div>
                 </div>
             </div>
@@ -200,8 +239,40 @@ onMounted(async () => {
                     </AlertDescription>
                 </Alert>
 
-                <!-- Card de participantes -->
-                <Card>
+                <!-- Estado inicial - Mostrar botón para cargar participantes -->
+                <Card v-if="!mostrandoParticipantes" class="mb-6">
+                    <CardHeader>
+                        <CardTitle>
+                            <Users class="inline-block mr-2 h-5 w-5" />
+                            Lista de Participantes
+                        </CardTitle>
+                        <CardDescription>
+                            Consulta la lista completa de participantes registrados en esta asamblea
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div class="text-center py-8">
+                            <Users class="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                            <p class="text-gray-600 mb-6">
+                                Haz clic en el botón para cargar la lista de participantes.
+                                <br />
+                                <span class="text-sm text-gray-500">
+                                    Los resultados se mostrarán paginados (50 participantes por página)
+                                </span>
+                            </p>
+                            <Button 
+                                @click="iniciarCargaParticipantes"
+                                :disabled="loadingParticipantes"
+                            >
+                                <Users class="h-4 w-4 mr-2" />
+                                Ver Lista de Participantes
+                            </Button>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <!-- Card de participantes con datos cargados -->
+                <Card v-if="mostrandoParticipantes">
                     <CardHeader>
                         <div class="flex items-center justify-between">
                             <div>
@@ -222,6 +293,7 @@ onMounted(async () => {
                                 :config="filterConfig"
                                 @apply="applyFilters"
                                 @clear="applyFilters({})"
+                                @mounted="inicializarFiltrosGeograficos"
                             />
                         </div>
 

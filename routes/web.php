@@ -65,15 +65,25 @@ Route::get('formularios/{slug}', [\App\Http\Controllers\FormularioPublicControll
 Route::post('formularios/{slug}/responder', [\App\Http\Controllers\FormularioPublicController::class, 'store'])->name('formularios.store');
 Route::get('formularios/{slug}/success', [\App\Http\Controllers\FormularioPublicController::class, 'success'])->name('formularios.success');
 
+// Ruta pública de consulta de participantes (frontend sin autenticación)
+use App\Http\Controllers\FrontendAsambleaController;
+Route::get('consulta-participantes', [FrontendAsambleaController::class, 'consultaParticipantes'])
+    ->name('frontend.asambleas.consulta-participantes');
+
+// Ruta pública de postulaciones aceptadas
+use App\Http\Controllers\PostulacionPublicController;
+Route::get('postulaciones-aceptadas', [PostulacionPublicController::class, 'index'])
+    ->name('postulaciones.publicas');
+
 // Rutas públicas de consulta de participantes de asambleas (sin autenticación, con rate limiting)
 use App\Http\Controllers\AsambleaPublicParticipantsController;
 Route::get('asambleas/{asamblea}/participantes-publico', [AsambleaPublicParticipantsController::class, 'show'])
     ->middleware('throttle:60,1') // 60 requests por minuto
     ->name('asambleas.public.participants');
-Route::get('api/asambleas/{asamblea}/participantes-publico', [AsambleaPublicParticipantsController::class, 'getParticipants'])
+Route::get('public-api/asambleas/{asamblea}/participantes', [AsambleaPublicParticipantsController::class, 'getParticipants'])
     ->middleware('throttle:60,1') // 60 requests por minuto
     ->name('api.asambleas.public.participants');
-Route::post('api/asambleas/{asamblea}/buscar-participante', [AsambleaPublicParticipantsController::class, 'search'])
+Route::post('public-api/asambleas/{asamblea}/buscar-participante', [AsambleaPublicParticipantsController::class, 'search'])
     ->middleware('throttle:30,1') // 30 búsquedas por minuto (más restrictivo)
     ->name('api.asambleas.public.search');
 
@@ -238,6 +248,12 @@ Route::prefix('api/public/geographic')->name('api.public.geographic.')->group(fu
     Route::get('municipios', [GeographicController::class, 'municipios'])->name('municipios');
     Route::get('localidades', [GeographicController::class, 'localidades'])->name('localidades');
 });
+
+// Public API route for postulaciones aceptadas (no auth required)
+use App\Http\Controllers\Api\PostulacionPublicApiController;
+Route::get('public-api/postulaciones-aceptadas', [PostulacionPublicApiController::class, 'index'])
+    ->middleware('throttle:60,1') // 60 requests por minuto
+    ->name('api.postulaciones.publicas');
 
 Route::get('admin/dashboard', function () {
     return Inertia::render('Admin/Dashboard');

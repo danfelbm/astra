@@ -79,37 +79,42 @@ class Postulacion extends Model
 
     public function scopeEnviadas(Builder $query): Builder
     {
-        return $query->where('estado', self::ESTADO_ENVIADA);
+        return $query->where('postulaciones.estado', self::ESTADO_ENVIADA);
     }
 
     public function scopeEnRevision(Builder $query): Builder
     {
-        return $query->where('estado', self::ESTADO_EN_REVISION);
+        return $query->where('postulaciones.estado', self::ESTADO_EN_REVISION);
     }
 
     public function scopeAceptadas(Builder $query): Builder
     {
-        return $query->where('estado', self::ESTADO_ACEPTADA);
+        return $query->where('postulaciones.estado', self::ESTADO_ACEPTADA);
     }
 
     public function scopeRechazadas(Builder $query): Builder
     {
-        return $query->where('estado', self::ESTADO_RECHAZADA);
+        return $query->where('postulaciones.estado', self::ESTADO_RECHAZADA);
+    }
+
+    public function scopePublicas(Builder $query): Builder
+    {
+        return $query->where('postulaciones.estado', self::ESTADO_ACEPTADA);
     }
 
     public function scopePorConvocatoria(Builder $query, int $convocatoriaId): Builder
     {
-        return $query->where('convocatoria_id', $convocatoriaId);
+        return $query->where('postulaciones.convocatoria_id', $convocatoriaId);
     }
 
     public function scopePorUsuario(Builder $query, int $userId): Builder
     {
-        return $query->where('user_id', $userId);
+        return $query->where('postulaciones.user_id', $userId);
     }
 
     public function scopePorEstado(Builder $query, string $estado): Builder
     {
-        return $query->where('estado', $estado);
+        return $query->where('postulaciones.estado', $estado);
     }
 
     public function scopeOrdenadosPorFecha(Builder $query, string $direccion = 'desc'): Builder
@@ -398,5 +403,35 @@ class Postulacion extends Model
         return static::where('candidatura_id_origen', $candidaturaId)
             ->with(['convocatoria.cargo', 'convocatoria.periodoElectoral'])
             ->first();
+    }
+
+    /**
+     * Obtener datos públicos de la postulación
+     * Solo retorna información que puede ser mostrada públicamente
+     * 
+     * @return array
+     */
+    public function getPublicData(): array
+    {
+        return [
+            'id' => $this->id,
+            'postulante' => [
+                'nombre' => $this->user ? $this->user->name : 'Información no disponible',
+            ],
+            'convocatoria' => [
+                'id' => $this->convocatoria->id,
+                'nombre' => $this->convocatoria->nombre,
+                'cargo' => $this->convocatoria->cargo ? $this->convocatoria->cargo->nombre : null,
+                'periodo' => $this->convocatoria->periodoElectoral ? $this->convocatoria->periodoElectoral->nombre : null,
+            ],
+            'ubicacion' => [
+                'territorio' => $this->convocatoria->territorio ? $this->convocatoria->territorio->nombre : null,
+                'departamento' => $this->convocatoria->departamento ? $this->convocatoria->departamento->nombre : null,
+                'municipio' => $this->convocatoria->municipio ? $this->convocatoria->municipio->nombre : null,
+                'localidad' => $this->convocatoria->localidad ? $this->convocatoria->localidad->nombre : null,
+            ],
+            'fecha_aceptacion' => $this->revisado_at ? $this->revisado_at->format('d/m/Y') : null,
+            'fecha_postulacion' => $this->fecha_postulacion ? $this->fecha_postulacion->format('d/m/Y') : null,
+        ];
     }
 }

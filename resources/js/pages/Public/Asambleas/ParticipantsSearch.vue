@@ -14,7 +14,8 @@ import {
     Info,
     CheckCircle,
     XCircle,
-    Loader2
+    Loader2,
+    ArrowLeft
 } from 'lucide-vue-next';
 import { ref } from 'vue';
 import { format } from 'date-fns';
@@ -67,7 +68,7 @@ const performSearch = async () => {
     searching.value = true;
 
     try {
-        const response = await axios.post(`/api/asambleas/${props.asamblea.id}/buscar-participante`, {
+        const response = await axios.post(`/public-api/asambleas/${props.asamblea.id}/buscar-participante`, {
             search: searchTerm.value,
         });
 
@@ -113,20 +114,30 @@ const handleKeydown = (event: KeyboardEvent) => {
             <!-- Header público -->
             <div class="bg-white shadow-sm border-b">
                 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-                    <div class="flex flex-col gap-4">
-                        <h1 class="text-2xl font-bold text-gray-900">
-                            {{ asamblea.nombre }}
-                        </h1>
-                        <div class="flex flex-wrap gap-4 text-sm text-gray-600">
-                            <div class="flex items-center gap-1">
-                                <Calendar class="h-4 w-4" />
-                                <span>{{ formatearFecha(asamblea.fecha_inicio) }} - {{ formatearFecha(asamblea.fecha_fin) }}</span>
-                            </div>
-                            <div v-if="asamblea.lugar" class="flex items-center gap-1">
-                                <MapPin class="h-4 w-4" />
-                                <span>{{ asamblea.ubicacion_completa }}</span>
+                    <div class="flex items-start justify-between">
+                        <div class="flex flex-col gap-4">
+                            <h1 class="text-2xl font-bold text-gray-900">
+                                {{ asamblea.nombre }}
+                            </h1>
+                            <div class="flex flex-wrap gap-4 text-sm text-gray-600">
+                                <div class="flex items-center gap-1">
+                                    <Calendar class="h-4 w-4" />
+                                    <span>{{ formatearFecha(asamblea.fecha_inicio) }} - {{ formatearFecha(asamblea.fecha_fin) }}</span>
+                                </div>
+                                <div v-if="asamblea.lugar" class="flex items-center gap-1">
+                                    <MapPin class="h-4 w-4" />
+                                    <span>{{ asamblea.ubicacion_completa }}</span>
+                                </div>
                             </div>
                         </div>
+                        <Button 
+                            variant="outline" 
+                            size="sm"
+                            @click="() => window.history.back()"
+                        >
+                            <ArrowLeft class="h-4 w-4 mr-2" />
+                            Volver
+                        </Button>
                     </div>
                 </div>
             </div>
