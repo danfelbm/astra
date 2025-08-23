@@ -31,6 +31,11 @@ class OTPAuthController extends Controller
      */
     public function create(Request $request): Response
     {
+        // Guardar la URL intended si viene desde una redirección
+        if ($request->has('intended')) {
+            $request->session()->put('url.intended', $request->input('intended'));
+        }
+        
         return Inertia::render('auth/LoginOTP', [
             'status' => $request->session()->get('status'),
             // Usar servicio con cache para mejor rendimiento
@@ -39,6 +44,7 @@ class OTPAuthController extends Controller
             'otpCredential' => $request->session()->get('otp_credential'),
             'otpChannel' => $request->session()->get('otp_channel', 'email'),
             'whatsappEnabled' => config('services.whatsapp.enabled', false),
+            'intendedUrl' => $request->session()->get('url.intended'),
         ]);
     }
 
@@ -250,7 +256,13 @@ class OTPAuthController extends Controller
         // Regenerar sesión por seguridad
         $request->session()->regenerate();
 
-        // Redirigir según configuración del rol o tipo de usuario
+        // Verificar si hay una URL intended en la sesión
+        if ($request->session()->has('url.intended')) {
+            $intendedUrl = $request->session()->pull('url.intended');
+            return redirect($intendedUrl)->with('success', 'Autenticación exitosa.');
+        }
+        
+        // Si no hay URL intended, redirigir según configuración del rol o tipo de usuario
         $redirectRoute = 'dashboard'; // Valor por defecto
         
         // Obtener el primer rol del usuario

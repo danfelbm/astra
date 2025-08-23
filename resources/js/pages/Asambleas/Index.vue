@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import GlowEffect from '@/components/ui/GlowEffect.vue';
 import { type BreadcrumbItemType } from '@/types';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { Head, Link } from '@inertiajs/vue3';
@@ -102,7 +103,7 @@ const getTipoBadge = (tipo: string) => {
     <Head title="Asambleas" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
-        <div class="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
+        <div class="flex h-full flex-1 flex-col gap-4 rounded-xl p-2" style="overflow: visible; contain: layout;">
             <!-- Header -->
             <div>
                 <h1 class="text-3xl font-bold">Asambleas</h1>
@@ -113,14 +114,29 @@ const getTipoBadge = (tipo: string) => {
 
 
             <!-- Lista unificada de asambleas -->
-            <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3 p-6" style="overflow: visible;">
                 <Link 
                     v-for="asamblea in asambleas.data" 
                     :key="asamblea.id" 
                     :href="route('asambleas.show', asamblea.id)"
                     class="block transition-transform hover:scale-[1.02]"
                 >
-                    <Card class="h-full hover:shadow-lg transition-shadow cursor-pointer">
+                    <!-- Contenedor superior que maneja glow y background -->
+                    <div 
+                        :class="[
+                            'relative rounded-xl',
+                            asamblea.es_participante ? 'bg-white dark:bg-gray-900' : ''
+                        ]"
+                    >
+                        <!-- Glow Effect fuera del card, en el contenedor superior -->
+                        <GlowEffect v-if="asamblea.es_participante" />
+                        
+                        <Card 
+                            :class="[
+                                'h-full hover:shadow-lg transition-shadow cursor-pointer relative z-10',
+                                asamblea.es_participante ? 'border-0 bg-white dark:bg-gray-900 rounded-xl' : ''
+                            ]"
+                        >
                         <CardHeader>
                             <div class="space-y-1">
                                 <CardTitle class="text-lg">{{ asamblea.nombre }}</CardTitle>
@@ -191,6 +207,7 @@ const getTipoBadge = (tipo: string) => {
                             </div>
                         </CardContent>
                     </Card>
+                    </div> <!-- Cierre del contenedor superior -->
                 </Link>
 
                 <!-- Estado vacío -->
