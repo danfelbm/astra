@@ -275,11 +275,12 @@ const formatearFecha = (fecha: string | null | undefined) => {
                             <User class="h-4 w-4" />
                             Estados
                         </CardTitle>
+                        <p class="text-xs text-muted-foreground mt-1">Este es el listado de posibles estados:</p>
                     </CardHeader>
                     <CardContent class="space-y-2">
                         <div class="flex items-center gap-2">
                             <Edit class="h-3 w-3 text-yellow-600" />
-                            <p class="text-xs"><span class="font-medium">Borrador:</span> Editable</p>
+                            <p class="text-xs"><span class="font-medium">Borrador:</span> editable dentro de tiempos de subsanación</p>
                         </div>
                         
                         <div class="flex items-center gap-2">
@@ -294,7 +295,7 @@ const formatearFecha = (fecha: string | null | undefined) => {
                         
                         <div class="flex items-center gap-2">
                             <XCircle class="h-3 w-3 text-red-600" />
-                            <p class="text-xs"><span class="font-medium">Rechazado:</span> Corregir</p>
+                            <p class="text-xs"><span class="font-medium">Rechazado:</span> solicitar revision a comité de garantías</p>
                         </div>
                     </CardContent>
                 </Card>
