@@ -259,7 +259,7 @@ class AsambleaController extends Controller
             'activo' => 'boolean',
             // Campos de Zoom
             'zoom_enabled' => 'boolean',
-            'zoom_integration_type' => 'nullable|in:sdk,api',
+            'zoom_integration_type' => 'nullable|in:sdk,api,message',
             'zoom_meeting_type' => 'nullable|in:instant,scheduled,recurring',
             'zoom_settings' => 'nullable|array',
             'zoom_settings.host_video' => 'nullable|boolean',
@@ -275,6 +275,10 @@ class AsambleaController extends Controller
             'zoom_registration_open_date' => 'nullable|date',
             'zoom_join_url' => 'nullable|string|max:500',
             'zoom_start_url' => 'nullable|string|max:500',
+            // Campos de mensaje estático y mensaje API
+            'zoom_static_message' => 'nullable|string',
+            'zoom_api_message_enabled' => 'boolean',
+            'zoom_api_message' => 'nullable|string',
             // Campos de consulta pública de participantes
             'public_participants_enabled' => 'boolean',
             'public_participants_mode' => 'nullable|in:list,search',
@@ -409,7 +413,7 @@ class AsambleaController extends Controller
             'acta_url' => 'nullable|string|max:255',
             // Campos de Zoom
             'zoom_enabled' => 'boolean',
-            'zoom_integration_type' => 'nullable|in:sdk,api',
+            'zoom_integration_type' => 'nullable|in:sdk,api,message',
             'zoom_meeting_type' => 'nullable|in:instant,scheduled,recurring',
             'zoom_settings' => 'nullable|array',
             'zoom_settings.host_video' => 'nullable|boolean',
@@ -425,6 +429,10 @@ class AsambleaController extends Controller
             'zoom_registration_open_date' => 'nullable|date',
             'zoom_join_url' => 'nullable|string|max:500',
             'zoom_start_url' => 'nullable|string|max:500',
+            // Campos de mensaje estático y mensaje API
+            'zoom_static_message' => 'nullable|string',
+            'zoom_api_message_enabled' => 'boolean',
+            'zoom_api_message' => 'nullable|string',
             // Campos de consulta pública de participantes
             'public_participants_enabled' => 'boolean',
             'public_participants_mode' => 'nullable|in:list,search',
@@ -581,12 +589,12 @@ class AsambleaController extends Controller
 
         // Definir campos permitidos para filtrar (con prefijos de tabla para evitar ambigüedad)
         $allowedFields = [
-            'users.name', 'users.email', 'asamblea_usuario.tipo_participacion', 'asamblea_usuario.asistio',
+            'users.name', 'users.email', 'users.documento_identidad', 'asamblea_usuario.tipo_participacion', 'asamblea_usuario.asistio',
             'users.territorio_id', 'users.departamento_id', 'users.municipio_id', 'users.localidad_id',
         ];
         
         // Campos para búsqueda rápida (con prefijos de tabla)
-        $quickSearchFields = ['users.name', 'users.email'];
+        $quickSearchFields = ['users.name', 'users.email', 'users.documento_identidad'];
 
         // Aplicar filtros avanzados
         $this->applyAdvancedFilters($query, $request, $allowedFields, $quickSearchFields);
@@ -627,6 +635,11 @@ class AsambleaController extends Controller
             [
                 'name' => 'users.email',
                 'label' => 'Email',
+                'type' => 'text',
+            ],
+            [
+                'name' => 'users.documento_identidad',
+                'label' => 'Documento de Identidad',
                 'type' => 'text',
             ],
             [

@@ -96,9 +96,12 @@ interface Asamblea {
     participantes_count: number;
     // Campos de videoconferencia
     zoom_enabled?: boolean;
-    zoom_integration_type?: 'sdk' | 'api';
+    zoom_integration_type?: 'sdk' | 'api' | 'message';
     zoom_meeting_id?: string;
     zoom_meeting_password?: string;
+    zoom_static_message?: string;
+    zoom_api_message_enabled?: boolean;
+    zoom_api_message?: string;
     zoom_estado?: string;
     zoom_estado_mensaje?: string;
 }
@@ -805,12 +808,36 @@ onMounted(() => {
                         :asamblea-id="asamblea.id"
                     />
                     
+                    <!-- Modo Mensaje Estático -->
+                    <Card v-else-if="asamblea.zoom_enabled && asamblea.zoom_integration_type === 'message' && asamblea.zoom_static_message">
+                        <CardHeader>
+                            <CardTitle class="flex items-center gap-2">
+                                <Info class="h-5 w-5" />
+                                Información Importante
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div class="prose prose-sm max-w-none">
+                                <p class="whitespace-pre-wrap text-gray-700">{{ asamblea.zoom_static_message }}</p>
+                            </div>
+                        </CardContent>
+                    </Card>
+                    
                     <!-- Zoom habilitado pero sin configuración completa -->
-                    <Alert v-else-if="asamblea.zoom_enabled && !asamblea.zoom_meeting_id">
+                    <Alert v-else-if="asamblea.zoom_enabled && !asamblea.zoom_meeting_id && asamblea.zoom_integration_type !== 'message'">
                         <Info class="h-4 w-4" />
                         <AlertTitle>Configuración Incompleta</AlertTitle>
                         <AlertDescription>
                             La videoconferencia está habilitada pero aún no está completamente configurada.
+                        </AlertDescription>
+                    </Alert>
+                    
+                    <!-- Mensaje estático sin contenido -->
+                    <Alert v-else-if="asamblea.zoom_enabled && asamblea.zoom_integration_type === 'message' && !asamblea.zoom_static_message">
+                        <Info class="h-4 w-4" />
+                        <AlertTitle>Sin Mensaje Configurado</AlertTitle>
+                        <AlertDescription>
+                            No se ha configurado un mensaje para mostrar.
                         </AlertDescription>
                     </Alert>
                     

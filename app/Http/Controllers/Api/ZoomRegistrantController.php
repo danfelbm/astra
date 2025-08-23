@@ -242,6 +242,8 @@ class ZoomRegistrantController extends Controller
                         'asamblea' => [
                             'id' => $asamblea->id,
                             'nombre' => $asamblea->nombre,
+                            'zoom_api_message_enabled' => $asamblea->zoom_api_message_enabled,
+                            'zoom_api_message' => $asamblea->zoom_api_message,
                         ]
                     ]);
                 }
@@ -257,6 +259,8 @@ class ZoomRegistrantController extends Controller
                     'zoom_enabled' => $asamblea->zoom_enabled,
                     'zoom_integration_type' => $asamblea->zoom_integration_type,
                     'zoom_meeting_id' => $asamblea->zoom_meeting_id,
+                    'zoom_api_message_enabled' => $asamblea->zoom_api_message_enabled,
+                    'zoom_api_message' => $asamblea->zoom_api_message,
                     'estado' => $asamblea->estado,
                     'estado_label' => $asamblea->getEstadoLabel(),
                     'estado_zoom' => $asamblea->getZoomEstado(),
