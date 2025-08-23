@@ -21,10 +21,44 @@ class AsambleaPublicController extends Controller
     {
         $user = Auth::user();
         
-        // Obtener asambleas donde el usuario es participante (solo activas)
-        $query = $user->asambleas()
+        // Primero, obtener IDs de asambleas donde el usuario es participante
+        $asambleasParticipanteIds = $user->asambleas()
             ->where('activo', true)
-            ->with(['territorio', 'departamento', 'municipio', 'localidad']);
+            ->pluck('asambleas.id')
+            ->toArray();
+        
+        // Crear query base para todas las asambleas que debe ver el usuario
+        $query = Asamblea::activas()
+            ->with(['territorio', 'departamento', 'municipio', 'localidad'])
+            ->where(function($q) use ($user, $asambleasParticipanteIds) {
+                // Incluir asambleas donde es participante (si las hay)
+                if (!empty($asambleasParticipanteIds)) {
+                    $q->whereIn('id', $asambleasParticipanteIds);
+                }
+                
+                // También incluir asambleas del territorio del usuario (si tiene territorio asignado)
+                if ($user->territorio_id || $user->departamento_id || $user->municipio_id || $user->localidad_id) {
+                    // Si ya agregamos asambleas de participante, usar OR para incluir las del territorio
+                    if (!empty($asambleasParticipanteIds)) {
+                        $q->orWhere(function($territoryQuery) use ($user) {
+                            $territoryQuery->porTerritorio(
+                                $user->territorio_id,
+                                $user->departamento_id,
+                                $user->municipio_id,
+                                $user->localidad_id
+                            );
+                        });
+                    } else {
+                        // Si no hay asambleas de participante, solo buscar en territorio
+                        $q->porTerritorio(
+                            $user->territorio_id,
+                            $user->departamento_id,
+                            $user->municipio_id,
+                            $user->localidad_id
+                        );
+                    }
+                }
+            });
 
         // Aplicar filtro por estado si se proporciona
         if ($request->filled('estado')) {
@@ -46,61 +80,33 @@ class AsambleaPublicController extends Controller
             });
         }
 
-        // También incluir asambleas públicas del territorio del usuario si tiene asignado
-        if ($user->territorio_id || $user->departamento_id || $user->municipio_id || $user->localidad_id) {
-            $queryPublicas = Asamblea::activas()
-                ->porTerritorio(
-                    $user->territorio_id,
-                    $user->departamento_id,
-                    $user->municipio_id,
-                    $user->localidad_id
-                )
-                ->with(['territorio', 'departamento', 'municipio', 'localidad'])
-                ->whereDoesntHave('participantes', function($q) use ($user) {
-                    $q->where('usuario_id', $user->id);
-                });
-
-            // Aplicar los mismos filtros que a las asambleas del usuario
-            if ($request->filled('estado')) {
-                $queryPublicas->where('estado', $request->estado);
-            }
-
-            if ($request->filled('tipo')) {
-                $queryPublicas->where('tipo', $request->tipo);
-            }
-
-            if ($request->filled('search')) {
-                $search = $request->search;
-                $queryPublicas->where(function($q) use ($search) {
-                    $q->where('nombre', 'like', "%{$search}%")
-                      ->orWhere('descripcion', 'like', "%{$search}%")
-                      ->orWhere('lugar', 'like', "%{$search}%");
-                });
-            }
-
-            // Paginar asambleas públicas usando parámetro 'public_page'
-            $asambleasPublicas = $queryPublicas->ordenadoPorFecha()
-                ->paginate(12, ['*'], 'public_page')
-                ->withQueryString();
-        } else {
-            // Crear paginación vacía para consistencia
-            $asambleasPublicas = new \Illuminate\Pagination\LengthAwarePaginator(
-                collect(),
-                0,
-                12,
-                $request->input('public_page', 1),
-                ['path' => $request->url()]
-            );
-        }
-
-        // Paginar asambleas del usuario usando parámetro 'page' (default)
+        // Paginar asambleas unificadas
         $asambleas = $query->ordenadoPorFecha()
-            ->paginate(12)
+            ->paginate(18)
             ->withQueryString();
 
         // Enriquecer datos con información de estado para el frontend
-        $asambleas->getCollection()->transform(function ($asamblea) use ($user) {
-            $participante = $asamblea->participantes->find($user->id);
+        $asambleas->getCollection()->transform(function ($asamblea) use ($user, $asambleasParticipanteIds) {
+            // Verificar si el usuario es participante de esta asamblea
+            $esParticipante = in_array($asamblea->id, $asambleasParticipanteIds);
+            
+            // Obtener información de participación si es participante
+            $miParticipacion = null;
+            if ($esParticipante) {
+                // Cargar la relación de participante específica para este usuario
+                $asamblea->load(['participantes' => function($q) use ($user) {
+                    $q->where('users.id', $user->id);
+                }]);
+                
+                $participante = $asamblea->participantes->first();
+                if ($participante) {
+                    $miParticipacion = [
+                        'tipo' => $participante->pivot->tipo_participacion,
+                        'asistio' => $participante->pivot->asistio,
+                        'hora_registro' => $participante->pivot->hora_registro,
+                    ];
+                }
+            }
             
             return [
                 'id' => $asamblea->id,
@@ -118,38 +124,13 @@ class AsambleaPublicController extends Controller
                 'duracion' => $asamblea->getDuracion(),
                 'tiempo_restante' => $asamblea->getTiempoRestante(),
                 'rango_fechas' => $asamblea->getRangoFechas(),
-                'mi_participacion' => $participante ? [
-                    'tipo' => $participante->pivot->tipo_participacion,
-                    'asistio' => $participante->pivot->asistio,
-                    'hora_registro' => $participante->pivot->hora_registro,
-                ] : null,
-            ];
-        });
-
-        // Transformar asambleas públicas de la misma manera que las del usuario
-        $asambleasPublicas->getCollection()->transform(function ($asamblea) {
-            return [
-                'id' => $asamblea->id,
-                'nombre' => $asamblea->nombre,
-                'descripcion' => $asamblea->descripcion,
-                'tipo' => $asamblea->tipo,
-                'tipo_label' => $asamblea->getTipoLabel(),
-                'estado' => $asamblea->estado,
-                'estado_label' => $asamblea->getEstadoLabel(),
-                'estado_color' => $asamblea->getEstadoColor(),
-                'fecha_inicio' => $asamblea->fecha_inicio,
-                'fecha_fin' => $asamblea->fecha_fin,
-                'lugar' => $asamblea->lugar,
-                'ubicacion_completa' => $asamblea->getUbicacionCompleta(),
-                'duracion' => $asamblea->getDuracion(),
-                'tiempo_restante' => $asamblea->getTiempoRestante(),
-                'rango_fechas' => $asamblea->getRangoFechas(),
+                'es_participante' => $esParticipante,
+                'mi_participacion' => $miParticipacion,
             ];
         });
 
         return Inertia::render('Asambleas/Index', [
             'asambleas' => $asambleas,
-            'asambleasPublicas' => $asambleasPublicas,
             'filters' => $request->only(['estado', 'tipo', 'search']),
         ]);
     }
