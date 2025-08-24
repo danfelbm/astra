@@ -211,16 +211,73 @@ const marcarAsistencia = async () => {
 };
 
 /**
- * Abrir URL de Zoom en nueva pestaña y marcar asistencia
+ * Abrir URL de Zoom con máxima compatibilidad móvil
+ * Implementa múltiples métodos de apertura con fallback
  */
-const openZoomMeeting = async () => {
-    // Primero marcar asistencia (no bloqueante)
-    await marcarAsistencia();
+const openZoomMeeting = () => {
+    const zoomUrl = registrationStatus.value?.zoom_join_url;
+    if (!zoomUrl) return;
+
+    // Intentar abrir el enlace inmediatamente (mantiene contexto de usuario)
+    let popupBlocked = false;
     
-    // Luego abrir Zoom independientemente del resultado
-    if (registrationStatus.value?.zoom_join_url) {
-        window.open(registrationStatus.value.zoom_join_url, '_blank', 'noopener,noreferrer');
+    // Método 1: window.open directo
+    const popup = window.open(zoomUrl, '_blank', 'noopener,noreferrer');
+    
+    if (!popup || popup.closed || typeof popup.closed === 'undefined') {
+        // El popup fue bloqueado, intentar métodos alternativos
+        popupBlocked = true;
+        
+        // Método 2: setTimeout con delay 0 (funciona en algunos navegadores móviles)
+        setTimeout(() => {
+            const retryPopup = window.open(zoomUrl, '_blank');
+            if (!retryPopup || retryPopup.closed) {
+                // Método 3: Crear elemento anchor temporal
+                const link = document.createElement('a');
+                link.href = zoomUrl;
+                link.target = '_blank';
+                link.rel = 'noopener noreferrer';
+                link.style.display = 'none';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                // Si aún falla, mostrar mensaje al usuario
+                showManualLinkMessage();
+            }
+        }, 0);
     }
+    
+    // Marcar asistencia de forma no bloqueante (no usar await)
+    marcarAsistencia().catch(error => {
+        // Los errores de asistencia no deben bloquear la apertura del zoom
+        console.error('Error marcando asistencia:', error);
+    });
+    
+    // Si detectamos bloqueo, informar al usuario
+    if (popupBlocked) {
+        toast.warning('⚠️ Tu navegador bloqueó la ventana emergente', {
+            description: 'Usa el enlace manual debajo del botón para unirte a la reunión',
+            duration: 5000,
+        });
+    }
+};
+
+/**
+ * Mostrar mensaje con enlace manual si los métodos automáticos fallan
+ */
+const showManualLinkMessage = () => {
+    toast.error('No se pudo abrir automáticamente', {
+        description: 'Por favor usa el enlace manual debajo del botón',
+        duration: 6000,
+    });
+};
+
+/**
+ * Detectar si es un dispositivo móvil
+ */
+const isMobileDevice = () => {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 };
 
 /**
@@ -503,27 +560,46 @@ onUnmounted(() => {
                             </Alert>
                         </div>
 
-                        <!-- Botones en la misma fila -->
-                        <div class="flex gap-2">
-                            <Button 
-                                v-if="canJoinMeeting"
-                                @click="openZoomMeeting"
-                                class="flex-1 bg-green-600 hover:bg-green-700 text-white"
-                            >
-                                <ExternalLink class="mr-2 h-4 w-4" />
-                                Unirse a la Videoconferencia
-                            </Button>
+                        <!-- Botones y enlace de respaldo -->
+                        <div class="space-y-3">
+                            <!-- Botón principal -->
+                            <div class="flex gap-2">
+                                <Button 
+                                    v-if="canJoinMeeting"
+                                    @click="openZoomMeeting"
+                                    class="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                                >
+                                    <ExternalLink class="mr-2 h-4 w-4" />
+                                    Unirse a la Videoconferencia
+                                </Button>
 
-                            <Button 
-                                variant="outline" 
-                                @click="cancelRegistration"
-                                :disabled="isLoading"
-                                size="sm"
-                                class="hidden"
-                            >
-                                <Loader2 v-if="isLoading" class="mr-2 h-4 w-4 animate-spin" />
-                                Cancelar
-                            </Button>
+                                <Button 
+                                    variant="outline" 
+                                    @click="cancelRegistration"
+                                    :disabled="isLoading"
+                                    size="sm"
+                                    class="hidden"
+                                >
+                                    <Loader2 v-if="isLoading" class="mr-2 h-4 w-4 animate-spin" />
+                                    Cancelar
+                                </Button>
+                            </div>
+                            
+                            <!-- Enlace manual de respaldo (visible especialmente en móviles) -->
+                            <div v-if="canJoinMeeting && registrationStatus.zoom_join_url" class="text-center">
+                                <p class="text-xs text-muted-foreground mb-2">
+                                    {{ isMobileDevice() ? '¿Problemas para abrir? Toca el enlace abajo:' : '¿No se abre automáticamente?' }}
+                                </p>
+                                <a 
+                                    :href="registrationStatus.zoom_join_url"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    class="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 underline"
+                                >
+                                    <ExternalLink class="h-3 w-3" />
+                                    Abrir Zoom manualmente
+                                </a>
+                            </div>
                         </div>
                     </div>
                 </CardContent>
@@ -559,6 +635,20 @@ onUnmounted(() => {
                 <AlertTitle>No disponible</AlertTitle>
                 <AlertDescription>
                     {{ statusData.reason }}
+                </AlertDescription>
+            </Alert>
+            
+            <!-- Instrucciones especiales para móviles -->
+            <Alert v-if="isMobileDevice() && statusData?.existing_registration?.status === 'completed'" class="mt-4 border-blue-200 bg-blue-50">
+                <Info class="h-4 w-4 text-blue-600" />
+                <AlertTitle class="text-blue-700">Consejo para dispositivos móviles</AlertTitle>
+                <AlertDescription class="text-gray-700">
+                    <ul class="list-disc list-inside space-y-1 mt-2 text-sm">
+                        <li>Si tienes la app de Zoom instalada, el enlace debería abrirla automáticamente</li>
+                        <li>Si no se abre, usa el enlace manual "Abrir Zoom manualmente"</li>
+                        <li>Es posible que tu navegador te pida permiso para abrir Zoom</li>
+                        <li>En iOS, podrías necesitar mantener presionado el enlace y seleccionar "Abrir"</li>
+                    </ul>
                 </AlertDescription>
             </Alert>
 
