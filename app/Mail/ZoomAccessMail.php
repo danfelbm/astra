@@ -62,9 +62,10 @@ class ZoomAccessMail extends Mailable
                 'zoomRegistrantId' => $this->zoomRegistrantId,
                 'fechaInicio' => $this->fechaInicio,
                 'fechaFin' => $this->fechaFin,
-                'fechaInicioFormateada' => $this->fechaInicio->format('d/m/Y H:i'),
-                'fechaFinFormateada' => $this->fechaFin->format('d/m/Y H:i'),
-                'fechaInicioCompleta' => $this->fechaInicio->format('l, d \d\e F \d\e Y \a \l\a\s H:i'),
+                // Convertir fechas de UTC a zona horaria de Colombia (GMT-5)
+                'fechaInicioFormateada' => $this->fechaInicio->copy()->setTimezone('America/Bogota')->format('d/m/Y H:i'),
+                'fechaFinFormateada' => $this->fechaFin->copy()->setTimezone('America/Bogota')->format('d/m/Y H:i'),
+                'fechaInicioCompleta' => $this->fechaInicio->copy()->setTimezone('America/Bogota')->format('l, d \d\e F \d\e Y \a \l\a\s H:i'),
             ],
         );
     }
