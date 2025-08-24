@@ -117,8 +117,10 @@ class SendZoomAccessWhatsAppJob implements ShouldQueue
         $maskedUrl = $this->notificationData['masked_url'];
         $zoomRegistrantId = $this->notificationData['zoom_registrant_id'];
 
-        $fechaInicio = $asamblea->fecha_inicio->format('d/m/Y H:i');
-        $fechaFin = $asamblea->fecha_fin->format('d/m/Y H:i');
+        // Convertir fechas de UTC a zona horaria de Colombia (GMT-5)
+        $timezone = 'America/Bogota';
+        $fechaInicio = $asamblea->fecha_inicio->copy()->setTimezone($timezone)->format('d/m/Y H:i');
+        $fechaFin = $asamblea->fecha_fin->copy()->setTimezone($timezone)->format('d/m/Y H:i');
 
         return "Hola {$user->name},\n\n" .
                "¡Tu acceso a la videoconferencia está listo!\n\n" .
