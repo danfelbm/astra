@@ -3,9 +3,9 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
+use Spatie\Permission\Models\Role as SpatieRole;
 
-class Role extends Model
+class Role extends SpatieRole
 {
     use HasFactory;
     
@@ -22,11 +22,10 @@ class Role extends Model
         'name',
         'display_name',
         'description',
-        'permissions',
-        'allowed_modules',
         'is_system',
         'is_administrative',
-        'redirect_after_login'
+        'redirect_after_login',
+        'guard_name', // Agregado para Spatie
     ];
 
     /**
@@ -35,21 +34,21 @@ class Role extends Model
      * @var array<string, string>
      */
     protected $casts = [
-        'permissions' => 'array',
-        'allowed_modules' => 'array',
         'is_system' => 'boolean',
         'is_administrative' => 'boolean',
     ];
 
     /**
      * Obtener los usuarios que tienen este rol
+     * NOTA: Comentado porque Spatie Permission ya provee esta relación
+     * La relación users() de Spatie se usará automáticamente con la tabla model_has_roles
      */
-    public function users()
-    {
-        return $this->belongsToMany(User::class, 'role_user')
-                    ->withPivot('assigned_at', 'assigned_by')
-                    ->withTimestamps();
-    }
+    // public function users()
+    // {
+    //     return $this->belongsToMany(User::class, 'role_user')
+    //                 ->withPivot('assigned_at', 'assigned_by')
+    //                 ->withTimestamps();
+    // }
 
     /**
      * Obtener los segmentos asociados a este rol
@@ -60,46 +59,7 @@ class Role extends Model
                     ->withTimestamps();
     }
 
-    /**
-     * Verificar si el rol tiene un permiso específico
-     */
-    public function hasPermission(string $permission): bool
-    {
-        $permissions = $this->permissions ?? [];
-        
-        // Si tiene permiso wildcard
-        if (in_array('*', $permissions)) {
-            return true;
-        }
-        
-        // Verificar permiso específico
-        if (in_array($permission, $permissions)) {
-            return true;
-        }
-        
-        // Verificar permiso wildcard por módulo (ej: "users.*")
-        $module = explode('.', $permission)[0] ?? '';
-        if ($module && in_array($module . '.*', $permissions)) {
-            return true;
-        }
-        
-        return false;
-    }
 
-    /**
-     * Verificar si el rol tiene acceso a un módulo
-     */
-    public function hasModuleAccess(string $module): bool
-    {
-        $allowedModules = $this->allowed_modules ?? [];
-        
-        // Si tiene acceso a todos los módulos
-        if (in_array('*', $allowedModules)) {
-            return true;
-        }
-        
-        return in_array($module, $allowedModules);
-    }
 
     /**
      * Scope para roles globales (sin tenant)
@@ -180,8 +140,7 @@ class Role extends Model
             'name' => $this->name,
             'display_name' => $this->display_name,
             'description' => $this->description,
-            'permissions' => $this->permissions,
-            'allowed_modules' => $this->allowed_modules,
+            // Los permisos se copiarán usando Spatie syncPermissions
             'is_system' => false, // Las copias no son roles del sistema
             'is_administrative' => $this->is_administrative, // Mantener el tipo de rol
         ]);

@@ -77,7 +77,7 @@ const form = useForm({
     display_name: props.role.display_name,
     description: props.role.description || '',
     is_administrative: Boolean(props.role.is_administrative),
-    redirect_after_login: props.role.redirect_after_login || '',
+    redirect_after_login: props.role.redirect_after_login || 'default',
     permissions: props.role.permissions || [],
     allowed_modules: props.role.allowed_modules || [],
     segment_ids: props.selectedSegments || [],
@@ -85,7 +85,7 @@ const form = useForm({
 
 // Opciones de redirección disponibles
 const redirectOptions = [
-    { value: '', label: 'Por defecto (según tipo de rol)' },
+    { value: 'default', label: 'Por defecto (según tipo de rol)' },
     { value: 'admin.dashboard', label: 'Dashboard Administrativo', group: 'admin' },
     { value: 'admin.candidaturas.dashboard', label: 'Dashboard Candidaturas', group: 'admin' },
     { value: 'dashboard', label: 'Dashboard Usuario', group: 'user' },
@@ -106,7 +106,7 @@ const availableRedirectOptions = computed(() => {
         return redirectOptions;
     }
     // Para roles no administrativos, no mostrar rutas admin
-    return redirectOptions.filter(opt => opt.group !== 'admin' || opt.value === '');
+    return redirectOptions.filter(opt => opt.group !== 'admin' || opt.value === 'default');
 });
 
 const isSystemRole = computed(() => {

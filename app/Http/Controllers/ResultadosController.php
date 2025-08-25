@@ -36,7 +36,7 @@ class ResultadosController extends Controller
                 'total_votos' => $votacion->votos()->count(),
             ],
             'user' => [
-                'es_admin' => (auth()->user()?->isAdmin() || auth()->user()?->isSuperAdmin()) ?? false,
+                'es_admin' => auth()->user()?->hasAnyRole(['admin', 'super_admin', 'manager']) ?? false,
             ],
         ]);
     }

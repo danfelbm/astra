@@ -27,7 +27,7 @@ class TenantController extends Controller
     public function index(Request $request): Response
     {
         // Verificar que el usuario sea super admin
-        if (!auth()->user()->isSuperAdmin()) {
+        if (!auth()->user()->hasRole('super_admin')) {
             abort(403, 'No autorizado');
         }
 
@@ -67,7 +67,7 @@ class TenantController extends Controller
      */
     public function create(): Response
     {
-        if (!auth()->user()->isSuperAdmin()) {
+        if (!auth()->user()->hasRole('super_admin')) {
             abort(403, 'No autorizado');
         }
 
@@ -86,7 +86,7 @@ class TenantController extends Controller
      */
     public function store(Request $request)
     {
-        if (!auth()->user()->isSuperAdmin()) {
+        if (!auth()->user()->hasRole('super_admin')) {
             abort(403, 'No autorizado');
         }
 
@@ -134,7 +134,7 @@ class TenantController extends Controller
      */
     public function edit(Tenant $tenant): Response
     {
-        if (!auth()->user()->isSuperAdmin()) {
+        if (!auth()->user()->hasRole('super_admin')) {
             abort(403, 'No autorizado');
         }
 
@@ -157,7 +157,7 @@ class TenantController extends Controller
      */
     public function update(Request $request, Tenant $tenant)
     {
-        if (!auth()->user()->isSuperAdmin()) {
+        if (!auth()->user()->hasRole('super_admin')) {
             abort(403, 'No autorizado');
         }
 
@@ -193,7 +193,7 @@ class TenantController extends Controller
      */
     public function destroy(Tenant $tenant)
     {
-        if (!auth()->user()->isSuperAdmin()) {
+        if (!auth()->user()->hasRole('super_admin')) {
             abort(403, 'No autorizado');
         }
 
@@ -218,7 +218,7 @@ class TenantController extends Controller
      */
     public function switch(Request $request)
     {
-        if (!auth()->user()->isSuperAdmin()) {
+        if (!auth()->user()->hasRole('super_admin')) {
             abort(403, 'No autorizado');
         }
 

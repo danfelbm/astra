@@ -332,8 +332,8 @@ trait HasSegmentScope
             return false;
         }
         
-        // Verificar si el usuario tiene el permiso
-        if (!$user->hasPermission($permission)) {
+        // Verificar si el usuario tiene el permiso usando Spatie
+        if (!$user->can($permission)) {
             return false;
         }
         

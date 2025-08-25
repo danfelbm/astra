@@ -60,9 +60,9 @@ class SegmentController extends Controller
      */
     public function create(): Response
     {
-        // Solo admin puede crear segmentos
-        if (!auth()->user()->isAdmin()) {
-            abort(403, 'No autorizado');
+        // Verificación de permisos usando Spatie
+        if (!auth()->user()->can('segments.create')) {
+            abort(403, 'No tienes permiso para crear segmentos');
         }
 
         return Inertia::render('Admin/Segments/Create', [
@@ -77,8 +77,8 @@ class SegmentController extends Controller
      */
     public function store(Request $request)
     {
-        if (!auth()->user()->isAdmin()) {
-            abort(403, 'No autorizado');
+        if (!auth()->user()->can('segments.create')) {
+            abort(403, 'No tienes permiso para crear segmentos');
         }
 
         $validated = $request->validate([
@@ -162,8 +162,8 @@ class SegmentController extends Controller
      */
     public function edit(Segment $segment): Response
     {
-        if (!auth()->user()->isAdmin()) {
-            abort(403, 'No autorizado');
+        if (!auth()->user()->can('segments.edit')) {
+            abort(403, 'No tienes permiso para editar segmentos');
         }
 
         $segment->load('roles');
@@ -182,8 +182,8 @@ class SegmentController extends Controller
      */
     public function update(Request $request, Segment $segment)
     {
-        if (!auth()->user()->isAdmin()) {
-            abort(403, 'No autorizado');
+        if (!auth()->user()->can('segments.edit')) {
+            abort(403, 'No tienes permiso para editar segmentos');
         }
 
         $validated = $request->validate([
@@ -229,8 +229,8 @@ class SegmentController extends Controller
      */
     public function destroy(Segment $segment)
     {
-        if (!auth()->user()->isAdmin()) {
-            abort(403, 'No autorizado');
+        if (!auth()->user()->can('segments.delete')) {
+            abort(403, 'No tienes permiso para eliminar segmentos');
         }
 
         // Verificar si tiene roles asociados
@@ -249,8 +249,8 @@ class SegmentController extends Controller
      */
     public function evaluate(Segment $segment)
     {
-        if (!auth()->user()->isAdmin()) {
-            abort(403, 'No autorizado');
+        if (!auth()->user()->can('segments.edit')) {
+            abort(403, 'No tienes permiso para evaluar segmentos');
         }
 
         $results = $segment->recalculate();
@@ -267,8 +267,8 @@ class SegmentController extends Controller
      */
     public function clearCache(Segment $segment)
     {
-        if (!auth()->user()->isAdmin()) {
-            abort(403, 'No autorizado');
+        if (!auth()->user()->can('segments.edit')) {
+            abort(403, 'No tienes permiso para limpiar cache de segmentos');
         }
 
         $segment->clearCache();

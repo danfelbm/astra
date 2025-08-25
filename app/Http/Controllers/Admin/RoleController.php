@@ -7,14 +7,13 @@ use App\Models\Role;
 use App\Models\Segment;
 use App\Services\TenantService;
 use App\Traits\HasAdvancedFilters;
-use App\Traits\AuthorizesActions;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class RoleController extends Controller
 {
-    use HasAdvancedFilters, AuthorizesActions;
+    use HasAdvancedFilters;
 
     protected TenantService $tenantService;
 
@@ -28,8 +27,10 @@ class RoleController extends Controller
      */
     public function index(Request $request): Response
     {
-        // Verificación de permisos adicional como respaldo
-        $this->authorizeAction('roles.view');
+        // Verificación de permisos usando Spatie
+        if (!auth()->user()->can('roles.view')) {
+            abort(403, 'No tienes permiso para ver roles');
+        }
         
         // Obtener el tenant actual (si el servicio está disponible)
         $currentTenantId = null;
@@ -68,7 +69,7 @@ class RoleController extends Controller
 
         // Si no es super admin, no mostrar el rol super_admin
         $user = auth()->user();
-        if (!$user || !$user->isSuperAdmin()) {
+        if (!$user || !$user->hasRole('super_admin')) {
             $query->where('name', '!=', 'super_admin');
         }
 
@@ -94,8 +95,10 @@ class RoleController extends Controller
      */
     public function create(): Response
     {
-        // Verificación de permisos específicos en lugar de isAdmin()
-        $this->authorizeAction('roles.create');
+        // Verificación de permisos usando Spatie
+        if (!auth()->user()->can('roles.create')) {
+            abort(403, 'No tienes permiso para crear roles');
+        }
 
         return Inertia::render('Admin/Roles/Create', [
             'segments' => Segment::select('id', 'name', 'description')->get(),
@@ -109,8 +112,10 @@ class RoleController extends Controller
      */
     public function store(Request $request)
     {
-        // Verificación de permisos específicos en lugar de isAdmin()
-        $this->authorizeAction('roles.create');
+        // Verificación de permisos usando Spatie
+        if (!auth()->user()->can('roles.create')) {
+            abort(403, 'No tienes permiso para crear roles');
+        }
 
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:roles,name',
@@ -120,8 +125,6 @@ class RoleController extends Controller
             'redirect_after_login' => 'nullable|string|max:255',
             'permissions' => 'array',
             'permissions.*' => 'string',
-            'allowed_modules' => 'array',
-            'allowed_modules.*' => 'string',
             'segment_ids' => 'array',
             'segment_ids.*' => 'exists:segments,id',
         ]);
@@ -134,16 +137,25 @@ class RoleController extends Controller
             // Si no hay TenantService o está deshabilitado, continuar sin tenant
         }
         
+        // Convertir 'default' a null para la base de datos
+        $redirectAfterLogin = ($validated['redirect_after_login'] ?? null) === 'default' 
+            ? null 
+            : ($validated['redirect_after_login'] ?? null);
+        
         $role = Role::create([
             'tenant_id' => $currentTenant ? $currentTenant->id : null,
             'name' => $validated['name'],
             'display_name' => $validated['display_name'],
             'description' => $validated['description'] ?? null,
             'is_administrative' => $validated['is_administrative'] ?? false,
-            'redirect_after_login' => $validated['redirect_after_login'] ?? null,
-            'permissions' => $validated['permissions'] ?? [],
-            'allowed_modules' => $validated['allowed_modules'] ?? [],
+            'redirect_after_login' => $redirectAfterLogin,
+            // Eliminado campo legacy_permissions - usando solo Spatie
         ]);
+
+        // Sincronizar permisos con Spatie
+        if (!empty($validated['permissions'])) {
+            $role->syncPermissions($validated['permissions']);
+        }
 
         // Asociar segmentos si se proporcionaron
         if (!empty($validated['segment_ids'])) {
@@ -159,8 +171,10 @@ class RoleController extends Controller
      */
     public function show(Role $role): Response
     {
-        // Verificación de permisos adicional como respaldo
-        $this->authorizeAction('roles.view');
+        // Verificación de permisos usando Spatie
+        if (!auth()->user()->can('roles.view')) {
+            abort(403, 'No tienes permiso para ver roles');
+        }
         
         // Cargar solo datos esenciales para evitar referencias circulares
         $role->loadCount(['users', 'segments']);
@@ -177,11 +191,13 @@ class RoleController extends Controller
      */
     public function edit(Role $role): Response
     {
-        // Verificación de permisos específicos en lugar de isAdmin()
-        $this->authorizeAction('roles.edit');
+        // Verificación de permisos usando Spatie
+        if (!auth()->user()->can('roles.edit')) {
+            abort(403, 'No tienes permiso para editar roles');
+        }
 
         // No permitir editar roles del sistema si no es super admin
-        if ($role->isSystemRole() && !auth()->user()->isSuperAdmin()) {
+        if ($role->isSystemRole() && !auth()->user()->hasRole('super_admin')) {
             abort(403, 'No se pueden editar roles del sistema');
         }
 
@@ -202,11 +218,13 @@ class RoleController extends Controller
      */
     public function update(Request $request, Role $role)
     {
-        // Verificación de permisos específicos en lugar de isAdmin()
-        $this->authorizeAction('roles.edit');
+        // Verificación de permisos usando Spatie
+        if (!auth()->user()->can('roles.edit')) {
+            abort(403, 'No tienes permiso para editar roles');
+        }
 
         // No permitir editar roles del sistema si no es super admin
-        if ($role->isSystemRole() && !auth()->user()->isSuperAdmin()) {
+        if ($role->isSystemRole() && !auth()->user()->hasRole('super_admin')) {
             return back()->with('error', 'No se pueden editar roles del sistema');
         }
 
@@ -218,21 +236,26 @@ class RoleController extends Controller
             'redirect_after_login' => 'nullable|string|max:255',
             'permissions' => 'array',
             'permissions.*' => 'string',
-            'allowed_modules' => 'array',
-            'allowed_modules.*' => 'string',
             'segment_ids' => 'array',
             'segment_ids.*' => 'exists:segments,id',
         ]);
 
+        // Convertir 'default' a null para la base de datos
+        $redirectAfterLogin = ($validated['redirect_after_login'] ?? null) === 'default' 
+            ? null 
+            : ($validated['redirect_after_login'] ?? null);
+        
         $role->update([
             'name' => $validated['name'],
             'display_name' => $validated['display_name'],
             'description' => $validated['description'] ?? null,
             'is_administrative' => $validated['is_administrative'] ?? false,
-            'redirect_after_login' => $validated['redirect_after_login'] ?? null,
-            'permissions' => $validated['permissions'] ?? [],
-            'allowed_modules' => $validated['allowed_modules'] ?? [],
+            'redirect_after_login' => $redirectAfterLogin,
+            // Eliminado campo legacy_permissions - usando solo Spatie
         ]);
+
+        // Sincronizar permisos con Spatie
+        $role->syncPermissions($validated['permissions'] ?? []);
 
         // Sincronizar segmentos
         $role->segments()->sync($validated['segment_ids'] ?? []);
@@ -246,8 +269,10 @@ class RoleController extends Controller
      */
     public function destroy(Role $role)
     {
-        // Verificación de permisos específicos en lugar de isAdmin()
-        $this->authorizeAction('roles.delete');
+        // Verificación de permisos usando Spatie
+        if (!auth()->user()->can('roles.delete')) {
+            abort(403, 'No tienes permiso para eliminar roles');
+        }
 
         // No permitir eliminar roles del sistema
         if ($role->isSystemRole()) {
@@ -272,7 +297,6 @@ class RoleController extends Controller
     {
         return response()->json([
             'permissions' => $role->permissions ?? [],
-            'allowed_modules' => $role->allowed_modules ?? [],
         ]);
     }
 
@@ -281,8 +305,9 @@ class RoleController extends Controller
      */
     public function attachSegments(Request $request, Role $role)
     {
-        if (!auth()->user()->isAdmin()) {
-            abort(403, 'No autorizado');
+        // Verificación de permisos usando Spatie
+        if (!auth()->user()->can('roles.edit')) {
+            abort(403, 'No tienes permiso para asociar segmentos a roles');
         }
 
         $validated = $request->validate([
@@ -328,6 +353,20 @@ class RoleController extends Controller
      * Obtener lista de permisos disponibles
      * Ahora retorna permisos separados para roles administrativos y frontend
      */
+    /**
+     * Obtener módulos disponibles para el sistema
+     * Este método es usado por el componente de creación/edición de roles
+     */
+    private function getAvailableModules(): array
+    {
+        // Simplificado: retornamos una estructura básica para evitar el error
+        // Ya no usamos este sistema de módulos con Spatie
+        return [
+            'administrative' => (object) [], // Objeto vacío, no array
+            'frontend' => (object) []        // Objeto vacío, no array
+        ];
+    }
+    
     private function getAvailablePermissions(): array
     {
         return [
@@ -527,42 +566,6 @@ class RoleController extends Controller
                         'formularios.fill_public' => 'Llenar formularios públicos',
                     ],
                 ],
-            ],
-        ];
-    }
-
-    /**
-     * Obtener lista de módulos disponibles
-     * Ahora retorna módulos separados para roles administrativos y frontend
-     */
-    private function getAvailableModules(): array
-    {
-        return [
-            'administrative' => [
-                'dashboard' => 'Dashboard Admin',
-                'users' => 'Usuarios',
-                'roles' => 'Roles y Permisos',
-                'segments' => 'Segmentos',
-                'votaciones' => 'Votaciones (Gestión)',
-                'asambleas' => 'Asambleas (Gestión)',
-                'convocatorias' => 'Convocatorias (Gestión)',
-                'postulaciones' => 'Postulaciones (Gestión)',
-                'candidaturas' => 'Candidaturas (Gestión)',
-                'formularios' => 'Formularios (Gestión)',
-                'cargos' => 'Cargos',
-                'periodos' => 'Periodos Electorales',
-                'reports' => 'Reportes',
-                'settings' => 'Configuración',
-            ],
-            'frontend' => [
-                'dashboard' => 'Mi Dashboard',
-                'votaciones' => 'Mis Votaciones',
-                'asambleas' => 'Asambleas',
-                'convocatorias' => 'Convocatorias',
-                'postulaciones' => 'Mis Postulaciones',
-                'candidaturas' => 'Mi Candidatura',
-                'formularios' => 'Formularios',
-                'profile' => 'Mi Perfil',
             ],
         ];
     }

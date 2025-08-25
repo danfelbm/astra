@@ -30,7 +30,7 @@ class AsambleaController extends Controller
     public function index(Request $request): Response
     {
         // Verificar permisos
-        if (!Auth::user()->hasPermission('asambleas.view')) {
+        if (!Auth::user()->can('asambleas.view')) {
             abort(403, 'No tienes permisos para ver asambleas');
         }
 
@@ -221,7 +221,7 @@ class AsambleaController extends Controller
     public function create(): Response
     {
         // Verificar permisos
-        if (!Auth::user()->hasPermission('asambleas.create')) {
+        if (!Auth::user()->can('asambleas.create')) {
             abort(403, 'No tienes permisos para crear asambleas');
         }
 
@@ -240,7 +240,7 @@ class AsambleaController extends Controller
     public function store(Request $request): RedirectResponse
     {
         // Verificar permisos
-        if (!Auth::user()->hasPermission('asambleas.create')) {
+        if (!Auth::user()->can('asambleas.create')) {
             abort(403, 'No tienes permisos para crear asambleas');
         }
 
@@ -338,7 +338,7 @@ class AsambleaController extends Controller
     public function show(Asamblea $asamblea): Response
     {
         // Verificar permisos
-        if (!Auth::user()->hasPermission('asambleas.view')) {
+        if (!Auth::user()->can('asambleas.view')) {
             abort(403, 'No tienes permisos para ver asambleas');
         }
 
@@ -362,7 +362,7 @@ class AsambleaController extends Controller
                 'asistentes_count' => $asamblea->getAsistentesCount(),
                 'participantes_count' => $asamblea->getParticipantesCount(),
             ]),
-            'puede_gestionar_participantes' => Auth::user()->hasPermission('asambleas.manage_participants'),
+            'puede_gestionar_participantes' => Auth::user()->can('asambleas.manage_participants'),
             'filterFieldsConfig' => $this->getParticipantesFilterFieldsConfig(),
         ]);
     }
@@ -373,7 +373,7 @@ class AsambleaController extends Controller
     public function edit(Asamblea $asamblea): Response
     {
         // Verificar permisos
-        if (!Auth::user()->hasPermission('asambleas.edit')) {
+        if (!Auth::user()->can('asambleas.edit')) {
             abort(403, 'No tienes permisos para editar asambleas');
         }
 
@@ -392,7 +392,7 @@ class AsambleaController extends Controller
     public function update(Request $request, Asamblea $asamblea): RedirectResponse
     {
         // Verificar permisos
-        if (!Auth::user()->hasPermission('asambleas.edit')) {
+        if (!Auth::user()->can('asambleas.edit')) {
             abort(403, 'No tienes permisos para editar asambleas');
         }
 
@@ -534,7 +534,7 @@ class AsambleaController extends Controller
     public function destroy(Asamblea $asamblea): RedirectResponse
     {
         // Verificar permisos
-        if (!Auth::user()->hasPermission('asambleas.delete')) {
+        if (!Auth::user()->can('asambleas.delete')) {
             abort(403, 'No tienes permisos para eliminar asambleas');
         }
 
@@ -560,7 +560,7 @@ class AsambleaController extends Controller
     public function getParticipantes(Request $request, Asamblea $asamblea)
     {
         // Verificar permisos
-        if (!Auth::user()->hasPermission('asambleas.view')) {
+        if (!Auth::user()->can('asambleas.view')) {
             abort(403, 'No tienes permisos para ver participantes');
         }
 
@@ -571,7 +571,7 @@ class AsambleaController extends Controller
             ->where('asamblea_usuario.asamblea_id', $asamblea->id);
         
         // Aplicar filtro de tenant si no es super admin
-        if (!Auth::user()->isSuperAdmin()) {
+        if (!Auth::user()->hasRole('super_admin')) {
             $tenantId = app(\App\Services\TenantService::class)->getCurrentTenant()?->id;
             if ($tenantId) {
                 $query->where('asamblea_usuario.tenant_id', $tenantId);
@@ -698,7 +698,7 @@ class AsambleaController extends Controller
     public function manageParticipantes(Request $request, Asamblea $asamblea)
     {
         // Verificar permisos
-        if (!Auth::user()->hasPermission('asambleas.manage_participants')) {
+        if (!Auth::user()->can('asambleas.manage_participants')) {
             abort(403, 'No tienes permisos para gestionar participantes');
         }
 
@@ -708,7 +708,7 @@ class AsambleaController extends Controller
             $page = $request->input('page', 1);
             
             // Obtener IDs de participantes ya asignados
-            $relation = Auth::user()->isSuperAdmin() ? $asamblea->allParticipantes() : $asamblea->participantes();
+            $relation = Auth::user()->hasRole('super_admin') ? $asamblea->allParticipantes() : $asamblea->participantes();
             $participantesAsignadosIds = $relation->pluck('usuario_id');
             
             // Buscar usuarios disponibles con paginación
@@ -767,7 +767,7 @@ class AsambleaController extends Controller
             }
             
             // Usar allParticipantes si es super admin para attach
-            $relation = Auth::user()->isSuperAdmin() ? $asamblea->allParticipantes() : $asamblea->participantes();
+            $relation = Auth::user()->hasRole('super_admin') ? $asamblea->allParticipantes() : $asamblea->participantes();
             $relation->attach($attachData);
 
             return back()->with('success', 'Participantes asignados exitosamente.');
@@ -784,7 +784,7 @@ class AsambleaController extends Controller
             }
 
             // Usar allParticipantes si es super admin para detach
-            $relation = Auth::user()->isSuperAdmin() ? $asamblea->allParticipantes() : $asamblea->participantes();
+            $relation = Auth::user()->hasRole('super_admin') ? $asamblea->allParticipantes() : $asamblea->participantes();
             $relation->detach($request->participante_id);
 
             return back()->with('success', 'Participante removido exitosamente.');
@@ -817,7 +817,7 @@ class AsambleaController extends Controller
             }
 
             // Usar allParticipantes si es super admin para updateExistingPivot
-            $relation = Auth::user()->isSuperAdmin() ? $asamblea->allParticipantes() : $asamblea->participantes();
+            $relation = Auth::user()->hasRole('super_admin') ? $asamblea->allParticipantes() : $asamblea->participantes();
             $relation->updateExistingPivot($request->participante_id, $updateData);
 
             return back()->with('success', 'Participante actualizado exitosamente.');

@@ -25,7 +25,7 @@ class AdminMiddleware
         
         // Verificar si el usuario tiene algún rol administrativo
         // Solo usuarios con roles administrativos pueden acceder a /admin
-        if (!$user->hasAdministrativeRole()) {
+        if (!$user->hasAnyRole(['admin', 'super_admin', 'manager'])) {
             if ($request->expectsJson()) {
                 return response()->json(['message' => 'Acceso denegado. Se requiere un rol administrativo.'], 403);
             }

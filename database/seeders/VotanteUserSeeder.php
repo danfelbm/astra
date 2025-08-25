@@ -29,13 +29,9 @@ class VotanteUserSeeder extends Seeder
             ]
         );
 
-        // Asignar rol user si no lo tiene
-        if (!\DB::table('role_user')->where('user_id', $user->id)->where('role_id', 4)->exists()) {
-            \DB::table('role_user')->insert([
-                'user_id' => $user->id,
-                'role_id' => 4, // ID del rol user
-                'assigned_at' => now()
-            ]);
+        // Asignar rol user usando Spatie
+        if (!$user->hasRole('user')) {
+            $user->assignRole('user');
         }
 
         $this->command->info('Usuario votante creado: votante@votaciones.test');

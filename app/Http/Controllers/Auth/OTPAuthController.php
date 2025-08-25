@@ -273,7 +273,7 @@ class OTPAuthController extends Controller
             $redirectRoute = $userRole->getRedirectRoute();
         } else {
             // Fallback al comportamiento anterior
-            $redirectRoute = ($user->isAdmin() || $user->isSuperAdmin()) ? 'admin.dashboard' : 'dashboard';
+            $redirectRoute = $user->hasAnyRole(['admin', 'super_admin', 'manager']) ? 'admin.dashboard' : 'dashboard';
         }
         
         return redirect()->route($redirectRoute)->with('success', 'Autenticación exitosa.');
