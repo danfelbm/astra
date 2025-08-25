@@ -93,7 +93,7 @@ class TenantService
     public function userCanAccessTenant(User $user, Tenant $tenant): bool
     {
         // Super admin puede acceder a cualquier tenant
-        if ($user->isSuperAdmin()) {
+        if ($user->hasRole('super_admin')) {
             return true;
         }
 
@@ -135,7 +135,7 @@ class TenantService
         }
 
         // Super admin puede ver todos los tenants
-        if ($user->isSuperAdmin()) {
+        if ($user->hasRole('super_admin')) {
             return Tenant::active()->get();
         }
 

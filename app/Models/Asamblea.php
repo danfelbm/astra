@@ -335,7 +335,7 @@ class Asamblea extends Model
         }
 
         // Usar allParticipantes si es super admin, participantes si no
-        $relation = auth()->user()?->isSuperAdmin() ? $this->allParticipantes() : $this->participantes();
+        $relation = auth()->user()?->hasRole('super_admin') ? $this->allParticipantes() : $this->participantes();
         $asistentes = $relation->wherePivot('asistio', true)->count();
 
         return $asistentes >= $this->quorum_minimo;
@@ -345,7 +345,7 @@ class Asamblea extends Model
     public function getAsistentesCount(): int
     {
         // Usar allParticipantes si es super admin, participantes si no
-        $relation = auth()->user()?->isSuperAdmin() ? $this->allParticipantes() : $this->participantes();
+        $relation = auth()->user()?->hasRole('super_admin') ? $this->allParticipantes() : $this->participantes();
         return $relation->wherePivot('asistio', true)->count();
     }
 
@@ -353,7 +353,7 @@ class Asamblea extends Model
     public function getParticipantesCount(): int
     {
         // Usar allParticipantes si es super admin, participantes si no
-        $relation = auth()->user()?->isSuperAdmin() ? $this->allParticipantes() : $this->participantes();
+        $relation = auth()->user()?->hasRole('super_admin') ? $this->allParticipantes() : $this->participantes();
         return $relation->count();
     }
 

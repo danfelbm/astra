@@ -88,10 +88,12 @@ class RegisteredUserController extends Controller
 
         // Asignar rol por defecto desde la configuración
         $defaultRoleId = config('app.default_user_role_id', 4);
-        $user->roles()->attach($defaultRoleId, [
-            'assigned_at' => now(),
-            'assigned_by' => null, // null indica auto-registro
-        ]);
+        
+        // Obtener el rol por ID y asignarlo con Spatie
+        $role = \App\Models\Role::find($defaultRoleId);
+        if ($role) {
+            $user->assignRole($role->name);
+        }
 
         event(new Registered($user));
 

@@ -16,7 +16,6 @@ use App\Models\Municipio;
 use App\Models\Localidad;
 use App\Traits\HasAdvancedFilters;
 use App\Traits\HasSegmentScope;
-use App\Traits\AuthorizesActions;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -25,7 +24,7 @@ use Inertia\Inertia;
 
 class CandidaturaController extends Controller
 {
-    use HasAdvancedFilters, HasSegmentScope, AuthorizesActions;
+    use HasAdvancedFilters, HasSegmentScope;
     /**
      * Lista de candidaturas para revisión
      */
@@ -450,7 +449,7 @@ class CandidaturaController extends Controller
                 ];
             }),
             'resumen_aprobaciones' => $resumenAprobaciones,
-            'puede_aprobar_campos' => Auth::user()->hasPermission('candidaturas.aprobar_campos'),
+            'puede_aprobar_campos' => Auth::user()->can('candidaturas.aprobar_campos'),
         ]);
     }
 
@@ -499,8 +498,8 @@ class CandidaturaController extends Controller
      */
     public function updateComentarios(Request $request, Candidatura $candidatura)
     {
-        // Verificar permisos - usar approve ya que solo admins deberían poder comentar
-        if (!Auth::user()->hasPermission('candidaturas.approve')) {
+        // Verificar permisos - usar comment para comentarios
+        if (!Auth::user()->can('candidaturas.comment')) {
             return response()->json(['error' => 'No tienes permisos para agregar comentarios'], 403);
         }
 
@@ -580,7 +579,7 @@ class CandidaturaController extends Controller
     public function configuracion()
     {
         // Verificar permiso específico para configuración
-        $this->authorizeAction('candidaturas.configuracion');
+        abort_unless(auth()->user()->can('candidaturas.configuracion'), 403, 'No tienes permisos para esta acción');
         
         $configuracionActiva = CandidaturaConfig::obtenerConfiguracionActiva();
         $historial = CandidaturaConfig::with('createdBy')
@@ -623,7 +622,7 @@ class CandidaturaController extends Controller
     public function guardarConfiguracion(Request $request)
     {
         // Verificar permiso específico para configuración
-        $this->authorizeAction('candidaturas.configuracion');
+        abort_unless(auth()->user()->can('candidaturas.configuracion'), 403, 'No tienes permisos para esta acción');
         
         $request->validate([
             'campos' => 'required|array|min:1',
@@ -742,7 +741,7 @@ class CandidaturaController extends Controller
     public function activarConfiguracion(CandidaturaConfig $configuracion)
     {
         // Verificar permiso específico para configuración
-        $this->authorizeAction('candidaturas.configuracion');
+        abort_unless(auth()->user()->can('candidaturas.configuracion'), 403, 'No tienes permisos para esta acción');
         
         $configuracion->activar();
 
@@ -821,7 +820,7 @@ class CandidaturaController extends Controller
     public function aprobarCampo(Request $request, Candidatura $candidatura, string $campoId)
     {
         // Verificar permisos
-        if (!Auth::user()->hasPermission('candidaturas.aprobar_campos')) {
+        if (!Auth::user()->can('candidaturas.aprobar_campos')) {
             return response()->json(['error' => 'No tienes permisos para aprobar campos'], 403);
         }
 
@@ -873,7 +872,7 @@ class CandidaturaController extends Controller
     public function rechazarCampo(Request $request, Candidatura $candidatura, string $campoId)
     {
         // Verificar permisos
-        if (!Auth::user()->hasPermission('candidaturas.aprobar_campos')) {
+        if (!Auth::user()->can('candidaturas.aprobar_campos')) {
             return response()->json(['error' => 'No tienes permisos para rechazar campos'], 403);
         }
 
@@ -978,7 +977,7 @@ class CandidaturaController extends Controller
     public function enviarRecordatoriosBorrador(Request $request)
     {
         // Verificar permisos específicos para enviar recordatorios
-        if (!Auth::user()->hasPermission('candidaturas.recordatorios')) {
+        if (!Auth::user()->can('candidaturas.recordatorios')) {
             return response()->json(['error' => 'No tienes permisos para enviar recordatorios masivos'], 403);
         }
 
@@ -1098,7 +1097,7 @@ class CandidaturaController extends Controller
     public function getEstadisticasBorrador()
     {
         // Verificar permisos específicos para enviar recordatorios
-        if (!Auth::user()->hasPermission('candidaturas.recordatorios')) {
+        if (!Auth::user()->can('candidaturas.recordatorios')) {
             return response()->json(['error' => 'No tienes permisos para ver estadísticas de borradores'], 403);
         }
 
@@ -1129,7 +1128,7 @@ class CandidaturaController extends Controller
     public function enviarNotificacionesPendientes(Request $request)
     {
         // Verificar permisos específicos para enviar notificaciones
-        if (!Auth::user()->hasPermission('candidaturas.notificaciones')) {
+        if (!Auth::user()->can('candidaturas.notificaciones')) {
             return response()->json(['error' => 'No tienes permisos para enviar notificaciones masivas'], 403);
         }
 
@@ -1249,7 +1248,7 @@ class CandidaturaController extends Controller
     public function getEstadisticasPendientes()
     {
         // Verificar permisos específicos para enviar notificaciones
-        if (!Auth::user()->hasPermission('candidaturas.notificaciones')) {
+        if (!Auth::user()->can('candidaturas.notificaciones')) {
             return response()->json(['error' => 'No tienes permisos para ver estadísticas de pendientes'], 403);
         }
 
@@ -1280,7 +1279,7 @@ class CandidaturaController extends Controller
     public function toggleSubsanar(Request $request, Candidatura $candidatura)
     {
         // Verificar permisos
-        if (!Auth::user()->hasPermission('candidaturas.approve')) {
+        if (!Auth::user()->can('candidaturas.approve')) {
             return response()->json(['error' => 'No tienes permisos para modificar el estado de subsanación'], 403);
         }
 

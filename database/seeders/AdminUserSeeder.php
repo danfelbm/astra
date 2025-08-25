@@ -29,13 +29,9 @@ class AdminUserSeeder extends Seeder
             ]
         );
 
-        // Asignar rol super_admin si no lo tiene
-        if (!\DB::table('role_user')->where('user_id', $user->id)->where('role_id', 1)->exists()) {
-            \DB::table('role_user')->insert([
-                'user_id' => $user->id,
-                'role_id' => 1, // ID del rol super_admin
-                'assigned_at' => now()
-            ]);
+        // Asignar rol super_admin usando Spatie
+        if (!$user->hasRole('super_admin')) {
+            $user->assignRole('super_admin');
         }
 
         $this->command->info('Usuario administrador creado: admin@votaciones.test');

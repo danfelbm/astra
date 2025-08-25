@@ -48,7 +48,7 @@ class HandleInertiaRequests extends Middleware
         // Obtener información del tenant actual y disponibles para super admin
         $currentTenant = null;
         $availableTenants = null;
-        if ($user && $user->isSuperAdmin()) {
+        if ($user && $user->hasRole('super_admin')) {
             // Para super admin, obtener el tenant actual desde el servicio
             if (app()->bound(\App\Services\TenantService::class)) {
                 $tenantService = app(\App\Services\TenantService::class);
@@ -66,21 +66,26 @@ class HandleInertiaRequests extends Middleware
             }
         }
 
-        // Obtener todos los permisos del usuario
+        // Obtener todos los permisos del usuario usando Spatie
         $permissions = [];
         $allowedModules = [];
         if ($user) {
-            // Recolectar todos los permisos de todos los roles del usuario
-            foreach ($user->roles as $role) {
-                if ($role->permissions) {
-                    $permissions = array_merge($permissions, $role->permissions);
+            // Obtener todos los permisos del usuario (directos + a través de roles)
+            // Spatie devuelve una Collection, necesitamos los nombres como array
+            $permissions = $user->getAllPermissions()->pluck('name')->toArray();
+            
+            // Derivar los módulos permitidos de los permisos
+            // Extraer la parte antes del punto (ej: "users.view" -> "users")
+            $modules = [];
+            foreach ($permissions as $permission) {
+                $parts = explode('.', $permission);
+                if (count($parts) > 0) {
+                    $modules[] = $parts[0];
                 }
             }
-            // Eliminar duplicados y reindexar
-            $permissions = array_values(array_unique($permissions));
-            
-            // Obtener los módulos permitidos del usuario
-            $allowedModules = $user->getAllowedModules();
+            // Eliminar duplicados y ordenar
+            $allowedModules = array_values(array_unique($modules));
+            sort($allowedModules);
         }
 
         return array_merge(parent::share($request), [
@@ -92,9 +97,9 @@ class HandleInertiaRequests extends Middleware
                 'roles' => $user ? $user->roles : [],
                 'permissions' => $permissions,
                 'allowedModules' => $allowedModules,
-                'isSuperAdmin' => $user ? $user->isSuperAdmin() : false,
-                'isAdmin' => $user ? $user->isAdmin() : false,
-                'hasAdministrativeRole' => $user ? $user->hasAdministrativeRole() : false,
+                'isSuperAdmin' => $user ? $user->hasRole('super_admin') : false,
+                'isAdmin' => $user ? $user->hasAnyRole(['admin', 'super_admin']) : false,
+                'hasAdministrativeRole' => $user ? $user->hasAnyRole(['admin', 'super_admin', 'manager']) : false,
             ],
             'tenant' => [
                 'current' => $currentTenant,

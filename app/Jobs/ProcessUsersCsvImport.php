@@ -647,12 +647,14 @@ class ProcessUsersCsvImport implements ShouldQueue
         try {
             $defaultRoleId = env('DEFAULT_USER_ROLE_ID', 4);
             
-            DB::table('role_user')->insert([
-                'user_id' => $user->id,
-                'role_id' => $defaultRoleId,
-                'assigned_at' => now(),
-                'assigned_by' => null
-            ]);
+            // Asignar rol usando Spatie Laravel Permission
+            $role = \App\Models\Role::find($defaultRoleId);
+            if ($role) {
+                $user->assignRole($role->name);
+            } else {
+                // Si no encuentra el rol por ID, intentar asignar el rol 'user' por defecto
+                $user->assignRole('user');
+            }
             
         } catch (\Throwable $e) {
             Log::error("Error asignando rol al usuario {$user->id}: " . $e->getMessage());

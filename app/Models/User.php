@@ -10,11 +10,12 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Str;
 use Laravel\Sanctum\HasApiTokens;
+use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable, HasApiTokens, HasTenant;
+    use HasFactory, Notifiable, HasApiTokens, HasTenant, HasRoles;
 
     /**
      * The attributes that are mass assignable.
@@ -177,136 +178,23 @@ class User extends Authenticatable
 
     /**
      * Relación con roles
+     * NOTA: Comentado porque Spatie Permission ya provee esta relación
+     * La relación roles() de Spatie se usará automáticamente con la tabla model_has_roles
      */
-    public function roles()
-    {
-        // No aplicar el scope de tenant para poder acceder a roles globales (super_admin)
-        return $this->belongsToMany(\App\Models\Role::class, 'role_user')
-                    ->withoutGlobalScope(\App\Scopes\TenantScope::class)
-                    ->withPivot('assigned_at', 'assigned_by')
-                    ->withTimestamps();
-    }
+    // public function roles()
+    // {
+    //     // No aplicar el scope de tenant para poder acceder a roles globales (super_admin)
+    //     return $this->belongsToMany(\App\Models\Role::class, 'role_user')
+    //                 ->withoutGlobalScope(\App\Scopes\TenantScope::class)
+    //                 ->withPivot('assigned_at', 'assigned_by')
+    //                 ->withTimestamps();
+    // }
 
-    /**
-     * Verificar si el usuario es super administrador
-     */
-    public function isSuperAdmin(): bool
-    {
-        return $this->roles()->where('name', 'super_admin')->exists();
-    }
-
-    /**
-     * Verificar si el usuario es administrador
-     */
-    public function isAdmin(): bool
-    {
-        return $this->roles()->whereIn('name', ['super_admin', 'admin'])->exists();
-    }
-
-    /**
-     * Verificar si el usuario tiene un rol específico
-     */
-    public function hasRole(string $roleName): bool
-    {
-        return $this->roles()->where('name', $roleName)->exists();
-    }
-
-    /**
-     * Verificar si el usuario tiene un permiso específico
-     */
-    public function hasPermission(string $permission): bool
-    {
-        // Si es super admin, tiene todos los permisos
-        if ($this->isSuperAdmin()) {
-            return true;
-        }
-
-        // Verificar permisos en los roles del usuario
-        foreach ($this->roles as $role) {
-            // Usar el método hasPermission del rol que incluye verificación de wildcards
-            if ($role->hasPermission($permission)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-    
-    /**
-     * Alias de hasPermission para compatibilidad con Laravel's authorization
-     */
-    public function can($permission, $arguments = []): bool
-    {
-        return $this->hasPermission($permission);
-    }
-    
-    /**
-     * Verificar si el usuario tiene algún rol administrativo
-     * (roles que pueden acceder a /admin)
-     */
-    public function hasAdministrativeRole(): bool
-    {
-        // Si es super admin, siempre es administrativo
-        if ($this->isSuperAdmin()) {
-            return true;
-        }
-        
-        // Verificar si alguno de sus roles es administrativo
-        foreach ($this->roles as $role) {
-            if ($role->is_administrative) {
-                return true;
-            }
-        }
-        
-        return false;
-    }
-    
-    /**
-     * Verificar si el usuario tiene acceso a un módulo específico
-     * Un usuario tiene acceso si CUALQUIERA de sus roles tiene el módulo permitido
-     */
-    public function hasModuleAccess(string $module): bool
-    {
-        // Si es super admin, tiene acceso a todos los módulos
-        if ($this->isSuperAdmin()) {
-            return true;
-        }
-        
-        // Verificar en cada rol del usuario
-        foreach ($this->roles as $role) {
-            if ($role->hasModuleAccess($module)) {
-                return true;
-            }
-        }
-        
-        return false;
-    }
-    
-    /**
-     * Obtener todos los módulos permitidos para el usuario
-     * Combina los módulos de todos sus roles
-     */
-    public function getAllowedModules(): array
-    {
-        // Si es super admin, tiene todos los módulos
-        if ($this->isSuperAdmin()) {
-            return ['*']; // Acceso a todo
-        }
-        
-        $modules = [];
-        foreach ($this->roles as $role) {
-            $roleModules = $role->allowed_modules ?? [];
-            $modules = array_merge($modules, $roleModules);
-        }
-        
-        // Si algún rol tiene '*', el usuario tiene acceso a todo
-        if (in_array('*', $modules)) {
-            return ['*'];
-        }
-        
-        // Retornar módulos únicos
-        return array_unique($modules);
-    }
+    // Métodos wrapper eliminados - usar métodos nativos de Spatie:
+    // - hasRole('role_name') - ya provisto por Spatie
+    // - hasAnyRole(['role1', 'role2']) - ya provisto por Spatie
+    // - hasPermissionTo('permission.name') - ya provisto por Spatie
+    // - can('permission.name') - ya provisto por Spatie
 
     /**
      * Obtener número de WhatsApp formateado para el usuario

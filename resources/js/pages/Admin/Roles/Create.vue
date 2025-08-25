@@ -59,7 +59,7 @@ const form = useForm({
     display_name: '',
     description: '',
     is_administrative: true,
-    redirect_after_login: '' as string,
+    redirect_after_login: 'default' as string,
     permissions: [] as string[],
     allowed_modules: [] as string[],
     segment_ids: [] as number[],
@@ -67,7 +67,7 @@ const form = useForm({
 
 // Opciones de redirección disponibles
 const redirectOptions = [
-    { value: '', label: 'Por defecto (según tipo de rol)' },
+    { value: 'default', label: 'Por defecto (según tipo de rol)' },
     { value: 'admin.dashboard', label: 'Dashboard Administrativo', group: 'admin' },
     { value: 'admin.candidaturas.dashboard', label: 'Dashboard Candidaturas', group: 'admin' },
     { value: 'dashboard', label: 'Dashboard Usuario', group: 'user' },
@@ -88,7 +88,7 @@ const availableRedirectOptions = computed(() => {
         return redirectOptions;
     }
     // Para roles no administrativos, no mostrar rutas admin
-    return redirectOptions.filter(opt => opt.group !== 'admin' || opt.value === '');
+    return redirectOptions.filter(opt => opt.group !== 'admin' || opt.value === 'default');
 });
 
 const selectAllInGroup = ref<Record<string, boolean>>({});

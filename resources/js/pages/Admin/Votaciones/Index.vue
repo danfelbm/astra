@@ -106,8 +106,8 @@ const { route } = window as any;
 // Computed para los filtros iniciales del componente AdvancedFilters
 // Esto asegura que sea reactivo cuando cambien los props
 const initialFiltersForAdvanced = computed(() => ({
-    quickSearch: filters.search,
-    rootGroup: filters.advanced_filters ? JSON.parse(filters.advanced_filters) : undefined
+    quickSearch: props.filters.search,
+    rootGroup: props.filters.advanced_filters ? JSON.parse(props.filters.advanced_filters) : undefined
 }));
 
 // Eliminar votación

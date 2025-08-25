@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\Cargo;
 use App\Traits\HasAdvancedFilters;
-use App\Traits\AuthorizesActions;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Hash;
@@ -15,14 +14,14 @@ use Illuminate\Support\Facades\DB;
 
 class UserController extends Controller
 {
-    use HasAdvancedFilters, AuthorizesActions;
+    use HasAdvancedFilters;
     /**
      * Display a listing of the resource.
      */
     public function index(Request $request)
     {
-        // Verificación de permisos adicional como respaldo
-        $this->authorizeAction('users.view');
+        // Verificación de permisos
+        abort_unless(auth()->user()->can('users.view'), 403, 'No tienes permisos para ver usuarios');
         
         $query = User::with(['territorio', 'departamento', 'municipio', 'localidad', 'cargo', 'roles']);
 
@@ -160,7 +159,7 @@ class UserController extends Controller
     public function create()
     {
         // Verificación de permisos adicional como respaldo
-        $this->authorizeAction('users.create');
+        abort_unless(auth()->user()->can('users.create'), 403, 'No tienes permisos para crear usuarios');
         
         $cargos = Cargo::orderBy('nombre')->get();
         
@@ -189,7 +188,7 @@ class UserController extends Controller
         return Inertia::render('Admin/Usuarios/Create', [
             'cargos' => $cargos,
             'roles' => $roles,
-            'canAssignRoles' => auth()->user()->hasPermission('users.assign_roles'),
+            'canAssignRoles' => auth()->user()->can('users.assign_roles'),
         ]);
     }
 
@@ -199,7 +198,7 @@ class UserController extends Controller
     public function store(Request $request)
     {
         // Verificación de permisos adicional como respaldo
-        $this->authorizeAction('users.create');
+        abort_unless(auth()->user()->can('users.create'), 403, 'No tienes permisos para crear usuarios');
         
         // Validación condicional del role_id basada en el permiso
         $rules = [
@@ -222,7 +221,7 @@ class UserController extends Controller
         ];
 
         // Solo requerir role_id si el usuario tiene permiso para asignar roles
-        if (auth()->user()->hasPermission('users.assign_roles')) {
+        if (auth()->user()->can('users.assign_roles')) {
             $rules['role_id'] = 'required|exists:roles,id';
         } else {
             $rules['role_id'] = 'nullable|exists:roles,id';
@@ -255,7 +254,7 @@ class UserController extends Controller
         $validated['activo'] = $validated['activo'] ?? true;
 
         // Determinar el role_id basado en permisos
-        if (auth()->user()->hasPermission('users.assign_roles')) {
+        if (auth()->user()->can('users.assign_roles')) {
             // El usuario tiene permiso para asignar roles, usar el rol seleccionado
             $roleId = $validated['role_id'];
         } else {
@@ -269,11 +268,11 @@ class UserController extends Controller
         // Crear el usuario
         $user = User::create($validated);
         
-        // Asignar el rol al usuario
-        $user->roles()->attach($roleId, [
-            'assigned_at' => now(),
-            'assigned_by' => auth()->id(),
-        ]);
+        // Asignar el rol al usuario usando Spatie
+        $role = \App\Models\Role::find($roleId);
+        if ($role) {
+            $user->assignRole($role->name);
+        }
 
         return redirect()->route('admin.usuarios.index')
             ->with('success', 'Usuario creado exitosamente.');
@@ -285,7 +284,7 @@ class UserController extends Controller
     public function edit(User $usuario)
     {
         // Verificación de permisos adicional como respaldo
-        $this->authorizeAction('users.edit');
+        abort_unless(auth()->user()->can('users.edit'), 403, 'No tienes permisos para editar usuarios');
         
         $usuario->load(['territorio', 'departamento', 'municipio', 'localidad', 'cargo', 'roles']);
         $cargos = Cargo::orderBy('nombre')->get();
@@ -319,7 +318,7 @@ class UserController extends Controller
             'user' => $usuario,
             'cargos' => $cargos,
             'roles' => $roles,
-            'canAssignRoles' => auth()->user()->hasPermission('users.assign_roles'),
+            'canAssignRoles' => auth()->user()->can('users.assign_roles'),
         ]);
     }
 
@@ -329,7 +328,7 @@ class UserController extends Controller
     public function update(Request $request, User $usuario)
     {
         // Verificación de permisos adicional como respaldo
-        $this->authorizeAction('users.edit');
+        abort_unless(auth()->user()->can('users.edit'), 403, 'No tienes permisos para editar usuarios');
         
         // Validación condicional del role_id basada en el permiso
         $rules = [
@@ -352,7 +351,7 @@ class UserController extends Controller
         ];
 
         // Solo requerir role_id si el usuario tiene permiso para asignar roles
-        if (auth()->user()->hasPermission('users.assign_roles')) {
+        if (auth()->user()->can('users.assign_roles')) {
             $rules['role_id'] = 'required|exists:roles,id';
         } else {
             // Si no tiene permiso, no validar role_id (será ignorado)
@@ -391,7 +390,7 @@ class UserController extends Controller
 
         // Manejar actualización de rol basado en permisos
         $roleId = null;
-        if (auth()->user()->hasPermission('users.assign_roles')) {
+        if (auth()->user()->can('users.assign_roles')) {
             // El usuario tiene permiso para cambiar roles
             $roleId = $validated['role_id'] ?? null;
         }
@@ -404,12 +403,12 @@ class UserController extends Controller
         $usuario->update($validated);
         
         // Solo actualizar el rol si el usuario tiene permiso y se proporcionó un role_id
-        if ($roleId !== null && auth()->user()->hasPermission('users.assign_roles')) {
-            // Remover roles anteriores y asignar el nuevo
-            $usuario->roles()->sync([$roleId => [
-                'assigned_at' => now(),
-                'assigned_by' => auth()->id(),
-            ]]);
+        if ($roleId !== null && auth()->user()->can('users.assign_roles')) {
+            // Sincronizar roles usando Spatie (remueve anteriores y asigna el nuevo)
+            $role = \App\Models\Role::find($roleId);
+            if ($role) {
+                $usuario->syncRoles([$role->name]);
+            }
         }
 
         return redirect()->route('admin.usuarios.index')
@@ -422,7 +421,7 @@ class UserController extends Controller
     public function destroy(User $usuario)
     {
         // Verificación de permisos adicional como respaldo
-        $this->authorizeAction('users.delete');
+        abort_unless(auth()->user()->can('users.delete'), 403, 'No tienes permisos para eliminar usuarios');
         
         // No permitir eliminar el propio usuario
         if ($usuario->id === auth()->id()) {
@@ -451,7 +450,7 @@ class UserController extends Controller
     public function toggleActive(User $usuario)
     {
         // Verificación de permisos adicional como respaldo
-        $this->authorizeAction('users.edit');
+        abort_unless(auth()->user()->can('users.edit'), 403, 'No tienes permisos para editar usuarios');
         
         // No permitir desactivar el propio usuario
         if ($usuario->id === auth()->id()) {
