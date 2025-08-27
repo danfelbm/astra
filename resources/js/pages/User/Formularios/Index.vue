@@ -45,6 +45,9 @@ interface Props {
         search?: string;
         categoria?: string;
     };
+    // Props de permisos de usuario
+    canViewPublic: boolean;
+    canFillPublic: boolean;
 }
 
 const props = defineProps<Props>();

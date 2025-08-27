@@ -18,6 +18,9 @@ class ResultadosController extends Controller
      */
     public function show(Votacion $votacion): Response
     {
+        // Verificar permisos para ver resultados
+        abort_unless(auth()->user()->can('votaciones.view_results'), 403, 'No tienes permisos para ver resultados de votaciones');
+        
         // Verificar que los resultados sean públicos y visibles
         if (!$votacion->resultadosVisibles()) {
             abort(404, 'Los resultados de esta votación no están disponibles públicamente.');
@@ -48,6 +51,9 @@ class ResultadosController extends Controller
      */
     public function consolidado(Votacion $votacion)
     {
+        // Verificar permisos para ver resultados
+        abort_unless(auth()->user()->can('votaciones.view_results'), 403, 'No tienes permisos para ver resultados de votaciones');
+        
         // Verificar que los resultados sean públicos y visibles
         if (!$votacion->resultadosVisibles()) {
             abort(404, 'Los resultados de esta votación no están disponibles públicamente.');
@@ -173,6 +179,9 @@ class ResultadosController extends Controller
      */
     public function territorio(Votacion $votacion, Request $request)
     {
+        // Verificar permisos para ver resultados
+        abort_unless(auth()->user()->can('votaciones.view_results'), 403, 'No tienes permisos para ver resultados de votaciones');
+        
         // Verificar que los resultados sean públicos y visibles
         if (!$votacion->resultadosVisibles()) {
             abort(404, 'Los resultados de esta votación no están disponibles públicamente.');
@@ -229,6 +238,9 @@ class ResultadosController extends Controller
      */
     public function tokens(Votacion $votacion, Request $request)
     {
+        // Verificar permisos para ver resultados
+        abort_unless(auth()->user()->can('votaciones.view_results'), 403, 'No tienes permisos para ver resultados de votaciones');
+        
         // Verificar que los resultados sean públicos y visibles
         if (!$votacion->resultadosVisibles()) {
             abort(404, 'Los resultados de esta votación no están disponibles públicamente.');

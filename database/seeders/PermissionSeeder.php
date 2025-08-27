@@ -124,6 +124,7 @@ class PermissionSeeder extends Seeder
             'votaciones.view_public' => 'Ver votaciones disponibles',
             'votaciones.vote' => 'Participar en votaciones',
             'votaciones.view_results' => 'Ver resultados públicos',
+            'votaciones.view_own_vote' => 'Ver mi voto emitido',
             
             // Asambleas Frontend
             'asambleas.view_public' => 'Ver asambleas públicas',
@@ -267,7 +268,7 @@ class PermissionSeeder extends Seeder
                 // Dashboard
                 'dashboard.view',
                 // Votaciones
-                'votaciones.view_public', 'votaciones.vote', 'votaciones.view_results',
+                'votaciones.view_public', 'votaciones.vote', 'votaciones.view_results', 'votaciones.view_own_vote',
                 // Asambleas
                 'asambleas.view_public', 'asambleas.participate',
                 // Convocatorias

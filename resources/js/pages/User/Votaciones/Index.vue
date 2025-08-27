@@ -59,6 +59,10 @@ interface Props {
     };
     mostrar_pasadas: boolean;
     filterFieldsConfig: any[];
+    // Props de permisos de usuario
+    canVote: boolean;
+    canViewResults: boolean;
+    canViewOwnVote: boolean;
 }
 
 const props = defineProps<Props>();

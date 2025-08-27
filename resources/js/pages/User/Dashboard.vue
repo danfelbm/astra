@@ -1,6 +1,14 @@
 <script setup lang="ts">
 import UserLayout from "@/layouts/UserLayout.vue";
 import { Head } from '@inertiajs/vue3';
+
+interface Props {
+    hasAssemblyAccess: boolean;
+    // Props de permisos de usuario
+    canViewDashboard: boolean;
+}
+
+defineProps<Props>();
 </script>
 
 <template>

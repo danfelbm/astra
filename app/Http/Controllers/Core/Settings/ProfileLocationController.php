@@ -19,6 +19,9 @@ class ProfileLocationController extends Controller
      */
     public function update(Request $request): RedirectResponse
     {
+        // Verificar permisos de usuario para editar perfil propio
+        abort_unless(auth()->user()->can('profile.edit'), 403, 'No tienes permisos para editar tu perfil');
+        
         // Validar los datos de entrada
         $user = $request->user();
         

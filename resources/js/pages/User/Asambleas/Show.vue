@@ -115,6 +115,9 @@ interface Props {
         asistio: boolean;
         hora_registro?: string;
     };
+    // Props de permisos generales
+    canParticipate: boolean;
+    canViewMinutes: boolean;
 }
 
 const props = defineProps<Props>();

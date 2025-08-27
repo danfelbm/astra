@@ -59,6 +59,9 @@ interface Props {
     convocatoria: Convocatoria;
     postulacion: Postulacion | null;
     candidatura_aprobada: CandidaturaAprobada | null;
+    canApply: boolean;
+    canCreate: boolean;
+    canEditOwn: boolean;
 }
 
 const props = defineProps<Props>();

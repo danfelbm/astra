@@ -52,6 +52,9 @@ interface Props {
     configuracion_campos: FormField[];
     is_editing: boolean;
     postulacion_existente?: PostulacionExistente | null;
+    // Props de permisos de usuario
+    canCreateOwn: boolean;
+    canEditOwn: boolean;
 }
 
 const props = defineProps<Props>();

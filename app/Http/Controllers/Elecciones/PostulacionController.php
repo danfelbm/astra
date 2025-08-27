@@ -19,6 +19,11 @@ class PostulacionController extends Controller
      */
     public function index()
     {
+        // Verificar permisos para ver convocatorias públicas
+        abort_unless(auth()->user()->can('convocatorias.view_public'), 403, 'No tienes permisos para ver convocatorias públicas');
+        // Verificar permisos para ver postulaciones propias
+        abort_unless(auth()->user()->can('postulaciones.view_own'), 403, 'No tienes permisos para ver tus postulaciones');
+        
         $usuario = Auth::user();
         
         // Obtener postulaciones del usuario
@@ -74,6 +79,13 @@ class PostulacionController extends Controller
         return Inertia::render('User/Postulaciones/Index', [
             'postulaciones' => $postulaciones,
             'convocatorias_disponibles' => $convocatoriasDisponibles,
+            // Props de permisos
+            'canViewPublic' => auth()->user()->can('convocatorias.view_public'),
+            'canApply' => auth()->user()->can('convocatorias.apply'),
+            'canViewOwn' => auth()->user()->can('postulaciones.view_own'),
+            'canCreate' => auth()->user()->can('postulaciones.create'),
+            'canEditOwn' => auth()->user()->can('postulaciones.edit_own'),
+            'canDeleteOwn' => auth()->user()->can('postulaciones.delete_own'),
         ]);
     }
 
@@ -82,6 +94,9 @@ class PostulacionController extends Controller
      */
     public function show(Convocatoria $convocatoria)
     {
+        // Verificar permisos para aplicar a convocatorias
+        abort_unless(auth()->user()->can('convocatorias.apply'), 403, 'No tienes permisos para aplicar a convocatorias');
+        
         $usuario = Auth::user();
         
         // Cargar relaciones geográficas
@@ -89,6 +104,15 @@ class PostulacionController extends Controller
 
         // Verificar si ya tiene una postulación (para ver/editar)
         $postulacionExistente = $convocatoria->getPostulacionUsuario($usuario->id);
+        
+        // Verificar permisos específicos según si existe o no la postulación
+        if ($postulacionExistente) {
+            // Si ya existe, necesita permisos de edición
+            abort_unless(auth()->user()->can('postulaciones.edit_own'), 403, 'No tienes permisos para editar tus postulaciones');
+        } else {
+            // Si no existe, necesita permisos de creación
+            abort_unless(auth()->user()->can('postulaciones.create'), 403, 'No tienes permisos para crear postulaciones');
+        }
 
         // Si no tiene postulación, verificar que pueda crear una nueva
         if (!$postulacionExistente && !$convocatoria->esDisponibleParaUsuario($usuario->id)) {
@@ -129,6 +153,10 @@ class PostulacionController extends Controller
                 'version' => $candidaturaAprobada->version,
                 'fecha_aprobacion' => $candidaturaAprobada->fecha_aprobacion,
             ] : null,
+            // Props de permisos
+            'canApply' => auth()->user()->can('convocatorias.apply'),
+            'canCreate' => auth()->user()->can('postulaciones.create'),
+            'canEditOwn' => auth()->user()->can('postulaciones.edit_own'),
         ]);
     }
 
@@ -137,6 +165,9 @@ class PostulacionController extends Controller
      */
     public function store(Request $request, Convocatoria $convocatoria)
     {
+        // Verificar permisos para aplicar a convocatorias
+        abort_unless(auth()->user()->can('convocatorias.apply'), 403, 'No tienes permisos para aplicar a convocatorias');
+        
         $usuario = Auth::user();
 
         // Verificar si ya tiene una postulación existente
@@ -145,6 +176,9 @@ class PostulacionController extends Controller
             ->first();
 
         if ($postulacionExistente) {
+            // Si ya existe, verificar permisos de edición
+            abort_unless(auth()->user()->can('postulaciones.edit_own'), 403, 'No tienes permisos para editar tus postulaciones');
+            
             // Si ya existe, verificar que esté en estado editable
             if (!$postulacionExistente->puedeSerEditada()) {
                 throw ValidationException::withMessages([
@@ -152,6 +186,8 @@ class PostulacionController extends Controller
                 ]);
             }
         } else {
+            // Si no existe, verificar permisos de creación
+            abort_unless(auth()->user()->can('postulaciones.create'), 403, 'No tienes permisos para crear postulaciones');
             // Si no existe postulación, verificar que la convocatoria esté disponible
             if (!$convocatoria->esDisponibleParaUsuario($usuario->id)) {
                 throw ValidationException::withMessages([
@@ -300,6 +336,9 @@ class PostulacionController extends Controller
      */
     public function convocatoriasDisponibles()
     {
+        // Verificar permisos para ver convocatorias públicas
+        abort_unless(auth()->user()->can('convocatorias.view_public'), 403, 'No tienes permisos para ver convocatorias públicas');
+        
         $usuario = Auth::user();
 
         $convocatorias = Convocatoria::with(['cargo', 'periodoElectoral', 'territorio', 'departamento', 'municipio', 'localidad'])

@@ -27,6 +27,9 @@ interface Candidatura {
 interface Props {
     candidatura: Candidatura;
     configuracion_campos: FormField[];
+    // Props de permisos de usuario
+    canEditOwn: boolean;
+    canViewPublic: boolean;
 }
 
 const props = defineProps<Props>();
