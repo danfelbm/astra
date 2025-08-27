@@ -99,7 +99,7 @@ const getEstadoPostulacionLabel = (estado: string) => {
                 <p class="mt-2">
                     Si deseas postularte a un cargo distinto, por favor ve al 
                     <Link 
-                        :href="route('postulaciones.index')" 
+                        :href="route('user.postulaciones.index')" 
                         class="font-semibold underline hover:text-blue-900 inline-flex items-center gap-1"
                     >
                         menú de Postulaciones

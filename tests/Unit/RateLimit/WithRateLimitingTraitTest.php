@@ -4,10 +4,10 @@ namespace Tests\Unit\RateLimit;
 
 use Tests\TestCase;
 use App\Jobs\Middleware\WithRateLimiting;
-use App\Jobs\SendOTPEmailJob;
-use App\Jobs\SendOTPWhatsAppJob;
-use App\Jobs\SendZoomAccessEmailJob;
-use App\Jobs\SendZoomAccessWhatsAppJob;
+use App\Jobs\Core\SendOTPEmailJob;
+use App\Jobs\Core\SendOTPWhatsAppJob;
+use App\Jobs\Assembly\SendZoomAccessEmailJob;
+use App\Jobs\Assembly\SendZoomAccessWhatsAppJob;
 use Illuminate\Support\Facades\Config;
 
 /**

@@ -5,7 +5,7 @@ import NavUser from '@/components/NavUser.vue';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { type NavItem, type SharedData, type User } from '@/types';
 import { usePage } from '@inertiajs/vue3';
-import { BookOpen, Folder, LayoutGrid, Vote, Users, BarChart3, FileText, Settings, Briefcase, Calendar, Megaphone, UserCheck, ClipboardList, Building2, Shield, Target, UserCog, Database, Lock } from 'lucide-vue-next';
+import { Folder, LayoutGrid, Vote, Users, BarChart3, FileText, Settings, Briefcase, Calendar, Megaphone, UserCheck, ClipboardList, Building2, Shield, Target, UserCog, Database, Lock, ExternalLink } from 'lucide-vue-next';
 import { computed } from 'vue';
 import AppLogo from './AppLogo.vue';
 
@@ -93,7 +93,7 @@ const mainNavItems = computed<NavItem[]>(() => {
     // Dashboard siempre disponible
     items.push({
         title: 'Dashboard',
-        url: authHasAdministrativeRole ? '/admin/dashboard' : '/dashboard',
+        url: authHasAdministrativeRole ? '/admin/dashboard' : '/miembro/dashboard',
         icon: LayoutGrid,
     });
 
@@ -120,64 +120,60 @@ const mainNavItems = computed<NavItem[]>(() => {
     }
     
     // Menú basado en permisos específicos para cualquier usuario con permisos administrativos
+    // NOTA: Este sidebar SOLO se muestra en el panel administrativo
+    // Los usuarios regulares tienen su propio layout sin sidebar
     if (authHasAdministrativeRole && !isSuperAdmin()) {
-        // Sección de Administración - mostrar solo si tiene algún permiso relevante
-        const adminItems: NavItem[] = [];
-        
-        if (hasAnyPermission(['users.view', 'users.create', 'users.edit', 'users.delete']) && hasModuleAccess('users')) {
-            adminItems.push({
+        // Usuarios - como elemento de primer nivel
+        if (hasPermission('users.view') && hasModuleAccess('users')) {
+            items.push({
                 title: 'Usuarios',
                 url: '/admin/usuarios',
                 icon: Users,
             });
         }
         
-        if (hasAnyPermission(['roles.view', 'roles.create', 'roles.edit', 'roles.delete']) && hasModuleAccess('roles')) {
-            adminItems.push({
+        // Roles y Permisos - como elemento de primer nivel
+        if (hasPermission('roles.view') && hasModuleAccess('roles')) {
+            items.push({
                 title: 'Roles y Permisos',
                 url: '/admin/roles',
                 icon: Shield,
             });
         }
         
-        if (hasAnyPermission(['segments.view', 'segments.create', 'segments.edit', 'segments.delete']) && hasModuleAccess('segments')) {
-            adminItems.push({
+        // Sección CRM - Segmentos y Formularios
+        const crmItems: NavItem[] = [];
+        
+        if (hasPermission('segments.view') && hasModuleAccess('segments')) {
+            crmItems.push({
                 title: 'Segmentos',
                 url: '/admin/segments',
                 icon: Target,
             });
         }
         
+        if (hasPermission('formularios.view') && hasModuleAccess('formularios')) {
+            crmItems.push({
+                title: 'Formularios',
+                url: '/admin/formularios',
+                icon: FileText,
+            });
+        }
+        
         // Solo agregar la sección si hay elementos
-        if (adminItems.length > 0) {
+        if (crmItems.length > 0) {
             items.push({
-                title: 'Administración',
-                icon: Shield,
+                title: 'CRM',
+                icon: UserCog,
                 isCollapsible: true,
-                items: adminItems,
+                items: crmItems,
             });
         }
 
-        // Sección de Gestión Electoral - mostrar solo si tiene algún permiso relevante
+        // Sección de Gestión Electoral - con Periodos y Cargos
         const electoralItems: NavItem[] = [];
         
-        if (hasAnyPermission(['votaciones.view', 'votaciones.create', 'votaciones.edit', 'votaciones.delete']) && hasModuleAccess('votaciones')) {
-            electoralItems.push({
-                title: 'Votaciones',
-                url: '/admin/votaciones',
-                icon: Vote,
-            });
-        }
-        
-        if (hasAnyPermission(['cargos.view', 'cargos.create', 'cargos.edit', 'cargos.delete']) && hasModuleAccess('cargos')) {
-            electoralItems.push({
-                title: 'Cargos',
-                url: '/admin/cargos',
-                icon: Briefcase,
-            });
-        }
-        
-        if (hasAnyPermission(['periodos.view', 'periodos.create', 'periodos.edit', 'periodos.delete']) && hasModuleAccess('periodos')) {
+        if (hasPermission('periodos.view') && hasModuleAccess('periodos')) {
             electoralItems.push({
                 title: 'Periodos Electorales',
                 url: '/admin/periodos-electorales',
@@ -185,27 +181,11 @@ const mainNavItems = computed<NavItem[]>(() => {
             });
         }
         
-        if (hasAnyPermission(['asambleas.view', 'asambleas.create', 'asambleas.edit', 'asambleas.delete', 'asambleas.manage_participants']) && hasModuleAccess('asambleas')) {
+        if (hasPermission('cargos.view') && hasModuleAccess('cargos')) {
             electoralItems.push({
-                title: 'Asambleas',
-                url: '/admin/asambleas',
-                icon: Users,
-            });
-        }
-        
-        if (hasAnyPermission(['convocatorias.view', 'convocatorias.create', 'convocatorias.edit', 'convocatorias.delete']) && hasModuleAccess('convocatorias')) {
-            electoralItems.push({
-                title: 'Convocatorias',
-                url: '/admin/convocatorias',
-                icon: Megaphone,
-            });
-        }
-        
-        if (hasAnyPermission(['formularios.view', 'formularios.create', 'formularios.edit', 'formularios.delete', 'formularios.view_responses']) && hasModuleAccess('formularios')) {
-            electoralItems.push({
-                title: 'Formularios',
-                url: '/admin/formularios',
-                icon: FileText,
+                title: 'Cargos',
+                url: '/admin/cargos',
+                icon: Briefcase,
             });
         }
         
@@ -219,19 +199,45 @@ const mainNavItems = computed<NavItem[]>(() => {
             });
         }
 
-        // Sección de Participantes - mostrar solo si tiene algún permiso relevante
-        const participantItems: NavItem[] = [];
+        // Sección de Participación - con Votaciones, Asambleas, Convocatorias, Candidaturas, Postulaciones
+        const participationItems: NavItem[] = [];
         
-        if (hasAnyPermission(['candidaturas.view', 'candidaturas.create', 'candidaturas.approve']) && hasModuleAccess('candidaturas')) {
-            participantItems.push({
+        if (hasPermission('votaciones.view') && hasModuleAccess('votaciones')) {
+            participationItems.push({
+                title: 'Votaciones',
+                url: '/admin/votaciones',
+                icon: Vote,
+            });
+        }
+        
+        if (hasPermission('asambleas.view') && hasModuleAccess('asambleas')) {
+            participationItems.push({
+                title: 'Asambleas',
+                url: '/admin/asambleas',
+                icon: Users,
+            });
+        }
+        
+        if (hasPermission('convocatorias.view') && hasModuleAccess('convocatorias')) {
+            participationItems.push({
+                title: 'Convocatorias',
+                url: '/admin/convocatorias',
+                icon: Megaphone,
+            });
+        }
+        
+        // Solo mostrar si tiene permiso de ver candidaturas
+        if (hasPermission('candidaturas.view') && hasModuleAccess('candidaturas')) {
+            participationItems.push({
                 title: 'Candidaturas',
                 url: '/admin/candidaturas',
                 icon: UserCheck,
             });
         }
         
-        if (hasAnyPermission(['postulaciones.view', 'postulaciones.create', 'postulaciones.review']) && hasModuleAccess('postulaciones')) {
-            participantItems.push({
+        // IMPORTANTE: Solo mostrar si el usuario tiene el permiso específico
+        if (hasPermission('postulaciones.view') && hasModuleAccess('postulaciones')) {
+            participationItems.push({
                 title: 'Postulaciones',
                 url: '/admin/postulaciones',
                 icon: ClipboardList,
@@ -239,46 +245,46 @@ const mainNavItems = computed<NavItem[]>(() => {
         }
         
         // Solo agregar la sección si hay elementos
-        if (participantItems.length > 0) {
+        if (participationItems.length > 0) {
             items.push({
-                title: 'Participantes',
+                title: 'Participación',
                 icon: Users,
                 isCollapsible: true,
-                items: participantItems,
+                items: participationItems,
             });
         }
 
-        // Sección de Análisis - mostrar solo si tiene algún permiso relevante
-        const analysisItems: NavItem[] = [];
-        
-        if (hasAnyPermission(['reports.view', 'reports.export']) && hasModuleAccess('reports')) {
-            analysisItems.push({
-                title: 'Resultados',
-                url: '/admin/resultados',
-                icon: BarChart3,
-            });
-        }
-        
-        if (hasAnyPermission(['auditoría.view', 'auditoría.export'])) {
-            analysisItems.push({
-                title: 'Auditoría',
-                url: '/admin/auditoria',
-                icon: FileText,
-            });
-        }
-        
-        // Solo agregar la sección si hay elementos
-        if (analysisItems.length > 0) {
-            items.push({
-                title: 'Análisis',
-                icon: BarChart3,
-                isCollapsible: true,
-                items: analysisItems,
-            });
-        }
+        // Sección de Análisis - COMENTADO: Funcionalidad aún no implementada
+        // const analysisItems: NavItem[] = [];
+        // 
+        // if (hasAnyPermission(['reports.view', 'reports.export']) && hasModuleAccess('reports')) {
+        //     analysisItems.push({
+        //         title: 'Resultados',
+        //         url: '/admin/resultados',
+        //         icon: BarChart3,
+        //     });
+        // }
+        // 
+        // if (hasAnyPermission(['auditoría.view', 'auditoría.export'])) {
+        //     analysisItems.push({
+        //         title: 'Auditoría',
+        //         url: '/admin/auditoria',
+        //         icon: FileText,
+        //     });
+        // }
+        // 
+        // // Solo agregar la sección si hay elementos
+        // if (analysisItems.length > 0) {
+        //     items.push({
+        //         title: 'Análisis',
+        //         icon: BarChart3,
+        //         isCollapsible: true,
+        //         items: analysisItems,
+        //     });
+        // }
 
         // Configuración - mostrar si tiene permisos de configuración
-        if (hasAnyPermission(['settings.view', 'settings.edit'])) {
+        if (hasPermission('settings.view')) {
             items.push({
                 title: 'Configuración',
                 url: '/admin/configuracion',
@@ -287,97 +293,27 @@ const mainNavItems = computed<NavItem[]>(() => {
         }
     }
     
-    // Menú para usuarios sin permisos administrativos
-    if (!authHasAdministrativeRole) {
-        // Menú dinámico basado en permisos de frontend
-        
-        // Votaciones
-        if (hasAnyPermission(['votaciones.view_public', 'votaciones.vote', 'votaciones.view_results']) && hasModuleAccess('votaciones')) {
-            items.push({
-                title: 'Mis Votaciones',
-                url: '/votaciones',
-                icon: Vote,
-            });
-        }
-        
-        // Asambleas
-        if (hasAnyPermission(['asambleas.view_public', 'asambleas.participate', 'asambleas.view_minutes']) && hasModuleAccess('asambleas')) {
-            items.push({
-                title: 'Asambleas',
-                url: '/asambleas',
-                icon: Users,
-            });
-        }
-        
-        // Convocatorias
-        if (hasAnyPermission(['convocatorias.view_public', 'convocatorias.apply']) && hasModuleAccess('convocatorias')) {
-            items.push({
-                title: 'Convocatorias',
-                url: '/convocatorias',
-                icon: Megaphone,
-            });
-        }
-        
-        // Candidaturas
-        if (hasAnyPermission(['candidaturas.create_own', 'candidaturas.view_own', 'candidaturas.edit_own', 'candidaturas.view_public']) && hasModuleAccess('candidaturas')) {
-            items.push({
-                title: 'Mi Candidatura',
-                url: '/candidaturas',
-                icon: UserCheck,
-            });
-        }
-        
-        // Postulaciones
-        if (hasAnyPermission(['postulaciones.create', 'postulaciones.view_own', 'postulaciones.edit_own', 'postulaciones.delete_own']) && hasModuleAccess('postulaciones')) {
-            items.push({
-                title: 'Mis Postulaciones',
-                url: '/postulaciones',
-                icon: ClipboardList,
-            });
-        }
-        
-        // Formularios
-        if (hasAnyPermission(['formularios.view_public', 'formularios.fill_public']) && hasModuleAccess('formularios')) {
-            items.push({
-                title: 'Formularios',
-                url: '/formularios',
-                icon: FileText,
-            });
-        }
-        
-        // Si el usuario no tiene ningún permiso específico, mostrar menú básico
-        if (items.length === 1) { // Solo tiene Dashboard
-            // Menú por defecto para usuarios sin permisos específicos
-            items.push({
-                title: 'Votaciones',
-                url: '/votaciones',
-                icon: Vote,
-            });
-            
-            items.push({
-                title: 'Asambleas',
-                url: '/asambleas',
-                icon: Users,
-            });
-            
-            items.push({
-                title: 'Convocatorias',
-                url: '/convocatorias',
-                icon: Megaphone,
-            });
-        }
-    }
-
+    // NOTA: Los usuarios sin permisos administrativos usan un layout diferente
+    // Este sidebar SOLO se muestra en el panel administrativo
+    
     return items;
 });
 
-const footerNavItems: NavItem[] = [
-    {
-        title: 'Documentation',
-        url: 'https://laravel.com/docs/starter-kits',
-        icon: BookOpen,
-    },
-];
+const footerNavItems = computed<NavItem[]>(() => {
+    const items: NavItem[] = [];
+    
+    // Agregar enlace para cambiar a vista de usuario si el admin tiene rol user
+    if (authHasAdministrativeRole && user?.roles?.some((role: any) => role.name === 'user')) {
+        items.push({
+            title: 'Cambiar a Vista Usuario',
+            url: '/miembro/dashboard',
+            icon: ExternalLink,
+            isInternal: true, // Marcar como enlace interno
+        });
+    }
+    
+    return items;
+});
 </script>
 
 <template>

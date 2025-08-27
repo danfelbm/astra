@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import AppLayout from '@/layouts/AppLayout.vue';
+import AdminLayout from "@/layouts/AdminLayout.vue";
 import { Head } from '@inertiajs/vue3';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -159,7 +159,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <AppLayout :breadcrumbs="breadcrumbs">
+  <AdminLayout :breadcrumbs="breadcrumbs">
     <Head title="Dashboard OTP" />
 
     <div class="space-y-6">
@@ -418,5 +418,5 @@ onUnmounted(() => {
         </CardContent>
       </Card>
     </div>
-  </AppLayout>
+  </AdminLayout>
 </template>

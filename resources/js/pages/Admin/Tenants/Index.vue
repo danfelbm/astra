@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import AppLayout from '@/layouts/AppLayout.vue';
+import AdminLayout from "@/layouts/AdminLayout.vue";
 import { Head, Link, router } from '@inertiajs/vue3';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -119,7 +119,7 @@ const getPlanLabel = (plan: string) => {
 <template>
     <Head title="Gestión de Tenants" />
 
-    <AppLayout :breadcrumbs="breadcrumbs">
+    <AdminLayout :breadcrumbs="breadcrumbs">
         <div class="flex h-full flex-1 flex-col gap-4 p-4">
             <!-- Header con título y botón de crear -->
             <div class="flex items-center justify-between">
@@ -318,5 +318,5 @@ const getPlanLabel = (plan: string) => {
                 </CardContent>
             </Card>
         </div>
-    </AppLayout>
+    </AdminLayout>
 </template>

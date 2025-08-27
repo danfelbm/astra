@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { type BreadcrumbItemType } from '@/types';
-import AppLayout from '@/layouts/AppLayout.vue';
+import AdminLayout from "@/layouts/AdminLayout.vue";
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { Calendar, Clock, Eye, MapPin, Megaphone, Pencil, Plus, Trash2, Users } from 'lucide-vue-next';
 import AdvancedFilters from '@/components/filters/AdvancedFilters.vue';
@@ -62,6 +62,9 @@ interface Props {
     
         advanced_filters?: string;};
     filterFieldsConfig: any[];
+    canCreate?: boolean;
+    canEdit?: boolean;
+    canDelete?: boolean;
 }
 
 const props = defineProps<Props>();
@@ -145,7 +148,7 @@ const formatearFecha = (fecha: string) => {
 <template>
     <Head title="Convocatorias" />
 
-    <AppLayout :breadcrumbs="breadcrumbs">
+    <AdminLayout :breadcrumbs="breadcrumbs">
         <div class="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
             <!-- Header -->
             <div class="flex items-center justify-between">
@@ -155,7 +158,7 @@ const formatearFecha = (fecha: string) => {
                         Gestiona las convocatorias electorales y formularios de postulación
                     </p>
                 </div>
-                <Link href="/admin/convocatorias/create">
+                <Link v-if="props.canCreate" href="/admin/convocatorias/create">
                     <Button>
                         <Plus class="mr-2 h-4 w-4" />
                         Nueva Convocatoria
@@ -177,7 +180,7 @@ const formatearFecha = (fecha: string) => {
                         <Megaphone class="mx-auto h-12 w-12 text-muted-foreground" />
                         <h3 class="mt-4 text-lg font-medium">No hay convocatorias</h3>
                         <p class="text-muted-foreground">Comienza creando tu primera convocatoria.</p>
-                        <Link href="/admin/convocatorias/create" class="mt-4 inline-block">
+                        <Link v-if="props.canCreate" href="/admin/convocatorias/create" class="mt-4 inline-block">
                             <Button>
                                 <Plus class="mr-2 h-4 w-4" />
                                 Nueva Convocatoria
@@ -247,12 +250,13 @@ const formatearFecha = (fecha: string) => {
                                             <Eye class="h-4 w-4" />
                                         </Button>
                                     </Link>
-                                    <Link :href="`/admin/convocatorias/${convocatoria.id}/edit`">
+                                    <Link v-if="props.canEdit" :href="`/admin/convocatorias/${convocatoria.id}/edit`">
                                         <Button variant="outline" size="sm">
                                             <Pencil class="h-4 w-4" />
                                         </Button>
                                     </Link>
                                     <Button
+                                        v-if="props.canDelete"
                                         variant="outline"
                                         size="sm"
                                         @click="eliminarConvocatoria(convocatoria)"
@@ -287,5 +291,5 @@ const formatearFecha = (fecha: string) => {
                 </CardContent>
             </Card>
         </div>
-    </AppLayout>
+    </AdminLayout>
 </template>

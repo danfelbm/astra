@@ -21,6 +21,8 @@
 /storage/pail
 /vendor
 /zoom-sdk
+/scripts
+/docs
 Homestead.json
 Homestead.yaml
 Thumbs.db

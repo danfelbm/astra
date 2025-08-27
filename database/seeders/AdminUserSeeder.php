@@ -2,7 +2,7 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
+use App\Models\Core\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
@@ -29,11 +29,14 @@ class AdminUserSeeder extends Seeder
             ]
         );
 
-        // Asignar rol super_admin usando Spatie
+        // Asignar roles super_admin y user usando Spatie
         if (!$user->hasRole('super_admin')) {
             $user->assignRole('super_admin');
         }
+        if (!$user->hasRole('user')) {
+            $user->assignRole('user');
+        }
 
-        $this->command->info('Usuario administrador creado: admin@votaciones.test');
+        $this->command->info('Usuario administrador creado: admin@votaciones.test con roles super_admin y user');
     }
 }

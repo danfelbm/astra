@@ -64,7 +64,7 @@ const cargarConvocatorias = async () => {
     error.value = null;
     
     try {
-        const response = await axios.get('/api/convocatorias/disponibles', {
+        const response = await axios.get('/miembro/api/convocatorias/disponibles', {
             params: {
                 filtrar_ubicacion: props.filtrarPorUbicacion,
                 incluir_futuras: true, // Incluir convocatorias futuras también

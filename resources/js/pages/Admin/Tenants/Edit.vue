@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import AppLayout from '@/layouts/AppLayout.vue';
+import AdminLayout from "@/layouts/AdminLayout.vue";
 import { Head, Link, useForm, router } from '@inertiajs/vue3';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -88,7 +88,7 @@ const deleteTenant = () => {
 <template>
     <Head :title="`Editar Tenant: ${tenant.name}`" />
 
-    <AppLayout :breadcrumbs="breadcrumbs">
+    <AdminLayout :breadcrumbs="breadcrumbs">
         <div class="flex h-full flex-1 flex-col gap-4 p-4">
             <!-- Header -->
             <div class="flex items-center justify-between">
@@ -462,5 +462,5 @@ const deleteTenant = () => {
                 </div>
             </form>
         </div>
-    </AppLayout>
+    </AdminLayout>
 </template>

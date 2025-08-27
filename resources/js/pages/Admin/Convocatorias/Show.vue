@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import AppLayout from '@/layouts/AppLayout.vue';
+import AdminLayout from "@/layouts/AdminLayout.vue";
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -89,6 +89,8 @@ interface Postulacion {
 interface Props {
     convocatoria: Convocatoria;
     postulaciones?: Postulacion[];
+    canEdit?: boolean;
+    canDelete?: boolean;
 }
 
 const props = defineProps<Props>();
@@ -226,7 +228,7 @@ const handleDelete = () => {
 <template>
     <Head :title="`Convocatoria: ${convocatoria.nombre}`" />
 
-    <AppLayout :breadcrumbs="breadcrumbs">
+    <AdminLayout :breadcrumbs="breadcrumbs">
         <div class="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
             <div class="space-y-6">
                 <!-- Header -->
@@ -255,11 +257,11 @@ const handleDelete = () => {
                         </div>
                     </div>
                     <div class="flex gap-2">
-                        <Button @click="handleEdit" variant="outline">
+                        <Button v-if="props.canEdit" @click="handleEdit" variant="outline">
                             <Edit class="h-4 w-4 mr-2" />
                             Editar
                         </Button>
-                        <Button @click="handleDelete" variant="destructive">
+                        <Button v-if="props.canDelete" @click="handleDelete" variant="destructive">
                             <Trash2 class="h-4 w-4 mr-2" />
                             Eliminar
                         </Button>
@@ -478,5 +480,5 @@ const handleDelete = () => {
                 </Card>
             </div>
         </div>
-    </AppLayout>
+    </AdminLayout>
 </template>

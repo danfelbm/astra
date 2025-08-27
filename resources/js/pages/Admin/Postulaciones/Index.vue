@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import AppLayout from '@/layouts/AppLayout.vue';
+import AdminLayout from "@/layouts/AdminLayout.vue";
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -75,6 +75,9 @@ interface Props {
     
         advanced_filters?: string;};
     filterFieldsConfig: any[];
+    canRevisar?: boolean;
+    canAprobar?: boolean;
+    canRechazar?: boolean;
 }
 
 const props = defineProps<Props>();
@@ -179,7 +182,7 @@ const limpiarFiltros = () => {
 <template>
     <Head title="Gestión de Postulaciones" />
 
-    <AppLayout :breadcrumbs="breadcrumbs">
+    <AdminLayout :breadcrumbs="breadcrumbs">
         <div class="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
         <div class="space-y-6">
         <!-- Header -->
@@ -292,5 +295,5 @@ const limpiarFiltros = () => {
         </Card>
         </div>
         </div>
-    </AppLayout>
+    </AdminLayout>
 </template>

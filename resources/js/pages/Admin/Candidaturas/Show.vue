@@ -14,7 +14,7 @@ import AprobacionCampo from '@/components/AprobacionCampo.vue';
 import ComentariosHistorial from '@/components/candidaturas/ComentariosHistorial.vue';
 import FileFieldDisplay from '@/components/display/FileFieldDisplay.vue';
 import RepeaterFieldDisplay from '@/components/display/RepeaterFieldDisplay.vue';
-import AppLayout from '@/layouts/AppLayout.vue';
+import AdminLayout from "@/layouts/AdminLayout.vue";
 import { Head, useForm, router, usePage } from '@inertiajs/vue3';
 import { ArrowLeft, CheckCircle, Clock, User, XCircle, MessageSquare, AlertTriangle, Undo2, CheckSquare, XSquare, Plus, History, CheckCircle2, Loader2, Wrench, ToggleLeft, ToggleRight } from 'lucide-vue-next';
 import { ref, computed, reactive, Transition } from 'vue';
@@ -89,6 +89,7 @@ interface Props {
     campo_aprobaciones?: Record<string, CampoAprobacion>;
     resumen_aprobaciones?: ResumenAprobaciones;
     puede_aprobar_campos?: boolean;
+    puede_comentar?: boolean;
     comentarios?: Comentario[];
 }
 
@@ -478,7 +479,7 @@ const formatearFecha = (fecha: string) => {
 <template>
     <Head :title="`Candidatura - ${candidatura.usuario.name}`" />
 
-    <AppLayout :breadcrumbs="breadcrumbs">
+    <AdminLayout :breadcrumbs="breadcrumbs">
         <div class="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
             <!-- Header -->
             <div class="flex items-center justify-between">
@@ -556,6 +557,7 @@ const formatearFecha = (fecha: string) => {
                             </Button>
                             
                             <Button
+                                v-if="puede_comentar"
                                 variant="outline"
                                 @click="abrirFormularioComentario"
                                 class="border-indigo-300 text-indigo-600 hover:bg-indigo-50"
@@ -836,7 +838,7 @@ const formatearFecha = (fecha: string) => {
             </Card>
 
             <!-- Formulario para nuevo comentario -->
-            <Card id="formulario-comentario" v-if="showComentarioForm" class="border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-950/20">
+            <Card id="formulario-comentario" v-if="showComentarioForm && puede_comentar" class="border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-950/20">
                 <CardHeader>
                     <CardTitle class="text-indigo-800 dark:text-indigo-200 flex items-center gap-2">
                         <Plus class="h-5 w-5" />
@@ -988,5 +990,5 @@ const formatearFecha = (fecha: string) => {
                 :is-admin="true"
             />
         </div>
-    </AppLayout>
+    </AdminLayout>
 </template>

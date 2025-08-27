@@ -2,7 +2,7 @@
 
 namespace App\Traits;
 
-use App\Models\Segment;
+use App\Models\Core\Segment;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -90,7 +90,7 @@ trait HasSegmentScope
         return Segment::whereHas('roles', function ($query) use ($roleIds) {
             $query->whereIn('roles.id', $roleIds);
         })
-        ->where('model_type', 'App\\Models\\User') // Solo segmentos de usuarios
+        ->where('model_type', 'App\\Models\\Core\\User') // Solo segmentos de usuarios
         ->where('is_dynamic', true) // Solo segmentos dinámicos
         ->get();
     }

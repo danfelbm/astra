@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import DynamicFormBuilder from '@/components/forms/DynamicFormBuilder.vue';
 import { type BreadcrumbItemType } from '@/types';
 import { type FormField } from '@/types/forms';
-import AppLayout from '@/layouts/AppLayout.vue';
+import AdminLayout from "@/layouts/AdminLayout.vue";
 import { Head, useForm } from '@inertiajs/vue3';
 import { ArrowLeft, Clock, Settings, Save, History, CheckCircle } from 'lucide-vue-next';
 import { ref, computed } from 'vue';
@@ -102,7 +102,7 @@ const activateConfig = (configId: number) => {
 <template>
     <Head title="Configuración de Candidaturas" />
 
-    <AppLayout :breadcrumbs="breadcrumbs">
+    <AdminLayout :breadcrumbs="breadcrumbs">
         <div class="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
             <!-- Header -->
             <div class="flex items-center justify-between">
@@ -260,5 +260,5 @@ const activateConfig = (configId: number) => {
                 </CardContent>
             </Card>
         </div>
-    </AppLayout>
+    </AdminLayout>
 </template>

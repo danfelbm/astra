@@ -28,6 +28,17 @@ export function useFileUpload() {
     const uploadProgress = ref<UploadProgress>({});
     const uploadErrors = ref<Map<string, string>>(new Map());
     
+    // Función helper para obtener el prefijo de API correcto basado en el contexto
+    const getApiPrefix = (): string => {
+        const currentPath = window.location.pathname;
+        if (currentPath.startsWith('/admin')) {
+            return '/admin';
+        } else if (currentPath.startsWith('/miembro')) {
+            return '/miembro';
+        }
+        return ''; // Sin prefijo para rutas públicas
+    };
+    
     /**
      * Sube uno o más archivos al servidor
      */
@@ -47,7 +58,7 @@ export function useFileUpload() {
         formData.append('field_id', options.fieldId);
         
         try {
-            const response = await axios.post('/api/files/upload', formData, {
+            const response = await axios.post(`${getApiPrefix()}/api/files/upload`, formData, {
                 headers: {
                     'Content-Type': 'multipart/form-data',
                 },
@@ -100,7 +111,7 @@ export function useFileUpload() {
      */
     const deleteFile = async (path: string): Promise<boolean> => {
         try {
-            const response = await axios.delete('/api/files/delete', {
+            const response = await axios.delete(`${getApiPrefix()}/api/files/delete`, {
                 data: { path }
             });
             
@@ -116,7 +127,7 @@ export function useFileUpload() {
      */
     const downloadFile = async (path: string, fileName?: string): Promise<void> => {
         try {
-            const response = await axios.get('/api/files/download', {
+            const response = await axios.get(`${getApiPrefix()}/api/files/download`, {
                 params: { path },
                 responseType: 'blob',
             });
@@ -143,7 +154,7 @@ export function useFileUpload() {
      */
     const getFileInfo = async (path: string): Promise<any> => {
         try {
-            const response = await axios.get('/api/files/info', {
+            const response = await axios.get(`${getApiPrefix()}/api/files/info`, {
                 params: { path }
             });
             

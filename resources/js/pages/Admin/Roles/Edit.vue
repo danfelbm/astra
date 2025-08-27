@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import AppLayout from '@/layouts/AppLayout.vue';
+import AdminLayout from "@/layouts/AdminLayout.vue";
 import { Head, Link, useForm, router } from '@inertiajs/vue3';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -27,7 +27,6 @@ interface Role {
     is_administrative?: boolean;
     redirect_after_login?: string;
     permissions?: string[];
-    allowed_modules?: string[];
     segments?: { id: number; name: string; }[];
     created_at: string;
     updated_at: string;
@@ -50,16 +49,11 @@ interface AvailablePermissions {
     frontend: Record<string, PermissionGroup>;
 }
 
-interface AvailableModules {
-    administrative: Record<string, string>;
-    frontend: Record<string, string>;
-}
 
 interface Props {
     role: Role;
     segments: Segment[];
     availablePermissions: AvailablePermissions;
-    modules: AvailableModules;
     selectedSegments: number[];
 }
 
@@ -79,7 +73,6 @@ const form = useForm({
     is_administrative: Boolean(props.role.is_administrative),
     redirect_after_login: props.role.redirect_after_login || 'default',
     permissions: props.role.permissions || [],
-    allowed_modules: props.role.allowed_modules || [],
     segment_ids: props.selectedSegments || [],
 });
 
@@ -120,12 +113,6 @@ const currentPermissions = computed(() => {
         : props.availablePermissions.frontend;
 });
 
-// Computed para obtener los módulos según el tipo de rol
-const currentModules = computed(() => {
-    return form.is_administrative 
-        ? props.modules.administrative 
-        : props.modules.frontend;
-});
 
 // Computed para verificar si todos los permisos de un grupo están seleccionados
 const isGroupFullySelected = (groupKey: string): boolean => {
@@ -175,14 +162,6 @@ const toggleGroupPermissions = (groupKey: string) => {
     }
 };
 
-const toggleModule = (moduleKey: string) => {
-    const index = form.allowed_modules.indexOf(moduleKey);
-    if (index > -1) {
-        form.allowed_modules.splice(index, 1);
-    } else {
-        form.allowed_modules.push(moduleKey);
-    }
-};
 
 const toggleSegment = (segmentId: number) => {
     const index = form.segment_ids.indexOf(segmentId);
@@ -226,9 +205,8 @@ const clearAllPermissions = () => {
 watch(() => form.is_administrative, (newValue, oldValue) => {
     // Solo limpiar si realmente cambió el valor y no es la carga inicial
     if (oldValue !== undefined && newValue !== oldValue) {
-        // Limpiar permisos y módulos al cambiar el tipo de rol
+        // Limpiar permisos al cambiar el tipo de rol
         form.permissions = [];
-        form.allowed_modules = [];
     }
 });
 
@@ -242,7 +220,7 @@ const canDelete = computed(() => {
 </script>
 
 <template>
-    <AppLayout :breadcrumbs="breadcrumbs">
+    <AdminLayout :breadcrumbs="breadcrumbs">
         <Head title="Editar Rol" />
 
         <div class="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
@@ -282,7 +260,7 @@ const canDelete = computed(() => {
 
             <form @submit.prevent="handleSubmit" class="space-y-6">
                 <Tabs defaultValue="general" class="space-y-4">
-                    <TabsList class="grid w-full grid-cols-4">
+                    <TabsList class="grid w-full grid-cols-3">
                         <TabsTrigger value="general">
                             <Shield class="mr-2 h-4 w-4" />
                             General
@@ -290,10 +268,6 @@ const canDelete = computed(() => {
                         <TabsTrigger value="permissions">
                             <Lock class="mr-2 h-4 w-4" />
                             Permisos
-                        </TabsTrigger>
-                        <TabsTrigger value="modules">
-                            <Users class="mr-2 h-4 w-4" />
-                            Módulos
                         </TabsTrigger>
                         <TabsTrigger value="segments">
                             <Target class="mr-2 h-4 w-4" />
@@ -477,35 +451,6 @@ const canDelete = computed(() => {
                         </Card>
                     </TabsContent>
 
-                    <!-- Tab Módulos -->
-                    <TabsContent value="modules">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Módulos Permitidos</CardTitle>
-                                <CardDescription>
-                                    {{ form.is_administrative ? 'Selecciona los módulos administrativos a los que tendrá acceso este rol' : 'Selecciona los módulos del portal público a los que tendrá acceso este rol' }}
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <div class="grid grid-cols-2 gap-4">
-                                    <div
-                                        v-for="(moduleName, moduleKey) in currentModules"
-                                        :key="moduleKey"
-                                        class="flex items-center space-x-2"
-                                    >
-                                        <Checkbox
-                                            :checked="form.allowed_modules.includes(moduleKey)"
-                                            @update:checked="toggleModule(moduleKey)"
-                                        />
-                                        <Label class="text-sm font-normal cursor-pointer">
-                                            {{ moduleName }}
-                                        </Label>
-                                    </div>
-                                </div>
-                                <InputError :message="form.errors.allowed_modules" />
-                            </CardContent>
-                        </Card>
-                    </TabsContent>
 
                     <!-- Tab Segmentos -->
                     <TabsContent value="segments">
@@ -564,5 +509,5 @@ const canDelete = computed(() => {
                 </div>
             </form>
         </div>
-    </AppLayout>
+    </AdminLayout>
 </template>

@@ -1,6 +1,6 @@
 <?php
 
-use App\Jobs\CleanExpiredOTPsJob;
+use App\Jobs\Core\CleanExpiredOTPsJob;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;

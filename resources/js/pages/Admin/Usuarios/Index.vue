@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import AppLayout from '@/layouts/AppLayout.vue';
+import AdminLayout from "@/layouts/AdminLayout.vue";
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { ref, computed, watch } from 'vue';
 import { Button } from '@/components/ui/button';
@@ -23,7 +23,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Plus, Edit, Trash, Power, ChevronLeft, ChevronRight, Upload } from 'lucide-vue-next';
+import { Plus, Edit, Trash, Power, ChevronLeft, ChevronRight, Upload, Download } from 'lucide-vue-next';
 import AdvancedFilters from '@/components/filters/AdvancedFilters.vue';
 import type { AdvancedFilterConfig } from '@/types/filters';
 import { type BreadcrumbItemType } from '@/types';
@@ -70,6 +70,10 @@ interface Props {
     };
     filterFieldsConfig: any[];
     canImport?: boolean;
+    canCreate?: boolean;
+    canEdit?: boolean;
+    canDelete?: boolean;
+    canExport?: boolean;
 }
 
 const props = defineProps<Props>();
@@ -168,12 +172,19 @@ const changePage = (page: number) => {
         preserveScroll: true,
     });
 };
+
+// Función temporal para exportar - pendiente de implementar en backend
+const exportUsers = () => {
+    alert('La funcionalidad de exportación está pendiente de implementación');
+    // TODO: Cuando se implemente en el backend, usar algo como:
+    // window.location.href = route('admin.usuarios.export', props.filters);
+};
 </script>
 
 <template>
     <Head title="Usuarios" />
     
-    <AppLayout :breadcrumbs="breadcrumbs">
+    <AdminLayout :breadcrumbs="breadcrumbs">
 
         <div class="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
             <!-- Header -->
@@ -185,11 +196,15 @@ const changePage = (page: number) => {
                     </p>
                 </div>
                 <div class="flex gap-2">
+                    <Button v-if="canExport" variant="outline" @click="exportUsers">
+                        <Download class="mr-2 h-4 w-4" />
+                        Exportar
+                    </Button>
                     <Button v-if="canImport" variant="outline" @click="router.visit('/admin/imports')">
                         <Upload class="mr-2 h-4 w-4" />
                         Importar CSV
                     </Button>
-                    <Link :href="route('admin.usuarios.create')">
+                    <Link v-if="canCreate" :href="route('admin.usuarios.create')">
                         <Button>
                             <Plus class="mr-2 h-4 w-4" />
                             Nuevo Usuario
@@ -265,12 +280,13 @@ const changePage = (page: number) => {
                                     </TableCell>
                                     <TableCell>
                                         <div class="flex justify-end gap-1">
-                                            <Link :href="route('admin.usuarios.edit', user.id)">
+                                            <Link v-if="canEdit" :href="route('admin.usuarios.edit', user.id)">
                                                 <Button variant="ghost" size="icon" class="h-8 w-8">
                                                     <Edit class="h-4 w-4" />
                                                 </Button>
                                             </Link>
                                             <Button 
+                                                v-if="canEdit"
                                                 variant="ghost" 
                                                 size="icon" 
                                                 class="h-8 w-8"
@@ -280,6 +296,7 @@ const changePage = (page: number) => {
                                                 <Power class="h-4 w-4" :class="user.activo ? 'text-green-600' : 'text-gray-400'" />
                                             </Button>
                                             <Button 
+                                                v-if="canDelete"
                                                 variant="ghost" 
                                                 size="icon" 
                                                 class="h-8 w-8 hover:text-destructive"
@@ -352,5 +369,5 @@ const changePage = (page: number) => {
                 </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
-    </AppLayout>
+    </AdminLayout>
 </template>

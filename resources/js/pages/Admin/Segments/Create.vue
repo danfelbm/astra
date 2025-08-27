@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import AppLayout from '@/layouts/AppLayout.vue';
+import AdminLayout from "@/layouts/AdminLayout.vue";
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -83,7 +83,7 @@ const getCacheDurationLabel = (seconds: number): string => {
 </script>
 
 <template>
-    <AppLayout :breadcrumbs="breadcrumbs">
+    <AdminLayout :breadcrumbs="breadcrumbs">
         <Head title="Crear Segmento" />
 
         <div class="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
@@ -355,5 +355,5 @@ const getCacheDurationLabel = (seconds: number): string => {
                 </div>
             </form>
         </div>
-    </AppLayout>
+    </AdminLayout>
 </template>

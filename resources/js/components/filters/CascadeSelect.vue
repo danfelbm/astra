@@ -167,6 +167,13 @@ const loadOptions = async () => {
   }
 };
 
+// Computed para obtener el label del valor seleccionado
+const selectedLabel = computed(() => {
+  if (!props.modelValue) return '';
+  const selectedOption = options.value.find(opt => opt.value === props.modelValue);
+  return selectedOption?.label || '';
+});
+
 // Manejar cambio de valor
 const handleChange = (value: any) => {
   emit('update:modelValue', value);
@@ -194,6 +201,19 @@ onMounted(() => {
   }
 });
 
+// Si hay un valor pero no hay opciones, intentar cargar las opciones
+watch(
+  () => props.modelValue,
+  (newValue) => {
+    if (newValue && options.value.length === 0 && !loading.value) {
+      // Hay un valor seleccionado pero no hay opciones cargadas
+      // Esto puede suceder cuando se carga un filtro guardado
+      loadOptions();
+    }
+  },
+  { immediate: true }
+);
+
 // Recargar opciones si cambia el endpoint
 watch(
   () => props.field.cascadeEndpoint,
@@ -215,7 +235,9 @@ watch(
       <SelectTrigger>
         <div class="flex items-center gap-2">
           <Loader2 v-if="loading" class="h-4 w-4 animate-spin" />
-          <SelectValue :placeholder="placeholder" />
+          <SelectValue :placeholder="placeholder">
+            {{ selectedLabel || placeholder }}
+          </SelectValue>
         </div>
       </SelectTrigger>
       <SelectContent>

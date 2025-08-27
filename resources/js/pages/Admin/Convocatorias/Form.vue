@@ -12,7 +12,7 @@ import DynamicFormBuilder from '@/components/forms/DynamicFormBuilder.vue';
 import GeographicRestrictions from '@/components/forms/GeographicRestrictions.vue';
 import { type BreadcrumbItemType } from '@/types';
 import { type FormField, type GeographicRestrictions as GeographicRestrictionsType } from '@/types/forms';
-import AppLayout from '@/layouts/AppLayout.vue';
+import AdminLayout from "@/layouts/AdminLayout.vue";
 import { Head, useForm } from '@inertiajs/vue3';
 import { ArrowLeft, Calendar, Clock, MapPin, Megaphone, Settings, Users } from 'lucide-vue-next';
 import { computed, ref, watch, onMounted } from 'vue';
@@ -306,7 +306,7 @@ const periodoSeleccionado = computed(() => {
 <template>
     <Head :title="isEditing ? 'Editar Convocatoria' : 'Nueva Convocatoria'" />
 
-    <AppLayout :breadcrumbs="breadcrumbs">
+    <AdminLayout :breadcrumbs="breadcrumbs">
         <div class="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
             <!-- Header -->
             <div class="flex items-center justify-between">
@@ -567,5 +567,5 @@ const periodoSeleccionado = computed(() => {
                 </CardContent>
             </Card>
         </div>
-    </AppLayout>
+    </AdminLayout>
 </template>

@@ -17,7 +17,7 @@ import {
     AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { type BreadcrumbItemType } from '@/types';
-import AppLayout from '@/layouts/AppLayout.vue';
+import AdminLayout from "@/layouts/AdminLayout.vue";
 import { Head, Link, router } from '@inertiajs/vue3';
 import { Edit, Plus, Search, Trash2, Calendar, Clock, CheckCircle } from 'lucide-vue-next';
 import AdvancedFilters from '@/components/filters/AdvancedFilters.vue';
@@ -60,6 +60,9 @@ interface Props {
     
         advanced_filters?: string;};
     filterFieldsConfig: any[];
+    canCreate?: boolean;
+    canEdit?: boolean;
+    canDelete?: boolean;
 }
 
 const props = defineProps<Props>();
@@ -148,7 +151,7 @@ const formatearFecha = (fecha: string) => {
 <template>
     <Head title="Periodos Electorales" />
 
-    <AppLayout :breadcrumbs="breadcrumbs">
+    <AdminLayout :breadcrumbs="breadcrumbs">
         <div class="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
             <!-- Header -->
             <div class="flex items-center justify-between">
@@ -158,7 +161,7 @@ const formatearFecha = (fecha: string) => {
                         Gestiona los marcos temporales para procesos electorales
                     </p>
                 </div>
-                <Link :href="route('admin.periodos-electorales.create')">
+                <Link v-if="props.canCreate" :href="route('admin.periodos-electorales.create')">
                     <Button>
                         <Plus class="mr-2 h-4 w-4" />
                         Nuevo Periodo
@@ -238,12 +241,12 @@ const formatearFecha = (fecha: string) => {
                                     </TableCell>
                                     <TableCell class="text-right">
                                         <div class="flex gap-2 justify-end">
-                                            <Link :href="route('admin.periodos-electorales.edit', periodo.id)">
+                                            <Link v-if="props.canEdit" :href="route('admin.periodos-electorales.edit', periodo.id)">
                                                 <Button variant="ghost" size="sm">
                                                     <Edit class="h-4 w-4" />
                                                 </Button>
                                             </Link>
-                                            <AlertDialog>
+                                            <AlertDialog v-if="props.canDelete">
                                                 <AlertDialogTrigger asChild>
                                                     <Button variant="ghost" size="sm">
                                                         <Trash2 class="h-4 w-4 text-destructive" />
@@ -295,5 +298,5 @@ const formatearFecha = (fecha: string) => {
                 </CardContent>
             </Card>
         </div>
-    </AppLayout>
+    </AdminLayout>
 </template>

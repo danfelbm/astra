@@ -2,10 +2,10 @@
 
 namespace App\Traits;
 
-use App\Models\Territorio;
-use App\Models\Departamento;
-use App\Models\Municipio;
-use App\Models\Localidad;
+use App\Models\Geografico\Territorio;
+use App\Models\Geografico\Departamento;
+use App\Models\Geografico\Municipio;
+use App\Models\Geografico\Localidad;
 
 /**
  * Trait para añadir filtros geográficos en cascada a los controladores

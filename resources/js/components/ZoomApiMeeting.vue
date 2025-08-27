@@ -49,7 +49,7 @@ const fetchStatus = async (skipLoadingIndicator = false) => {
         }
         error.value = null;
 
-        const response = await axios.get(route('api.zoom.registrants.status', props.asambleaId));
+        const response = await axios.get(route('user.api.zoom.registrants.status', props.asambleaId));
         const data = response.data;
         
         if (data.success) {
@@ -116,7 +116,7 @@ const registerUser = async () => {
         isRegistering.value = true;
         error.value = null;
 
-        const response = await axios.post(route('api.zoom.registrants.register'), {
+        const response = await axios.post(route('user.api.zoom.registrants.register'), {
             asamblea_id: props.asambleaId
         });
 
@@ -158,7 +158,7 @@ const cancelRegistration = async () => {
         isLoading.value = true;
         error.value = null;
 
-        const response = await axios.delete(route('api.zoom.registrants.destroy', props.asambleaId));
+        const response = await axios.delete(route('user.api.zoom.registrants.destroy', props.asambleaId));
         const data = response.data;
         
         if (data.success) {
@@ -181,7 +181,7 @@ const cancelRegistration = async () => {
  */
 const marcarAsistencia = async () => {
     try {
-        const response = await axios.post(route('asambleas.marcar-asistencia', props.asambleaId));
+        const response = await axios.post(route('user.asambleas.marcar-asistencia', props.asambleaId));
         
         if (response.data.success) {
             toast.success('✅ Asistencia registrada', {

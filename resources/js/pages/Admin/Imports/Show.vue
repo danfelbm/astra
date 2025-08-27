@@ -9,7 +9,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { type BreadcrumbItemType } from '@/types';
-import AppLayout from '@/layouts/AppLayout.vue';
+import AdminLayout from "@/layouts/AdminLayout.vue";
 import { Head, router } from '@inertiajs/vue3';
 import { CheckCircle, Clock, AlertCircle, XCircle, ArrowLeft, FileText, Users, AlertTriangle } from 'lucide-vue-next';
 import { ref, computed, onMounted, onUnmounted } from 'vue';
@@ -487,7 +487,7 @@ onUnmounted(() => {
 <template>
     <Head title="Progreso de Importación" />
 
-    <AppLayout :breadcrumbs="breadcrumbs">
+    <AdminLayout :breadcrumbs="breadcrumbs">
         <div class="flex h-full flex-1 flex-col gap-6 rounded-xl p-4">
             <!-- Header -->
             <div class="flex items-center justify-between">
@@ -776,7 +776,7 @@ onUnmounted(() => {
                 </div>
             </div>
         </div>
-    </AppLayout>
+    </AdminLayout>
 
     <!-- Modal de Fusión -->
     <Dialog v-model:open="showMergeModal">

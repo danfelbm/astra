@@ -30,6 +30,8 @@ export interface NavItem {
     icon?: LucideIcon;
     isActive?: boolean;
     isCollapsible?: boolean;
+    isInternal?: boolean;
+    isExternal?: boolean;
     items?: NavItem[];
 }
 

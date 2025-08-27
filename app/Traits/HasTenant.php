@@ -2,9 +2,9 @@
 
 namespace App\Traits;
 
-use App\Models\Tenant;
-use App\Scopes\TenantScope;
-use App\Services\TenantService;
+use App\Models\Core\Tenant;
+use App\Scopes\Core\TenantScope;
+use App\Services\Core\TenantService;
 use Illuminate\Database\Eloquent\Model;
 
 trait HasTenant

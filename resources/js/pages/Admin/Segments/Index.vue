@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import AppLayout from '@/layouts/AppLayout.vue';
+import AdminLayout from "@/layouts/AdminLayout.vue";
 import { Head, Link, router } from '@inertiajs/vue3';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -48,6 +48,9 @@ interface Props {
         is_dynamic?: string;
     };
     filterFieldsConfig: any[];
+    canCreate?: boolean;
+    canEdit?: boolean;
+    canDelete?: boolean;
 }
 
 const props = defineProps<Props>();
@@ -133,12 +136,14 @@ const handleClearCache = (segment: Segment) => {
 };
 
 const canDelete = (segment: Segment): boolean => {
+    // Verificar permiso de eliminación y que no tenga roles asociados
+    if (!props.canDelete) return false;
     return !segment.roles || segment.roles.length === 0;
 };
 </script>
 
 <template>
-    <AppLayout :breadcrumbs="breadcrumbs">
+    <AdminLayout :breadcrumbs="breadcrumbs">
         <Head title="Segmentos" />
 
         <div class="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
@@ -150,7 +155,7 @@ const canDelete = (segment: Segment): boolean => {
                         Gestiona segmentos dinámicos basados en filtros avanzados
                     </p>
                 </div>
-                <Link :href="route('admin.segments.create')">
+                <Link v-if="props.canCreate" :href="route('admin.segments.create')">
                     <Button>
                         <Plus class="mr-2 h-4 w-4" />
                         Nuevo Segmento
@@ -286,15 +291,15 @@ const canDelete = (segment: Segment): boolean => {
                                                     Ver Usuarios
                                                 </DropdownMenuItem>
                                             </Link>
-                                            <DropdownMenuItem @click="handleEvaluateSegment(segment)">
+                                            <DropdownMenuItem v-if="props.canEdit" @click="handleEvaluateSegment(segment)">
                                                 <RefreshCw class="mr-2 h-4 w-4" />
                                                 Recalcular
                                             </DropdownMenuItem>
-                                            <DropdownMenuItem @click="handleClearCache(segment)">
+                                            <DropdownMenuItem v-if="props.canEdit" @click="handleClearCache(segment)">
                                                 <Trash class="mr-2 h-4 w-4" />
                                                 Limpiar Cache
                                             </DropdownMenuItem>
-                                            <Link :href="`/admin/segments/${segment.id}/edit`">
+                                            <Link v-if="props.canEdit" :href="`/admin/segments/${segment.id}/edit`">
                                                 <DropdownMenuItem>
                                                     <Edit class="mr-2 h-4 w-4" />
                                                     Editar
@@ -342,5 +347,5 @@ const canDelete = (segment: Segment): boolean => {
                 </CardContent>
             </Card>
         </div>
-    </AppLayout>
+    </AdminLayout>
 </template>

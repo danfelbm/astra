@@ -16,7 +16,7 @@ return new class extends Migration
             $table->unsignedBigInteger('tenant_id');
             $table->string('name');
             $table->text('description')->nullable();
-            $table->string('model_type')->default('App\\Models\\User'); // Modelo al que aplica
+            $table->string('model_type')->default('App\\Models\\Core\\User'); // Modelo al que aplica
             $table->json('filters'); // Configuración de filtros avanzados
             $table->boolean('is_dynamic')->default(true); // Si se recalcula dinámicamente
             $table->integer('cache_duration')->default(300); // Duración del cache en segundos

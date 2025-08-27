@@ -2,7 +2,7 @@
 
 namespace App\Console\Commands;
 
-use App\Services\CryptoService;
+use App\Services\Votaciones\CryptoService;
 use Illuminate\Console\Command;
 
 class GenerateServerKeys extends Command

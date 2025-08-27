@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { type BreadcrumbItemType } from '@/types';
-import AppLayout from '@/layouts/AppLayout.vue';
+import AdminLayout from "@/layouts/AdminLayout.vue";
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { Clock, Eye, Settings, UserCheck, AlertCircle, Mail, MessageSquare, Send, Filter, Users2, Info } from 'lucide-vue-next';
 import AdvancedFilters from '@/components/filters/AdvancedFilters.vue';
@@ -208,8 +208,8 @@ const aplicarFiltroEstado = (estado: string) => {
 // Variables reactivas para el modal de recordatorios
 const modalAbierto = ref(false);
 const enviandoRecordatorios = ref(false);
-const incluirEmail = ref(true);
-const incluirWhatsApp = ref(true);
+const incluirEmail = ref(false);  // Cambiado a false por defecto
+const incluirWhatsApp = ref(false);  // Cambiado a false por defecto
 const estadisticasBorradores = ref({
     total_borradores: 0,
     con_email: 0,
@@ -221,8 +221,8 @@ const estadisticasBorradores = ref({
 // Variables para el modal de notificaciones pendientes
 const modalNotificacionesAbierto = ref(false);
 const enviandoNotificaciones = ref(false);
-const incluirEmailNotificacion = ref(true);
-const incluirWhatsAppNotificacion = ref(true);
+const incluirEmailNotificacion = ref(false);  // Cambiado a false por defecto
+const incluirWhatsAppNotificacion = ref(false);  // Cambiado a false por defecto
 const estadisticasPendientes = ref({
     total_pendientes: 0,
     con_email: 0,
@@ -247,10 +247,16 @@ const formatearFecha = (fecha: string) => {
 // Función para abrir modal de recordatorios
 const abrirModalRecordatorios = async () => {
     try {
-        // Obtener estadísticas de candidaturas en borrador
+        // Obtener estadísticas de candidaturas en borrador primero
         const response = await fetch(route('admin.candidaturas.estadisticas-borradores'));
         const stats = await response.json();
         estadisticasBorradores.value = stats;
+        
+        // Resetear valores por defecto basados en las estadísticas
+        // Solo habilitar si hay candidaturas con ese canal disponible
+        incluirEmail.value = false;
+        incluirWhatsApp.value = false;
+        
         modalAbierto.value = true;
     } catch (error) {
         console.error('Error cargando estadísticas:', error);
@@ -261,6 +267,10 @@ const abrirModalRecordatorios = async () => {
 // Función para abrir modal de notificaciones (pendientes)
 const abrirModalNotificaciones = async () => {
     try {
+        // Resetear valores por defecto al abrir el modal
+        incluirEmailNotificacion.value = false;
+        incluirWhatsAppNotificacion.value = false;
+        
         // Obtener estadísticas de candidaturas pendientes
         const response = await fetch(route('admin.candidaturas.estadisticas-pendientes'));
         const stats = await response.json();
@@ -362,7 +372,7 @@ const enviarRecordatorios = async () => {
 <template>
     <Head title="Candidaturas" />
 
-    <AppLayout :breadcrumbs="breadcrumbs">
+    <AdminLayout :breadcrumbs="breadcrumbs">
         <div class="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
             <!-- Header -->
             <div class="flex items-center justify-between">
@@ -658,7 +668,7 @@ const enviarRecordatorios = async () => {
                                 <div class="flex items-center space-x-3">
                                     <Checkbox 
                                         :id="'include-email'" 
-                                        v-model="incluirEmail" 
+                                        v-model:checked="incluirEmail" 
                                         :disabled="estadisticasBorradores.con_email === 0"
                                     />
                                     <div class="flex items-center gap-2">
@@ -675,7 +685,7 @@ const enviarRecordatorios = async () => {
                                 <div class="flex items-center space-x-3">
                                     <Checkbox 
                                         :id="'include-whatsapp'" 
-                                        v-model="incluirWhatsApp"
+                                        v-model:checked="incluirWhatsApp"
                                         :disabled="estadisticasBorradores.con_telefono === 0"
                                     />
                                     <div class="flex items-center gap-2">
@@ -770,7 +780,7 @@ const enviarRecordatorios = async () => {
                                 <div class="flex items-center space-x-3">
                                     <Checkbox 
                                         :id="'include-email-notif'" 
-                                        v-model="incluirEmailNotificacion" 
+                                        v-model:checked="incluirEmailNotificacion" 
                                         :disabled="estadisticasPendientes.con_email === 0"
                                     />
                                     <div class="flex items-center gap-2">
@@ -787,7 +797,7 @@ const enviarRecordatorios = async () => {
                                 <div class="flex items-center space-x-3">
                                     <Checkbox 
                                         :id="'include-whatsapp-notif'" 
-                                        v-model="incluirWhatsAppNotificacion"
+                                        v-model:checked="incluirWhatsAppNotificacion"
                                         :disabled="estadisticasPendientes.con_telefono === 0"
                                     />
                                     <div class="flex items-center gap-2">
@@ -831,5 +841,5 @@ const enviarRecordatorios = async () => {
                 </DialogContent>
             </Dialog>
         </div>
-    </AppLayout>
+    </AdminLayout>
 </template>

@@ -3,7 +3,7 @@
 namespace Database\Seeders;
 
 use App\Enums\LoginType;
-use App\Services\GlobalSettingsService;
+use App\Services\Core\GlobalSettingsService;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 

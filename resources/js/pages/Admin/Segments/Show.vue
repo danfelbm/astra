@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import AppLayout from '@/layouts/AppLayout.vue';
+import AdminLayout from "@/layouts/AdminLayout.vue";
 import { Head, Link, router } from '@inertiajs/vue3';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -164,7 +164,7 @@ const renderFilters = (filters: any): any[] => {
 </script>
 
 <template>
-    <AppLayout :breadcrumbs="breadcrumbs">
+    <AdminLayout :breadcrumbs="breadcrumbs">
         <Head :title="`Segmento: ${segment.name}`" />
 
         <div class="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
@@ -455,5 +455,5 @@ const renderFilters = (filters: any): any[] => {
                 </TabsContent>
             </Tabs>
         </div>
-    </AppLayout>
+    </AdminLayout>
 </template>

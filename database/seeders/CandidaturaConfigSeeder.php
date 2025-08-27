@@ -2,8 +2,8 @@
 
 namespace Database\Seeders;
 
-use App\Models\CandidaturaConfig;
-use App\Models\User;
+use App\Models\Elections\CandidaturaConfig;
+use App\Models\Core\User;
 use Illuminate\Database\Seeder;
 
 class CandidaturaConfigSeeder extends Seeder

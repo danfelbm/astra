@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import AppLayout from '@/layouts/AppLayout.vue';
+import AdminLayout from "@/layouts/AdminLayout.vue";
 import { Head, Link, router } from '@inertiajs/vue3';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -41,6 +41,9 @@ interface Props {
     };
     filterFieldsConfig: any[];
     availablePermissions: any;
+    canCreate?: boolean;
+    canEdit?: boolean;
+    canDelete?: boolean;
 }
 
 const props = defineProps<Props>();
@@ -101,7 +104,8 @@ const handleDelete = (role: Role) => {
 };
 
 const canEdit = (role: Role): boolean => {
-    // Solo super admin puede editar roles del sistema
+    // Verificar permiso de edición y que no sea rol del sistema para usuarios no super admin
+    if (!props.canEdit) return false;
     if (isSystemRole(role)) {
         return false; // Por ahora simplificado, deberíamos verificar si el usuario es super admin
     }
@@ -109,13 +113,14 @@ const canEdit = (role: Role): boolean => {
 };
 
 const canDelete = (role: Role): boolean => {
-    // No se pueden eliminar roles del sistema
+    // Verificar permiso de eliminación y que no sea rol del sistema
+    if (!props.canDelete) return false;
     return !isSystemRole(role) && (!role.users || role.users.length === 0);
 };
 </script>
 
 <template>
-    <AppLayout :breadcrumbs="breadcrumbs">
+    <AdminLayout :breadcrumbs="breadcrumbs">
         <Head title="Roles y Permisos" />
 
         <div class="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
@@ -127,7 +132,7 @@ const canDelete = (role: Role): boolean => {
                         Gestiona los roles y permisos del sistema
                     </p>
                 </div>
-                <Link :href="route('admin.roles.create')">
+                <Link v-if="props.canCreate" :href="route('admin.roles.create')">
                     <Button>
                         <Plus class="mr-2 h-4 w-4" />
                         Nuevo Rol
@@ -294,5 +299,5 @@ const canDelete = (role: Role): boolean => {
                 </CardContent>
             </Card>
         </div>
-    </AppLayout>
+    </AdminLayout>
 </template>
