@@ -59,7 +59,7 @@ const { route } = window as any;
  */
 const checkAccess = async () => {
     try {
-        const response = await fetch(route('api.zoom.check-access', props.asambleaId), {
+        const response = await fetch(route('user.api.zoom.check-access', props.asambleaId), {
             method: 'GET',
             headers: {
                 'Accept': 'application/json',
@@ -88,7 +88,7 @@ const checkAccess = async () => {
  */
 const getMeetingInfo = async () => {
     try {
-        const response = await fetch(route('api.zoom.meeting-info', props.asambleaId), {
+        const response = await fetch(route('user.api.zoom.meeting-info', props.asambleaId), {
             method: 'GET',
             headers: {
                 'Accept': 'application/json',
@@ -118,7 +118,7 @@ const getMeetingInfo = async () => {
  */
 const generateSignature = async (meetingNumber: string, role: number) => {
     try {
-        const response = await fetch(route('api.zoom.signature'), {
+        const response = await fetch(route('user.api.zoom.signature'), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

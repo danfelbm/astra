@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import AppLayout from '@/layouts/AppLayout.vue';
+import AdminLayout from "@/layouts/AdminLayout.vue";
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -117,7 +117,7 @@ const exportarDatos = () => {
 <template>
     <Head title="Reportes de Postulaciones" />
 
-    <AppLayout :breadcrumbs="breadcrumbs">
+    <AdminLayout :breadcrumbs="breadcrumbs">
         <div class="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
         <div class="space-y-6">
         <!-- Header -->
@@ -376,5 +376,5 @@ const exportarDatos = () => {
         </Card>
         </div>
         </div>
-    </AppLayout>
+    </AdminLayout>
 </template>

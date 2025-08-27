@@ -18,7 +18,7 @@ import {
     AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { type BreadcrumbItemType } from '@/types';
-import AppLayout from '@/layouts/AppLayout.vue';
+import AdminLayout from "@/layouts/AdminLayout.vue";
 import { Head, Link, router } from '@inertiajs/vue3';
 import { Edit, Plus, Search, Trash2, Users, FileText, BarChart3 } from 'lucide-vue-next';
 import { ref, computed, onMounted } from 'vue';
@@ -69,6 +69,10 @@ interface Props {
         advanced_filters?: string;
     };
     filterFieldsConfig: any[];
+    canCreate?: boolean;
+    canEdit?: boolean;
+    canDelete?: boolean;
+    canManageVoters?: boolean;
 }
 
 const props = defineProps<Props>();
@@ -123,7 +127,7 @@ const deleteVotacion = (id: number) => {
 const toggleVotacionStatus = (votacion: Votacion) => {
     const nuevoEstado = votacion.estado === 'borrador' ? 'activa' : 'borrador';
     
-    router.post(`/admin/votaciones/${votacion.id}/toggle-status`, {
+    router.post(route('admin.votaciones.toggle-status', votacion.id), {
         estado: nuevoEstado
     }, {
         preserveScroll: true,
@@ -132,13 +136,17 @@ const toggleVotacionStatus = (votacion: Votacion) => {
         },
         onError: (errors) => {
             console.error('Error toggling status:', errors);
+            // Mostrar el error si viene del backend
+            if (errors?.message) {
+                alert(errors.message);
+            }
         }
     });
 };
 
 // Finalizar votación
 const finalizarVotacion = (votacion: Votacion) => {
-    router.post(`/admin/votaciones/${votacion.id}/toggle-status`, {
+    router.post(route('admin.votaciones.toggle-status', votacion.id), {
         estado: 'finalizada'
     }, {
         preserveScroll: true,
@@ -147,6 +155,10 @@ const finalizarVotacion = (votacion: Votacion) => {
         },
         onError: (errors) => {
             console.error('Error finalizando votación:', errors);
+            // Mostrar el error si viene del backend
+            if (errors?.message) {
+                alert(errors.message);
+            }
         }
     });
 };
@@ -181,7 +193,7 @@ const formatDate = (dateString: string) => {
 <template>
     <Head title="Gestión de Votaciones" />
 
-    <AppLayout :breadcrumbs="breadcrumbs">
+    <AdminLayout :breadcrumbs="breadcrumbs">
         <div class="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
             <!-- Header -->
             <div class="flex items-center justify-between">
@@ -191,7 +203,7 @@ const formatDate = (dateString: string) => {
                         Administra todas las votaciones del sistema
                     </p>
                 </div>
-                <Button as-child>
+                <Button v-if="canCreate" as-child>
                     <Link :href="route('admin.votaciones.create')">
                         <Plus class="mr-2 h-4 w-4" />
                         Nueva Votación
@@ -253,7 +265,12 @@ const formatDate = (dateString: string) => {
                                         <div class="flex items-center gap-3">
                                             <!-- Toggle para borrador <-> activa -->
                                             <div v-if="votacion.estado !== 'finalizada'" class="flex items-center gap-2">
-                                                <AlertDialog>
+                                                <!-- Mostrar advertencia si no hay votantes -->
+                                                <div v-if="votacion.estado === 'borrador' && (!votacion.votantes_count || votacion.votantes_count === 0)" 
+                                                     class="text-xs text-orange-600 mr-2" title="Asigna votantes antes de activar">
+                                                    ⚠️ Sin votantes
+                                                </div>
+                                                <AlertDialog v-if="canEdit">
                                                     <AlertDialogTrigger as-child>
                                                         <Switch 
                                                             :checked="votacion.estado === 'activa'" 
@@ -271,6 +288,10 @@ const formatDate = (dateString: string) => {
                                                                     Los votantes no podrán acceder hasta que la actives nuevamente.
                                                                 </span>
                                                                 <span v-else>
+                                                                    <span v-if="!votacion.votantes_count || votacion.votantes_count === 0" class="text-orange-600 font-medium">
+                                                                        ⚠️ Advertencia: Esta votación no tiene votantes asignados. Debes asignar votantes antes de poder activarla.
+                                                                        <br/><br/>
+                                                                    </span>
                                                                     La votación "{{ votacion.titulo }}" será activada y los votantes podrán empezar a votar.
                                                                     Asegúrate de que la configuración esté completa.
                                                                 </span>
@@ -278,7 +299,10 @@ const formatDate = (dateString: string) => {
                                                         </AlertDialogHeader>
                                                         <AlertDialogFooter>
                                                             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                                            <AlertDialogAction @click="toggleVotacionStatus(votacion)">
+                                                            <AlertDialogAction 
+                                                                @click="toggleVotacionStatus(votacion)"
+                                                                :class="(!votacion.votantes_count || votacion.votantes_count === 0) && votacion.estado === 'borrador' ? 'bg-orange-600 hover:bg-orange-700' : ''"
+                                                            >
                                                                 {{ votacion.estado === 'activa' ? 'Desactivar' : 'Activar' }}
                                                             </AlertDialogAction>
                                                         </AlertDialogFooter>
@@ -290,7 +314,7 @@ const formatDate = (dateString: string) => {
                                             </div>
                                             
                                             <!-- Botón finalizar para votaciones activas -->
-                                            <div v-if="votacion.estado === 'activa'" class="ml-2">
+                                            <div v-if="votacion.estado === 'activa' && canEdit" class="ml-2">
                                                 <AlertDialog>
                                                     <AlertDialogTrigger as-child>
                                                         <Button variant="outline" size="sm" class="text-orange-600 hover:text-orange-700">
@@ -339,6 +363,7 @@ const formatDate = (dateString: string) => {
                                     <TableCell class="text-right">
                                         <div class="flex justify-end gap-2">
                                             <Button
+                                                v-if="canManageVoters"
                                                 variant="ghost"
                                                 size="sm"
                                                 @click="viewImportHistory(votacion.id)"
@@ -357,7 +382,7 @@ const formatDate = (dateString: string) => {
                                                 <BarChart3 class="h-4 w-4" />
                                             </Button>
                                             <Button 
-                                                v-if="votacion.estado === 'borrador'" 
+                                                v-if="votacion.estado === 'borrador' && canEdit" 
                                                 variant="ghost" 
                                                 size="sm" 
                                                 as-child
@@ -366,7 +391,7 @@ const formatDate = (dateString: string) => {
                                                     <Edit class="h-4 w-4" />
                                                 </Link>
                                             </Button>
-                                            <AlertDialog v-if="votacion.estado === 'borrador'">
+                                            <AlertDialog v-if="votacion.estado === 'borrador' && canDelete">
                                                 <AlertDialogTrigger as-child>
                                                     <Button variant="ghost" size="sm">
                                                         <Trash2 class="h-4 w-4 text-destructive" />
@@ -421,5 +446,5 @@ const formatDate = (dateString: string) => {
                 </Card>
             </div>
         </div>
-    </AppLayout>
+    </AdminLayout>
 </template>

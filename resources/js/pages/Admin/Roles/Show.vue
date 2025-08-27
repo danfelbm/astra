@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import AppLayout from '@/layouts/AppLayout.vue';
+import AdminLayout from "@/layouts/AdminLayout.vue";
 import { Head, Link } from '@inertiajs/vue3';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -117,7 +117,7 @@ const getActionBadgeVariant = (action: string): string => {
 </script>
 
 <template>
-    <AppLayout :breadcrumbs="breadcrumbs">
+    <AdminLayout :breadcrumbs="breadcrumbs">
         <Head :title="`Rol: ${role.display_name}`" />
 
         <div class="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
@@ -374,5 +374,5 @@ const getActionBadgeVariant = (action: string): string => {
                 </TabsContent>
             </Tabs>
         </div>
-    </AppLayout>
+    </AdminLayout>
 </template>

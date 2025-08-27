@@ -2,10 +2,10 @@
 
 namespace Database\Seeders;
 
-use App\Models\Cargo;
-use App\Models\Convocatoria;
-use App\Models\Departamento;
-use App\Models\PeriodoElectoral;
+use App\Models\Elections\Cargo;
+use App\Models\Elections\Convocatoria;
+use App\Models\Geographic\Departamento;
+use App\Models\Elections\PeriodoElectoral;
 use Carbon\Carbon;
 use Illuminate\Database\Seeder;
 

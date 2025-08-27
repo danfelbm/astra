@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import AppLayout from '@/layouts/AppLayout.vue';
+import AdminLayout from "@/layouts/AdminLayout.vue";
 import { Head, router } from '@inertiajs/vue3';
 import { Button } from '@/components/ui/button';
 import { type BreadcrumbItem } from '@/types';
@@ -21,7 +21,7 @@ const goBack = () => {
 <template>
     <Head title="Nueva Importación CSV" />
     
-    <AppLayout :breadcrumbs="breadcrumbs">
+    <AdminLayout :breadcrumbs="breadcrumbs">
         <div class="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
             <!-- Header -->
             <div class="flex items-center justify-between">
@@ -43,5 +43,5 @@ const goBack = () => {
                 :redirect-on-success="true"
             />
         </div>
-    </AppLayout>
+    </AdminLayout>
 </template>

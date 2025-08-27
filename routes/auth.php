@@ -1,8 +1,8 @@
 <?php
 
-use App\Http\Controllers\Auth\OTPAuthController;
-use App\Http\Controllers\Auth\RegisteredUserController;
-use App\Http\Middleware\ThrottleOTPRequests;
+use App\Http\Controllers\Core\Auth\OTPAuthController;
+use App\Http\Controllers\Core\Auth\RegisteredUserController;
+use App\Http\Middleware\Core\ThrottleOTPRequests;
 use Illuminate\Support\Facades\Route;
 
 // Rutas OTP Authentication (nuevas)

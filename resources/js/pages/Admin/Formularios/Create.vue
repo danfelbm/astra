@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import AppLayout from '@/layouts/AppLayout.vue';
+import AdminLayout from "@/layouts/AdminLayout.vue";
 import { Head, useForm, router } from '@inertiajs/vue3';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -104,7 +104,7 @@ watch(() => form.fecha_inicio, (newVal) => {
 <template>
     <Head title="Crear Formulario" />
     
-    <AppLayout :breadcrumbs="breadcrumbs">
+    <AdminLayout :breadcrumbs="breadcrumbs">
         <div class="p-6">
             <!-- Encabezado -->
             <div class="mb-6 flex items-center justify-between">
@@ -374,5 +374,5 @@ watch(() => form.fecha_inicio, (newVal) => {
                 </TabsContent>
             </Tabs>
         </div>
-    </AppLayout>
+    </AdminLayout>
 </template>

@@ -3,9 +3,9 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
-use App\Jobs\SendOTPEmailJob;
-use App\Jobs\SendOTPWhatsAppJob;
-use App\Services\QueueRateLimiterService;
+use App\Jobs\Core\SendOTPEmailJob;
+use App\Jobs\Core\SendOTPWhatsAppJob;
+use App\Services\Core\QueueRateLimiterService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;

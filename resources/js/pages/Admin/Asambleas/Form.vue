@@ -11,7 +11,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { DateTimePicker } from '@/components/ui/datetime-picker';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { type BreadcrumbItemType } from '@/types';
-import AppLayout from '@/layouts/AppLayout.vue';
+import AdminLayout from "@/layouts/AdminLayout.vue";
 import { Head, useForm, router } from '@inertiajs/vue3';
 import { ArrowLeft, MapPin, Save, Video, Settings, Users, Mic, Camera, Info } from 'lucide-vue-next';
 import { ref, computed, watch } from 'vue';
@@ -88,6 +88,7 @@ interface Props {
     departamentos: Departamento[];
     municipios: Municipio[];
     localidades: Localidad[];
+    canManageParticipants?: boolean;
 }
 
 const props = defineProps<Props>();
@@ -232,7 +233,7 @@ const cancelar = () => {
 <template>
     <Head :title="asamblea ? 'Editar Asamblea' : 'Nueva Asamblea'" />
 
-    <AppLayout :breadcrumbs="breadcrumbs">
+    <AdminLayout :breadcrumbs="breadcrumbs">
         <div class="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
             <div class="flex items-center justify-between">
                 <div>
@@ -938,5 +939,5 @@ const cancelar = () => {
                 </div>
             </form>
         </div>
-    </AppLayout>
+    </AdminLayout>
 </template>

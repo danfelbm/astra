@@ -2,8 +2,8 @@
 
 namespace App\Providers;
 
-use App\Models\Candidatura;
-use App\Observers\CandidaturaObserver;
+use App\Models\Elecciones\Candidatura;
+use App\Observers\Elecciones\CandidaturaObserver;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Gate;
 

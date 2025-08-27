@@ -4,7 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
-use App\Models\Role;
+use App\Models\Core\Role;
 use Spatie\Permission\Models\Permission;
 
 return new class extends Migration
@@ -42,7 +42,7 @@ return new class extends Migration
                 // Insertar en la nueva tabla model_has_roles de Spatie
                 DB::table('model_has_roles')->insert([
                     'role_id' => $roleUser->role_id,
-                    'model_type' => 'App\\Models\\User',
+                    'model_type' => 'App\\Models\\Core\\User',
                     'model_id' => $roleUser->user_id,
                 ]);
             }

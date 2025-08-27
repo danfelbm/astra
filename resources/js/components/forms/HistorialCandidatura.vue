@@ -43,7 +43,7 @@ const cargarHistorial = async (page: number = 1) => {
         
         const url = props.isAdmin 
             ? `/admin/candidaturas/${props.candidaturaId}/historial?page=${page}`
-            : `/candidaturas/${props.candidaturaId}/historial?page=${page}`;
+            : `/miembro/candidaturas/${props.candidaturaId}/historial?page=${page}`;
         
         const response = await fetch(url, {
             headers: {

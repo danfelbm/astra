@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { type BreadcrumbItemType } from '@/types';
-import AppLayout from '@/layouts/AppLayout.vue';
+import AdminLayout from "@/layouts/AdminLayout.vue";
 import { Head, router, useForm } from '@inertiajs/vue3';
 import { Settings, ImageIcon, Type, Upload, X, Users, AlertCircle, ToggleLeft, ToggleRight } from 'lucide-vue-next';
 import { ref, watch, computed } from 'vue';
@@ -25,6 +26,7 @@ interface ConfiguracionCandidaturas {
 interface Props {
     configuracion: Configuracion;
     configuracionCandidaturas: ConfiguracionCandidaturas;
+    canEdit?: boolean;
 }
 
 const props = defineProps<Props>();
@@ -128,7 +130,7 @@ const saveCandidaturasConfiguration = () => {
 <template>
     <Head title="Configuración" />
 
-    <AppLayout :breadcrumbs="breadcrumbs">
+    <AdminLayout :breadcrumbs="breadcrumbs">
         <div class="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
             <!-- Header -->
             <div class="flex items-center justify-between">
@@ -161,6 +163,7 @@ const saveCandidaturasConfiguration = () => {
                                     placeholder="Ingresa el texto que aparecerá junto al logo"
                                     maxlength="50"
                                     class="max-w-md"
+                                    :disabled="!props.canEdit"
                                 />
                                 <p class="text-sm text-muted-foreground">
                                     Este texto aparecerá junto al logo cuando esté habilitado (máximo 50 caracteres)
@@ -186,7 +189,7 @@ const saveCandidaturasConfiguration = () => {
                                             <Upload class="mx-auto h-8 w-8 text-muted-foreground" />
                                             <p class="mt-2 text-sm text-muted-foreground">
                                                 Arrastra un archivo aquí o 
-                                                <Button variant="link" class="p-0 h-auto" @click="triggerFileInput">
+                                                <Button variant="link" class="p-0 h-auto" @click="triggerFileInput" :disabled="!props.canEdit">
                                                     selecciona uno
                                                 </Button>
                                             </p>
@@ -203,6 +206,7 @@ const saveCandidaturasConfiguration = () => {
                                                 class="w-16 h-16 object-contain mx-auto rounded"
                                             />
                                             <Button
+                                                v-if="props.canEdit"
                                                 variant="outline"
                                                 size="sm"
                                                 class="mt-2 mx-auto block"
@@ -225,6 +229,7 @@ const saveCandidaturasConfiguration = () => {
                                 <RadioGroup 
                                     v-model="form.logo_display" 
                                     class="space-y-3"
+                                    :disabled="!props.canEdit"
                                 >
                                     <div class="flex items-center space-x-3 p-4 border rounded-lg hover:bg-muted/50 transition-colors">
                                         <RadioGroupItem value="logo_text" id="logo_text" />
@@ -283,6 +288,7 @@ const saveCandidaturasConfiguration = () => {
                             <!-- Save Button -->
                             <div class="flex justify-end pt-4 border-t">
                                 <Button 
+                                    v-if="props.canEdit"
                                     @click="saveConfiguration"
                                     :disabled="isLoading || !form.isDirty"
                                     class="min-w-32"
@@ -290,6 +296,9 @@ const saveCandidaturasConfiguration = () => {
                                     <Settings class="mr-2 h-4 w-4" />
                                     {{ isLoading ? 'Guardando...' : 'Guardar Cambios' }}
                                 </Button>
+                                <div v-else class="text-sm text-muted-foreground">
+                                    No tienes permisos para editar la configuración
+                                </div>
                             </div>
                         </CardContent>
                     </Card>
@@ -315,6 +324,7 @@ const saveCandidaturasConfiguration = () => {
                                         </p>
                                     </div>
                                     <Button
+                                        v-if="props.canEdit"
                                         @click="formCandidaturas.bloqueo_activo = !formCandidaturas.bloqueo_activo"
                                         :variant="formCandidaturas.bloqueo_activo ? 'default' : 'outline'"
                                         size="sm"
@@ -326,6 +336,13 @@ const saveCandidaturasConfiguration = () => {
                                         />
                                         {{ formCandidaturas.bloqueo_activo ? 'Activo' : 'Inactivo' }}
                                     </Button>
+                                    <Badge v-else :variant="formCandidaturas.bloqueo_activo ? 'default' : 'secondary'">
+                                        <component 
+                                            :is="formCandidaturas.bloqueo_activo ? ToggleRight : ToggleLeft" 
+                                            class="mr-2 h-4 w-4" 
+                                        />
+                                        {{ formCandidaturas.bloqueo_activo ? 'Activo' : 'Inactivo' }}
+                                    </Badge>
                                 </div>
                                 
                                 <!-- Indicador de estado -->
@@ -349,6 +366,7 @@ const saveCandidaturasConfiguration = () => {
                                     placeholder="Ej: Sistema de Candidaturas Temporalmente Cerrado"
                                     maxlength="255"
                                     class="max-w-full"
+                                    :disabled="!props.canEdit"
                                 />
                                 <p class="text-sm text-muted-foreground">
                                     Este título se mostrará cuando los usuarios intenten crear o editar candidaturas
@@ -367,6 +385,7 @@ const saveCandidaturasConfiguration = () => {
                                     maxlength="1000"
                                     rows="4"
                                     class="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                    :disabled="!props.canEdit"
                                 />
                                 <p class="text-sm text-muted-foreground">
                                     Explica por qué el sistema está bloqueado y cuándo estará disponible (máximo 1000 caracteres)
@@ -415,6 +434,7 @@ const saveCandidaturasConfiguration = () => {
                             <!-- Save Button -->
                             <div class="flex justify-end pt-4 border-t">
                                 <Button 
+                                    v-if="props.canEdit"
                                     @click="saveCandidaturasConfiguration"
                                     :disabled="isLoadingCandidaturas || !formCandidaturas.isDirty"
                                     class="min-w-32"
@@ -422,6 +442,9 @@ const saveCandidaturasConfiguration = () => {
                                     <Settings class="mr-2 h-4 w-4" />
                                     {{ isLoadingCandidaturas ? 'Guardando...' : 'Guardar Cambios' }}
                                 </Button>
+                                <div v-else class="text-sm text-muted-foreground">
+                                    No tienes permisos para editar la configuración
+                                </div>
                             </div>
                         </CardContent>
                     </Card>
@@ -443,5 +466,5 @@ const saveCandidaturasConfiguration = () => {
                 </div>
             </div>
         </div>
-    </AppLayout>
+    </AdminLayout>
 </template>

@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { type BreadcrumbItemType } from '@/types';
-import AppLayout from '@/layouts/AppLayout.vue';
+import AdminLayout from "@/layouts/AdminLayout.vue";
 import { Head, useForm } from '@inertiajs/vue3';
 import { ArrowLeft, Folder, Briefcase } from 'lucide-vue-next';
 import { computed } from 'vue';
@@ -114,7 +114,7 @@ const isFormValid = computed(() => {
 <template>
     <Head :title="isEditing ? 'Editar Cargo' : 'Nuevo Cargo'" />
 
-    <AppLayout :breadcrumbs="breadcrumbs">
+    <AdminLayout :breadcrumbs="breadcrumbs">
         <div class="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
             <!-- Header -->
             <div class="flex items-center justify-between">
@@ -289,5 +289,5 @@ const isFormValid = computed(() => {
                 </CardContent>
             </Card>
         </div>
-    </AppLayout>
+    </AdminLayout>
 </template>

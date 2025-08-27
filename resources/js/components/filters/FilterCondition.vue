@@ -28,7 +28,7 @@ const props = defineProps<Props>();
 
 // Campo seleccionado actual
 const selectedField = computed(() => 
-  props.fields.find(f => f.name === (props.condition.field || props.condition.name))
+  props.fields.find(f => f.name === props.condition.field)
 );
 
 // Tipo de campo actual
@@ -45,10 +45,7 @@ const parentFieldValue = computed(() => {
   const parentFieldName = selectedField.value.cascadeFrom;
   
   const parentCondition = props.allConditions.find(
-    c => c.id !== props.condition.id && (
-      c.field === parentFieldName || 
-      c.name === parentFieldName
-    )
+    c => c.id !== props.condition.id && c.field === parentFieldName
   );
   
   return parentCondition?.value || null;
@@ -112,7 +109,6 @@ const handleFieldChange = (fieldName: string) => {
     props.onUpdate({
       ...props.condition,
       field: fieldName,
-      name: fieldName, // Incluir ambas claves para compatibilidad
       operator: availableOperators.value[0] as FilterOperator,
       value: field.defaultValue || null,
     });
@@ -154,7 +150,7 @@ const handleBetweenChange = (index: 0 | 1, value: any) => {
   <div class="flex items-center gap-2">
     <!-- Selector de campo -->
     <Select 
-      :model-value="condition.field || condition.name"
+      :model-value="condition.field"
       @update:model-value="handleFieldChange"
     >
       <SelectTrigger class="w-[200px]">
@@ -175,7 +171,7 @@ const handleBetweenChange = (index: 0 | 1, value: any) => {
     <Select 
       :model-value="condition.operator"
       @update:model-value="handleOperatorChange"
-      :disabled="!condition.field && !condition.name"
+      :disabled="!condition.field"
     >
       <SelectTrigger class="w-[180px]">
         <SelectValue placeholder="Seleccionar operador..." />

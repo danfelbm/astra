@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import AppLayout from '@/layouts/AppLayout.vue';
+import AdminLayout from "@/layouts/AdminLayout.vue";
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -85,6 +85,9 @@ interface Postulacion {
 
 interface Props {
     postulacion: Postulacion;
+    canRevisar?: boolean;
+    canAprobar?: boolean;
+    canRechazar?: boolean;
 }
 
 const props = defineProps<Props>();
@@ -196,12 +199,12 @@ const cancelarCambioEstado = () => {
     cambiarEstadoForm.reset();
 };
 
-// Lógica administrativa más flexible
-const puedeMarcarEnRevision = computed(() => ['borrador', 'enviada', 'rechazada'].includes(props.postulacion.estado));
-const puedeAceptar = computed(() => ['enviada', 'en_revision'].includes(props.postulacion.estado));
-const puedeRechazar = computed(() => ['enviada', 'en_revision'].includes(props.postulacion.estado));
-const puedeVolverABorrador = computed(() => ['enviada', 'en_revision', 'aceptada', 'rechazada'].includes(props.postulacion.estado));
-const puedeMarcarEnviada = computed(() => props.postulacion.estado === 'borrador');
+// Lógica administrativa más flexible (verifica permisos y estado)
+const puedeMarcarEnRevision = computed(() => props.canRevisar && ['borrador', 'enviada', 'rechazada'].includes(props.postulacion.estado));
+const puedeAceptar = computed(() => props.canAprobar && ['enviada', 'en_revision'].includes(props.postulacion.estado));
+const puedeRechazar = computed(() => props.canRechazar && ['enviada', 'en_revision'].includes(props.postulacion.estado));
+const puedeVolverABorrador = computed(() => props.canRevisar && ['enviada', 'en_revision', 'aceptada', 'rechazada'].includes(props.postulacion.estado));
+const puedeMarcarEnviada = computed(() => props.canRevisar && props.postulacion.estado === 'borrador');
 
 const getEstadoLabel = (estado: string) => {
     const labels: Record<string, string> = {
@@ -233,7 +236,7 @@ const getIconComponent = (iconName: string) => {
 <template>
     <Head :title="`Postulación de ${postulacion.usuario.name}`" />
 
-    <AppLayout :breadcrumbs="breadcrumbs">
+    <AdminLayout :breadcrumbs="breadcrumbs">
         <div class="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
         <div class="space-y-6">
         <!-- Header -->
@@ -623,5 +626,5 @@ const getIconComponent = (iconName: string) => {
         </Card>
         </div>
         </div>
-    </AppLayout>
+    </AdminLayout>
 </template>

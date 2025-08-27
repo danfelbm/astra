@@ -11,9 +11,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { DateTimePicker } from '@/components/ui/datetime-picker';
 import { type BreadcrumbItemType } from '@/types';
-import AppLayout from '@/layouts/AppLayout.vue';
+import AdminLayout from "@/layouts/AdminLayout.vue";
 import { Head, useForm, router } from '@inertiajs/vue3';
-import { Plus, Trash2, Eye, Upload, X, History, Clock, CheckCircle, XCircle } from 'lucide-vue-next';
+import { Plus, Trash2, Eye, Upload, X, History, Clock, CheckCircle, XCircle, AlertCircle } from 'lucide-vue-next';
 import { ref, computed, watch, onMounted } from 'vue';
 
 // Import new reusable components
@@ -113,12 +113,13 @@ interface Props {
     cargos?: Cargo[];
     periodosElectorales?: PeriodoElectoral[];
     convocatorias?: Convocatoria[];
+    canManageVoters?: boolean;
 }
 
 const props = defineProps<Props>();
 
 const isEditing = computed(() => !!props.votacion);
-const canEditVotantes = computed(() => isEditing.value && props.votacion?.estado === 'borrador');
+const canEditVotantes = computed(() => isEditing.value && props.votacion?.estado === 'borrador' && props.canManageVoters);
 
 // Inicialización de props
 
@@ -425,7 +426,7 @@ onMounted(() => {
 <template>
     <Head :title="isEditing ? 'Editar Votación' : 'Nueva Votación'" />
 
-    <AppLayout :breadcrumbs="breadcrumbs">
+    <AdminLayout :breadcrumbs="breadcrumbs">
         <div class="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
             <!-- Header -->
             <div class="flex items-center justify-between">
@@ -651,7 +652,7 @@ onMounted(() => {
                                 </Button>
                                 <div class="flex gap-2">
                                     <Button
-                                        v-if="canEditVotantes"
+                                        v-if="canEditVotantes && props.canManageVoters"
                                         variant="outline"
                                         @click="activeTab = 'votantes'"
                                         :disabled="form.formulario_config.length === 0"
@@ -677,6 +678,22 @@ onMounted(() => {
                                 </p>
                             </div>
 
+                            <!-- Mensaje de sin permisos -->
+                            <Card v-if="!props.canManageVoters" class="border-yellow-200 bg-yellow-50">
+                                <CardContent class="pt-6">
+                                    <div class="flex items-center space-x-2 text-yellow-700">
+                                        <AlertCircle class="h-5 w-5" />
+                                        <p class="font-semibold">Sin permisos para manejar censo electoral</p>
+                                    </div>
+                                    <p class="mt-2 text-sm text-gray-600">
+                                        No tienes los permisos necesarios para gestionar el censo electoral de esta votación. 
+                                        Contacta a un administrador si necesitas acceso a esta funcionalidad.
+                                    </p>
+                                </CardContent>
+                            </Card>
+
+                            <!-- Contenido completo solo si tiene permisos -->
+                            <template v-if="props.canManageVoters">
                             <!-- Upload CSV -->
                             <Card v-if="!showImportWizard">
                                 <CardHeader>
@@ -839,11 +856,12 @@ onMounted(() => {
                                     {{ form.processing ? 'Guardando...' : 'Actualizar' }} Votación
                                 </Button>
                             </div>
+                            </template>
                         </TabsContent>
                     </Tabs>
                     </CardContent>
                 </Card>
             </div>
         </div>
-    </AppLayout>
+    </AdminLayout>
 </template>

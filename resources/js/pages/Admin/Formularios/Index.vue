@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import AppLayout from '@/layouts/AppLayout.vue';
+import AdminLayout from "@/layouts/AdminLayout.vue";
 import { Head, Link, router } from '@inertiajs/vue3';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -50,6 +50,12 @@ interface Props {
     categorias: Array<any>;
     filters: any;
     filterFieldsConfig: Array<any>;
+    canCreate?: boolean;
+    canEdit?: boolean;
+    canDelete?: boolean;
+    canExport?: boolean;
+    canViewResponses?: boolean;
+    canManagePermissions?: boolean;
 }
 
 const props = defineProps<Props>();
@@ -94,7 +100,7 @@ const getTipoAccesoLabel = (tipo: string) => {
 <template>
     <Head title="Gestión de Formularios" />
     
-    <AppLayout :breadcrumbs="breadcrumbs">
+    <AdminLayout :breadcrumbs="breadcrumbs">
         <div class="p-6">
             <!-- Encabezado -->
             <div class="mb-6 flex items-center justify-between">
@@ -104,7 +110,7 @@ const getTipoAccesoLabel = (tipo: string) => {
                         Administra los formularios dinámicos del sistema
                     </p>
                 </div>
-                <Link :href="route('admin.formularios.create')">
+                <Link v-if="props.canCreate" :href="route('admin.formularios.create')">
                     <Button>
                         <Plus class="mr-2 h-4 w-4" />
                         Nuevo Formulario
@@ -116,8 +122,10 @@ const getTipoAccesoLabel = (tipo: string) => {
             <div v-if="formularios.data.length === 0" class="text-center py-12">
                 <FileText class="mx-auto h-12 w-12 text-gray-400" />
                 <h3 class="mt-2 text-lg font-medium text-gray-900">No hay formularios</h3>
-                <p class="mt-1 text-sm text-gray-500">Comienza creando un nuevo formulario.</p>
-                <div class="mt-6">
+                <p class="mt-1 text-sm text-gray-500">
+                    {{ props.canCreate ? 'Comienza creando un nuevo formulario.' : 'No tienes permisos para crear formularios.' }}
+                </p>
+                <div v-if="props.canCreate" class="mt-6">
                     <Link :href="route('admin.formularios.create')">
                         <Button>
                             <Plus class="mr-2 h-4 w-4" />
@@ -166,18 +174,18 @@ const getTipoAccesoLabel = (tipo: string) => {
 
                         <!-- Acciones -->
                         <div class="mt-4 flex gap-2">
-                            <Link :href="route('admin.formularios.show', formulario.id)">
+                            <Link v-if="props.canViewResponses" :href="route('admin.formularios.show', formulario.id)">
                                 <Button variant="outline" size="sm">
                                     <Eye class="h-4 w-4" />
                                 </Button>
                             </Link>
-                            <Link :href="route('admin.formularios.edit', formulario.id)">
+                            <Link v-if="props.canEdit" :href="route('admin.formularios.edit', formulario.id)">
                                 <Button variant="outline" size="sm">
                                     <Edit class="h-4 w-4" />
                                 </Button>
                             </Link>
                             <Button
-                                v-if="formulario.estadisticas.total_respuestas > 0"
+                                v-if="props.canExport && formulario.estadisticas.total_respuestas > 0"
                                 variant="outline"
                                 size="sm"
                                 @click="router.visit(route('admin.formularios.exportar', formulario.id))"
@@ -185,7 +193,7 @@ const getTipoAccesoLabel = (tipo: string) => {
                                 <Download class="h-4 w-4" />
                             </Button>
                             <Button
-                                v-if="formulario.estadisticas.total_respuestas === 0"
+                                v-if="props.canDelete && formulario.estadisticas.total_respuestas === 0"
                                 variant="outline"
                                 size="sm"
                                 @click="eliminarFormulario(formulario.id)"
@@ -221,5 +229,5 @@ const getTipoAccesoLabel = (tipo: string) => {
                 </nav>
             </div>
         </div>
-    </AppLayout>
+    </AdminLayout>
 </template>

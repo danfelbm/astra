@@ -3,10 +3,10 @@
 namespace Tests\Feature\RateLimit;
 
 use Tests\TestCase;
-use App\Services\OTPService;
-use App\Jobs\SendOTPEmailJob;
-use App\Jobs\SendOTPWhatsAppJob;
-use App\Models\User;
+use App\Services\Core\OTPService;
+use App\Jobs\Core\SendOTPEmailJob;
+use App\Jobs\Core\SendOTPWhatsAppJob;
+use App\Models\Core\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Config;

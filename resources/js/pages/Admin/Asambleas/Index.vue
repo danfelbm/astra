@@ -17,7 +17,7 @@ import {
     AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { type BreadcrumbItemType } from '@/types';
-import AppLayout from '@/layouts/AppLayout.vue';
+import AdminLayout from "@/layouts/AdminLayout.vue";
 import { Head, Link, router } from '@inertiajs/vue3';
 import { Edit, Plus, Search, Trash2, Calendar, Users, MapPin, Eye, UserPlus } from 'lucide-vue-next';
 import AdvancedFilters from '@/components/filters/AdvancedFilters.vue';
@@ -73,6 +73,10 @@ interface Props {
         advanced_filters?: string;
     };
     filterFieldsConfig: any[];
+    canCreate?: boolean;
+    canEdit?: boolean;
+    canDelete?: boolean;
+    canManageParticipants?: boolean;
 }
 
 const props = defineProps<Props>();
@@ -169,7 +173,7 @@ const getTipoBadge = (tipo: string) => {
 <template>
     <Head title="Asambleas" />
 
-    <AppLayout :breadcrumbs="breadcrumbs">
+    <AdminLayout :breadcrumbs="breadcrumbs">
         <div class="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
             <!-- Header -->
             <div class="flex items-center justify-between">
@@ -179,7 +183,7 @@ const getTipoBadge = (tipo: string) => {
                         Gestiona las asambleas de la organización
                     </p>
                 </div>
-                <Link :href="route('admin.asambleas.create')">
+                <Link v-if="props.canCreate" :href="route('admin.asambleas.create')">
                     <Button>
                         <Plus class="mr-2 h-4 w-4" />
                         Nueva Asamblea
@@ -269,12 +273,12 @@ const getTipoBadge = (tipo: string) => {
                                                 <Eye class="h-4 w-4" />
                                             </Button>
                                         </Link>
-                                        <Link :href="route('admin.asambleas.edit', asamblea.id)">
+                                        <Link v-if="props.canEdit" :href="route('admin.asambleas.edit', asamblea.id)">
                                             <Button variant="ghost" size="sm">
                                                 <Edit class="h-4 w-4" />
                                             </Button>
                                         </Link>
-                                        <AlertDialog>
+                                        <AlertDialog v-if="props.canDelete">
                                             <AlertDialogTrigger asChild>
                                                 <Button variant="ghost" size="sm">
                                                     <Trash2 class="h-4 w-4" />
@@ -344,5 +348,5 @@ const getTipoBadge = (tipo: string) => {
                 </div>
             </div>
         </div>
-    </AppLayout>
+    </AdminLayout>
 </template>

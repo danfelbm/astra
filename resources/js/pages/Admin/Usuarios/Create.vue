@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import AppLayout from '@/layouts/AppLayout.vue';
+import AdminLayout from "@/layouts/AdminLayout.vue";
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { ref } from 'vue';
 import { Button } from '@/components/ui/button';
@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
 import { ArrowLeft, Save } from 'lucide-vue-next';
 import GeographicSelector from '@/components/forms/GeographicSelector.vue';
 import { type BreadcrumbItemType } from '@/types';
@@ -42,7 +43,7 @@ const form = useForm({
     email: '',
     password: '',
     password_confirmation: '',
-    role_id: null as number | null, // Cambiar de 'role' a 'role_id'
+    role_ids: [] as number[], // Cambiar a array para múltiples roles
     cargo_id: 'none' as string,
     documento_identidad: '',
     telefono: '',
@@ -79,7 +80,7 @@ const submit = () => {
 <template>
     <Head title="Crear Usuario" />
     
-    <AppLayout :breadcrumbs="breadcrumbs">
+    <AdminLayout :breadcrumbs="breadcrumbs">
 
         <div class="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
             <!-- Header -->
@@ -221,26 +222,46 @@ const submit = () => {
                             </div>
                         </div>
 
-                        <div class="grid gap-4 md:grid-cols-2">
-                            <!-- Campo de rol condicional basado en permisos -->
+                        <div class="space-y-4">
+                            <!-- Campo de roles múltiples condicional basado en permisos -->
                             <div v-if="canAssignRoles">
-                                <Label for="role_id">Rol *</Label>
-                                <Select v-model="form.role_id">
-                                    <SelectTrigger :class="{ 'border-red-500': form.errors.role_id }">
-                                        <SelectValue placeholder="Selecciona un rol" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem v-for="role in roles" :key="role.value" :value="role.value">
-                                            <div class="flex flex-col">
-                                                <span>{{ role.label }}</span>
-                                                <span v-if="role.description" class="text-xs text-muted-foreground">{{ role.description }}</span>
-                                                <span v-if="role.is_system" class="text-xs text-blue-600">(Rol del Sistema)</span>
-                                            </div>
-                                        </SelectItem>
-                                    </SelectContent>
-                                </Select>
-                                <p v-if="form.errors.role_id" class="text-sm text-red-600 mt-1">
-                                    {{ form.errors.role_id }}
+                                <Label>Roles del usuario *</Label>
+                                <p class="text-sm text-muted-foreground mb-3">
+                                    Selecciona uno o más roles para este usuario
+                                </p>
+                                <div class="space-y-2 max-h-64 overflow-y-auto border rounded-lg p-4">
+                                    <div v-for="role in roles" :key="role.value" class="flex items-start space-x-3 py-2">
+                                        <Checkbox
+                                            :id="`role-${role.value}`"
+                                            :checked="form.role_ids.includes(role.value)"
+                                            @update:checked="(checked) => {
+                                                if (checked) {
+                                                    if (!form.role_ids.includes(role.value)) {
+                                                        form.role_ids.push(role.value);
+                                                    }
+                                                } else {
+                                                    const index = form.role_ids.indexOf(role.value);
+                                                    if (index > -1) {
+                                                        form.role_ids.splice(index, 1);
+                                                    }
+                                                }
+                                            }"
+                                        />
+                                        <div class="flex-1">
+                                            <Label :for="`role-${role.value}`" class="text-base font-medium cursor-pointer">
+                                                {{ role.label }}
+                                            </Label>
+                                            <p v-if="role.description" class="text-sm text-muted-foreground">
+                                                {{ role.description }}
+                                            </p>
+                                            <span v-if="role.is_system" class="text-xs text-blue-600">
+                                                (Rol del Sistema)
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <p v-if="form.errors.role_ids" class="text-sm text-red-600 mt-1">
+                                    {{ form.errors.role_ids }}
                                 </p>
                             </div>
                             <!-- Mensaje informativo cuando no tiene permisos -->
@@ -321,5 +342,5 @@ const submit = () => {
                 </div>
             </form>
         </div>
-    </AppLayout>
+    </AdminLayout>
 </template>

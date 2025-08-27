@@ -1,7 +1,7 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
-use App\Models\Permission;
+use App\Models\Core\Permission;
 
 return new class extends Migration
 {

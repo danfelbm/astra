@@ -171,13 +171,16 @@ export function useAdvancedFilters(options: UseAdvancedFiltersOptions) {
           ...group.conditions[conditionIndex],
           ...updates
         };
-        // Si tiene 'field' y 'name', mantener ambos sincronizados
-        if (updates.field || updates.name) {
-          updatedCondition.field = updates.field || updates.name;
-          updatedCondition.name = updates.name || updates.field;
+        // Asegurar que el campo field esté actualizado
+        if (updates.field) {
+          updatedCondition.field = updates.field;
         }
-        // Reemplazar la condición en el array
-        group.conditions[conditionIndex] = updatedCondition;
+        // Reemplazar la condición en el array creando un nuevo array para mantener reactividad
+        group.conditions = [
+          ...group.conditions.slice(0, conditionIndex),
+          updatedCondition,
+          ...group.conditions.slice(conditionIndex + 1)
+        ];
         return true;
       }
       
@@ -196,9 +199,23 @@ export function useAdvancedFilters(options: UseAdvancedFiltersOptions) {
     if (groupId) {
       const targetGroup = findGroupById(state.value.rootGroup, groupId);
       if (targetGroup) {
-        const condition = targetGroup.conditions.find(c => c.id === conditionId);
-        if (condition) {
-          Object.assign(condition, updates);
+        const conditionIndex = targetGroup.conditions.findIndex(c => c.id === conditionId);
+        if (conditionIndex !== -1) {
+          // Crear nueva condición con updates para mantener reactividad
+          const updatedCondition = {
+            ...targetGroup.conditions[conditionIndex],
+            ...updates
+          };
+          // Asegurar que el campo field esté actualizado
+          if (updates.field) {
+            updatedCondition.field = updates.field;
+          }
+          // Reemplazar creando un nuevo array
+          targetGroup.conditions = [
+            ...targetGroup.conditions.slice(0, conditionIndex),
+            updatedCondition,
+            ...targetGroup.conditions.slice(conditionIndex + 1)
+          ];
           state.value.hasChanges = true;
         }
       }
@@ -492,7 +509,7 @@ export function useAdvancedFilters(options: UseAdvancedFiltersOptions) {
       // Si no hay rootGroup en initialFilters pero el estado actual tiene condiciones,
       // significa que los filtros fueron limpiados
       if (!newInitialFilters.rootGroup && 
-          (state.value.rootGroup.conditions.length > 0 || state.value.rootGroup.groups.length > 0)) {
+          (state.value.rootGroup.conditions.length > 0 || (state.value.rootGroup.groups && state.value.rootGroup.groups.length > 0))) {
         state.value.rootGroup = createEmptyFilterGroup();
         state.value.hasChanges = false;
       }

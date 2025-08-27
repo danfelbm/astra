@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { type BreadcrumbItemType } from '@/types';
-import AppLayout from '@/layouts/AppLayout.vue';
+import AdminLayout from "@/layouts/AdminLayout.vue";
 import { Head, router } from '@inertiajs/vue3';
 import { CheckCircle, Clock, XCircle, Eye, ArrowLeft, Search, FileText, Users, Plus } from 'lucide-vue-next';
 import { ref, computed } from 'vue';
@@ -151,7 +151,7 @@ const getResultSummary = (imp: CsvImport) => {
 <template>
     <Head :title="isGeneral ? 'Importaciones de Usuarios' : 'Historial de Importaciones'" />
 
-    <AppLayout :breadcrumbs="breadcrumbs">
+    <AdminLayout :breadcrumbs="breadcrumbs">
         <div class="flex h-full flex-1 flex-col gap-6 rounded-xl p-4">
             <!-- Header -->
             <div class="flex items-center justify-between">
@@ -376,5 +376,5 @@ const getResultSummary = (imp: CsvImport) => {
                 </CardContent>
             </Card>
         </div>
-    </AppLayout>
+    </AdminLayout>
 </template>

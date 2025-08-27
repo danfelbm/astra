@@ -2,8 +2,8 @@
 
 namespace App\Console\Commands;
 
-use App\Models\Candidatura;
-use App\Models\User;
+use App\Models\Elecciones\Candidatura;
+use App\Models\Core\User;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;

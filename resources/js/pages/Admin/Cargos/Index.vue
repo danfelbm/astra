@@ -17,7 +17,7 @@ import {
     AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { type BreadcrumbItemType } from '@/types';
-import AppLayout from '@/layouts/AppLayout.vue';
+import AdminLayout from "@/layouts/AdminLayout.vue";
 import { Head, Link, router } from '@inertiajs/vue3';
 import { Edit, Plus, Search, Trash2, ChevronRight, ChevronDown, Folder, Briefcase, List, GitBranch } from 'lucide-vue-next';
 import { ref, computed } from 'vue';
@@ -57,6 +57,9 @@ interface Props {
         advanced_filters?: string;
     };
     filterFieldsConfig: any[];
+    canCreate?: boolean;
+    canEdit?: boolean;
+    canDelete?: boolean;
 }
 
 const props = defineProps<Props>();
@@ -138,7 +141,7 @@ const getEstadoBadge = (activo: boolean) => {
 <template>
     <Head title="Gestión de Cargos" />
 
-    <AppLayout :breadcrumbs="breadcrumbs">
+    <AdminLayout :breadcrumbs="breadcrumbs">
         <div class="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
             <!-- Header -->
             <div class="flex items-center justify-between">
@@ -148,7 +151,7 @@ const getEstadoBadge = (activo: boolean) => {
                         Administra la estructura jerárquica de cargos electorales
                     </p>
                 </div>
-                <Link :href="route('admin.cargos.create')">
+                <Link v-if="props.canCreate" :href="route('admin.cargos.create')">
                     <Button>
                         <Plus class="mr-2 h-4 w-4" />
                         Nuevo Cargo
@@ -248,12 +251,12 @@ const getEstadoBadge = (activo: boolean) => {
                                     </TableCell>
                                     <TableCell class="text-right">
                                         <div class="flex gap-2 justify-end">
-                                            <Link :href="route('admin.cargos.edit', cargo.id)">
+                                            <Link v-if="props.canEdit" :href="route('admin.cargos.edit', cargo.id)">
                                                 <Button variant="ghost" size="sm">
                                                     <Edit class="h-4 w-4" />
                                                 </Button>
                                             </Link>
-                                            <AlertDialog>
+                                            <AlertDialog v-if="props.canDelete">
                                                 <AlertDialogTrigger asChild>
                                                     <Button variant="ghost" size="sm">
                                                         <Trash2 class="h-4 w-4 text-destructive" />
@@ -334,12 +337,12 @@ const getEstadoBadge = (activo: boolean) => {
                                     </Badge>
                                 </div>
                                 <div class="flex gap-2">
-                                    <Link :href="route('admin.cargos.edit', cargo.id)">
+                                    <Link v-if="props.canEdit" :href="route('admin.cargos.edit', cargo.id)">
                                         <Button variant="ghost" size="sm">
                                             <Edit class="h-3 w-3" />
                                         </Button>
                                     </Link>
-                                    <AlertDialog>
+                                    <AlertDialog v-if="props.canDelete">
                                         <AlertDialogTrigger asChild>
                                             <Button variant="ghost" size="sm">
                                                 <Trash2 class="h-3 w-3 text-destructive" />
@@ -378,7 +381,7 @@ const getEstadoBadge = (activo: boolean) => {
                                             </Badge>
                                         </div>
                                         <div class="flex gap-1">
-                                            <Link :href="route('admin.cargos.edit', hijo.id)">
+                                            <Link v-if="props.canEdit" :href="route('admin.cargos.edit', hijo.id)">
                                                 <Button variant="ghost" size="sm">
                                                     <Edit class="h-3 w-3" />
                                                 </Button>
@@ -392,5 +395,5 @@ const getEstadoBadge = (activo: boolean) => {
                 </CardContent>
             </Card>
         </div>
-    </AppLayout>
+    </AdminLayout>
 </template>

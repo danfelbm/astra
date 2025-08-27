@@ -17,24 +17,24 @@ trait WithRateLimiting
         $jobClass = get_class($this);
         
         switch ($jobClass) {
-            case 'App\Jobs\SendOTPEmailJob':
-            case 'App\Jobs\SendZoomAccessEmailJob':
-            case 'App\Jobs\SendCandidaturaReminderEmailJob':
-            case 'App\Jobs\SendCandidaturaPendienteEmailJob':
-            case 'App\Jobs\SendCandidaturaAprobadaEmailJob':
-            case 'App\Jobs\SendCandidaturaRechazadaEmailJob':
-            case 'App\Jobs\SendCandidaturaBorradorEmailJob':
-            case 'App\Jobs\SendCandidaturaComentarioEmailJob':
+            case 'App\Jobs\Core\SendOTPEmailJob':
+            case 'App\Jobs\Asamblea\SendZoomAccessEmailJob':
+            case 'App\Jobs\Elecciones\SendCandidaturaReminderEmailJob':
+            case 'App\Jobs\Elecciones\SendCandidaturaPendienteEmailJob':
+            case 'App\Jobs\Elecciones\SendCandidaturaAprobadaEmailJob':
+            case 'App\Jobs\Elecciones\SendCandidaturaRechazadaEmailJob':
+            case 'App\Jobs\Elecciones\SendCandidaturaBorradorEmailJob':
+            case 'App\Jobs\Elecciones\SendCandidaturaComentarioEmailJob':
                 $middlewares[] = RateLimited::forEmail();
                 break;
                 
-            case 'App\Jobs\SendOTPWhatsAppJob':
-            case 'App\Jobs\SendZoomAccessWhatsAppJob':
-            case 'App\Jobs\SendCandidaturaReminderWhatsAppJob':
-            case 'App\Jobs\SendCandidaturaPendienteWhatsAppJob':
-            case 'App\Jobs\SendCandidaturaAprobadaWhatsAppJob':
-            case 'App\Jobs\SendCandidaturaRechazadaWhatsAppJob':
-            case 'App\Jobs\SendCandidaturaBorradorWhatsAppJob':
+            case 'App\Jobs\Core\SendOTPWhatsAppJob':
+            case 'App\Jobs\Asamblea\SendZoomAccessWhatsAppJob':
+            case 'App\Jobs\Elecciones\SendCandidaturaReminderWhatsAppJob':
+            case 'App\Jobs\Elecciones\SendCandidaturaPendienteWhatsAppJob':
+            case 'App\Jobs\Elecciones\SendCandidaturaAprobadaWhatsAppJob':
+            case 'App\Jobs\Elecciones\SendCandidaturaRechazadaWhatsAppJob':
+            case 'App\Jobs\Elecciones\SendCandidaturaBorradorWhatsAppJob':
                 $middlewares[] = RateLimited::forWhatsApp();
                 break;
                 
@@ -66,24 +66,24 @@ trait WithRateLimiting
         
         // Asignar colas dedicadas según el tipo de job
         switch ($jobClass) {
-            case 'App\Jobs\SendOTPEmailJob':
-            case 'App\Jobs\SendZoomAccessEmailJob':
-            case 'App\Jobs\SendCandidaturaReminderEmailJob':
-            case 'App\Jobs\SendCandidaturaPendienteEmailJob':
-            case 'App\Jobs\SendCandidaturaAprobadaEmailJob':
-            case 'App\Jobs\SendCandidaturaRechazadaEmailJob':
-            case 'App\Jobs\SendCandidaturaBorradorEmailJob':
-            case 'App\Jobs\SendCandidaturaComentarioEmailJob':
+            case 'App\Jobs\Core\SendOTPEmailJob':
+            case 'App\Jobs\Asamblea\SendZoomAccessEmailJob':
+            case 'App\Jobs\Elecciones\SendCandidaturaReminderEmailJob':
+            case 'App\Jobs\Elecciones\SendCandidaturaPendienteEmailJob':
+            case 'App\Jobs\Elecciones\SendCandidaturaAprobadaEmailJob':
+            case 'App\Jobs\Elecciones\SendCandidaturaRechazadaEmailJob':
+            case 'App\Jobs\Elecciones\SendCandidaturaBorradorEmailJob':
+            case 'App\Jobs\Elecciones\SendCandidaturaComentarioEmailJob':
                 $this->onQueue(config('queue.otp_email_queue', 'otp-emails'));
                 break;
                 
-            case 'App\Jobs\SendOTPWhatsAppJob':
-            case 'App\Jobs\SendZoomAccessWhatsAppJob':
-            case 'App\Jobs\SendCandidaturaReminderWhatsAppJob':
-            case 'App\Jobs\SendCandidaturaPendienteWhatsAppJob':
-            case 'App\Jobs\SendCandidaturaAprobadaWhatsAppJob':
-            case 'App\Jobs\SendCandidaturaRechazadaWhatsAppJob':
-            case 'App\Jobs\SendCandidaturaBorradorWhatsAppJob':
+            case 'App\Jobs\Core\SendOTPWhatsAppJob':
+            case 'App\Jobs\Asamblea\SendZoomAccessWhatsAppJob':
+            case 'App\Jobs\Elecciones\SendCandidaturaReminderWhatsAppJob':
+            case 'App\Jobs\Elecciones\SendCandidaturaPendienteWhatsAppJob':
+            case 'App\Jobs\Elecciones\SendCandidaturaAprobadaWhatsAppJob':
+            case 'App\Jobs\Elecciones\SendCandidaturaRechazadaWhatsAppJob':
+            case 'App\Jobs\Elecciones\SendCandidaturaBorradorWhatsAppJob':
                 $this->onQueue(config('queue.otp_whatsapp_queue', 'otp-whatsapp'));
                 break;
                 

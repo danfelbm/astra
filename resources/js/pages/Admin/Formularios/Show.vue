@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import AppLayout from '@/layouts/AppLayout.vue';
+import AdminLayout from "@/layouts/AdminLayout.vue";
 import { Head, Link, router } from '@inertiajs/vue3';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -128,7 +128,7 @@ const porcentajeVisitantes = computed(() => {
 <template>
     <Head :title="formulario.titulo" />
     
-    <AppLayout :breadcrumbs="breadcrumbs">
+    <AdminLayout :breadcrumbs="breadcrumbs">
         <div class="p-6">
             <!-- Encabezado -->
             <div class="mb-6">
@@ -459,5 +459,5 @@ const porcentajeVisitantes = computed(() => {
                 </TabsContent>
             </Tabs>
         </div>
-    </AppLayout>
+    </AdminLayout>
 </template>
