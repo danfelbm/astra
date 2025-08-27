@@ -18,9 +18,15 @@ class ProfileController extends Controller
      */
     public function edit(Request $request): Response
     {
+        // Verificar permisos de usuario para ver perfil propio
+        abort_unless(auth()->user()->can('profile.view'), 403, 'No tienes permisos para ver tu perfil');
+        
         return Inertia::render('User/Settings/Profile', [
             'mustVerifyEmail' => $request->user() instanceof MustVerifyEmail,
             'status' => $request->session()->get('status'),
+            // Props de permisos de usuario
+            'canEdit' => auth()->user()->can('profile.edit'),
+            'canChangePassword' => auth()->user()->can('profile.change_password'),
         ]);
     }
 
@@ -29,6 +35,9 @@ class ProfileController extends Controller
      */
     public function update(ProfileUpdateRequest $request): RedirectResponse
     {
+        // Verificar permisos de usuario para editar perfil propio
+        abort_unless(auth()->user()->can('profile.edit'), 403, 'No tienes permisos para editar tu perfil');
+        
         $request->user()->fill($request->validated());
 
         if ($request->user()->isDirty('email')) {
@@ -45,6 +54,9 @@ class ProfileController extends Controller
      */
     public function destroy(Request $request): RedirectResponse
     {
+        // Verificar permisos de usuario para eliminar perfil propio
+        abort_unless(auth()->user()->can('profile.delete'), 403, 'No tienes permisos para eliminar tu perfil');
+        
         $request->validate([
             'password' => ['required', 'current_password'],
         ]);

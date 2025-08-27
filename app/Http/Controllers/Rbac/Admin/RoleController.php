@@ -496,6 +496,7 @@ class RoleController extends Controller
                         'votaciones.view_public' => 'Ver votaciones disponibles',
                         'votaciones.vote' => 'Participar en votaciones',
                         'votaciones.view_results' => 'Ver resultados públicos',
+                        'votaciones.view_own_vote' => 'Ver mi voto emitido',
                     ],
                 ],
                 'asambleas' => [

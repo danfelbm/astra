@@ -21,6 +21,8 @@ class FormularioPublicController extends Controller
      */
     public function index(Request $request): Response
     {
+        // Verificar permisos de usuario para ver formularios públicos
+        abort_unless(auth()->user()->can('formularios.view_public'), 403, 'No tienes permisos para ver formularios públicos');
         $query = Formulario::query()
             ->with(['categoria'])
             ->where('estado', 'publicado')
@@ -82,6 +84,9 @@ class FormularioPublicController extends Controller
             'formularios' => $formularios,
             'categorias' => $categorias,
             'filters' => $request->only(['search', 'categoria']),
+            // Props de permisos de usuario
+            'canViewPublic' => auth()->user()->can('formularios.view_public'),
+            'canFillPublic' => auth()->user()->can('formularios.fill_public'),
         ]);
     }
     

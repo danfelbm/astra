@@ -55,6 +55,9 @@ interface Props {
         tipo?: string;
         search?: string;
     };
+    // Props de permisos generales
+    canParticipate: boolean;
+    canViewMinutes: boolean;
 }
 
 const props = defineProps<Props>();

@@ -107,16 +107,21 @@ const isSystemRole = computed(() => {
 });
 
 // Computed para obtener los permisos según el tipo de rol
+// CORREGIDO: Ahora siempre mostramos ambos grupos de permisos para evitar pérdida de datos
 const currentPermissions = computed(() => {
-    return form.is_administrative 
-        ? props.availablePermissions.administrative 
-        : props.availablePermissions.frontend;
+    // Siempre retornar todos los permisos disponibles
+    return {
+        ...props.availablePermissions.administrative,
+        ...props.availablePermissions.frontend
+    };
 });
 
 
 // Computed para verificar si todos los permisos de un grupo están seleccionados
 const isGroupFullySelected = (groupKey: string): boolean => {
-    const group = currentPermissions.value[groupKey];
+    // Buscar el grupo en ambas secciones (administrative y frontend)
+    const group = props.availablePermissions.administrative[groupKey] || 
+                 props.availablePermissions.frontend[groupKey];
     if (!group) return false;
     
     const groupPermissions = Object.keys(group.permissions);
@@ -125,7 +130,9 @@ const isGroupFullySelected = (groupKey: string): boolean => {
 
 // Computed para verificar si algunos permisos de un grupo están seleccionados
 const isGroupPartiallySelected = (groupKey: string): boolean => {
-    const group = currentPermissions.value[groupKey];
+    // Buscar el grupo en ambas secciones (administrative y frontend)
+    const group = props.availablePermissions.administrative[groupKey] || 
+                 props.availablePermissions.frontend[groupKey];
     if (!group) return false;
     
     const groupPermissions = Object.keys(group.permissions);
@@ -143,7 +150,9 @@ const togglePermission = (permission: string) => {
 };
 
 const toggleGroupPermissions = (groupKey: string) => {
-    const group = currentPermissions.value[groupKey];
+    // Buscar el grupo en ambas secciones (administrative y frontend)
+    const group = props.availablePermissions.administrative[groupKey] || 
+                 props.availablePermissions.frontend[groupKey];
     if (!group) return;
     
     const groupPermissions = Object.keys(group.permissions);
@@ -189,7 +198,14 @@ const handleDelete = () => {
 
 const selectAllPermissions = () => {
     const allPermissions: string[] = [];
-    Object.values(currentPermissions.value).forEach(group => {
+    // Recopilar permisos administrativos
+    Object.values(props.availablePermissions.administrative).forEach(group => {
+        Object.keys(group.permissions).forEach(perm => {
+            allPermissions.push(perm);
+        });
+    });
+    // Recopilar permisos frontend
+    Object.values(props.availablePermissions.frontend).forEach(group => {
         Object.keys(group.permissions).forEach(perm => {
             allPermissions.push(perm);
         });
@@ -201,14 +217,8 @@ const clearAllPermissions = () => {
     form.permissions = [];
 };
 
-// Watch para limpiar permisos y módulos cuando cambia el tipo de rol
-watch(() => form.is_administrative, (newValue, oldValue) => {
-    // Solo limpiar si realmente cambió el valor y no es la carga inicial
-    if (oldValue !== undefined && newValue !== oldValue) {
-        // Limpiar permisos al cambiar el tipo de rol
-        form.permissions = [];
-    }
-});
+// ELIMINADO: Ya no limpiamos permisos al cambiar el tipo de rol
+// Esto permite mantener permisos mixtos (administrativos y frontend) en un mismo rol
 
 const getPermissionCount = computed(() => {
     return form.permissions.length;
@@ -338,10 +348,6 @@ const canDelete = computed(() => {
                                         />
                                     </div>
                                     <InputError :message="form.errors.is_administrative" />
-                                    <!-- Debug temporal -->
-                                    <div class="text-xs text-muted-foreground">
-                                        Debug: is_administrative = {{ form.is_administrative }} ({{ typeof form.is_administrative }})
-                                    </div>
                                 </div>
 
                                 <div class="space-y-2">
@@ -386,7 +392,7 @@ const canDelete = computed(() => {
                             <CardHeader>
                                 <CardTitle>Matriz de Permisos</CardTitle>
                                 <CardDescription>
-                                    {{ form.is_administrative ? 'Selecciona los permisos administrativos para este rol' : 'Selecciona los permisos de usuario para este rol' }}
+                                    Selecciona los permisos que tendrá este rol. Los permisos están organizados en dos secciones: administrativos (acceso al panel admin) y frontend (funciones de usuario).
                                 </CardDescription>
                                 <div class="flex gap-2 mt-4">
                                     <Button
@@ -412,35 +418,86 @@ const canDelete = computed(() => {
                             </CardHeader>
                             <CardContent>
                                 <ScrollArea class="h-[500px] pr-4">
-                                    <div class="space-y-6">
-                                        <div
-                                            v-for="(group, groupKey) in currentPermissions"
-                                            :key="groupKey"
-                                            class="space-y-3"
-                                        >
-                                            <div class="flex items-center space-x-2 pb-2 border-b">
-                                                <Checkbox
-                                                    :checked="isGroupFullySelected(groupKey)"
-                                                    :indeterminate="isGroupPartiallySelected(groupKey)"
-                                                    @update:checked="toggleGroupPermissions(groupKey)"
-                                                />
-                                                <Label class="text-sm font-semibold">
-                                                    {{ group.label }}
-                                                </Label>
-                                            </div>
-                                            <div class="grid grid-cols-2 gap-3 pl-6">
+                                    <div class="space-y-8">
+                                        <!-- Sección de Permisos Administrativos -->
+                                        <div v-if="Object.keys(availablePermissions.administrative).length > 0">
+                                            <h3 class="text-lg font-semibold mb-4 text-orange-600 dark:text-orange-400">
+                                                Permisos Administrativos
+                                            </h3>
+                                            <div class="space-y-6 pl-4">
                                                 <div
-                                                    v-for="(permLabel, permKey) in group.permissions"
-                                                    :key="permKey"
-                                                    class="flex items-center space-x-2"
+                                                    v-for="(group, groupKey) in availablePermissions.administrative"
+                                                    :key="`admin-${groupKey}`"
+                                                    class="space-y-3"
                                                 >
-                                                    <Checkbox
-                                                        :checked="form.permissions.includes(permKey)"
-                                                        @update:checked="togglePermission(permKey)"
-                                                    />
-                                                    <Label class="text-sm font-normal cursor-pointer">
-                                                        {{ permLabel }}
-                                                    </Label>
+                                                    <div class="flex items-center space-x-2 pb-2 border-b">
+                                                        <Checkbox
+                                                            :checked="isGroupFullySelected(groupKey)"
+                                                            :indeterminate="isGroupPartiallySelected(groupKey)"
+                                                            @update:checked="toggleGroupPermissions(groupKey)"
+                                                        />
+                                                        <Label class="text-sm font-semibold">
+                                                            {{ group.label }}
+                                                        </Label>
+                                                    </div>
+                                                    <div class="grid grid-cols-2 gap-3 pl-6">
+                                                        <div
+                                                            v-for="(permLabel, permKey) in group.permissions"
+                                                            :key="permKey"
+                                                            class="flex items-center space-x-2"
+                                                        >
+                                                            <Checkbox
+                                                                :checked="form.permissions.includes(permKey)"
+                                                                @update:checked="togglePermission(permKey)"
+                                                            />
+                                                            <Label class="text-sm font-normal cursor-pointer">
+                                                                {{ permLabel }}
+                                                            </Label>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Separador -->
+                                        <div class="border-t-2 border-dashed"></div>
+
+                                        <!-- Sección de Permisos Frontend -->
+                                        <div v-if="Object.keys(availablePermissions.frontend).length > 0">
+                                            <h3 class="text-lg font-semibold mb-4 text-blue-600 dark:text-blue-400">
+                                                Permisos de Usuario (Frontend)
+                                            </h3>
+                                            <div class="space-y-6 pl-4">
+                                                <div
+                                                    v-for="(group, groupKey) in availablePermissions.frontend"
+                                                    :key="`frontend-${groupKey}`"
+                                                    class="space-y-3"
+                                                >
+                                                    <div class="flex items-center space-x-2 pb-2 border-b">
+                                                        <Checkbox
+                                                            :checked="isGroupFullySelected(groupKey)"
+                                                            :indeterminate="isGroupPartiallySelected(groupKey)"
+                                                            @update:checked="toggleGroupPermissions(groupKey)"
+                                                        />
+                                                        <Label class="text-sm font-semibold">
+                                                            {{ group.label }}
+                                                        </Label>
+                                                    </div>
+                                                    <div class="grid grid-cols-2 gap-3 pl-6">
+                                                        <div
+                                                            v-for="(permLabel, permKey) in group.permissions"
+                                                            :key="permKey"
+                                                            class="flex items-center space-x-2"
+                                                        >
+                                                            <Checkbox
+                                                                :checked="form.permissions.includes(permKey)"
+                                                                @update:checked="togglePermission(permKey)"
+                                                            />
+                                                            <Label class="text-sm font-normal cursor-pointer">
+                                                                {{ permLabel }}
+                                                            </Label>
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>

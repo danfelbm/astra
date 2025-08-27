@@ -59,6 +59,12 @@ interface ConvocatoriaDisponible {
 interface Props {
     postulaciones: Postulacion[];
     convocatorias_disponibles: ConvocatoriaDisponible[];
+    canViewPublic: boolean;
+    canApply: boolean;
+    canViewOwn: boolean;
+    canCreate: boolean;
+    canEditOwn: boolean;
+    canDeleteOwn: boolean;
 }
 
 defineProps<Props>();

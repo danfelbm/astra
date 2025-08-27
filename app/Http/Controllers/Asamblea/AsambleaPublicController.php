@@ -21,6 +21,9 @@ class AsambleaPublicController extends Controller
      */
     public function index(Request $request): Response
     {
+        // Verificar permisos generales de usuario
+        abort_unless(auth()->user()->can('asambleas.view_public'), 403, 'No tienes permisos para ver asambleas públicas');
+        
         $user = Auth::user();
         
         // Primero, obtener IDs de asambleas donde el usuario es participante
@@ -134,6 +137,9 @@ class AsambleaPublicController extends Controller
         return Inertia::render('User/Asambleas/Index', [
             'asambleas' => $asambleas,
             'filters' => $request->only(['estado', 'tipo', 'search']),
+            // Props de permisos generales
+            'canParticipate' => auth()->user()->can('asambleas.participate'),
+            'canViewMinutes' => auth()->user()->can('asambleas.view_minutes'),
         ]);
     }
 
@@ -142,6 +148,9 @@ class AsambleaPublicController extends Controller
      */
     public function show(Asamblea $asamblea): Response
     {
+        // Verificar permisos generales de usuario
+        abort_unless(auth()->user()->can('asambleas.view_public'), 403, 'No tienes permisos para ver asambleas públicas');
+        
         $user = Auth::user();
         
         // Verificar que el usuario sea participante o que la asamblea sea de su territorio
@@ -242,6 +251,9 @@ class AsambleaPublicController extends Controller
             'esParticipante' => $esParticipante,
             'esDesuTerritorio' => $esDesuTerritorio,
             'miParticipacion' => $miParticipacion,
+            // Props de permisos generales
+            'canParticipate' => auth()->user()->can('asambleas.participate'),
+            'canViewMinutes' => auth()->user()->can('asambleas.view_minutes'),
         ]);
     }
 
@@ -250,6 +262,9 @@ class AsambleaPublicController extends Controller
      */
     public function getParticipantes(Request $request, Asamblea $asamblea)
     {
+        // Verificar permisos generales de usuario
+        abort_unless(auth()->user()->can('asambleas.participate'), 403, 'No tienes permisos para participar en asambleas');
+        
         $user = Auth::user();
         
         // Verificar que el usuario sea participante o que la asamblea sea de su territorio
@@ -406,6 +421,9 @@ class AsambleaPublicController extends Controller
      */
     public function marcarAsistencia(Request $request, Asamblea $asamblea)
     {
+        // Verificar permisos generales de usuario
+        abort_unless(auth()->user()->can('asambleas.participate'), 403, 'No tienes permisos para participar en asambleas');
+        
         $user = Auth::user();
         
         // Verificar que el usuario sea participante
@@ -446,6 +464,9 @@ class AsambleaPublicController extends Controller
      */
     public function marcarAsistenciaParticipante(Request $request, Asamblea $asamblea, User $participante)
     {
+        // Verificar permisos generales de usuario
+        abort_unless(auth()->user()->can('asambleas.participate'), 403, 'No tienes permisos para participar en asambleas');
+        
         $user = Auth::user();
         
         // Verificar que el usuario actual sea moderador de esta asamblea

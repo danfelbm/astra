@@ -16,6 +16,9 @@ interface Props {
     mustVerifyEmail: boolean;
     status?: string;
     className?: string;
+    // Props de permisos de usuario
+    canEdit: boolean;
+    canChangePassword: boolean;
 }
 
 defineProps<Props>();

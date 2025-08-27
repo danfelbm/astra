@@ -14,6 +14,8 @@ import { type BreadcrumbItem } from '@/types';
 
 interface Props {
     className?: string;
+    // Props de permisos de usuario
+    canChangePassword: boolean;
 }
 
 defineProps<Props>();

@@ -23,6 +23,9 @@ class CandidaturaController extends Controller
      */
     public function index()
     {
+        // Verificar permisos generales de usuario
+        abort_unless(auth()->user()->can('candidaturas.view_own'), 403, 'No tienes permisos para ver tu candidatura');
+        
         $usuario = Auth::user();
         $candidatura = Candidatura::delUsuario($usuario->id)->first();
 
@@ -98,6 +101,10 @@ class CandidaturaController extends Controller
                 'mensaje' => $configuracionBloqueo['bloqueo_mensaje'],
                 'puede_crear' => !$bloqueoActivo, // No puede crear si hay bloqueo
             ],
+            // Props de permisos de usuario
+            'canCreateOwn' => auth()->user()->can('candidaturas.create_own'),
+            'canEditOwn' => auth()->user()->can('candidaturas.edit_own'),
+            'canViewPublic' => auth()->user()->can('candidaturas.view_public'),
         ]);
     }
 
@@ -106,6 +113,9 @@ class CandidaturaController extends Controller
      */
     public function create()
     {
+        // Verificar permisos para crear candidatura
+        abort_unless(auth()->user()->can('candidaturas.create_own'), 403, 'No tienes permisos para crear candidaturas');
+        
         $usuario = Auth::user();
         
         // Verificar si el bloqueo está activo
@@ -137,6 +147,9 @@ class CandidaturaController extends Controller
             'candidatura' => null,
             'configuracion_campos' => $config->obtenerCampos(),
             'is_editing' => false,
+            // Props de permisos de usuario
+            'canCreateOwn' => auth()->user()->can('candidaturas.create_own'),
+            'canEditOwn' => auth()->user()->can('candidaturas.edit_own'),
         ]);
     }
 
@@ -145,6 +158,9 @@ class CandidaturaController extends Controller
      */
     public function store(Request $request)
     {
+        // Verificar permisos para crear candidatura
+        abort_unless(auth()->user()->can('candidaturas.create_own'), 403, 'No tienes permisos para crear candidaturas');
+        
         $usuario = Auth::user();
         
         // Verificar que no tenga candidatura existente
@@ -267,6 +283,9 @@ class CandidaturaController extends Controller
      */
     public function show(Candidatura $candidatura)
     {
+        // Verificar permisos generales de usuario
+        abort_unless(auth()->user()->can('candidaturas.view_own'), 403, 'No tienes permisos para ver candidaturas');
+        
         // Solo el propietario puede ver su candidatura
         if ($candidatura->user_id !== Auth::id()) {
             abort(403);
@@ -310,6 +329,9 @@ class CandidaturaController extends Controller
                 ];
             }),
             'resumen_aprobaciones' => $resumenAprobaciones,
+            // Props de permisos de usuario
+            'canEditOwn' => auth()->user()->can('candidaturas.edit_own'),
+            'canViewPublic' => auth()->user()->can('candidaturas.view_public'),
         ]);
     }
 
@@ -318,6 +340,9 @@ class CandidaturaController extends Controller
      */
     public function edit(Candidatura $candidatura)
     {
+        // Verificar permisos para editar candidatura
+        abort_unless(auth()->user()->can('candidaturas.edit_own'), 403, 'No tienes permisos para editar candidaturas');
+        
         // Solo el propietario puede editar su candidatura
         if ($candidatura->user_id !== Auth::id()) {
             abort(403);
@@ -393,6 +418,9 @@ class CandidaturaController extends Controller
                 'fecha_postulacion' => $postulacionExistente->fecha_postulacion ? 
                     $postulacionExistente->fecha_postulacion->format('d/m/Y H:i') : null,
             ] : null,
+            // Props de permisos de usuario
+            'canEditOwn' => auth()->user()->can('candidaturas.edit_own'),
+            'canCreateOwn' => auth()->user()->can('candidaturas.create_own'),
         ]);
     }
 
@@ -401,6 +429,9 @@ class CandidaturaController extends Controller
      */
     public function update(Request $request, Candidatura $candidatura)
     {
+        // Verificar permisos para editar candidatura
+        abort_unless(auth()->user()->can('candidaturas.edit_own'), 403, 'No tienes permisos para editar candidaturas');
+        
         // Solo el propietario puede actualizar su candidatura
         if ($candidatura->user_id !== Auth::id()) {
             abort(403);
@@ -584,6 +615,9 @@ class CandidaturaController extends Controller
      */
     public function historial(Candidatura $candidatura)
     {
+        // Verificar permisos para ver candidaturas
+        abort_unless(auth()->user()->can('candidaturas.view_own'), 403, 'No tienes permisos para ver candidaturas');
+        
         // Solo el propietario puede ver el historial de su candidatura
         if ($candidatura->user_id !== Auth::id()) {
             abort(403);
@@ -777,6 +811,9 @@ class CandidaturaController extends Controller
      */
     public function getEstadoCandidatura()
     {
+        // Verificar permisos para ver candidaturas
+        abort_unless(auth()->user()->can('candidaturas.view_own'), 403, 'No tienes permisos para ver candidaturas');
+        
         $usuario = Auth::user();
         $candidatura = Candidatura::delUsuario($usuario->id)->first();
 
@@ -798,6 +835,9 @@ class CandidaturaController extends Controller
      */
     public function autosave(Request $request)
     {
+        // Verificar permisos para crear candidatura
+        abort_unless(auth()->user()->can('candidaturas.create_own'), 403, 'No tienes permisos para crear candidaturas');
+        
         try {
             $usuario = Auth::user();
             
@@ -872,6 +912,9 @@ class CandidaturaController extends Controller
      */
     public function autosaveExisting(Request $request, Candidatura $candidatura)
     {
+        // Verificar permisos para editar candidatura
+        abort_unless(auth()->user()->can('candidaturas.edit_own'), 403, 'No tienes permisos para editar candidaturas');
+        
         try {
             // Verificar que el usuario es dueño de la candidatura
             if ($candidatura->user_id !== Auth::id()) {

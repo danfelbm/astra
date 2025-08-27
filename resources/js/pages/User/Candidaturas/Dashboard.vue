@@ -26,6 +26,10 @@ interface Props {
     candidatura: Candidatura | null;
     configuracion: Configuracion;
     bloqueo: Bloqueo;
+    // Props de permisos de usuario
+    canCreateOwn: boolean;
+    canEditOwn: boolean;
+    canViewPublic: boolean;
 }
 
 const props = defineProps<Props>();

@@ -9,6 +9,7 @@ use App\Http\Controllers\Asamblea\AsambleaPublicController;
 use App\Http\Controllers\Asamblea\Api\ZoomAuthController;
 use App\Http\Controllers\Asamblea\Api\ZoomRegistrantController;
 use App\Http\Controllers\Geografico\Admin\GeographicController;
+use App\Http\Controllers\Users\DashboardController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -33,16 +34,7 @@ Route::middleware(['auth'])->prefix('api/formularios')->name('api.formularios.')
 Route::middleware(['auth', 'verified', 'user'])->prefix('miembro')->name('user.')->group(function () {
     
     // Dashboard principal para usuarios autenticados
-    Route::get('dashboard', function () {
-        $hasAssemblyAccess = DB::table('asamblea_usuario')
-            ->where('usuario_id', auth()->id())
-            ->where('asamblea_id', 1)
-            ->exists();
-        
-        return Inertia::render('User/Dashboard', [
-            'hasAssemblyAccess' => $hasAssemblyAccess
-        ]);
-    })->name('dashboard');
+    Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
     // Formularios para usuarios autenticados  
     Route::get('formularios', [\App\Http\Controllers\Formularios\FormularioPublicController::class, 'index'])
         ->middleware('can:formularios.view_public')

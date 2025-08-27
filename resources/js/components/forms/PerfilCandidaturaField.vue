@@ -86,7 +86,7 @@ const handleSelectChange = (value: string) => {
                     variant="outline" 
                     size="sm" 
                     class="border-amber-300 text-amber-800 hover:bg-amber-100"
-                    @click="router.get('/candidaturas')"
+                    @click="router.get('/miembro/candidaturas')"
                 >
                     <Plus class="mr-2 h-4 w-4" />
                     Crear Perfil de Candidatura

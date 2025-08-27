@@ -24,6 +24,9 @@ class VotoController extends Controller
      */
     public function index(Request $request): Response
     {
+        // Verificar permisos de usuario
+        abort_unless(auth()->user()->can('votaciones.view_public'), 403, 'No tienes permisos para ver las votaciones disponibles');
+        
         $user = Auth::user();
         $mostrarPasadas = $request->boolean('mostrar_pasadas', false);
         
@@ -103,6 +106,10 @@ class VotoController extends Controller
             'filters' => $request->only(['search', 'advanced_filters', 'mostrar_pasadas']),
             'mostrar_pasadas' => $mostrarPasadas,
             'filterFieldsConfig' => $this->getFilterFieldsConfig(),
+            // Props de permisos de usuario
+            'canVote' => auth()->user()->can('votaciones.vote'),
+            'canViewResults' => auth()->user()->can('votaciones.view_results'),
+            'canViewOwnVote' => auth()->user()->can('votaciones.view_own_vote'),
         ]);
     }
 
@@ -111,6 +118,9 @@ class VotoController extends Controller
      */
     public function show(Votacion $votacion): Response|RedirectResponse
     {
+        // Verificar permisos de votación
+        abort_unless(auth()->user()->can('votaciones.vote'), 403, 'No tienes permisos para participar en votaciones');
+        
         $user = Auth::user();
 
         // Verificar que el usuario esté asignado a esta votación
@@ -158,6 +168,9 @@ class VotoController extends Controller
      */
     public function store(Request $request, Votacion $votacion): RedirectResponse
     {
+        // Verificar permisos de votación
+        abort_unless(auth()->user()->can('votaciones.vote'), 403, 'No tienes permisos para participar en votaciones');
+        
         $user = Auth::user();
 
         // Verificar que el usuario esté asignado a esta votación
@@ -250,6 +263,9 @@ class VotoController extends Controller
      */
     public function miVoto(Votacion $votacion): Response|RedirectResponse
     {
+        // Verificar permisos para ver voto propio
+        abort_unless(auth()->user()->can('votaciones.view_own_vote'), 403, 'No tienes permisos para ver tu voto');
+        
         $user = Auth::user();
 
         // Verificar que el usuario esté asignado a esta votación
