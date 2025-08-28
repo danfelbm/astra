@@ -5,6 +5,7 @@ namespace App\Services\Core;
 use App\Jobs\Core\SendVerificationCodesJob;
 use App\Models\Core\User;
 use App\Models\Core\UserVerificationRequest;
+use App\Services\Core\IpAddressService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -145,7 +146,7 @@ class UserVerificationService
             Log::warning('Código de verificación inválido', [
                 'request_id' => $request->id,
                 'channel' => $channel,
-                'ip' => request()->ip(),
+                'ip' => IpAddressService::getRealIp(),
             ]);
         }
 
@@ -160,7 +161,7 @@ class UserVerificationService
         if (!$sessionToken) {
             Log::warning('Intento de acceso sin token de sesión', [
                 'verification_id' => $verificationId,
-                'ip' => request()->ip(),
+                'ip' => IpAddressService::getRealIp(),
             ]);
             return null;
         }
@@ -175,7 +176,7 @@ class UserVerificationService
         if ($verificationRequest->session_token !== $sessionToken) {
             Log::warning('Token de sesión inválido', [
                 'verification_id' => $verificationId,
-                'ip' => request()->ip(),
+                'ip' => IpAddressService::getRealIp(),
                 'user_agent' => request()->userAgent(),
             ]);
             return null;

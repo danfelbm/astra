@@ -6,6 +6,7 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
+use Illuminate\Http\Request;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -32,6 +33,31 @@ return Application::configure(basePath: dirname(__DIR__))
             'user' => \App\Http\Middleware\Core\UserMiddleware::class,
             'tenant' => TenantMiddleware::class,
         ]);
+        
+        // Configurar Trusted Proxies para capturar IP real detrás del load balancer
+        $trustedProxies = env('TRUSTED_PROXIES', '*');
+        $trustedHeaders = env('TRUSTED_HEADERS', 'x-forwarded-all');
+        
+        // Mapear headers según configuración
+        $headers = match($trustedHeaders) {
+            'x-forwarded-all' => Request::HEADER_X_FORWARDED_FOR |
+                                 Request::HEADER_X_FORWARDED_HOST |
+                                 Request::HEADER_X_FORWARDED_PORT |
+                                 Request::HEADER_X_FORWARDED_PROTO |
+                                 Request::HEADER_X_FORWARDED_AWS_ELB,
+            'x-forwarded-for' => Request::HEADER_X_FORWARDED_FOR,
+            'x-forwarded-aws-elb' => Request::HEADER_X_FORWARDED_AWS_ELB,
+            default => Request::HEADER_X_FORWARDED_FOR | Request::HEADER_X_FORWARDED_HOST | Request::HEADER_X_FORWARDED_PROTO,
+        };
+        
+        // Aplicar configuración de proxies confiables
+        if ($trustedProxies !== 'none') {
+            $proxies = $trustedProxies === '*' ? '*' : explode(',', $trustedProxies);
+            $middleware->trustProxies(
+                at: $proxies,
+                headers: $headers
+            );
+        }
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //

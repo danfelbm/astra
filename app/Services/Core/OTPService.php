@@ -7,6 +7,7 @@ use App\Jobs\Core\SendOTPWhatsAppJob;
 use App\Mail\Core\OTPCodeMail;
 use App\Models\Core\OTP;
 use App\Models\Core\User;
+use App\Services\Core\IpAddressService;
 use App\Services\Core\WhatsAppService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
@@ -64,7 +65,7 @@ class OTPService
             Log::warning('Intento de validación OTP fallido', [
                 'email' => $email,
                 'codigo' => $codigo,
-                'ip' => request()->ip(),
+                'ip' => IpAddressService::getRealIp(),
             ]);
             return false;
         }

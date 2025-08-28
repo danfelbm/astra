@@ -2,6 +2,7 @@
 
 namespace App\Traits;
 
+use App\Services\Core\IpAddressService;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Illuminate\Support\Facades\Auth;
@@ -252,7 +253,7 @@ trait HasAuditLog
     {
         // Agregar información del request si está disponible
         if (request()) {
-            $properties['ip'] = request()->ip();
+            $properties['ip'] = IpAddressService::getRealIp(request());
             $properties['user_agent'] = request()->userAgent();
             $properties['url'] = request()->fullUrl();
             $properties['method'] = request()->method();
