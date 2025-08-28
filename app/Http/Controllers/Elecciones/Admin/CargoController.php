@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Elecciones\Admin;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\Core\AdminController;
 use App\Models\Elecciones\Cargo;
 use App\Traits\HasAdvancedFilters;
 use Illuminate\Http\JsonResponse;
@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Validator;
 use Inertia\Inertia;
 use Inertia\Response;
 
-class CargoController extends Controller
+class CargoController extends AdminController
 {
     use HasAdvancedFilters;
     /**

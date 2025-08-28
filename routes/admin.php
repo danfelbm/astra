@@ -10,7 +10,7 @@ use App\Http\Controllers\Configuration\Admin\OTPDashboardController;
 use App\Http\Controllers\Elecciones\Admin\PeriodoElectoralController;
 use App\Http\Controllers\Elecciones\Admin\PostulacionController as AdminPostulacionController;
 use App\Http\Controllers\Asamblea\Admin\AsambleaController;
-use App\Http\Controllers\Asamblea\ZoomRedirectController;
+use App\Http\Controllers\Asamblea\User\ZoomRedirectController;
 use App\Http\Controllers\Votaciones\Admin\VotacionController;
 use App\Http\Controllers\Users\Admin\UserController;
 use App\Http\Controllers\Tenant\Admin\TenantController;

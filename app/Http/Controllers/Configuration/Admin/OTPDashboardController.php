@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Configuration\Admin;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\Core\AdminController;
 use App\Services\Core\OTPService;
 use App\Services\Core\QueueRateLimiterService;
 use Illuminate\Http\JsonResponse;
@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Queue;
 use Inertia\Inertia;
 use Inertia\Response;
 
-class OTPDashboardController extends Controller
+class OTPDashboardController extends AdminController
 {
     public function __construct(
         private QueueRateLimiterService $queueRateLimiterService,

@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Votaciones\Admin;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\Core\AdminController;
 use App\Jobs\Core\ProcessCsvImport;
 use App\Models\Elecciones\Convocatoria;
 use App\Models\Elecciones\PeriodoElectoral;
@@ -21,7 +21,7 @@ use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
-class VotacionController extends Controller
+class VotacionController extends AdminController
 {
     use HasAdvancedFilters;
     

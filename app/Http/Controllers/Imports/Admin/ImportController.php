@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Imports\Admin;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\Core\AdminController;
 use App\Jobs\Core\ProcessUsersCsvImport;
 use App\Models\Core\CsvImport;
 use App\Models\Core\User;
@@ -20,7 +20,7 @@ use Illuminate\Support\Facades\Validator;
 use Inertia\Inertia;
 use Inertia\Response;
 
-class ImportController extends Controller
+class ImportController extends AdminController
 {
     /**
      * Mostrar progreso de una importación específica

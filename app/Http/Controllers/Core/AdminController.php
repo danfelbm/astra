@@ -8,7 +8,8 @@ abstract class AdminController extends Controller
 {
     public function __construct()
     {
-        $this->middleware(['auth', 'can:access-admin']);
+        // Los middlewares se manejan en las rutas específicas
+        // No se requiere middleware adicional aquí
     }
 
     protected function getLayout(): string

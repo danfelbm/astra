@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Asamblea\Admin;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\Core\AdminController;
 use App\Models\Asamblea\Asamblea;
 use App\Models\Core\User;
 use App\Models\Geografico\Territorio;
@@ -20,7 +20,7 @@ use Illuminate\Support\Facades\Validator;
 use Inertia\Inertia;
 use Inertia\Response;
 
-class AsambleaController extends Controller
+class AsambleaController extends AdminController
 {
     use HasAdvancedFilters, HasGeographicFilters;
 
