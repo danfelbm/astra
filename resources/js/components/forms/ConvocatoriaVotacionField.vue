@@ -12,6 +12,7 @@ interface CandidatoConvocatoria {
     id: number;
     name: string;
     email?: string;
+    avatar_url?: string; // URL del avatar (personalizado o UI Avatars)
     // Datos de la postulación
     postulacion_id: number;
     fecha_postulacion?: string;
@@ -291,6 +292,7 @@ const getInitials = (name: string): string => {
                             <!-- Avatar y nombre -->
                             <div class="flex items-center gap-3 mb-3">
                                 <Avatar class="h-12 w-12">
+                                    <AvatarImage v-if="candidato.avatar_url" :src="candidato.avatar_url" :alt="candidato.name" />
                                     <AvatarFallback class="bg-primary/10 text-primary font-semibold">
                                         {{ getInitials(candidato.name) }}
                                     </AvatarFallback>
@@ -364,6 +366,7 @@ const getInitials = (name: string): string => {
                             <!-- Avatar y nombre -->
                             <div class="flex items-center gap-3 mb-3">
                                 <Avatar class="h-12 w-12">
+                                    <AvatarImage v-if="candidato.avatar_url" :src="candidato.avatar_url" :alt="candidato.name" />
                                     <AvatarFallback class="bg-primary/10 text-primary font-semibold">
                                         {{ getInitials(candidato.name) }}
                                     </AvatarFallback>

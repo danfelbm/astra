@@ -476,6 +476,7 @@ class VotoController extends UserController
                             'id' => $user->id,
                             'name' => $user->name,
                             'email' => $user->email,
+                            'avatar_url' => $user->avatar_url, // Incluir URL del avatar (personalizado o UI Avatars)
                             'postulacion_id' => $postulacion ? $postulacion->id : null,
                             'fecha_postulacion' => $postulacion ? $postulacion->created_at->format('Y-m-d') : null,
                             'candidatura_snapshot' => $postulacion ? $postulacion->candidatura_snapshot : null,

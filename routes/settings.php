@@ -13,6 +13,10 @@ Route::middleware('auth')->group(function () {
     Route::patch('settings/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('settings/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
     
+    // Rutas para manejo de avatar
+    Route::post('settings/profile/avatar', [ProfileController::class, 'uploadAvatar'])->name('profile.avatar.upload');
+    Route::delete('settings/profile/avatar', [ProfileController::class, 'deleteAvatar'])->name('profile.avatar.delete');
+    
     // Ruta para actualizar ubicación del usuario
     Route::patch('settings/profile/location', [ProfileLocationController::class, 'update'])->name('profile.location.update');
 

@@ -39,6 +39,7 @@ class User extends Authenticatable
     protected $fillable = [
         'name',
         'email',
+        'avatar',
         'documento_identidad',
         'tipo_documento',
         'password',
@@ -63,6 +64,13 @@ class User extends Authenticatable
         'password',
         'remember_token',
     ];
+
+    /**
+     * The accessors to append to the model's array form.
+     *
+     * @var array
+     */
+    protected $appends = ['avatar_url'];
 
     /**
      * Get the attributes that should be cast.
@@ -103,6 +111,33 @@ class User extends Authenticatable
             'PA' => 'Pasaporte',
             default => $this->tipo_documento ?? 'No especificado'
         };
+    }
+
+    /**
+     * Accessor para obtener la URL del avatar
+     * Retorna el avatar personalizado o genera uno con UI Avatars como fallback
+     */
+    public function getAvatarUrlAttribute(): string
+    {
+        $avatarService = app(\App\Services\Core\AvatarService::class);
+        return $avatarService->getAvatarUrl($this);
+    }
+
+    /**
+     * Verificar si el usuario tiene un avatar personalizado
+     */
+    public function hasCustomAvatar(): bool
+    {
+        return !empty($this->avatar) && \Storage::disk('public')->exists($this->avatar);
+    }
+
+    /**
+     * Eliminar el avatar del usuario
+     */
+    public function deleteAvatar(): bool
+    {
+        $avatarService = app(\App\Services\Core\AvatarService::class);
+        return $avatarService->deleteAvatar($this);
     }
 
     /**

@@ -11,12 +11,16 @@ import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ArrowLeft, Save } from 'lucide-vue-next';
 import GeographicSelector from '@/components/forms/GeographicSelector.vue';
+import AvatarUpload from '@/components/forms/AvatarUpload.vue';
 import { type BreadcrumbItemType } from '@/types';
+import axios from 'axios';
+import { toast } from 'vue-sonner';
 
 interface User {
     id: number;
     name: string;
     email: string;
+    avatar_url?: string; // URL del avatar
     role?: string; // Mantener por compatibilidad
     role_id?: number; // Nuevo campo para el ID del rol
     roles?: Array<{ id: number; name: string; display_name: string }>; // Relación con roles
@@ -102,6 +106,47 @@ const handleGeographicChange = (value: any) => {
 const submit = () => {
     form.put(route('admin.usuarios.update', props.user.id));
 };
+
+// Estado reactivo para el avatar
+const userAvatar = ref(props.user.avatar_url);
+
+// Manejo de avatar
+const handleAvatarUpload = async (file: File) => {
+    const formData = new FormData();
+    formData.append('avatar', file);
+
+    try {
+        const response = await axios.post(route('admin.usuarios.avatar.upload', props.user.id), formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
+        });
+
+        if (response.data.success) {
+            userAvatar.value = response.data.avatar_url;
+            
+            toast.success('Avatar actualizado correctamente');
+        }
+    } catch (error) {
+        console.error('Error uploading avatar:', error);
+        toast.error('No se pudo cargar el avatar');
+    }
+};
+
+const handleAvatarDelete = async () => {
+    try {
+        const response = await axios.delete(route('admin.usuarios.avatar.delete', props.user.id));
+
+        if (response.data.success) {
+            userAvatar.value = response.data.avatar_url;
+            
+            toast.success('Avatar eliminado correctamente');
+        }
+    } catch (error) {
+        console.error('Error deleting avatar:', error);
+        toast.error('No se pudo eliminar el avatar');
+    }
+};
 </script>
 
 <template>
@@ -127,6 +172,26 @@ const submit = () => {
             </div>
 
             <form @submit.prevent="submit" class="space-y-6">
+                <!-- Avatar del Usuario -->
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Foto de Perfil</CardTitle>
+                        <CardDescription>
+                            Avatar personalizado del usuario
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <AvatarUpload
+                            :model-value="userAvatar"
+                            :user-name="form.name"
+                            label="Avatar del usuario"
+                            description="Sube una foto de perfil para el usuario. JPG, PNG o WEBP. Máximo 5MB."
+                            @upload="handleAvatarUpload"
+                            @delete="handleAvatarDelete"
+                        />
+                    </CardContent>
+                </Card>
+
                 <!-- Información Básica -->
                 <Card>
                     <CardHeader>
