@@ -25,6 +25,7 @@ trait WithRateLimiting
             case 'App\Jobs\Elecciones\SendCandidaturaRechazadaEmailJob':
             case 'App\Jobs\Elecciones\SendCandidaturaBorradorEmailJob':
             case 'App\Jobs\Elecciones\SendCandidaturaComentarioEmailJob':
+            case 'App\Jobs\Votaciones\SendVoteConfirmationEmailJob':
                 $middlewares[] = RateLimited::forEmail();
                 break;
                 
@@ -35,6 +36,7 @@ trait WithRateLimiting
             case 'App\Jobs\Elecciones\SendCandidaturaAprobadaWhatsAppJob':
             case 'App\Jobs\Elecciones\SendCandidaturaRechazadaWhatsAppJob':
             case 'App\Jobs\Elecciones\SendCandidaturaBorradorWhatsAppJob':
+            case 'App\Jobs\Votaciones\SendVoteConfirmationWhatsAppJob':
                 $middlewares[] = RateLimited::forWhatsApp();
                 break;
                 
@@ -74,6 +76,7 @@ trait WithRateLimiting
             case 'App\Jobs\Elecciones\SendCandidaturaRechazadaEmailJob':
             case 'App\Jobs\Elecciones\SendCandidaturaBorradorEmailJob':
             case 'App\Jobs\Elecciones\SendCandidaturaComentarioEmailJob':
+            case 'App\Jobs\Votaciones\SendVoteConfirmationEmailJob':
                 $this->onQueue(config('queue.otp_email_queue', 'otp-emails'));
                 break;
                 
@@ -84,6 +87,7 @@ trait WithRateLimiting
             case 'App\Jobs\Elecciones\SendCandidaturaAprobadaWhatsAppJob':
             case 'App\Jobs\Elecciones\SendCandidaturaRechazadaWhatsAppJob':
             case 'App\Jobs\Elecciones\SendCandidaturaBorradorWhatsAppJob':
+            case 'App\Jobs\Votaciones\SendVoteConfirmationWhatsAppJob':
                 $this->onQueue(config('queue.otp_whatsapp_queue', 'otp-whatsapp'));
                 break;
                 
