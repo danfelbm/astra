@@ -51,6 +51,9 @@ interface Votacion {
     formulario_config: FormField[];
     fecha_inicio: string;
     fecha_fin: string;
+    fecha_inicio_local?: string;
+    fecha_fin_local?: string;
+    timezone: string;
     estado: 'borrador' | 'activa' | 'finalizada';
     resultados_publicos: boolean;
 }
@@ -115,21 +118,60 @@ const goBack = () => {
     router.get(route('user.votaciones.index'));
 };
 
-// Formatear fechas
-const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('es-ES', {
+// Obtener abreviación de zona horaria
+const getTimezoneAbbreviation = (timezone: string): string => {
+    const abbreviations: Record<string, string> = {
+        'America/Bogota': 'GMT-5',
+        'America/Mexico_City': 'GMT-6',
+        'America/Lima': 'GMT-5',
+        'America/Argentina/Buenos_Aires': 'GMT-3',
+        'America/Santiago': 'GMT-3',
+        'America/Caracas': 'GMT-4',
+        'America/La_Paz': 'GMT-4',
+        'America/Guayaquil': 'GMT-5',
+        'America/Asuncion': 'GMT-3',
+        'America/Montevideo': 'GMT-3',
+        'America/Panama': 'GMT-5',
+        'America/Costa_Rica': 'GMT-6',
+        'America/Guatemala': 'GMT-6',
+        'America/Havana': 'GMT-5',
+        'America/Santo_Domingo': 'GMT-4',
+        // Añadir más zonas horarias según sea necesario
+    };
+    return abbreviations[timezone] || timezone;
+};
+
+// Formatear fechas con zona horaria
+const formatDate = (dateString: string, includeTimezone: boolean = true) => {
+    // Usar fecha_local si está disponible, si no usar fecha original
+    const dateToUse = dateString.includes('local') 
+        ? dateString 
+        : (dateString === props.votacion.fecha_inicio && props.votacion.fecha_inicio_local)
+            ? props.votacion.fecha_inicio_local
+            : (dateString === props.votacion.fecha_fin && props.votacion.fecha_fin_local)
+                ? props.votacion.fecha_fin_local
+                : dateString;
+    
+    const formatted = new Date(dateToUse).toLocaleDateString('es-ES', {
         year: 'numeric',
         month: 'long',
         day: 'numeric',
         hour: '2-digit',
         minute: '2-digit',
     });
+    
+    if (includeTimezone && props.votacion.timezone) {
+        const tz = getTimezoneAbbreviation(props.votacion.timezone);
+        return `${formatted} (${tz})`;
+    }
+    return formatted;
 };
 
-// Calcular tiempo restante
+// Calcular tiempo restante usando la fecha local con timezone
 const timeRemaining = computed(() => {
     const now = new Date();
-    const endDate = new Date(props.votacion.fecha_fin);
+    // Usar fecha_fin_local si está disponible para cálculo más preciso
+    const endDate = new Date(props.votacion.fecha_fin_local || props.votacion.fecha_fin);
     const diff = endDate.getTime() - now.getTime();
     
     if (diff <= 0) return 'Expirada';
@@ -204,6 +246,27 @@ const isFormValid = computed(() => {
                             <span :class="timeRemaining === 'Expirada' ? 'text-red-600' : 'text-orange-600'">
                                 {{ timeRemaining === 'Expirada' ? 'Votación expirada' : `Tiempo restante: ${timeRemaining}` }}
                             </span>
+                        </div>
+                    </div>
+                    <!-- Información adicional de horarios con zona horaria -->
+                    <div class="mt-4 pt-4 border-t">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                            <div class="text-muted-foreground">
+                                <span class="font-medium">Periodo de votación:</span>
+                                <div class="mt-1">
+                                    Inicio: {{ formatDate(votacion.fecha_inicio) }}
+                                </div>
+                                <div>
+                                    Fin: {{ formatDate(votacion.fecha_fin) }}
+                                </div>
+                            </div>
+                            <div class="text-muted-foreground">
+                                <span class="font-medium">Zona horaria:</span>
+                                <div class="mt-1 font-semibold text-primary">
+                                    {{ getTimezoneAbbreviation(votacion.timezone) }}
+                                    <span class="text-xs text-muted-foreground ml-1">({{ votacion.timezone }})</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </CardContent>
