@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Votaciones\User;
 use App\Http\Controllers\Core\UserController;
 
 
+use App\Jobs\Votaciones\SendVoteConfirmationEmailJob;
+use App\Jobs\Votaciones\SendVoteConfirmationWhatsAppJob;
 use App\Models\Votaciones\Categoria;
 use App\Models\Votaciones\Votacion;
 use App\Models\Votaciones\Voto;
@@ -258,12 +260,35 @@ class VotoController extends UserController
                 'user_agent' => $request->userAgent(),
             ]);
 
-            // TODO: Enviar email con token
-            // EmailService::enviarTokenVoto($user->email, $token, $votacion, $voto);
+            // Cargar la relación de categoría para las notificaciones
+            $votacion->load('categoria');
+
+            // Enviar notificaciones de confirmación
+            // Despachar job de email si el usuario tiene correo
+            if (!empty($user->email)) {
+                SendVoteConfirmationEmailJob::dispatch($user, $votacion, $voto);
+            }
+
+            // Despachar job de WhatsApp si el usuario tiene teléfono
+            if (!empty($user->telefono)) {
+                SendVoteConfirmationWhatsAppJob::dispatch($user, $votacion, $voto);
+            }
+
+            // Mensaje de éxito personalizado según qué notificaciones se enviaron
+            $successMessage = 'Tu voto ha sido registrado exitosamente.';
+            if (!empty($user->email) && !empty($user->telefono)) {
+                $successMessage .= ' Recibirás confirmación por email y WhatsApp con tu token de verificación.';
+            } elseif (!empty($user->email)) {
+                $successMessage .= ' Recibirás un email con tu token de verificación.';
+            } elseif (!empty($user->telefono)) {
+                $successMessage .= ' Recibirás un WhatsApp con tu token de verificación.';
+            } else {
+                $successMessage .= ' Tu token es: ' . $token;
+            }
 
             return redirect()
                 ->route('user.votaciones.index')
-                ->with('success', 'Tu voto ha sido registrado exitosamente. Recibirás un email con tu token de verificación.');
+                ->with('success', $successMessage);
 
         } catch (\Exception $e) {
             return back()->with('error', 'Ocurrió un error al procesar tu voto. Por favor, inténtalo de nuevo.');

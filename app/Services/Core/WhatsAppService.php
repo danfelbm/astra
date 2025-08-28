@@ -174,6 +174,72 @@ class WhatsAppService
     }
 
     /**
+     * Generar plantilla de mensaje para confirmación de voto por WhatsApp
+     *
+     * @param string $userName Nombre del usuario
+     * @param string $votacionTitulo Título de la votación
+     * @param string $token Token único del voto
+     * @param \DateTime|string $voteDateTime Fecha y hora del voto
+     * @param string $timezone Zona horaria de la votación (default: America/Bogota)
+     * @return string El mensaje formateado
+     */
+    public function getVoteConfirmationTemplate(string $userName, string $votacionTitulo, string $token, $voteDateTime, string $timezone = 'America/Bogota'): string
+    {
+        // Convertir fecha a la zona horaria correcta
+        if ($voteDateTime instanceof \DateTime) {
+            $carbon = \Carbon\Carbon::instance($voteDateTime);
+        } else {
+            $carbon = \Carbon\Carbon::parse($voteDateTime);
+        }
+        
+        // Aplicar la zona horaria de la votación
+        $carbon->setTimezone($timezone);
+        $fecha = $carbon->format('d/m/Y H:i');
+        
+        // Obtener abreviación de zona horaria
+        $timezoneAbbr = $this->getTimezoneAbbreviation($timezone);
+        
+        $verificationUrl = url('/verificar-token/' . $token);
+        
+        $message = "🗳️ *Confirmación de Voto*\n\n";
+        $message .= "Hola *{$userName}*,\n\n";
+        $message .= "Tu voto en *\"{$votacionTitulo}\"* ha sido registrado exitosamente.\n\n";
+        $message .= "📅 *Fecha:* {$fecha} ({$timezoneAbbr})\n";
+        $message .= "🔑 *Token:*\n```{$token}```\n\n";
+        $message .= "✅ *Verifica tu voto:*\n{$verificationUrl}\n\n";
+        $message .= "⚠️ _Guarda este token de forma segura. Es tu comprobante único e irrepetible._\n\n";
+        $message .= "_Sistema de Votación Digital_";
+        
+        return $message;
+    }
+
+    /**
+     * Obtener abreviación de zona horaria
+     */
+    protected function getTimezoneAbbreviation(string $timezone): string
+    {
+        $abbreviations = [
+            'America/Bogota' => 'GMT-5',
+            'America/Mexico_City' => 'GMT-6',
+            'America/Lima' => 'GMT-5',
+            'America/Argentina/Buenos_Aires' => 'GMT-3',
+            'America/Santiago' => 'GMT-3',
+            'America/Caracas' => 'GMT-4',
+            'America/La_Paz' => 'GMT-4',
+            'America/Guayaquil' => 'GMT-5',
+            'America/Asuncion' => 'GMT-3',
+            'America/Montevideo' => 'GMT-3',
+            'America/Panama' => 'GMT-5',
+            'America/Costa_Rica' => 'GMT-6',
+            'America/Guatemala' => 'GMT-6',
+            'America/Havana' => 'GMT-5',
+            'America/Santo_Domingo' => 'GMT-4',
+        ];
+
+        return $abbreviations[$timezone] ?? 'GMT';
+    }
+
+    /**
      * Obtener estadísticas del servicio
      */
     public function getStats(): array
