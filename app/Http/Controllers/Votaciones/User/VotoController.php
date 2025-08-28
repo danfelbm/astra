@@ -10,6 +10,7 @@ use App\Jobs\Votaciones\SendVoteConfirmationWhatsAppJob;
 use App\Models\Votaciones\Categoria;
 use App\Models\Votaciones\Votacion;
 use App\Models\Votaciones\Voto;
+use App\Services\Core\IpAddressService;
 use App\Services\Votaciones\TokenService;
 use App\Traits\HasAdvancedFilters;
 use Carbon\Carbon;
@@ -256,7 +257,7 @@ class VotoController extends UserController
                 'usuario_id' => $user->id,
                 'token_unico' => $token,
                 'respuestas' => $respuestas,
-                'ip_address' => $request->ip(),
+                'ip_address' => IpAddressService::getRealIp($request),
                 'user_agent' => $request->userAgent(),
             ]);
 

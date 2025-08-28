@@ -15,6 +15,7 @@ use App\Models\Geografico\Territorio;
 use App\Models\Geografico\Departamento;
 use App\Models\Geografico\Municipio;
 use App\Models\Geografico\Localidad;
+use App\Services\Core\IpAddressService;
 use App\Traits\HasAdvancedFilters;
 use App\Traits\HasSegmentScope;
 use Illuminate\Http\Request;
@@ -695,7 +696,7 @@ class CandidaturaController extends AdminController
                 'config_id' => $configuracion->id,
                 'version' => $configuracion->version,
                 'cantidad_campos' => count($request->campos),
-                'ip' => request()->ip(),
+                'ip' => IpAddressService::getRealIp(),
                 'user_agent' => request()->userAgent(),
             ])
             ->log(Auth::user()->name . ' actualizó la configuración de campos de candidaturas');
@@ -775,7 +776,7 @@ class CandidaturaController extends AdminController
             ->withProperties([
                 'config_id' => $configuracion->id,
                 'version' => $configuracion->version,
-                'ip' => request()->ip(),
+                'ip' => IpAddressService::getRealIp(),
                 'user_agent' => request()->userAgent(),
             ])
             ->log(Auth::user()->name . ' activó la configuración versión ' . $configuracion->version);
@@ -1103,7 +1104,7 @@ class CandidaturaController extends AdminController
                 'errores' => $contadores['errores'],
                 'incluir_email' => $incluirEmail,
                 'incluir_whatsapp' => $incluirWhatsApp,
-                'ip' => request()->ip(),
+                'ip' => IpAddressService::getRealIp(),
             ])
             ->log(Auth::user()->name . ' envió recordatorios masivos a ' . $contadores['total_candidaturas'] . ' candidaturas en borrador');
 
@@ -1254,7 +1255,7 @@ class CandidaturaController extends AdminController
                 'errores' => $contadores['errores'],
                 'incluir_email' => $incluirEmail,
                 'incluir_whatsapp' => $incluirWhatsApp,
-                'ip' => request()->ip(),
+                'ip' => IpAddressService::getRealIp(),
             ])
             ->log(Auth::user()->name . ' envió notificaciones masivas a ' . $contadores['total_candidaturas'] . ' candidaturas pendientes');
 
