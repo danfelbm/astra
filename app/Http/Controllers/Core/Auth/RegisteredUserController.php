@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Core\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\Core\User;
+use App\Models\Core\Role;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -90,7 +91,7 @@ class RegisteredUserController extends Controller
         $defaultRoleId = config('app.default_user_role_id', 4);
         
         // Obtener el rol por ID y asignarlo con Spatie
-        $role = \App\Models\Role::find($defaultRoleId);
+        $role = Role::find($defaultRoleId);
         if ($role) {
             $user->assignRole($role->name);
         }

@@ -5,7 +5,7 @@ use App\Http\Controllers\Asamblea\Guest\FrontendAsambleaController;
 use App\Http\Controllers\Elecciones\Guest\PostulacionPublicController;
 use App\Http\Controllers\Asamblea\Guest\AsambleaPublicParticipantsController;
 use App\Http\Controllers\Geografico\Admin\GeographicController;
-use App\Http\Controllers\Elecciones\User\PostulacionPublicApiController;
+use App\Http\Controllers\Elecciones\Guest\PostulacionPublicApiController;
 use Illuminate\Support\Facades\Route;
 
 /*
