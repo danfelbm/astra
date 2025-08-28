@@ -106,79 +106,16 @@ const showConfirmDialog = ref(false);
 
 // Función para enviar el voto
 const submitVote = () => {
-    // DEBUG: Logs completos para troubleshooting
-    console.log('=== INICIANDO ENVÍO DE VOTO ===');
-    console.log('Timestamp:', new Date().toISOString());
-    console.log('Votación ID:', props.votacion.id);
-    console.log('Form data:', JSON.stringify(form.respuestas, null, 2));
-    console.log('Form errors antes de envío:', form.errors);
-    console.log('Form processing state:', form.processing);
-    console.log('Route generada:', route('user.votaciones.store', { votacion: props.votacion.id }));
-    
-    // Verificar si hay preventDefault necesario
-    console.log('Dialog open state:', showConfirmDialog.value);
-    
-    // Intentar capturar el evento real
-    const event = window.event;
-    if (event) {
-        console.log('Event detected:', event.type);
-        if (event.preventDefault) {
-            event.preventDefault();
-            console.log('preventDefault called on event');
+    form.post(route('user.votaciones.store', { votacion: props.votacion.id }), {
+        preserveScroll: true,
+        preserveState: false,
+        onSuccess: () => {
+            // La redirección se maneja en el backend
+        },
+        onError: (errors) => {
+            console.error('Errores de validación:', errors);
         }
-    }
-    
-    try {
-        console.log('Enviando POST request...');
-        
-        form.post(route('user.votaciones.store', { votacion: props.votacion.id }), {
-            preserveScroll: true, // Importante para producción
-            preserveState: false,
-            onStart: () => {
-                console.log('Request started');
-                console.log('Form processing:', form.processing);
-            },
-            onProgress: (progress) => {
-                console.log('Upload progress:', progress);
-            },
-            onSuccess: (page) => {
-                console.log('=== VOTO ENVIADO EXITOSAMENTE ===');
-                console.log('Response page:', page);
-                console.log('Props after success:', page.props);
-                // La redirección se maneja en el backend
-            },
-            onError: (errors) => {
-                console.error('=== ERROR AL ENVIAR VOTO ===');
-                console.error('Errores de validación:', errors);
-                console.error('Form errors después:', form.errors);
-                console.error('Form data en error:', form.respuestas);
-                
-                // Mostrar alerta para debugging
-                alert(`Error al enviar voto: ${JSON.stringify(errors)}`);
-            },
-            onFinish: () => {
-                console.log('Request finished');
-                console.log('Form processing final:', form.processing);
-                console.log('Dialog state final:', showConfirmDialog.value);
-            },
-            onCancel: () => {
-                console.log('Request was cancelled');
-            }
-        });
-        
-        console.log('POST request initiated');
-    } catch (error: any) {
-        console.error('=== EXCEPCIÓN CAPTURADA ===');
-        console.error('Error type:', error?.constructor?.name);
-        console.error('Error message:', error?.message);
-        console.error('Error stack:', error?.stack);
-        console.error('Full error:', error);
-        
-        // Alerta de emergencia
-        alert(`Excepción al enviar voto: ${error?.message || 'Error desconocido'}`);
-    }
-    
-    console.log('submitVote function completed');
+    });
 };
 
 // Función para volver
@@ -353,14 +290,7 @@ const isFormValid = computed(() => {
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <form @submit.prevent="(event) => { 
-                        console.log('=== FORM SUBMIT EVENT ===');
-                        console.log('Event type:', event.type);
-                        console.log('Default prevented by Vue');
-                        console.log('Opening dialog...');
-                        showConfirmDialog = true;
-                        console.log('Dialog opened:', showConfirmDialog);
-                    }" class="space-y-6">
+                    <form @submit.prevent="showConfirmDialog = true" class="space-y-6">
                         <!-- Usar DynamicFormRenderer para renderizar el formulario -->
                         <DynamicFormRenderer
                             :fields="votacion.formulario_config"
@@ -389,14 +319,8 @@ const isFormValid = computed(() => {
             </Card>
 
             <!-- Dialog de confirmación -->
-            <AlertDialog v-model:open="showConfirmDialog" @update:open="(value) => {
-                console.log('Dialog state changed to:', value);
-            }">
-                <AlertDialogContent @escape-key-down="(event) => {
-                    console.log('Escape key pressed in dialog');
-                }" @pointer-down-outside="(event) => {
-                    console.log('Clicked outside dialog');
-                }">
+            <AlertDialog v-model:open="showConfirmDialog">
+                <AlertDialogContent>
                     <AlertDialogHeader>
                         <AlertDialogTitle>¿Confirmar voto?</AlertDialogTitle>
                         <AlertDialogDescription>
@@ -404,21 +328,8 @@ const isFormValid = computed(() => {
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel @click="() => {
-                            console.log('Cancel button clicked');
-                            showConfirmDialog = false;
-                        }">Cancelar</AlertDialogCancel>
-                        <AlertDialogAction @click.prevent="(event) => {
-                            console.log('=== CONFIRM BUTTON CLICKED ===');
-                            console.log('Event:', event);
-                            console.log('Preventing default action');
-                            event.preventDefault();
-                            event.stopPropagation();
-                            console.log('Calling submitVote...');
-                            submitVote();
-                            console.log('submitVote called, closing dialog');
-                            showConfirmDialog = false;
-                        }" class="bg-primary">
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction @click="submitVote" class="bg-primary">
                             Confirmar Voto
                         </AlertDialogAction>
                     </AlertDialogFooter>
