@@ -31,6 +31,7 @@ export interface FormField {
         mostrarVotoBlanco?: boolean; // Si muestra opción de voto en blanco (solo votaciones)
         filtrarPorUbicacion?: boolean; // Si filtra convocatorias por ubicación del usuario (candidaturas)
         ordenCandidatos?: 'aleatorio' | 'alfabetico' | 'fecha_postulacion'; // Orden de presentación de candidatos
+        vistaPreferida?: 'lista' | 'cards'; // Vista de presentación de candidatos
     };
     // Configuración para campo file
     fileConfig?: {

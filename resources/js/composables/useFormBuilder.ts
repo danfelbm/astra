@@ -19,6 +19,8 @@ export function useFormBuilder(initialFields: FormField[] = []) {
             convocatoria_id: undefined,
             multiple: false,
             mostrarVotoBlanco: true,
+            ordenCandidatos: 'aleatorio',
+            vistaPreferida: 'lista',
         },
         fileConfig: {
             multiple: false,
@@ -74,6 +76,8 @@ export function useFormBuilder(initialFields: FormField[] = []) {
             convocatoria_id: undefined,
             multiple: false,
             mostrarVotoBlanco: true,
+            ordenCandidatos: 'aleatorio',
+            vistaPreferida: 'lista',
         };
         newField.fileConfig = {
             multiple: false,
@@ -153,6 +157,9 @@ export function useFormBuilder(initialFields: FormField[] = []) {
                 // Convertir string a número si es necesario
                 convocatoria_id: newField.convocatoriaConfig.convocatoria_id ? 
                     Number(newField.convocatoriaConfig.convocatoria_id) : undefined,
+                // Asegurar que los nuevos campos se incluyan
+                ordenCandidatos: newField.convocatoriaConfig.ordenCandidatos || 'aleatorio',
+                vistaPreferida: newField.convocatoriaConfig.vistaPreferida || 'lista',
             };
         }
 
@@ -261,6 +268,8 @@ export function useFormBuilder(initialFields: FormField[] = []) {
                 convocatoria_id: field.convocatoriaConfig?.convocatoria_id || undefined,
                 multiple: field.convocatoriaConfig?.multiple || false,
                 mostrarVotoBlanco: field.convocatoriaConfig?.mostrarVotoBlanco ?? true,
+                ordenCandidatos: field.convocatoriaConfig?.ordenCandidatos || 'aleatorio',
+                vistaPreferida: field.convocatoriaConfig?.vistaPreferida || 'lista',
             };
         }
 

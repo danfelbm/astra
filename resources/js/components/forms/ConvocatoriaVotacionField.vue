@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { AlertCircle, Users, User } from 'lucide-vue-next';
 import { computed } from 'vue';
 
@@ -35,6 +36,7 @@ interface Props {
     error?: string;
     disabled?: boolean;
     convocatoriaNombre?: string;
+    vistaPreferida?: 'lista' | 'cards';
 }
 
 interface Emits {
@@ -49,6 +51,7 @@ const props = withDefaults(defineProps<Props>(), {
     mostrarVotoBlanco: true,
     disabled: false,
     candidatos: () => [],
+    vistaPreferida: 'lista',
 });
 
 const emit = defineEmits<Emits>();
@@ -113,6 +116,16 @@ const getInfoAdicional = (candidato: CandidatoConvocatoria): string => {
     
     return info.join(' - ');
 };
+
+// Obtener iniciales del candidato para el Avatar
+const getInitials = (name: string): string => {
+    return name
+        .split(' ')
+        .map(word => word[0])
+        .join('')
+        .toUpperCase()
+        .substring(0, 2);
+};
 </script>
 
 <template>
@@ -147,10 +160,10 @@ const getInfoAdicional = (candidato: CandidatoConvocatoria): string => {
 
         <!-- Lista de candidatos disponibles -->
         <div v-else class="space-y-3">
-            <!-- Selección simple (radio buttons) -->
+            <!-- Vista Lista - Selección simple (radio buttons) -->
             <RadioGroup 
-                v-if="!multiple"
-                :model-value="modelValue || 'null'"
+                v-if="!multiple && vistaPreferida === 'lista'"
+                :model-value="modelValue"
                 @update:model-value="handleRadioChange"
                 :disabled="disabled"
                 class="space-y-2"
@@ -158,14 +171,6 @@ const getInfoAdicional = (candidato: CandidatoConvocatoria): string => {
                 <Card class="border">
                     <CardContent class="pt-6">
                         <div class="space-y-3">
-                            <!-- Opción para voto en blanco (condicional) -->
-                            <div v-if="mostrarVotoBlanco" class="flex items-start space-x-3 pb-3 border-b">
-                                <RadioGroupItem value="null" id="candidato_none" />
-                                <Label for="candidato_none" class="text-sm font-normal cursor-pointer">
-                                    <span class="text-muted-foreground">Voto en blanco</span>
-                                </Label>
-                            </div>
-                            
                             <!-- Lista de candidatos -->
                             <div 
                                 v-for="candidato in candidatos" 
@@ -199,13 +204,21 @@ const getInfoAdicional = (candidato: CandidatoConvocatoria): string => {
                                     </div>
                                 </Label>
                             </div>
+                            
+                            <!-- Opción para voto en blanco (al final) -->
+                            <div v-if="mostrarVotoBlanco" class="flex items-start space-x-3 pt-3 border-t">
+                                <RadioGroupItem value="null" id="candidato_none" />
+                                <Label for="candidato_none" class="text-sm font-normal cursor-pointer">
+                                    <span class="text-muted-foreground">Voto en blanco</span>
+                                </Label>
+                            </div>
                         </div>
                     </CardContent>
                 </Card>
             </RadioGroup>
 
-            <!-- Selección múltiple (checkboxes) -->
-            <Card v-else class="border">
+            <!-- Vista Lista - Selección múltiple (checkboxes) -->
+            <Card v-else-if="multiple && vistaPreferida === 'lista'" class="border">
                 <CardHeader class="pb-3">
                     <div class="flex items-center space-x-2">
                         <Users class="h-4 w-4 text-muted-foreground" />
@@ -256,6 +269,139 @@ const getInfoAdicional = (candidato: CandidatoConvocatoria): string => {
                     </div>
                 </CardContent>
             </Card>
+
+            <!-- Vista Cards - Selección simple (radio buttons) -->
+            <RadioGroup 
+                v-if="!multiple && vistaPreferida === 'cards'"
+                :model-value="modelValue"
+                @update:model-value="handleRadioChange"
+                :disabled="disabled"
+                class="space-y-4"
+            >
+                <!-- Grid de candidatos y voto en blanco -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <Card 
+                        v-for="candidato in candidatos" 
+                        :key="candidato.id"
+                        class="cursor-pointer transition-all hover:shadow-md"
+                        :class="modelValue === candidato.name ? 'ring-2 ring-primary' : ''"
+                        @click="handleRadioChange(candidato.name)"
+                    >
+                        <CardContent class="p-4">
+                            <!-- Avatar y nombre -->
+                            <div class="flex items-center gap-3 mb-3">
+                                <Avatar class="h-12 w-12">
+                                    <AvatarFallback class="bg-primary/10 text-primary font-semibold">
+                                        {{ getInitials(candidato.name) }}
+                                    </AvatarFallback>
+                                </Avatar>
+                                <div class="flex-1 min-w-0">
+                                    <p class="font-medium truncate">{{ candidato.name }}</p>
+                                    <p v-if="candidato.email" class="text-xs text-muted-foreground truncate">
+                                        {{ candidato.email }}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <!-- Información adicional -->
+                            <div class="space-y-1 text-xs text-muted-foreground">
+                                <p v-if="candidato.cargo" class="truncate">
+                                    <span class="font-medium">Cargo:</span> {{ candidato.cargo }}
+                                </p>
+                                <p v-if="formatUbicacion(candidato)" class="truncate">
+                                    <span class="font-medium">Ubicación:</span> {{ formatUbicacion(candidato) }}
+                                </p>
+                                <p v-if="getInfoAdicional(candidato)" class="text-blue-600 truncate">
+                                    {{ getInfoAdicional(candidato) }}
+                                </p>
+                            </div>
+
+                            <!-- Radio button -->
+                            <div class="flex justify-end mt-3 pt-3 border-t">
+                                <RadioGroupItem 
+                                    :value="candidato.name" 
+                                    :checked="modelValue === candidato.name"
+                                    @click.stop
+                                />
+                            </div>
+                        </CardContent>
+                    </Card>
+                    
+                    <!-- Voto en blanco (al final del grid) -->
+                    <Card 
+                        v-if="mostrarVotoBlanco" 
+                        class="cursor-pointer transition-all hover:shadow-md"
+                        :class="modelValue === null ? 'ring-2 ring-primary' : ''"
+                        @click="handleRadioChange('null')"
+                    >
+                        <CardContent class="flex items-center justify-center h-full min-h-[180px] p-4">
+                            <div class="text-center">
+                                <span class="text-muted-foreground text-lg">Voto en blanco</span>
+                                <div class="mt-4">
+                                    <RadioGroupItem 
+                                        value="null" 
+                                        :checked="modelValue === null"
+                                        @click.stop
+                                    />
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+            </RadioGroup>
+
+            <!-- Vista Cards - Selección múltiple (checkboxes) -->
+            <div v-else-if="multiple && vistaPreferida === 'cards'" class="space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <Card 
+                        v-for="candidato in candidatos" 
+                        :key="candidato.id"
+                        class="cursor-pointer transition-all hover:shadow-md"
+                        :class="isSelected(candidato.name) ? 'ring-2 ring-primary' : ''"
+                        @click="handleCheckboxChange(candidato.name, !isSelected(candidato.name))"
+                    >
+                        <CardContent class="p-4">
+                            <!-- Avatar y nombre -->
+                            <div class="flex items-center gap-3 mb-3">
+                                <Avatar class="h-12 w-12">
+                                    <AvatarFallback class="bg-primary/10 text-primary font-semibold">
+                                        {{ getInitials(candidato.name) }}
+                                    </AvatarFallback>
+                                </Avatar>
+                                <div class="flex-1 min-w-0">
+                                    <p class="font-medium truncate">{{ candidato.name }}</p>
+                                    <p v-if="candidato.email" class="text-xs text-muted-foreground truncate">
+                                        {{ candidato.email }}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <!-- Información adicional -->
+                            <div class="space-y-1 text-xs text-muted-foreground">
+                                <p v-if="candidato.cargo" class="truncate">
+                                    <span class="font-medium">Cargo:</span> {{ candidato.cargo }}
+                                </p>
+                                <p v-if="formatUbicacion(candidato)" class="truncate">
+                                    <span class="font-medium">Ubicación:</span> {{ formatUbicacion(candidato) }}
+                                </p>
+                                <p v-if="getInfoAdicional(candidato)" class="text-blue-600 truncate">
+                                    {{ getInfoAdicional(candidato) }}
+                                </p>
+                            </div>
+
+                            <!-- Checkbox -->
+                            <div class="flex justify-end mt-3 pt-3 border-t">
+                                <Checkbox
+                                    :checked="isSelected(candidato.name)"
+                                    @update:checked="(checked) => handleCheckboxChange(candidato.name, checked)"
+                                    @click.stop
+                                    :disabled="disabled"
+                                />
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+            </div>
         </div>
 
         <!-- Error message -->

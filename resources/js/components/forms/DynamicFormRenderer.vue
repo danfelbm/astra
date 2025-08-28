@@ -181,6 +181,7 @@ defineExpose({
                         :required="field.required"
                         :multiple="field.convocatoriaConfig?.multiple || false"
                         :mostrar-voto-blanco="field.convocatoriaConfig?.mostrarVotoBlanco ?? true"
+                        :vista-preferida="field.convocatoriaConfig?.vistaPreferida || 'lista'"
                         :error="errors[field.id]"
                         :disabled="disabled"
                     />

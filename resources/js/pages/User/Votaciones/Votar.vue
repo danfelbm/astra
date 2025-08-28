@@ -89,6 +89,9 @@ const initializeFormData = () => {
     props.votacion.formulario_config.forEach(field => {
         if (field.type === 'checkbox') {
             data[field.id] = [];
+        } else if (field.type === 'convocatoria') {
+            // Inicializar con undefined para distinguir "no seleccionado" de "voto en blanco"
+            data[field.id] = undefined;
         } else {
             data[field.id] = '';
         }
@@ -192,18 +195,22 @@ const timeRemaining = computed(() => {
 // Verificar si el formulario está completo
 const isFormValid = computed(() => {
     return props.votacion.formulario_config.every(field => {
-        if (!field.required) return true;
-        
         const value = form.respuestas[field.id];
+        
+        // Para campos de tipo convocatoria, SIEMPRE requerir selección explícita
+        // (independientemente del flag required)
+        if (field.type === 'convocatoria') {
+            // undefined = no seleccionado (inválido)
+            // null = voto en blanco seleccionado (válido)
+            // string = candidato seleccionado (válido)
+            return value !== undefined;
+        }
+        
+        // Para otros campos, respetar el flag required
+        if (!field.required) return true;
         
         if (field.type === 'checkbox') {
             return Array.isArray(value) && value.length > 0;
-        }
-        
-        // Para campos de tipo convocatoria, null es un valor válido (voto en blanco)
-        if (field.type === 'convocatoria') {
-            // null es válido (voto en blanco), pero string vacío no lo es
-            return value !== '' && value !== undefined;
         }
         
         return value && value.toString().trim() !== '';
