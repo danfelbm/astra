@@ -422,8 +422,11 @@ class VotoController extends UserController
                     continue;
                 }
                 
-                // Obtener usuarios con postulaciones aceptadas a esta convocatoria específica
-                $candidatos = \App\Models\Core\User::query()
+                // Obtener configuración de orden (por defecto aleatorio)
+                $ordenCandidatos = $config['ordenCandidatos'] ?? 'aleatorio';
+                
+                // Construir query base
+                $query = \App\Models\Core\User::query()
                     ->whereHas('postulaciones', function ($q) use ($config) {
                         $q->where('estado', 'aceptada')
                           ->where('convocatoria_id', $config['convocatoria_id']);
@@ -434,8 +437,36 @@ class VotoController extends UserController
                               ->where('convocatoria_id', $config['convocatoria_id'])
                               ->with('convocatoria.cargo');
                         }
-                    ])
-                    ->get()
+                    ]);
+                
+                // Aplicar ordenamiento según configuración
+                switch ($ordenCandidatos) {
+                    case 'alfabetico':
+                        // Orden alfabético por nombre
+                        $query->orderBy('name', 'asc');
+                        break;
+                    
+                    case 'fecha_postulacion':
+                        // Orden por fecha de postulación (más recientes primero)
+                        // Necesitamos hacer join con postulaciones para obtener la fecha
+                        $query->select('users.*')
+                              ->join('postulaciones', function($join) use ($config) {
+                                  $join->on('users.id', '=', 'postulaciones.user_id')
+                                       ->where('postulaciones.convocatoria_id', '=', $config['convocatoria_id'])
+                                       ->where('postulaciones.estado', '=', 'aceptada');
+                              })
+                              ->orderBy('postulaciones.created_at', 'desc');
+                        break;
+                    
+                    case 'aleatorio':
+                    default:
+                        // Orden aleatorio para equidad electoral
+                        $query->inRandomOrder();
+                        break;
+                }
+                
+                // Obtener usuarios con orden aplicado
+                $candidatos = $query->get()
                     ->map(function ($user) use ($convocatoria) {
                         // Obtener la postulación específica a esta convocatoria
                         $postulacion = $user->postulaciones->first();

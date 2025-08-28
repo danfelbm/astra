@@ -430,12 +430,33 @@ const formatRegistrationDate = (dateString: string): string => {
             <!-- Estado: Verificación de códigos -->
             <Card v-else-if="verificationStep === 'verifying'" class="shadow-lg">
                 <CardHeader>
-                    <CardTitle>Verificación de Códigos</CardTitle>
+                    <CardTitle>Valida datos existentes</CardTitle>
                     <CardDescription>
-                        Ingresa los códigos que recibiste
+                        Si tus datos son correctos puedes validarlos a continuación; ingresa los códigos que recibiste por email y por whatsapp
                     </CardDescription>
                 </CardHeader>
                 <CardContent class="space-y-4">
+                    <!-- Mensaje de timeout y botón de actualización movidos arriba -->
+                    <Alert v-if="timerMessage" class="border-green-200 bg-green-50">
+                        <AlertDescription class="text-green-700">{{ timerMessage }}</AlertDescription>
+                    </Alert>
+
+                    <!-- Opción para actualizar datos si no recibió códigos -->
+                    <div v-if="canProceedToUpdate" class="pb-4 border-b">
+                        <div class="space-y-3">
+                            <p class="text-sm text-muted-foreground">
+                                Si no recibiste los códigos, puedes esperar un poco y actualizar tus datos:
+                            </p>
+                            <Button 
+                                @click="proceedToUpdate" 
+                                variant="default"
+                                class="w-full"
+                            >
+                                ¿Deseas actualizar datos?
+                            </Button>
+                        </div>
+                    </div>
+
                     <!-- Código Email -->
                     <div v-if="channels.email" class="space-y-2">
                         <Label>Código de Email</Label>
@@ -480,27 +501,6 @@ const formatRegistrationDate = (dateString: string): string => {
                                 size="sm"
                             >
                                 Verificar
-                            </Button>
-                        </div>
-                    </div>
-
-                    <!-- Mensaje de timeout -->
-                    <Alert v-if="timerMessage" class="border-green-200 bg-green-50">
-                        <AlertDescription class="text-green-700">{{ timerMessage }}</AlertDescription>
-                    </Alert>
-
-                    <!-- Opción para actualizar datos si no recibió códigos -->
-                    <div v-if="canProceedToUpdate" class="pt-4 border-t">
-                        <div class="space-y-3">
-                            <p class="text-sm text-muted-foreground">
-                                Si no recibiste los códigos, puedes esperar un poco o bien puedes actualizar tus datos:
-                            </p>
-                            <Button 
-                                @click="proceedToUpdate" 
-                                variant="outline"
-                                class="w-full"
-                            >
-                                ¿Deseas actualizar datos?
                             </Button>
                         </div>
                     </div>
