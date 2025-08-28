@@ -106,7 +106,8 @@ watch(() => newField.type, (newType) => {
             multiple: false,
             mostrarVotoBlanco: props.context === 'votacion', // Solo en votaciones
             filtrarPorUbicacion: props.context === 'candidatura', // Solo en candidaturas
-            ordenCandidatos: 'aleatorio', // Valor por defecto para equidad electoral
+            ordenCandidatos: newField.convocatoriaConfig?.ordenCandidatos || 'aleatorio', // Preservar valor existente o usar por defecto
+            vistaPreferida: newField.convocatoriaConfig?.vistaPreferida || 'lista', // Preservar valor existente o usar por defecto
         };
     }
     if (newType === 'file' && !newField.fileConfig) {
@@ -845,6 +846,37 @@ onMounted(() => {
                                                 Por fecha de postulación
                                                 <span class="text-xs text-muted-foreground block">
                                                     Más recientes primero - refleja actividad reciente
+                                                </span>
+                                            </div>
+                                        </Label>
+                                    </div>
+                                </div>
+                            </RadioGroup>
+                        </div>
+
+                        <!-- Vista de presentación -->
+                        <div class="mt-4 space-y-2">
+                            <Label class="text-sm font-medium">Vista de presentación</Label>
+                            <RadioGroup v-model="newField.convocatoriaConfig.vistaPreferida" default-value="lista">
+                                <div class="space-y-2">
+                                    <div class="flex items-start space-x-2">
+                                        <RadioGroupItem value="lista" id="vista_lista" />
+                                        <Label for="vista_lista" class="text-sm font-normal cursor-pointer">
+                                            <div>
+                                                Vista en lista
+                                                <span class="text-xs text-muted-foreground block">
+                                                    Lista vertical tradicional - ocupa menos espacio
+                                                </span>
+                                            </div>
+                                        </Label>
+                                    </div>
+                                    <div class="flex items-start space-x-2">
+                                        <RadioGroupItem value="cards" id="vista_cards" />
+                                        <Label for="vista_cards" class="text-sm font-normal cursor-pointer">
+                                            <div>
+                                                Vista en tarjetas
+                                                <span class="text-xs text-muted-foreground block">
+                                                    Tarjetas visuales en grid - más atractivo visualmente
                                                 </span>
                                             </div>
                                         </Label>
