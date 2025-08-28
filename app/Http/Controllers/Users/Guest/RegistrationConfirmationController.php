@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Users\Guest;
 
 use App\Http\Controllers\Core\GuestController;
 use App\Models\Core\UserVerificationRequest;
+use App\Models\Votaciones\Votacion;
 use App\Services\Core\UserUpdateService;
 use App\Services\Core\UserVerificationService;
 use Illuminate\Http\Request;
@@ -53,6 +54,9 @@ class RegistrationConfirmationController extends GuestController
             ], 404);
         }
 
+        // Verificar restricciones de límite de censo
+        $censoRestriction = $this->checkCensoRestrictions($user);
+
         // Crear o recuperar solicitud de verificación
         $verificationRequest = $this->verificationService->initiateVerification(
             $documento,
@@ -60,7 +64,7 @@ class RegistrationConfirmationController extends GuestController
             $request->userAgent()
         );
 
-        $response = response()->json([
+        $responseData = [
             'success' => true,
             'user' => [
                 'name' => $user->name,
@@ -72,7 +76,14 @@ class RegistrationConfirmationController extends GuestController
                 'created_at' => $user->created_at,
             ],
             'verification_id' => $verificationRequest->id,
-        ]);
+        ];
+
+        // Agregar información sobre restricción de censo si existe
+        if ($censoRestriction) {
+            $responseData['censo_restriction'] = $censoRestriction;
+        }
+
+        $response = response()->json($responseData);
 
         // Guardar token de sesión en cookie segura httpOnly
         // Cookie válida por 30 minutos, httpOnly para mayor seguridad
@@ -370,5 +381,66 @@ class RegistrationConfirmationController extends GuestController
                 ? now()->diffInSeconds($verificationRequest->email_sent_at)
                 : 0,
         ]);
+    }
+
+    /**
+     * Verifica si el usuario tiene restricciones por límite de censo en votaciones activas
+     * 
+     * @param \App\Models\Core\User $user
+     * @return array|null Información sobre la restricción si existe, null si no hay restricciones
+     */
+    protected function checkCensoRestrictions($user): ?array
+    {
+        // Obtener votaciones activas con límite de censo configurado
+        $votacionesActivas = Votacion::where('estado', 'activa')
+            ->whereNotNull('limite_censo')
+            ->where(function ($query) use ($user) {
+                // Verificar si el usuario coincide con alguna restricción geográfica
+                $query->whereJsonContains('territorios_ids', $user->territorio_id)
+                    ->when($user->departamento_id, function ($q) use ($user) {
+                        $q->orWhereJsonContains('departamentos_ids', $user->departamento_id);
+                    })
+                    ->when($user->municipio_id, function ($q) use ($user) {
+                        $q->orWhereJsonContains('municipios_ids', $user->municipio_id);
+                    })
+                    ->when($user->localidad_id, function ($q) use ($user) {
+                        $q->orWhereJsonContains('localidades_ids', $user->localidad_id);
+                    })
+                    // También incluir votaciones sin restricciones geográficas (aplican a todos)
+                    ->orWhere(function ($subquery) {
+                        $subquery->whereNull('territorios_ids')
+                            ->whereNull('departamentos_ids')
+                            ->whereNull('municipios_ids')
+                            ->whereNull('localidades_ids');
+                    })
+                    ->orWhere(function ($subquery) {
+                        // O votaciones con arrays vacíos
+                        $subquery->where('territorios_ids', '[]')
+                            ->where('departamentos_ids', '[]')
+                            ->where('municipios_ids', '[]')
+                            ->where('localidades_ids', '[]');
+                    });
+            })
+            ->get();
+
+        // Verificar cada votación para ver si el usuario excede el límite del censo
+        foreach ($votacionesActivas as $votacion) {
+            // Comparar fecha de creación del usuario con límite del censo
+            if ($user->created_at && $votacion->limite_censo) {
+                // Si el usuario fue creado DESPUÉS del límite del censo
+                if ($user->created_at > $votacion->limite_censo) {
+                    return [
+                        'restricted' => true,
+                        'message' => $votacion->mensaje_limite_censo ?: 
+                            'Tu registro en el sistema es posterior a la fecha límite del censo electoral para esta votación. Por favor, contacta con el administrador si consideras que esto es un error.',
+                        'votacion_titulo' => $votacion->titulo,
+                        'limite_censo' => $votacion->limite_censo,
+                        'user_created_at' => $user->created_at,
+                    ];
+                }
+            }
+        }
+
+        return null;
     }
 }

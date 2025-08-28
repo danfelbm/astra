@@ -255,6 +255,7 @@ class VotacionController extends AdminController
             'resultados_publicos' => 'boolean',
             'fecha_publicacion_resultados' => 'nullable|date',
             'limite_censo' => 'nullable|date',
+            'mensaje_limite_censo' => 'nullable|string|max:1000',
             'formulario_config' => 'required|array|min:1',
             'timezone' => 'required|string|timezone',
             'territorios_ids' => 'nullable|array',
@@ -302,6 +303,7 @@ class VotacionController extends AdminController
             'resultados_publicos' => $request->boolean('resultados_publicos'),
             'fecha_publicacion_resultados' => $fechaPublicacionUtc,
             'limite_censo' => $limiteCensoUtc,
+            'mensaje_limite_censo' => $request->mensaje_limite_censo,
             'formulario_config' => $request->formulario_config,
             'timezone' => $request->timezone,
             'territorios_ids' => $request->territorios_ids ?: null,
@@ -356,6 +358,8 @@ class VotacionController extends AdminController
                 ->setTimezone($votacione->timezone)
                 ->format('Y-m-d\TH:i');
         }
+        // Incluir mensaje_limite_censo si existe
+        $votacionParaFrontend['mensaje_limite_censo'] = $votacione->mensaje_limite_censo;
 
         // Obtener cargos y períodos para el filtro de perfil_candidatura
         $cargos = \App\Models\Elecciones\Cargo::activos()
@@ -439,6 +443,7 @@ class VotacionController extends AdminController
             'resultados_publicos' => 'boolean',
             'fecha_publicacion_resultados' => 'nullable|date',
             'limite_censo' => 'nullable|date',
+            'mensaje_limite_censo' => 'nullable|string|max:1000',
             'formulario_config' => 'required|array|min:1',
             'timezone' => 'required|string|timezone',
             'territorios_ids' => 'nullable|array',
@@ -486,6 +491,7 @@ class VotacionController extends AdminController
             'resultados_publicos' => $request->boolean('resultados_publicos'),
             'fecha_publicacion_resultados' => $fechaPublicacionUtc,
             'limite_censo' => $limiteCensoUtc,
+            'mensaje_limite_censo' => $request->mensaje_limite_censo,
             'formulario_config' => $request->formulario_config,
             'timezone' => $request->timezone,
             'territorios_ids' => $request->territorios_ids ?: null,

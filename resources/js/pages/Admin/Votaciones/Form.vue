@@ -45,6 +45,7 @@ interface Votacion {
     resultados_publicos: boolean;
     fecha_publicacion_resultados?: string;
     limite_censo?: string;
+    mensaje_limite_censo?: string;
     timezone: string;
     territorios_ids?: number[];
     departamentos_ids?: number[];
@@ -143,6 +144,7 @@ const getInitialFormData = () => {
             resultados_publicos: false,
             fecha_publicacion_resultados: null,
             limite_censo: null,
+            mensaje_limite_censo: '',
             formulario_config: [],
             timezone: 'America/Bogota',
             territorios_ids: [],
@@ -164,6 +166,7 @@ const getInitialFormData = () => {
         resultados_publicos: !!votacion.resultados_publicos,
         fecha_publicacion_resultados: votacion.fecha_publicacion_resultados || null,
         limite_censo: votacion.limite_censo || null,
+        mensaje_limite_censo: votacion.mensaje_limite_censo || '',
         formulario_config: votacion.formulario_config || [],
         timezone: votacion.timezone || 'America/Bogota',
         territorios_ids: votacion.territorios_ids || [],
@@ -623,6 +626,25 @@ onMounted(() => {
                                         </p>
                                         <p v-if="form.errors.limite_censo" class="text-sm text-destructive mt-1">
                                             {{ form.errors.limite_censo }}
+                                        </p>
+                                    </div>
+
+                                    <div v-if="form.limite_censo">
+                                        <Label for="mensaje_limite_censo">
+                                            Mensaje de notificación sobre límite de censo (opcional)
+                                        </Label>
+                                        <Textarea
+                                            id="mensaje_limite_censo"
+                                            v-model="form.mensaje_limite_censo"
+                                            placeholder="Mensaje a mostrar cuando un usuario no cumple con el límite del censo"
+                                            rows="3"
+                                            class="mt-1"
+                                        />
+                                        <p class="text-xs text-muted-foreground mt-1">
+                                            Este mensaje se mostrará si un usuario intenta registrarse pero su fecha de inscripción es posterior al límite del censo configurado.
+                                        </p>
+                                        <p v-if="form.errors.mensaje_limite_censo" class="text-sm text-destructive mt-1">
+                                            {{ form.errors.mensaje_limite_censo }}
                                         </p>
                                     </div>
                                 </div>
