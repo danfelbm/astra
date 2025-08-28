@@ -182,29 +182,75 @@ class VotoController extends UserController
      */
     public function store(Request $request, Votacion $votacion): RedirectResponse
     {
+        // DEBUG: Log inicial
+        \Log::info('=== INICIO STORE VOTO ===', [
+            'timestamp' => now()->toISOString(),
+            'votacion_id' => $votacion->id,
+            'usuario_id' => auth()->id(),
+            'ip' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+            'method' => $request->method(),
+            'ajax' => $request->ajax(),
+            'is_json' => $request->isJson(),
+            'headers' => $request->headers->all(),
+            'all_input' => $request->all(),
+        ]);
+        
         // Verificar permisos de votación
         abort_unless(auth()->user()->can('votaciones.vote'), 403, 'No tienes permisos para participar en votaciones');
         
         $user = Auth::user();
+        
+        \Log::info('Usuario autenticado', [
+            'user_id' => $user->id,
+            'email' => $user->email,
+            'telefono' => $user->telefono,
+        ]);
 
         // Verificar que el usuario esté asignado a esta votación
-        if (!$votacion->votantes()->where('usuario_id', $user->id)->exists()) {
+        $estaAsignado = $votacion->votantes()->where('usuario_id', $user->id)->exists();
+        \Log::info('Verificación de asignación', [
+            'esta_asignado' => $estaAsignado,
+            'user_id' => $user->id,
+            'votacion_id' => $votacion->id,
+        ]);
+        if (!$estaAsignado) {
+            \Log::warning('Usuario no asignado a votación');
             return back()->with('error', 'No tienes permisos para participar en esta votación.');
         }
 
         // Verificar que la votación esté activa
+        \Log::info('Estado de votación', [
+            'estado' => $votacion->estado,
+            'es_activa' => $votacion->estado === 'activa',
+        ]);
         if ($votacion->estado !== 'activa') {
+            \Log::warning('Votación no activa');
             return back()->with('error', 'Esta votación no está activa.');
         }
 
         // Verificar que esté en el rango de fechas válido
         $now = now();
+        \Log::info('Verificación de fechas', [
+            'now' => $now->toISOString(),
+            'fecha_inicio' => $votacion->fecha_inicio->toISOString(),
+            'fecha_fin' => $votacion->fecha_fin->toISOString(),
+            'es_valido' => ($now >= $votacion->fecha_inicio && $now <= $votacion->fecha_fin),
+        ]);
         if ($now < $votacion->fecha_inicio || $now > $votacion->fecha_fin) {
+            \Log::warning('Votación fuera de rango de fechas');
             return back()->with('error', 'Esta votación no está disponible en este momento.');
         }
 
         // Verificar que el usuario no haya votado ya
-        if ($votacion->votos()->where('usuario_id', $user->id)->exists()) {
+        $yaVoto = $votacion->votos()->where('usuario_id', $user->id)->exists();
+        \Log::info('Verificación de voto previo', [
+            'ya_voto' => $yaVoto,
+            'user_id' => $user->id,
+            'votacion_id' => $votacion->id,
+        ]);
+        if ($yaVoto) {
+            \Log::warning('Usuario ya votó');
             return back()->with('error', 'Ya has participado en esta votación.');
         }
 
@@ -234,15 +280,32 @@ class VotoController extends UserController
             }
         }
 
+        \Log::info('Validación configurada', [
+            'rules' => $validationRules,
+            'messages' => $validationMessages,
+            'input' => $request->all(),
+        ]);
+        
         $validator = Validator::make($request->all(), $validationRules, $validationMessages);
 
         if ($validator->fails()) {
+            \Log::warning('Validación falló', [
+                'errors' => $validator->errors()->toArray(),
+                'input' => $request->all(),
+            ]);
             return back()->withErrors($validator)->withInput();
         }
+        
+        \Log::info('Validación exitosa');
 
         try {
             // Generar token firmado con las respuestas
             $respuestas = $request->input('respuestas', []);
+            
+            \Log::info('Respuestas a guardar', [
+                'respuestas' => $respuestas,
+                'votacion_id' => $votacion->id,
+            ]);
             
             $token = TokenService::generateSignedToken(
                 $votacion->id,
@@ -251,6 +314,13 @@ class VotoController extends UserController
             );
 
             // Crear el voto
+            \Log::info('Creando voto', [
+                'votacion_id' => $votacion->id,
+                'usuario_id' => $user->id,
+                'token_length' => strlen($token),
+                'respuestas_count' => count($respuestas),
+            ]);
+            
             $voto = Voto::create([
                 'votacion_id' => $votacion->id,
                 'usuario_id' => $user->id,
@@ -258,6 +328,11 @@ class VotoController extends UserController
                 'respuestas' => $respuestas,
                 'ip_address' => $request->ip(),
                 'user_agent' => $request->userAgent(),
+            ]);
+            
+            \Log::info('Voto creado exitosamente', [
+                'voto_id' => $voto->id,
+                'token' => substr($token, 0, 20) . '...',
             ]);
 
             // Cargar la relación de categoría para las notificaciones
@@ -286,11 +361,27 @@ class VotoController extends UserController
                 $successMessage .= ' Tu token es: ' . $token;
             }
 
+            \Log::info('=== VOTO COMPLETADO EXITOSAMENTE ===', [
+                'voto_id' => $voto->id,
+                'mensaje' => $successMessage,
+                'redirigiendo_a' => route('user.votaciones.index'),
+            ]);
+            
             return redirect()
                 ->route('user.votaciones.index')
                 ->with('success', $successMessage);
 
         } catch (\Exception $e) {
+            \Log::error('=== ERROR AL PROCESAR VOTO ===', [
+                'error_message' => $e->getMessage(),
+                'error_code' => $e->getCode(),
+                'error_file' => $e->getFile(),
+                'error_line' => $e->getLine(),
+                'error_trace' => $e->getTraceAsString(),
+                'votacion_id' => $votacion->id ?? null,
+                'user_id' => $user->id ?? null,
+            ]);
+            
             return back()->with('error', 'Ocurrió un error al procesar tu voto. Por favor, inténtalo de nuevo.');
         }
     }
