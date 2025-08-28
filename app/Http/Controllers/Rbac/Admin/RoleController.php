@@ -365,6 +365,8 @@ class RoleController extends AdminController
                         'users.export' => 'Exportar usuarios',
                         'users.import' => 'Importar usuarios desde CSV',
                         'users.assign_roles' => 'Asignar roles a usuarios',
+                        'users.update_requests' => 'Ver solicitudes de actualización',
+                        'users.approve_updates' => 'Aprobar/rechazar actualizaciones',
                     ],
                 ],
                 'votaciones' => [

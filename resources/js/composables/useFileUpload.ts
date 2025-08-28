@@ -16,7 +16,7 @@ interface UploadProgress {
 }
 
 interface UploadOptions {
-    module: 'votaciones' | 'convocatorias' | 'postulaciones' | 'candidaturas';
+    module: 'votaciones' | 'convocatorias' | 'postulaciones' | 'candidaturas' | 'user-updates';
     fieldId: string;
     onProgress?: (fileName: string, progress: number) => void;
     onSuccess?: (files: UploadedFile[]) => void;

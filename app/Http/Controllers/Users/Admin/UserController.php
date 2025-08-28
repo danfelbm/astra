@@ -58,6 +58,7 @@ class UserController extends AdminController
             'canEdit' => auth()->user()->can('users.edit'),
             'canDelete' => auth()->user()->can('users.delete'),
             'canExport' => auth()->user()->can('users.export'),
+            'canViewUpdateRequests' => auth()->user()->can('users.update_requests'),
         ]);
     }
     

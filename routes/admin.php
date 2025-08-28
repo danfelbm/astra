@@ -519,6 +519,28 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
         ->middleware('can:users.edit')
         ->name('usuarios.toggle-active');
     
+    // User Update Requests management
+    Route::prefix('solicitudes-actualizacion')->name('update-requests.')->controller(\App\Http\Controllers\Users\Admin\UserUpdateRequestController::class)->group(function () {
+        Route::get('/', 'index')
+            ->middleware('can:users.update_requests')
+            ->name('index');
+        Route::get('/{updateRequest}', 'show')
+            ->middleware('can:users.update_requests')
+            ->name('show');
+        Route::post('/{updateRequest}/approve', 'approve')
+            ->middleware('can:users.approve_updates')
+            ->name('approve');
+        Route::post('/{updateRequest}/reject', 'reject')
+            ->middleware('can:users.approve_updates')
+            ->name('reject');
+        Route::get('/{updateRequest}/download', 'downloadDocument')
+            ->middleware('can:users.update_requests')
+            ->name('download');
+        Route::get('/export/csv', 'export')
+            ->middleware('can:users.export')
+            ->name('export');
+    });
+    
     // Geographic routes for cascade selection
     Route::prefix('geographic')->name('geographic.')->group(function () {
         Route::get('territorios', [GeographicController::class, 'territorios'])->name('territorios');

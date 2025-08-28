@@ -11,6 +11,7 @@
             <Popover v-model:open="open">
                 <PopoverTrigger>
                     <Button
+                        type="button"
                         variant="outline"
                         class="flex gap-1 rounded-e-none rounded-s-lg px-3">
                         <FlagComponent :country="inputValue" />

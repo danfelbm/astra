@@ -34,6 +34,12 @@ withDefaults(defineProps<Props>(), {
                     <!-- Navegación pública -->
                     <nav class="hidden md:flex items-center space-x-6">
                         <Link 
+                            :href="route('registro.confirmacion.index')"
+                            class="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                            Confirmar Registro
+                        </Link>
+                        <Link 
                             :href="route('verificar-token.index')"
                             class="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
                         >
