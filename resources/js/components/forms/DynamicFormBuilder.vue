@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Plus, Trash2, Eye, X, GitBranch } from 'lucide-vue-next';
@@ -105,6 +106,7 @@ watch(() => newField.type, (newType) => {
             multiple: false,
             mostrarVotoBlanco: props.context === 'votacion', // Solo en votaciones
             filtrarPorUbicacion: props.context === 'candidatura', // Solo en candidaturas
+            ordenCandidatos: 'aleatorio', // Valor por defecto para equidad electoral
         };
     }
     if (newType === 'file' && !newField.fileConfig) {
@@ -807,6 +809,48 @@ onMounted(() => {
                                     Agrega la opción "Voto en blanco" para los votantes
                                 </span>
                             </Label>
+                        </div>
+
+                        <!-- Orden de candidatos -->
+                        <div class="mt-4 space-y-2">
+                            <Label class="text-sm font-medium">Orden de candidatos</Label>
+                            <RadioGroup v-model="newField.convocatoriaConfig.ordenCandidatos" default-value="aleatorio">
+                                <div class="space-y-2">
+                                    <div class="flex items-start space-x-2">
+                                        <RadioGroupItem value="aleatorio" id="orden_aleatorio" />
+                                        <Label for="orden_aleatorio" class="text-sm font-normal cursor-pointer">
+                                            <div>
+                                                Aleatorio por sesión
+                                                <span class="text-xs text-muted-foreground block">
+                                                    Recomendado para equidad electoral - cada votante ve un orden diferente
+                                                </span>
+                                            </div>
+                                        </Label>
+                                    </div>
+                                    <div class="flex items-start space-x-2">
+                                        <RadioGroupItem value="alfabetico" id="orden_alfabetico" />
+                                        <Label for="orden_alfabetico" class="text-sm font-normal cursor-pointer">
+                                            <div>
+                                                Alfabético por nombre
+                                                <span class="text-xs text-muted-foreground block">
+                                                    Orden predecible y consistente para todos los votantes
+                                                </span>
+                                            </div>
+                                        </Label>
+                                    </div>
+                                    <div class="flex items-start space-x-2">
+                                        <RadioGroupItem value="fecha_postulacion" id="orden_fecha" />
+                                        <Label for="orden_fecha" class="text-sm font-normal cursor-pointer">
+                                            <div>
+                                                Por fecha de postulación
+                                                <span class="text-xs text-muted-foreground block">
+                                                    Más recientes primero - refleja actividad reciente
+                                                </span>
+                                            </div>
+                                        </Label>
+                                    </div>
+                                </div>
+                            </RadioGroup>
                         </div>
                     </div>
                 </div>
