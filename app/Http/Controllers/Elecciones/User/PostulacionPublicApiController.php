@@ -259,7 +259,7 @@ class PostulacionPublicApiController extends UserController
     protected function getFilterFieldsConfig(): array
     {
         // Usar la misma configuración del controlador web
-        $controller = new \App\Http\Controllers\PostulacionPublicController();
+        $controller = new \App\Http\Controllers\Elecciones\Guest\PostulacionPublicController();
         return $controller->getFilterFieldsConfig();
     }
 }
