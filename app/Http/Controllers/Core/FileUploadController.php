@@ -21,7 +21,7 @@ class FileUploadController extends Controller
             'files' => 'required',
             'files.*' => 'required|file|max:102400', // Máximo 100MB por archivo
             'field_id' => 'required|string',
-            'module' => 'required|string|in:votaciones,convocatorias,postulaciones,candidaturas',
+            'module' => 'required|string|in:votaciones,convocatorias,postulaciones,candidaturas,user-updates',
         ]);
 
         if ($validator->fails()) {

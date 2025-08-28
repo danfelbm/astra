@@ -113,7 +113,7 @@ const hasRoleId15 = computed(() => {
                     <aside class="w-full max-w-[360px] flex-shrink-0 md:pl-32 flex flex-col md:justify-end md:items-end pt-10 md:pt-0 border-t md:border-t-0 md:border-l border-white/20">
                         <ul class="text-xl w-full sm:max-w-[240px]">
                             <li class="mb-3 font-bold text-white hover:text-white transition-colors">
-                                <Link :href="hasRoleId15 ? '/dashboard' : '/asambleas'" class="flex items-center justify-between">
+                                <Link :href="hasRoleId15 ? '/dashboard' : '/miembro/asambleas'" class="flex items-center justify-between">
                                     <span>{{ hasRoleId15 ? 'Dashboard' : 'Ver Asambleas' }}</span>
                                     <svg class="fill-current w-2.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 7 12">
                                         <path d="m6.687 6-.53.53-4.5 4.5-.532.532L.063 10.5l.53-.53L4.563 6 .596 2.03.063 1.5 1.125.438l.53.53 4.5 4.5.532.532Z"></path>
@@ -129,6 +129,14 @@ const hasRoleId15 = computed(() => {
                                 </Link>
                             </li>
                             <li class="mb-3 text-white/50 hover:text-white transition-colors">
+                                <Link href="/confirmar-registro" class="flex items-center justify-between">
+                                    <span>Consultar Inscripción</span>
+                                    <svg class="fill-current w-2.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 7 12">
+                                        <path d="m6.687 6-.53.53-4.5 4.5-.532.532L.063 10.5l.53-.53L4.563 6 .596 2.03.063 1.5 1.125.438l.53.53 4.5 4.5.532.532Z"></path>
+                                    </svg>
+                                </Link>
+                            </li>
+                            <li class="mb-3 text-white/50 hover:text-white transition-colors">
                                 <Link href="/postulaciones-aceptadas" class="flex items-center justify-between">
                                     <span>Lista Precandidatos</span>
                                     <svg class="fill-current w-2.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 7 12">
@@ -137,7 +145,7 @@ const hasRoleId15 = computed(() => {
                                 </Link>
                             </li>
                             <li v-if="!hasRoleId15" class="text-white/50 hover:text-white transition-colors">
-                                <Link :href="isAuthenticated ? '/dashboard' : '/login'" class="flex items-center justify-between">
+                                <Link :href="isAuthenticated ? '/miembro/dashboard' : '/login'" class="flex items-center justify-between">
                                     <span>{{ isAuthenticated ? 'Dashboard' : 'Iniciar Sesión' }}</span>
                                     <svg class="fill-current w-2.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 7 12">
                                         <path d="m6.687 6-.53.53-4.5 4.5-.532.532L.063 10.5l.53-.53L4.563 6 .596 2.03.063 1.5 1.125.438l.53.53 4.5 4.5.532.532Z"></path>

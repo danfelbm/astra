@@ -23,7 +23,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Plus, Edit, Trash, Power, ChevronLeft, ChevronRight, Upload, Download } from 'lucide-vue-next';
+import { Plus, Edit, Trash, Power, ChevronLeft, ChevronRight, Upload, Download, FileText } from 'lucide-vue-next';
 import AdvancedFilters from '@/components/filters/AdvancedFilters.vue';
 import type { AdvancedFilterConfig } from '@/types/filters';
 import { type BreadcrumbItemType } from '@/types';
@@ -74,6 +74,7 @@ interface Props {
     canEdit?: boolean;
     canDelete?: boolean;
     canExport?: boolean;
+    canViewUpdateRequests?: boolean;
 }
 
 const props = defineProps<Props>();
@@ -203,6 +204,10 @@ const exportUsers = () => {
                     <Button v-if="canImport" variant="outline" @click="router.visit('/admin/imports')">
                         <Upload class="mr-2 h-4 w-4" />
                         Importar CSV
+                    </Button>
+                    <Button v-if="canViewUpdateRequests" variant="outline" @click="router.visit('/admin/solicitudes-actualizacion')">
+                        <FileText class="mr-2 h-4 w-4" />
+                        Solicitudes de Actualización
                     </Button>
                     <Link v-if="canCreate" :href="route('admin.usuarios.create')">
                         <Button>

@@ -68,3 +68,16 @@ Route::prefix('api/public/geographic')->name('api.public.geographic.')->group(fu
 Route::get('public-api/postulaciones-aceptadas', [PostulacionPublicApiController::class, 'index'])
     ->middleware('throttle:60,1') // 60 requests por minuto
     ->name('api.postulaciones.publicas');
+
+// Confirmación de registro público
+use App\Http\Controllers\Users\Guest\RegistrationConfirmationController;
+
+Route::prefix('confirmar-registro')->name('registro.confirmacion.')->controller(RegistrationConfirmationController::class)->group(function () {
+    Route::get('/', 'index')->name('index');
+    Route::post('/buscar', 'search')->name('search');
+    Route::post('/enviar-verificacion', 'sendVerification')->name('send-verification');
+    Route::post('/verificar-codigo', 'verifyCode')->name('verify-code');
+    Route::get('/actualizar-datos', 'showUpdateForm')->name('update-form');
+    Route::post('/actualizar-datos', 'submitUpdate')->name('submit-update');
+    Route::post('/check-timeout', 'checkTimeout')->name('check-timeout');
+});
