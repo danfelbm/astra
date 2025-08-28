@@ -278,21 +278,30 @@ const censorPhone = (phone: string): string => {
     return first + stars + last;
 };
 
-// Función para formatear fecha de registro
+// Función para formatear fecha de registro en GMT-5 (Hora Colombia)
 const formatRegistrationDate = (dateString: string): string => {
     if (!dateString) return '';
     
-    const date = new Date(dateString);
+    // Asegurar que la fecha se interprete como UTC agregando 'Z' si no está presente
+    const utcDateString = dateString.includes('Z') || dateString.includes('+') 
+        ? dateString 
+        : dateString + 'Z';
+    
+    const date = new Date(utcDateString);
+    
+    // Configurar opciones para mostrar en zona horaria de Bogotá (GMT-5)
     const options: Intl.DateTimeFormatOptions = {
         year: 'numeric',
         month: 'long',
         day: 'numeric',
         hour: '2-digit',
         minute: '2-digit',
-        hour12: true
+        hour12: true,
+        timeZone: 'America/Bogota' // Forzar GMT-5
     };
     
-    return date.toLocaleDateString('es-ES', options);
+    // Usar locale es-CO para formato colombiano
+    return date.toLocaleDateString('es-CO', options) + ' (GMT-5)';
 };
 </script>
 

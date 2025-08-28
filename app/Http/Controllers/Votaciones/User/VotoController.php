@@ -10,6 +10,7 @@ use App\Models\Votaciones\Votacion;
 use App\Models\Votaciones\Voto;
 use App\Services\Votaciones\TokenService;
 use App\Traits\HasAdvancedFilters;
+use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -155,11 +156,21 @@ class VotoController extends UserController
 
         $votacion->load('categoria');
         
+        // Convertir fechas a la zona horaria de la votación para mostrar al usuario
+        // Esto asegura que el usuario vea las fechas en la zona horaria configurada
+        $votacionData = $votacion->toArray();
+        $votacionData['fecha_inicio_local'] = Carbon::parse($votacion->fecha_inicio)
+            ->setTimezone($votacion->timezone)
+            ->toISOString();
+        $votacionData['fecha_fin_local'] = Carbon::parse($votacion->fecha_fin)
+            ->setTimezone($votacion->timezone)
+            ->toISOString();
+        
         // Obtener candidatos elegibles para campos perfil_candidatura
         $candidatosElegibles = $this->obtenerCandidatosElegibles($votacion);
 
         return Inertia::render('User/Votaciones/Votar', [
-            'votacion' => $votacion,
+            'votacion' => $votacionData,
             'candidatosElegibles' => $candidatosElegibles,
         ]);
     }
