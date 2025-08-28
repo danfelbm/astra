@@ -1,15 +1,15 @@
 <?php
 
-use App\Http\Controllers\Elecciones\CandidaturaController;
+use App\Http\Controllers\Elecciones\User\CandidaturaController;
 use App\Http\Controllers\Core\FileUploadController;
-use App\Http\Controllers\Elecciones\PostulacionController;
-use App\Http\Controllers\Votaciones\ResultadosController;
-use App\Http\Controllers\Votaciones\VotoController;
-use App\Http\Controllers\Asamblea\AsambleaPublicController;
-use App\Http\Controllers\Asamblea\Api\ZoomAuthController;
-use App\Http\Controllers\Asamblea\Api\ZoomRegistrantController;
+use App\Http\Controllers\Elecciones\User\PostulacionController;
+use App\Http\Controllers\Votaciones\User\ResultadosController;
+use App\Http\Controllers\Votaciones\User\VotoController;
+use App\Http\Controllers\Asamblea\User\AsambleaPublicController;
+use App\Http\Controllers\Asamblea\User\ZoomAuthController;
+use App\Http\Controllers\Asamblea\User\ZoomRegistrantController;
 use App\Http\Controllers\Geografico\Admin\GeographicController;
-use App\Http\Controllers\Users\DashboardController;
+use App\Http\Controllers\Users\User\DashboardController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -26,8 +26,8 @@ use Inertia\Inertia;
 
 // API de formularios para autoguardado (requiere autenticación)
 Route::middleware(['auth'])->prefix('api/formularios')->name('api.formularios.')->group(function () {
-    Route::post('autosave', [\App\Http\Controllers\Formularios\Api\FormularioController::class, 'autosave'])->name('autosave');
-    Route::post('{respuesta}/autosave', [\App\Http\Controllers\Formularios\Api\FormularioController::class, 'autosaveExisting'])->name('autosave.existing');
+    Route::post('autosave', [\App\Http\Controllers\Formularios\User\FormularioController::class, 'autosave'])->name('autosave');
+    Route::post('{respuesta}/autosave', [\App\Http\Controllers\Formularios\User\FormularioController::class, 'autosaveExisting'])->name('autosave.existing');
 });
 
 // Rutas principales para usuarios autenticados con prefijo /miembro
@@ -36,7 +36,7 @@ Route::middleware(['auth', 'verified', 'user'])->prefix('miembro')->name('user.'
     // Dashboard principal para usuarios autenticados
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
     // Formularios para usuarios autenticados  
-    Route::get('formularios', [\App\Http\Controllers\Formularios\FormularioPublicController::class, 'index'])
+    Route::get('formularios', [\App\Http\Controllers\Formularios\User\FormularioUserController::class, 'index'])
         ->middleware('can:formularios.view_public')
         ->name('formularios.index');
     
@@ -136,8 +136,8 @@ Route::middleware(['auth', 'verified', 'user'])->prefix('miembro')->name('user.'
     Route::get('api/mis-candidaturas-aprobadas', [PostulacionController::class, 'misCandidaturasAprobadas'])->name('api.candidaturas.aprobadas');
     
     // API routes for convocatorias (usado por ConvocatoriaSelector)
-    Route::get('api/convocatorias/disponibles', [\App\Http\Controllers\Elecciones\Api\ConvocatoriaController::class, 'disponibles'])->name('api.convocatorias.selector.disponibles');
-    Route::get('api/convocatorias/{convocatoria}/verificar-disponibilidad', [\App\Http\Controllers\Elecciones\Api\ConvocatoriaController::class, 'verificarDisponibilidad'])->name('api.convocatorias.verificar');
+    Route::get('api/convocatorias/disponibles', [\App\Http\Controllers\Elecciones\User\ConvocatoriaController::class, 'disponibles'])->name('api.convocatorias.selector.disponibles');
+    Route::get('api/convocatorias/{convocatoria}/verificar-disponibilidad', [\App\Http\Controllers\Elecciones\User\ConvocatoriaController::class, 'verificarDisponibilidad'])->name('api.convocatorias.verificar');
     
     // File upload routes
     Route::prefix('api/files')->name('api.files.')->group(function () {

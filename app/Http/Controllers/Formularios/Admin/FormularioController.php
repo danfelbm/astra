@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Formularios\Admin;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\Core\AdminController;
 use App\Models\Formularios\Formulario;
 use App\Models\Formularios\FormularioCategoria;
 use App\Models\Formularios\FormularioRespuesta;
@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\Validator;
 use Inertia\Inertia;
 use Inertia\Response;
 
-class FormularioController extends Controller
+class FormularioController extends AdminController
 {
     use HasAdvancedFilters;
 

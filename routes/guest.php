@@ -1,11 +1,11 @@
 <?php
 
-use App\Http\Controllers\Votaciones\TokenVerificationController;
-use App\Http\Controllers\Asamblea\FrontendAsambleaController;
-use App\Http\Controllers\Elecciones\PostulacionPublicController;
-use App\Http\Controllers\Asamblea\AsambleaPublicParticipantsController;
+use App\Http\Controllers\Votaciones\Guest\TokenVerificationController;
+use App\Http\Controllers\Asamblea\Guest\FrontendAsambleaController;
+use App\Http\Controllers\Elecciones\Guest\PostulacionPublicController;
+use App\Http\Controllers\Asamblea\Guest\AsambleaPublicParticipantsController;
 use App\Http\Controllers\Geografico\Admin\GeographicController;
-use App\Http\Controllers\Elecciones\Api\PostulacionPublicApiController;
+use App\Http\Controllers\Elecciones\User\PostulacionPublicApiController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -31,9 +31,9 @@ Route::prefix('api/verificar-token')->name('api.verificar-token.')->group(functi
 });
 
 // Rutas públicas de formularios (con autenticación opcional)
-Route::get('formularios/{slug}', [\App\Http\Controllers\Formularios\FormularioPublicController::class, 'show'])->name('formularios.show');
-Route::post('formularios/{slug}/responder', [\App\Http\Controllers\Formularios\FormularioPublicController::class, 'store'])->name('formularios.store');
-Route::get('formularios/{slug}/success', [\App\Http\Controllers\Formularios\FormularioPublicController::class, 'success'])->name('formularios.success');
+Route::get('formularios/{slug}', [\App\Http\Controllers\Formularios\Guest\FormularioGuestController::class, 'show'])->name('formularios.show');
+Route::post('formularios/{slug}/responder', [\App\Http\Controllers\Formularios\Guest\FormularioGuestController::class, 'store'])->name('formularios.store');
+Route::get('formularios/{slug}/success', [\App\Http\Controllers\Formularios\Guest\FormularioGuestController::class, 'success'])->name('formularios.success');
 
 // Ruta pública de consulta de participantes (frontend sin autenticación)
 Route::get('consulta-participantes', [FrontendAsambleaController::class, 'consultaParticipantes'])

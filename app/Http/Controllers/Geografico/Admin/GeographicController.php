@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Geografico\Admin;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\Core\AdminController;
 use App\Models\Geografico\Territorio;
 use App\Models\Geografico\Departamento;
 use App\Models\Geografico\Municipio;
@@ -10,7 +10,7 @@ use App\Models\Geografico\Localidad;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
-class GeographicController extends Controller
+class GeographicController extends AdminController
 {
     /**
      * Get all territorios activos.

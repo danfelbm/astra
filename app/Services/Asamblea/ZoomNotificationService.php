@@ -2,7 +2,7 @@
 
 namespace App\Services\Asamblea;
 
-use App\Http\Controllers\Asamblea\ZoomRedirectController;
+use App\Http\Controllers\Asamblea\User\ZoomRedirectController;
 use App\Jobs\Asamblea\SendZoomAccessEmailJob;
 use App\Jobs\Asamblea\SendZoomAccessWhatsAppJob;
 use App\Models\Core\User;

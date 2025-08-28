@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Elecciones\Admin;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\Core\AdminController;
 use App\Jobs\Elecciones\SendCandidaturaReminderEmailJob;
 use App\Jobs\Elecciones\SendCandidaturaReminderWhatsAppJob;
 use App\Models\Elecciones\Candidatura;
@@ -23,7 +23,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
-class CandidaturaController extends Controller
+class CandidaturaController extends AdminController
 {
     use HasAdvancedFilters, HasSegmentScope;
     /**

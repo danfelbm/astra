@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Tenant\Admin;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\Core\AdminController;
 use App\Models\Core\Tenant;
 use App\Services\Core\TenantService;
 use App\Traits\HasAdvancedFilters;
@@ -10,7 +10,7 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
-class TenantController extends Controller
+class TenantController extends AdminController
 {
     use HasAdvancedFilters;
 

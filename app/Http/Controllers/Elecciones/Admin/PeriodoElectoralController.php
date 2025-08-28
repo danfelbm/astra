@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Elecciones\Admin;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\Core\AdminController;
 use App\Models\Elecciones\PeriodoElectoral;
 use App\Traits\HasAdvancedFilters;
 use Illuminate\Http\JsonResponse;
@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Validator;
 use Inertia\Inertia;
 use Inertia\Response;
 
-class PeriodoElectoralController extends Controller
+class PeriodoElectoralController extends AdminController
 {
     use HasAdvancedFilters;
     /**
@@ -21,7 +21,7 @@ class PeriodoElectoralController extends Controller
     public function index(Request $request): Response
     {
         // Verificar permisos
-        abort_unless(auth()->user()->can('periodos_electorales.view'), 403, 'No tienes permisos para ver periodos electorales');
+        abort_unless(auth()->user()->can('periodos.view'), 403, 'No tienes permisos para ver periodos electorales');
         
         $query = PeriodoElectoral::query();
 
@@ -67,9 +67,9 @@ class PeriodoElectoralController extends Controller
             'periodos' => $periodos,
             'filters' => $request->only(['estado', 'activo', 'search', 'advanced_filters']),
             'filterFieldsConfig' => $this->getFilterFieldsConfig(),
-            'canCreate' => auth()->user()->can('periodos_electorales.create'),
-            'canEdit' => auth()->user()->can('periodos_electorales.edit'),
-            'canDelete' => auth()->user()->can('periodos_electorales.delete'),
+            'canCreate' => auth()->user()->can('periodos.create'),
+            'canEdit' => auth()->user()->can('periodos.edit'),
+            'canDelete' => auth()->user()->can('periodos.delete'),
         ]);
     }
     
@@ -151,7 +151,7 @@ class PeriodoElectoralController extends Controller
     public function create(): Response
     {
         // Verificar permisos
-        abort_unless(auth()->user()->can('periodos_electorales.create'), 403, 'No tienes permisos para crear periodos electorales');
+        abort_unless(auth()->user()->can('periodos.create'), 403, 'No tienes permisos para crear periodos electorales');
         
         return Inertia::render('Admin/PeriodosElectorales/Form', [
             'periodo' => null,
@@ -164,7 +164,7 @@ class PeriodoElectoralController extends Controller
     public function store(Request $request): RedirectResponse
     {
         // Verificar permisos
-        abort_unless(auth()->user()->can('periodos_electorales.create'), 403, 'No tienes permisos para crear periodos electorales');
+        abort_unless(auth()->user()->can('periodos.create'), 403, 'No tienes permisos para crear periodos electorales');
         
         $validator = Validator::make($request->all(), [
             'nombre' => 'required|string|max:255',
@@ -197,7 +197,7 @@ class PeriodoElectoralController extends Controller
     public function edit(PeriodoElectoral $periodosElectorale): Response
     {
         // Verificar permisos
-        abort_unless(auth()->user()->can('periodos_electorales.edit'), 403, 'No tienes permisos para editar periodos electorales');
+        abort_unless(auth()->user()->can('periodos.edit'), 403, 'No tienes permisos para editar periodos electorales');
         
         return Inertia::render('Admin/PeriodosElectorales/Form', [
             'periodo' => $periodosElectorale,
@@ -210,7 +210,7 @@ class PeriodoElectoralController extends Controller
     public function update(Request $request, PeriodoElectoral $periodosElectorale): RedirectResponse
     {
         // Verificar permisos
-        abort_unless(auth()->user()->can('periodos_electorales.edit'), 403, 'No tienes permisos para editar periodos electorales');
+        abort_unless(auth()->user()->can('periodos.edit'), 403, 'No tienes permisos para editar periodos electorales');
         
         $validator = Validator::make($request->all(), [
             'nombre' => 'required|string|max:255',
@@ -243,7 +243,7 @@ class PeriodoElectoralController extends Controller
     public function destroy(PeriodoElectoral $periodosElectorale): RedirectResponse
     {
         // Verificar permisos
-        abort_unless(auth()->user()->can('periodos_electorales.delete'), 403, 'No tienes permisos para eliminar periodos electorales');
+        abort_unless(auth()->user()->can('periodos.delete'), 403, 'No tienes permisos para eliminar periodos electorales');
         
         // TODO: Verificar que no tenga postulaciones asociadas cuando se implemente el módulo de convocatorias
         // if ($periodosElectorale->postulaciones()->exists()) {
@@ -262,7 +262,7 @@ class PeriodoElectoralController extends Controller
     public function getPeriodosDisponibles(): JsonResponse
     {
         // Verificar permisos
-        abort_unless(auth()->user()->can('periodos_electorales.view'), 403, 'No tienes permisos para ver periodos electorales');
+        abort_unless(auth()->user()->can('periodos.view'), 403, 'No tienes permisos para ver periodos electorales');
         
         $periodos = PeriodoElectoral::disponibles()
             ->ordenadosCronologicamente()
@@ -290,7 +290,7 @@ class PeriodoElectoralController extends Controller
     public function getPeriodosPorEstado(Request $request, string $estado): JsonResponse
     {
         // Verificar permisos
-        abort_unless(auth()->user()->can('periodos_electorales.view'), 403, 'No tienes permisos para ver periodos electorales');
+        abort_unless(auth()->user()->can('periodos.view'), 403, 'No tienes permisos para ver periodos electorales');
         
         $query = PeriodoElectoral::activos();
 

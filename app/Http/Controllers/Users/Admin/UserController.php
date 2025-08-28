@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Users\Admin;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\Core\AdminController;
 use App\Models\Core\Role;
 use App\Models\Core\User;
 use App\Models\Elecciones\Cargo;
@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules;
 use Illuminate\Support\Facades\DB;
 
-class UserController extends Controller
+class UserController extends AdminController
 {
     use HasAdvancedFilters;
     /**

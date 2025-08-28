@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Elecciones\Admin;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\Core\AdminController;
 use App\Models\Elecciones\Convocatoria;
 use App\Models\Elecciones\Cargo;
 use App\Models\Elecciones\PeriodoElectoral;
@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\Validator;
 use Inertia\Inertia;
 use Inertia\Response;
 
-class ConvocatoriaController extends Controller
+class ConvocatoriaController extends AdminController
 {
     use HasAdvancedFilters;
     /**

@@ -105,7 +105,7 @@ const copyToClipboard = () => {
                     
                     <!-- Botones de acción -->
                     <div class="flex flex-col gap-2">
-                        <Link :href="route('dashboard')">
+                        <Link href="/">
                             <Button class="w-full">
                                 <Home class="mr-2 h-4 w-4" />
                                 Ir al inicio
