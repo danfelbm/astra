@@ -38,7 +38,8 @@ class VotacionController extends AdminController
         // Definir campos permitidos para filtrar
         $allowedFields = [
             'titulo', 'descripcion', 'categoria_id', 'estado',
-            'fecha_inicio', 'fecha_fin', 'resultados_publicos',
+            'fecha_inicio', 'fecha_fin', 'fecha_publicacion_resultados',
+            'limite_censo', 'resultados_publicos',
             'created_at', 'updated_at', 'votantes_count'
         ];
         
@@ -137,6 +138,11 @@ class VotacionController extends AdminController
             [
                 'name' => 'fecha_fin',
                 'label' => 'Fecha de Fin',
+                'type' => 'datetime',
+            ],
+            [
+                'name' => 'limite_censo',
+                'label' => 'Límite del Censo',
                 'type' => 'datetime',
             ],
             [
@@ -248,6 +254,7 @@ class VotacionController extends AdminController
             'estado' => ['required', Rule::in(['borrador', 'activa', 'finalizada'])],
             'resultados_publicos' => 'boolean',
             'fecha_publicacion_resultados' => 'nullable|date',
+            'limite_censo' => 'nullable|date',
             'formulario_config' => 'required|array|min:1',
             'timezone' => 'required|string|timezone',
             'territorios_ids' => 'nullable|array',
@@ -281,6 +288,9 @@ class VotacionController extends AdminController
         $fechaPublicacionUtc = $request->fecha_publicacion_resultados 
             ? Carbon::parse($request->fecha_publicacion_resultados, $request->timezone)->utc() 
             : null;
+        $limiteCensoUtc = $request->limite_censo 
+            ? Carbon::parse($request->limite_censo, $request->timezone)->utc() 
+            : null;
 
         $votacion = Votacion::create([
             'titulo' => $request->titulo,
@@ -291,6 +301,7 @@ class VotacionController extends AdminController
             'estado' => $request->estado ?? 'borrador',
             'resultados_publicos' => $request->boolean('resultados_publicos'),
             'fecha_publicacion_resultados' => $fechaPublicacionUtc,
+            'limite_censo' => $limiteCensoUtc,
             'formulario_config' => $request->formulario_config,
             'timezone' => $request->timezone,
             'territorios_ids' => $request->territorios_ids ?: null,
@@ -337,6 +348,11 @@ class VotacionController extends AdminController
         }
         if ($votacione->fecha_publicacion_resultados) {
             $votacionParaFrontend['fecha_publicacion_resultados'] = Carbon::parse($votacione->fecha_publicacion_resultados)
+                ->setTimezone($votacione->timezone)
+                ->format('Y-m-d\TH:i');
+        }
+        if ($votacione->limite_censo) {
+            $votacionParaFrontend['limite_censo'] = Carbon::parse($votacione->limite_censo)
                 ->setTimezone($votacione->timezone)
                 ->format('Y-m-d\TH:i');
         }
@@ -422,6 +438,7 @@ class VotacionController extends AdminController
             'estado' => ['required', Rule::in(['borrador', 'activa', 'finalizada'])],
             'resultados_publicos' => 'boolean',
             'fecha_publicacion_resultados' => 'nullable|date',
+            'limite_censo' => 'nullable|date',
             'formulario_config' => 'required|array|min:1',
             'timezone' => 'required|string|timezone',
             'territorios_ids' => 'nullable|array',
@@ -455,6 +472,9 @@ class VotacionController extends AdminController
         $fechaPublicacionUtc = $request->fecha_publicacion_resultados 
             ? Carbon::parse($request->fecha_publicacion_resultados, $request->timezone)->utc() 
             : null;
+        $limiteCensoUtc = $request->limite_censo 
+            ? Carbon::parse($request->limite_censo, $request->timezone)->utc() 
+            : null;
 
         $votacione->update([
             'titulo' => $request->titulo,
@@ -465,6 +485,7 @@ class VotacionController extends AdminController
             'estado' => $request->estado,
             'resultados_publicos' => $request->boolean('resultados_publicos'),
             'fecha_publicacion_resultados' => $fechaPublicacionUtc,
+            'limite_censo' => $limiteCensoUtc,
             'formulario_config' => $request->formulario_config,
             'timezone' => $request->timezone,
             'territorios_ids' => $request->territorios_ids ?: null,

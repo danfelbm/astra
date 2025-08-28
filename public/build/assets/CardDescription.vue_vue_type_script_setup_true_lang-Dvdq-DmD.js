@@ -1,0 +1,1 @@
+import{a as o}from"./createLucideIcon-CXHANoFt.js";import{d as r,a as t,o as n,n as c,u as p,s as l}from"./app-CAdZzM_Z.js";const f=r({__name:"CardDescription",props:{class:{}},setup(s){const e=s;return(a,m)=>(n(),t("p",{class:c(p(o)("text-sm text-muted-foreground",e.class))},[l(a.$slots,"default")],2))}});export{f as _};

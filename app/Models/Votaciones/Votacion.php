@@ -25,6 +25,7 @@ class Votacion extends Model
         'estado',
         'resultados_publicos',
         'fecha_publicacion_resultados',
+        'limite_censo',
         'timezone',
         'territorios_ids',
         'departamentos_ids',
@@ -40,6 +41,7 @@ class Votacion extends Model
             'fecha_fin' => 'datetime',
             'resultados_publicos' => 'boolean',
             'fecha_publicacion_resultados' => 'datetime',
+            'limite_censo' => 'datetime',
             'territorios_ids' => 'array',
             'departamentos_ids' => 'array',
             'municipios_ids' => 'array',
@@ -231,5 +233,41 @@ class Votacion extends Model
         }
 
         return false;
+    }
+
+    /**
+     * Verifica si está dentro del límite de censo configurado.
+     * Si no hay límite configurado, retorna true (sin restricción).
+     */
+    public function estaDentroDelLimiteCenso(): bool
+    {
+        if (!$this->limite_censo) {
+            return true; // Sin límite configurado, siempre disponible
+        }
+
+        $now = Carbon::now($this->timezone);
+        $limiteCenso = Carbon::parse($this->limite_censo)->setTimezone($this->timezone);
+        
+        return $now <= $limiteCenso;
+    }
+
+    /**
+     * Verifica si un usuario puede participar basándose en su fecha de inscripción
+     * comparada con el límite del censo de esta votación.
+     * 
+     * @param User $user
+     * @return bool
+     */
+    public function puedeParticiparPorCenso(User $user): bool
+    {
+        if (!$this->limite_censo) {
+            return true; // Sin límite configurado, todos pueden participar
+        }
+
+        // Comparar fecha de inscripción del usuario con el límite del censo
+        $limiteCenso = Carbon::parse($this->limite_censo)->setTimezone($this->timezone);
+        $fechaInscripcionUsuario = Carbon::parse($user->created_at)->setTimezone($this->timezone);
+        
+        return $fechaInscripcionUsuario <= $limiteCenso;
     }
 }
