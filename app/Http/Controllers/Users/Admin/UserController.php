@@ -6,8 +6,10 @@ use App\Http\Controllers\Core\AdminController;
 use App\Models\Core\Role;
 use App\Models\Core\User;
 use App\Models\Elecciones\Cargo;
+use App\Services\Core\AvatarService;
 use App\Traits\HasAdvancedFilters;
 use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules;
@@ -201,7 +203,7 @@ class UserController extends AdminController
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
+    public function store(Request $request, AvatarService $avatarService)
     {
         // Verificación de permisos adicional como respaldo
         abort_unless(auth()->user()->can('users.create'), 403, 'No tienes permisos para crear usuarios');
@@ -224,6 +226,7 @@ class UserController extends AdminController
             'municipio_id' => 'nullable|exists:municipios,id',
             'localidad_id' => 'nullable|exists:localidades,id',
             'activo' => 'boolean',
+            'avatar' => 'nullable|image|mimes:jpeg,jpg,png,webp|max:5120', // Avatar opcional
         ];
 
         // Solo validar role_ids si el usuario tiene permiso para asignar roles
@@ -272,11 +275,23 @@ class UserController extends AdminController
             $roleIds = [$defaultRoleId];
         }
         
-        // Remover role_ids del array de datos validados
+        // Remover role_ids y avatar del array de datos validados
         unset($validated['role_ids']);
+        $avatarFile = $request->file('avatar');
+        unset($validated['avatar']);
         
         // Crear el usuario
         $user = User::create($validated);
+        
+        // Procesar avatar si fue proporcionado
+        if ($avatarFile) {
+            try {
+                $avatarService->uploadAvatar($user, $avatarFile);
+            } catch (\Exception $e) {
+                // Log del error pero no fallar la creación del usuario
+                \Log::error('Error al subir avatar para usuario ' . $user->id . ': ' . $e->getMessage());
+            }
+        }
         
         // Asignar los roles al usuario usando Spatie
         if (count($roleIds) > 0) {
@@ -336,7 +351,7 @@ class UserController extends AdminController
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, User $usuario)
+    public function update(Request $request, User $usuario, AvatarService $avatarService)
     {
         // Verificación de permisos adicional como respaldo
         abort_unless(auth()->user()->can('users.edit'), 403, 'No tienes permisos para editar usuarios');
@@ -359,6 +374,7 @@ class UserController extends AdminController
             'municipio_id' => 'nullable|exists:municipios,id',
             'localidad_id' => 'nullable|exists:localidades,id',
             'activo' => 'boolean',
+            'avatar' => 'nullable|image|mimes:jpeg,jpg,png,webp|max:5120', // Avatar opcional durante update
         ];
 
         // Solo validar role_ids si el usuario tiene permiso para asignar roles
@@ -409,11 +425,23 @@ class UserController extends AdminController
         }
         // Si no tiene permiso, los roleIds permanecen null y no se actualizan los roles
         
-        // Remover role_ids del array de datos validados
+        // Remover role_ids y avatar del array de datos validados
         unset($validated['role_ids']);
+        $avatarFile = $request->file('avatar');
+        unset($validated['avatar']);
         
         // Actualizar el usuario
         $usuario->update($validated);
+        
+        // Procesar avatar si fue proporcionado
+        if ($avatarFile) {
+            try {
+                $avatarService->uploadAvatar($usuario, $avatarFile);
+            } catch (\Exception $e) {
+                // Log del error pero no fallar la actualización del usuario
+                \Log::error('Error al actualizar avatar para usuario ' . $usuario->id . ': ' . $e->getMessage());
+            }
+        }
         
         // Solo actualizar los roles si el usuario tiene permiso y se proporcionaron role_ids
         if ($roleIds !== null && auth()->user()->can('users.assign_roles')) {
@@ -477,5 +505,61 @@ class UserController extends AdminController
         $status = $usuario->activo ? 'activado' : 'desactivado';
         
         return back()->with('success', "Usuario {$status} exitosamente.");
+    }
+
+    /**
+     * Upload avatar for a user.
+     */
+    public function uploadAvatar(Request $request, User $usuario, AvatarService $avatarService): JsonResponse
+    {
+        // Verificar permisos para editar usuarios
+        abort_unless(auth()->user()->can('users.edit'), 403, 'No tienes permisos para editar usuarios');
+        
+        $request->validate([
+            'avatar' => 'required|image|mimes:jpeg,jpg,png,webp|max:5120', // 5MB max
+        ]);
+
+        try {
+            $file = $request->file('avatar');
+            
+            // Subir y procesar avatar
+            $path = $avatarService->uploadAvatar($usuario, $file);
+            
+            return response()->json([
+                'success' => true,
+                'avatar_url' => $usuario->fresh()->avatar_url,
+                'message' => 'Avatar actualizado correctamente'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al cargar el avatar: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Delete avatar for a user.
+     */
+    public function deleteAvatar(Request $request, User $usuario, AvatarService $avatarService): JsonResponse
+    {
+        // Verificar permisos para editar usuarios
+        abort_unless(auth()->user()->can('users.edit'), 403, 'No tienes permisos para editar usuarios');
+        
+        try {
+            // Eliminar avatar
+            $avatarService->deleteAvatar($usuario);
+            
+            return response()->json([
+                'success' => true,
+                'avatar_url' => $usuario->fresh()->avatar_url, // Retornará UI Avatars como fallback
+                'message' => 'Avatar eliminado correctamente'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al eliminar el avatar: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }

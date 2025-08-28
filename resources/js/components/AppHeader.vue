@@ -145,7 +145,7 @@ const mainNavItems: NavItem[] = [
                                 class="relative h-10 w-10 rounded-full focus-within:ring-2 focus-within:ring-primary"
                             >
                                 <Avatar class="h-8 w-8">
-                                    <AvatarImage :src="auth.user.avatar" :alt="auth.user.name" />
+                                    <AvatarImage v-if="auth.user.avatar_url" :src="auth.user.avatar_url" :alt="auth.user.name" />
                                     <AvatarFallback class="bg-neutral-200 font-semibold text-black dark:bg-neutral-700 dark:text-white">
                                         {{ getInitials(auth.user?.name) }}
                                     </AvatarFallback>

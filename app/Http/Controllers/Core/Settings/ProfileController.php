@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Core\Settings;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\ProfileUpdateRequest;
+use App\Services\Core\AvatarService;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
@@ -71,5 +73,64 @@ class ProfileController extends Controller
         $request->session()->regenerateToken();
 
         return redirect('/');
+    }
+
+    /**
+     * Upload avatar for the authenticated user.
+     */
+    public function uploadAvatar(Request $request, AvatarService $avatarService): JsonResponse
+    {
+        // Verificar permisos de usuario para editar perfil propio
+        abort_unless(auth()->user()->can('profile.edit'), 403, 'No tienes permisos para editar tu perfil');
+        
+        $request->validate([
+            'avatar' => 'required|image|mimes:jpeg,jpg,png,webp|max:5120', // 5MB max
+        ]);
+
+        try {
+            $user = $request->user();
+            $file = $request->file('avatar');
+            
+            // Subir y procesar avatar
+            $path = $avatarService->uploadAvatar($user, $file);
+            
+            return response()->json([
+                'success' => true,
+                'avatar_url' => $user->fresh()->avatar_url,
+                'message' => 'Avatar actualizado correctamente'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al cargar el avatar: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Delete avatar for the authenticated user.
+     */
+    public function deleteAvatar(Request $request, AvatarService $avatarService): JsonResponse
+    {
+        // Verificar permisos de usuario para editar perfil propio
+        abort_unless(auth()->user()->can('profile.edit'), 403, 'No tienes permisos para editar tu perfil');
+        
+        try {
+            $user = $request->user();
+            
+            // Eliminar avatar
+            $avatarService->deleteAvatar($user);
+            
+            return response()->json([
+                'success' => true,
+                'avatar_url' => $user->fresh()->avatar_url, // Retornará UI Avatars como fallback
+                'message' => 'Avatar eliminado correctamente'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al eliminar el avatar: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }

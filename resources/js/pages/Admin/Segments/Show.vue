@@ -296,7 +296,7 @@ const renderFilters = (filters: any): any[] => {
                                         <TableCell>
                                             <div class="flex items-center gap-3">
                                                 <Avatar class="h-8 w-8">
-                                                    <AvatarImage v-if="user.avatar" :src="user.avatar" :alt="user.name" />
+                                                    <AvatarImage v-if="user.avatar_url" :src="user.avatar_url" :alt="user.name" />
                                                     <AvatarFallback>{{ getInitials(user.name) }}</AvatarFallback>
                                                 </Avatar>
                                                 <span class="font-medium">{{ user.name }}</span>

@@ -519,6 +519,14 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
         ->middleware('can:users.edit')
         ->name('usuarios.toggle-active');
     
+    // Avatar management routes for admin
+    Route::post('usuarios/{usuario}/avatar', [UserController::class, 'uploadAvatar'])
+        ->middleware('can:users.edit')
+        ->name('usuarios.avatar.upload');
+    Route::delete('usuarios/{usuario}/avatar', [UserController::class, 'deleteAvatar'])
+        ->middleware('can:users.edit')
+        ->name('usuarios.avatar.delete');
+    
     // User Update Requests management
     Route::prefix('solicitudes-actualizacion')->name('update-requests.')->controller(\App\Http\Controllers\Users\Admin\UserUpdateRequestController::class)->group(function () {
         Route::get('/', 'index')

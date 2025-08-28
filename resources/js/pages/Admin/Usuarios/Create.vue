@@ -11,7 +11,9 @@ import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ArrowLeft, Save } from 'lucide-vue-next';
 import GeographicSelector from '@/components/forms/GeographicSelector.vue';
+import AvatarUpload from '@/components/forms/AvatarUpload.vue';
 import { type BreadcrumbItemType } from '@/types';
+import { toast } from 'vue-sonner';
 
 interface Cargo {
     id: number;
@@ -53,7 +55,11 @@ const form = useForm({
     municipio_id: null as number | null,
     localidad_id: null as number | null,
     activo: true,
+    avatar: null as File | null, // Campo para el archivo de avatar
 });
+
+// Estado para el preview del avatar
+const tempAvatarUrl = ref<string | null>(null);
 
 // Geographic data
 const geographicData = ref({
@@ -72,8 +78,49 @@ const handleGeographicChange = (value: any) => {
     form.localidad_id = value.localidad_id || null;
 };
 
+// Manejo de avatar
+const handleAvatarUpload = (file: File) => {
+    form.avatar = file;
+    
+    // Crear preview temporal
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        tempAvatarUrl.value = e.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+    
+    toast.success('Avatar seleccionado. Se cargará al crear el usuario.');
+};
+
+const handleAvatarDelete = () => {
+    form.avatar = null;
+    tempAvatarUrl.value = null;
+    toast.success('Avatar eliminado');
+};
+
 const submit = () => {
-    form.post(route('admin.usuarios.store'));
+    // Si hay avatar, usar FormData
+    if (form.avatar) {
+        form.transform((data) => {
+            const formData = new FormData();
+            Object.keys(data).forEach(key => {
+                if (key === 'avatar' && data[key]) {
+                    formData.append('avatar', data[key]);
+                } else if (key === 'role_ids' && Array.isArray(data[key])) {
+                    data[key].forEach((id: number) => {
+                        formData.append('role_ids[]', id.toString());
+                    });
+                } else if (data[key] !== null && data[key] !== undefined) {
+                    formData.append(key, data[key].toString());
+                }
+            });
+            return formData;
+        }).post(route('admin.usuarios.store'), {
+            forceFormData: true,
+        });
+    } else {
+        form.post(route('admin.usuarios.store'));
+    }
 };
 </script>
 
@@ -100,6 +147,26 @@ const submit = () => {
             </div>
 
             <form @submit.prevent="submit" class="space-y-6">
+                <!-- Avatar del Usuario -->
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Foto de Perfil</CardTitle>
+                        <CardDescription>
+                            Avatar personalizado del usuario (opcional)
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <AvatarUpload
+                            :model-value="tempAvatarUrl"
+                            :user-name="form.name || 'Nuevo Usuario'"
+                            label="Avatar del usuario"
+                            description="Sube una foto de perfil para el nuevo usuario. JPG, PNG o WEBP. Máximo 5MB."
+                            @upload="handleAvatarUpload"
+                            @delete="handleAvatarDelete"
+                        />
+                    </CardContent>
+                </Card>
+
                 <!-- Información Básica -->
                 <Card>
                     <CardHeader>
