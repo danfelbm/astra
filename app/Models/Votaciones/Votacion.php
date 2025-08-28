@@ -26,6 +26,7 @@ class Votacion extends Model
         'resultados_publicos',
         'fecha_publicacion_resultados',
         'limite_censo',
+        'mensaje_limite_censo',
         'timezone',
         'territorios_ids',
         'departamentos_ids',

@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Search, UserCheck, AlertCircle, Loader2 } from 'lucide-vue-next';
 import { PinInput, PinInputGroup, PinInputSlot } from '@/components/ui/pin-input';
 import axios from 'axios';
@@ -22,12 +22,21 @@ interface UserFound {
     created_at: string;
 }
 
+interface CensoRestriction {
+    restricted: boolean;
+    message: string;
+    votacion_titulo?: string;
+    limite_censo?: string;
+    user_created_at?: string;
+}
+
 // Estados de búsqueda
 const isSearching = ref(false);
 const documentoIdentidad = ref('');
 const userFound = ref<UserFound | null>(null);
 const verificationId = ref<number | null>(null);
 const errorMessage = ref('');
+const censoRestriction = ref<CensoRestriction | null>(null);
 
 // Estados de verificación
 const verificationStep = ref<'search' | 'found' | 'verifying' | 'timeout'>('search');
@@ -58,6 +67,7 @@ const searchUser = async () => {
     isSearching.value = true;
     errorMessage.value = '';
     userFound.value = null;
+    censoRestriction.value = null;
     
     try {
         const response = await axios.post('/confirmar-registro/buscar', {
@@ -67,6 +77,7 @@ const searchUser = async () => {
         if (response.data.success) {
             userFound.value = response.data.user;
             verificationId.value = response.data.verification_id;
+            censoRestriction.value = response.data.censo_restriction || null;
             verificationStep.value = 'found';
             toast.success('Usuario encontrado correctamente');
         }
@@ -211,6 +222,7 @@ const resetSearch = () => {
     documentoIdentidad.value = '';
     userFound.value = null;
     verificationId.value = null;
+    censoRestriction.value = null;
     verificationStep.value = 'search';
     codesSent.value = false;
     canProceedToUpdate.value = false;
@@ -381,7 +393,16 @@ const formatRegistrationDate = (dateString: string): string => {
                         </div>
                     </div>
                     
-                    <Alert>
+                    <!-- Mensaje de restricción por censo si aplica -->
+                    <Alert v-if="censoRestriction && censoRestriction.restricted" variant="destructive" class="my-4">
+                        <AlertCircle class="h-4 w-4" />
+                        <AlertTitle>Restricción de Censo Electoral</AlertTitle>
+                        <AlertDescription class="mt-2">
+                            {{ censoRestriction.message }}
+                        </AlertDescription>
+                    </Alert>
+                    
+                    <Alert v-if="!censoRestriction || !censoRestriction.restricted">
                         <AlertDescription class="text-foreground">
                             ¿Tus datos son correctos? Puedes validarlos a continuación y actualizarlos si deseas. Te enviaremos códigos de verificación a tu email y/o teléfono registrados (via WhatsApp).
                         </AlertDescription>
@@ -390,11 +411,11 @@ const formatRegistrationDate = (dateString: string): string => {
                     <div class="flex gap-3">
                         <Button 
                             @click="sendVerificationCodes"
-                            :disabled="isSendingCodes"
+                            :disabled="isSendingCodes || (censoRestriction && censoRestriction.restricted)"
                             class="flex-1"
                         >
                             <Loader2 v-if="isSendingCodes" class="mr-2 h-4 w-4 animate-spin" />
-                            {{ isSendingCodes ? 'Enviando...' : 'Validar Datos' }}
+                            {{ isSendingCodes ? 'Enviando...' : (censoRestriction && censoRestriction.restricted ? 'Validación no disponible' : 'Validar Datos') }}
                         </Button>
                         <Button 
                             @click="resetSearch"
