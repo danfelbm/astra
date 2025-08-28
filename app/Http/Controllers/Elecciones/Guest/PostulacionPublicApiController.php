@@ -1,14 +1,14 @@
 <?php
 
-namespace App\Http\Controllers\Elecciones\User;
+namespace App\Http\Controllers\Elecciones\Guest;
 
-use App\Http\Controllers\Core\UserController;
+use App\Http\Controllers\Core\GuestController;
 
 use App\Models\Elecciones\Postulacion;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 
-class PostulacionPublicApiController extends UserController
+class PostulacionPublicApiController extends GuestController
 {
     /**
      * Obtener postulaciones aceptadas con filtros
