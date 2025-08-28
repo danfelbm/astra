@@ -44,6 +44,7 @@ interface Votacion {
     estado: 'borrador' | 'activa' | 'finalizada';
     resultados_publicos: boolean;
     fecha_publicacion_resultados?: string;
+    limite_censo?: string;
     timezone: string;
     territorios_ids?: number[];
     departamentos_ids?: number[];
@@ -141,6 +142,7 @@ const getInitialFormData = () => {
             estado: 'borrador',
             resultados_publicos: false,
             fecha_publicacion_resultados: null,
+            limite_censo: null,
             formulario_config: [],
             timezone: 'America/Bogota',
             territorios_ids: [],
@@ -161,6 +163,7 @@ const getInitialFormData = () => {
         estado: votacion.estado || 'borrador',
         resultados_publicos: !!votacion.resultados_publicos,
         fecha_publicacion_resultados: votacion.fecha_publicacion_resultados || null,
+        limite_censo: votacion.limite_censo || null,
         formulario_config: votacion.formulario_config || [],
         timezone: votacion.timezone || 'America/Bogota',
         territorios_ids: votacion.territorios_ids || [],
@@ -607,6 +610,21 @@ onMounted(() => {
                                         </p>
                                         </div>
                                     </Transition>
+
+                                    <div>
+                                        <Label for="limite_censo">Límite del Censo (opcional)</Label>
+                                        <DateTimePicker
+                                            id="limite_censo"
+                                            v-model="form.limite_censo"
+                                            placeholder="Seleccionar fecha límite del censo"
+                                        />
+                                        <p class="text-xs text-muted-foreground">
+                                            Fecha de referencia para determinar disponibilidad de la votación según criterios externos como fecha de inscripción.
+                                        </p>
+                                        <p v-if="form.errors.limite_censo" class="text-sm text-destructive mt-1">
+                                            {{ form.errors.limite_censo }}
+                                        </p>
+                                    </div>
                                 </div>
                             </div>
 
