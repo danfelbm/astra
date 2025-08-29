@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Votaciones\User;
 use App\Http\Controllers\Core\UserController;
 
 
+use App\Jobs\Votaciones\ProcessVoteJob;
 use App\Jobs\Votaciones\SendVoteConfirmationEmailJob;
 use App\Jobs\Votaciones\SendVoteConfirmationWhatsAppJob;
 use App\Models\Votaciones\Categoria;
@@ -13,6 +14,7 @@ use App\Models\Votaciones\Voto;
 use App\Services\Core\IpAddressService;
 use App\Services\Votaciones\TokenService;
 use App\Traits\HasAdvancedFilters;
+use Illuminate\Support\Facades\Cache;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -78,15 +80,22 @@ class VotoController extends UserController
             $now = now();
             $yaVoto = $votacion->votos()->where('usuario_id', $user->id)->exists();
             
+            // Verificar si hay un voto en procesamiento
+            $cacheKey = "vote_status_{$votacion->id}_{$user->id}";
+            $voteStatus = Cache::get($cacheKey, null);
+            $processingVote = in_array($voteStatus, ['pending', 'processing']);
+            
             // Determinar estado de la votación
             $esActiva = $votacion->estado === 'activa';
             $estaEnPeriodo = $now >= $votacion->fecha_inicio && $now <= $votacion->fecha_fin;
             $haFinalizado = $now > $votacion->fecha_fin || $votacion->estado === 'finalizada';
             
             $votacion->ya_voto = $yaVoto;
-            $votacion->puede_votar = $esActiva && $estaEnPeriodo && !$yaVoto;
+            $votacion->vote_processing = $processingVote; // Indicador de voto en procesamiento
+            $votacion->vote_status = $voteStatus; // Estado específico del voto
+            $votacion->puede_votar = $esActiva && $estaEnPeriodo && !$yaVoto && !$processingVote;
             $votacion->ha_finalizado = $haFinalizado;
-            $votacion->puede_ver_voto = $yaVoto; // Puede ver su voto si votó
+            $votacion->puede_ver_voto = $yaVoto && !$processingVote; // Puede ver su voto si votó y no está procesando
             $votacion->resultados_visibles = $votacion->resultadosVisibles(); // Puede ver resultados si están públicos
             
             // Estado visual
@@ -105,12 +114,18 @@ class VotoController extends UserController
 
         $categorias = Categoria::activas()->get();
 
+        // Verificar si hay algún voto en procesamiento para activar polling
+        $hasProcessingVotes = $votaciones->getCollection()->contains(function ($votacion) {
+            return $votacion->vote_processing;
+        });
+
         return Inertia::render('User/Votaciones/Index', [
             'votaciones' => $votaciones,
             'categorias' => $categorias,
             'filters' => $request->only(['search', 'advanced_filters', 'mostrar_pasadas']),
             'mostrar_pasadas' => $mostrarPasadas,
             'filterFieldsConfig' => $this->getFilterFieldsConfig(),
+            'hasProcessingVotes' => $hasProcessingVotes, // Indicador para activar polling
             // Props de permisos de usuario
             'canVote' => auth()->user()->can('votaciones.vote'),
             'canViewResults' => auth()->user()->can('votaciones.view_results'),
@@ -242,56 +257,40 @@ class VotoController extends UserController
         }
 
         try {
-            // Generar token firmado con las respuestas
+            // Obtener las respuestas
             $respuestas = $request->input('respuestas', []);
             
-            $token = TokenService::generateSignedToken(
-                $votacion->id,
+            // Marcar en cache que el voto está pendiente
+            $cacheKey = "vote_status_{$votacion->id}_{$user->id}";
+            Cache::put($cacheKey, 'pending', 120);
+            
+            // Despachar el job para procesar el voto de forma asíncrona
+            ProcessVoteJob::dispatch(
+                $votacion,
+                $user,
                 $respuestas,
-                now()->toISOString()
+                IpAddressService::getRealIp($request),
+                $request->userAgent()
             );
-
-            // Crear el voto
-            $voto = Voto::create([
-                'votacion_id' => $votacion->id,
-                'usuario_id' => $user->id,
-                'token_unico' => $token,
-                'respuestas' => $respuestas,
-                'ip_address' => IpAddressService::getRealIp($request),
-                'user_agent' => $request->userAgent(),
-            ]);
-
-            // Cargar la relación de categoría para las notificaciones
-            $votacion->load('categoria');
-
-            // Enviar notificaciones de confirmación
-            // Despachar job de email si el usuario tiene correo
-            if (!empty($user->email)) {
-                SendVoteConfirmationEmailJob::dispatch($user, $votacion, $voto);
-            }
-
-            // Despachar job de WhatsApp si el usuario tiene teléfono
-            if (!empty($user->telefono)) {
-                SendVoteConfirmationWhatsAppJob::dispatch($user, $votacion, $voto);
-            }
-
-            // Mensaje de éxito personalizado según qué notificaciones se enviaron
-            $successMessage = 'Tu voto ha sido registrado exitosamente.';
-            if (!empty($user->email) && !empty($user->telefono)) {
-                $successMessage .= ' Recibirás confirmación por email y WhatsApp con tu token de verificación.';
-            } elseif (!empty($user->email)) {
-                $successMessage .= ' Recibirás un email con tu token de verificación.';
-            } elseif (!empty($user->telefono)) {
-                $successMessage .= ' Recibirás un WhatsApp con tu token de verificación.';
-            } else {
-                $successMessage .= ' Tu token es: ' . $token;
-            }
-
+            
+            // Redirigir inmediatamente con un mensaje informativo
+            // El frontend mostrará un loading y hará polling al estado
             return redirect()
                 ->route('user.votaciones.index')
-                ->with('success', $successMessage);
+                ->with('info', 'Tu voto está siendo firmado digitalmente. Te notificaremos cuando esté listo.')
+                ->with('processing_vote', [
+                    'votacion_id' => $votacion->id,
+                    'check_status_url' => route('user.votaciones.check-status', $votacion->id)
+                ]);
 
         } catch (\Exception $e) {
+            // Log del error
+            \Log::error('Error al despachar job de voto', [
+                'user_id' => $user->id,
+                'votacion_id' => $votacion->id,
+                'error' => $e->getMessage()
+            ]);
+            
             return back()->with('error', 'Ocurrió un error al procesar tu voto. Por favor, inténtalo de nuevo.');
         }
     }
