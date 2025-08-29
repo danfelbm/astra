@@ -54,7 +54,13 @@ class RegisteredUserController extends Controller
                     }
                 }
             ],
-            'telefono' => 'required|string|max:20|unique:'.User::class,
+            'telefono' => [
+                'required',
+                'string',
+                'max:20',
+                'regex:/^\+?[0-9]+$/', // Números y opcionalmente + al inicio
+                'unique:'.User::class,
+            ],
             'territorio_id' => 'required|exists:territorios,id',
             'departamento_id' => 'required|exists:departamentos,id',
             'municipio_id' => 'required|exists:municipios,id',

@@ -200,9 +200,10 @@ const submit = () => {
                         mode="single"
                         :showCard="false"
                         description="Selecciona tu ubicación"
+                        :departamentoLabel="isInternational ? 'Circunscripción' : 'Departamento'"
                         :municipioLabel="isInternational ? 'País' : 'Municipio'"
                         :showLocalidad="!isInternational"
-                        :showDepartamento="!isInternational"
+                        :showDepartamento="true"
                     />
                     <InputError :message="form.errors.territorio_id || form.errors.departamento_id || form.errors.municipio_id || form.errors.localidad_id" />
                 </div>
