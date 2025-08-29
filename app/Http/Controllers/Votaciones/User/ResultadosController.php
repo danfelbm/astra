@@ -196,20 +196,31 @@ class ResultadosController extends UserController
 
         switch ($agrupacion) {
             case 'departamento':
-                $query->select('users.departamento_id as grupo_id', 
+                // JOIN con la tabla departamentos para obtener el nombre
+                $query->leftJoin('departamentos', 'users.departamento_id', '=', 'departamentos.id')
+                      ->select('users.departamento_id as grupo_id',
+                              'departamentos.nombre as departamento_nombre',
                               DB::raw('COUNT(*) as total_votos'))
-                      ->groupBy('users.departamento_id');
+                      ->groupBy('users.departamento_id', 'departamentos.nombre');
                 break;
             case 'municipio':
-                $query->select('users.municipio_id as grupo_id',
+                // JOIN con las tablas municipios y departamentos para obtener los nombres
+                $query->leftJoin('municipios', 'users.municipio_id', '=', 'municipios.id')
+                      ->leftJoin('departamentos', 'users.departamento_id', '=', 'departamentos.id')
+                      ->select('users.municipio_id as grupo_id',
+                              'municipios.nombre as municipio_nombre',
                               'users.departamento_id',
+                              'departamentos.nombre as departamento_nombre',
                               DB::raw('COUNT(*) as total_votos'))
-                      ->groupBy('users.municipio_id', 'users.departamento_id');
+                      ->groupBy('users.municipio_id', 'municipios.nombre', 'users.departamento_id', 'departamentos.nombre');
                 break;
             default: // territorio
-                $query->select('users.territorio_id as grupo_id',
+                // JOIN con la tabla territorios para obtener el nombre
+                $query->leftJoin('territorios', 'users.territorio_id', '=', 'territorios.id')
+                      ->select('users.territorio_id as grupo_id',
+                              'territorios.nombre as territorio_nombre',
                               DB::raw('COUNT(*) as total_votos'))
-                      ->groupBy('users.territorio_id');
+                      ->groupBy('users.territorio_id', 'territorios.nombre');
                 break;
         }
 
@@ -218,13 +229,29 @@ class ResultadosController extends UserController
         // Obtener el total general para calcular porcentajes
         $totalVotos = $votacion->votos()->count();
 
-        $resultadosConPorcentaje = $resultados->map(function ($resultado) use ($totalVotos) {
-            return [
+        $resultadosConPorcentaje = $resultados->map(function ($resultado) use ($totalVotos, $agrupacion) {
+            $data = [
                 'grupo_id' => $resultado->grupo_id,
-                'departamento_id' => $resultado->departamento_id ?? null,
                 'total_votos' => $resultado->total_votos,
                 'porcentaje' => $totalVotos > 0 ? round(($resultado->total_votos / $totalVotos) * 100, 2) : 0,
             ];
+
+            // Agregar nombres según la agrupación
+            switch ($agrupacion) {
+                case 'departamento':
+                    $data['departamento_nombre'] = $resultado->departamento_nombre;
+                    break;
+                case 'municipio':
+                    $data['municipio_nombre'] = $resultado->municipio_nombre;
+                    $data['departamento_id'] = $resultado->departamento_id;
+                    $data['departamento_nombre'] = $resultado->departamento_nombre;
+                    break;
+                default: // territorio
+                    $data['territorio_nombre'] = $resultado->territorio_nombre;
+                    break;
+            }
+
+            return $data;
         });
 
         return response()->json([

@@ -331,16 +331,24 @@ onMounted(() => {
                                     <Table>
                                         <TableHeader>
                                             <TableRow>
-                                                <TableHead>{{ agrupacionTerritorio === 'territorio' ? 'Territorio' : agrupacionTerritorio === 'departamento' ? 'Departamento' : 'Municipio' }} ID</TableHead>
-                                                <TableHead v-if="agrupacionTerritorio === 'municipio'">Departamento ID</TableHead>
+                                                <TableHead>{{ agrupacionTerritorio === 'territorio' ? 'Territorio' : agrupacionTerritorio === 'departamento' ? 'Departamento' : 'Municipio' }}</TableHead>
+                                                <TableHead v-if="agrupacionTerritorio === 'municipio'">Departamento</TableHead>
                                                 <TableHead class="text-right">Votos</TableHead>
                                                 <TableHead class="text-right">Porcentaje</TableHead>
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
                                             <TableRow v-for="resultado in datosTerritorio.resultados" :key="resultado.grupo_id">
-                                                <TableCell class="font-medium">{{ resultado.grupo_id || 'Sin especificar' }}</TableCell>
-                                                <TableCell v-if="agrupacionTerritorio === 'municipio'">{{ resultado.departamento_id || 'N/A' }}</TableCell>
+                                                <TableCell class="font-medium">
+                                                    {{ 
+                                                        agrupacionTerritorio === 'territorio' 
+                                                            ? (resultado.territorio_nombre || 'Sin especificar')
+                                                            : agrupacionTerritorio === 'departamento'
+                                                                ? (resultado.departamento_nombre || 'Sin especificar')
+                                                                : (resultado.municipio_nombre || 'Sin especificar')
+                                                    }}
+                                                </TableCell>
+                                                <TableCell v-if="agrupacionTerritorio === 'municipio'">{{ resultado.departamento_nombre || 'N/A' }}</TableCell>
                                                 <TableCell class="text-right">{{ resultado.total_votos }}</TableCell>
                                                 <TableCell class="text-right">
                                                     <Badge variant="secondary">{{ resultado.porcentaje }}%</Badge>
