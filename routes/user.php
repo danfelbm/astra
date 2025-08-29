@@ -50,6 +50,9 @@ Route::middleware(['auth', 'verified', 'user'])->prefix('miembro')->name('user.'
     Route::post('votaciones/{votacion}/votar', [VotoController::class, 'store'])
         ->middleware('can:votaciones.vote')
         ->name('votaciones.store');
+    Route::get('votaciones/{votacion}/check-status', [\App\Http\Controllers\Votaciones\User\VoteStatusController::class, 'check'])
+        ->middleware('can:votaciones.vote')
+        ->name('votaciones.check-status');
     Route::get('votaciones/{votacion}/mi-voto', [VotoController::class, 'miVoto'])
         ->middleware('can:votaciones.view_public')
         ->name('votaciones.mi-voto');
