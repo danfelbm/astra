@@ -439,34 +439,34 @@ onUnmounted(() => {
         </Alert>
 
         <!-- Mensaje personalizado de API si está habilitado -->
-        <Card v-if="statusData?.asamblea?.zoom_api_message_enabled && statusData?.asamblea?.zoom_api_message" class="mb-4 border-blue-200 bg-blue-50">
+        <Card v-if="statusData?.asamblea?.zoom_api_message_enabled && statusData?.asamblea?.zoom_api_message" class="mb-4 border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/50">
             <CardHeader>
-                <CardTitle class="flex items-center gap-2 text-blue-700">
+                <CardTitle class="flex items-center gap-2 text-blue-700 dark:text-blue-300">
                     <Info class="h-5 w-5" />
                     Información Importante
                 </CardTitle>
             </CardHeader>
             <CardContent>
-                <p class="whitespace-pre-wrap text-gray-700">{{ statusData.asamblea.zoom_api_message }}</p>
+                <p class="whitespace-pre-wrap text-gray-700 dark:text-gray-300">{{ statusData.asamblea.zoom_api_message }}</p>
             </CardContent>
         </Card>
 
         <!-- Contenido principal -->
         <div v-if="statusData && !isLoading">
             <!-- Procesando registro -->
-            <Card v-if="isProcessing || statusData.processing" class="border-blue-200 bg-blue-50">
+            <Card v-if="isProcessing || statusData.processing" class="border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/50">
                 <CardHeader>
-                    <CardTitle class="flex items-center gap-2 text-blue-700">
+                    <CardTitle class="flex items-center gap-2 text-blue-700 dark:text-blue-300">
                         <Loader2 class="h-5 w-5 animate-spin" />
                         Procesando registro
                     </CardTitle>
-                    <CardDescription>
+                    <CardDescription class="dark:text-gray-400">
                         Se está generando tu enlace personal de videoconferencia...
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
                     <div class="space-y-2">
-                        <div class="text-sm text-blue-600">
+                        <div class="text-sm text-blue-600 dark:text-blue-400">
                             ✅ Validaciones completadas<br>
                             🔄 Registrando en Zoom...<br>
                             📧 Preparando notificación por email
@@ -479,13 +479,13 @@ onUnmounted(() => {
             </Card>
 
             <!-- Registro fallido -->
-            <Card v-else-if="registrationFailed" class="border-red-200 bg-red-50">
+            <Card v-else-if="registrationFailed" class="border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/50">
                 <CardHeader>
-                    <CardTitle class="flex items-center gap-2 text-red-700">
+                    <CardTitle class="flex items-center gap-2 text-red-700 dark:text-red-400">
                         <AlertCircle class="h-5 w-5" />
                         Error en el registro
                     </CardTitle>
-                    <CardDescription class="text-red-600">
+                    <CardDescription class="text-red-600 dark:text-red-400">
                         No se pudo completar tu registro en la videoconferencia
                     </CardDescription>
                 </CardHeader>
@@ -525,25 +525,25 @@ onUnmounted(() => {
             </Card>
             
             <!-- Usuario ya registrado exitosamente -->
-            <Card v-else-if="registrationStatus && registrationStatus.status === 'completed'" class="border-green-200">
+            <Card v-else-if="registrationStatus && registrationStatus.status === 'completed'" class="border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950/30">
                 <CardHeader>
-                    <CardTitle class="flex items-center gap-2 text-green-700">
+                    <CardTitle class="flex items-center gap-2 text-green-700 dark:text-green-400">
                         <CheckCircle2 class="h-5 w-5" />
                         Ya estás registrado
                     </CardTitle>
-                    <CardDescription>
+                    <CardDescription class="dark:text-gray-400">
                         Tienes acceso a esta videoconferencia
                     </CardDescription>
                 </CardHeader>
                 <CardContent class="space-y-4">
                     <div v-if="registrationStatus.zoom_start_time">
                         <p class="text-sm font-medium text-muted-foreground">Hora de inicio</p>
-                        <p class="text-sm">{{ new Date(registrationStatus.zoom_start_time).toLocaleString('es-ES') }}</p>
+                        <p class="text-sm dark:text-gray-300">{{ new Date(registrationStatus.zoom_start_time).toLocaleString('es-ES') }}</p>
                     </div>
 
                     <div v-if="registrationStatus.zoom_registrant_id">
                         <p class="text-sm font-medium text-muted-foreground">Token único de ingreso</p>
-                        <p class="text-sm font-mono bg-gray-50 px-2 py-1 rounded">{{ registrationStatus.zoom_registrant_id }}</p>
+                        <p class="text-sm font-mono bg-gray-50 dark:bg-gray-800 px-2 py-1 rounded dark:text-gray-300">{{ registrationStatus.zoom_registrant_id }}</p>
                     </div>
 
                     <!-- Botones de acción -->
@@ -639,10 +639,10 @@ onUnmounted(() => {
             </Alert>
             
             <!-- Instrucciones especiales para móviles -->
-            <Alert v-if="isMobileDevice() && statusData?.existing_registration?.status === 'completed'" class="mt-4 border-blue-200 bg-blue-50">
-                <Info class="h-4 w-4 text-blue-600" />
-                <AlertTitle class="text-blue-700">Consejo para dispositivos móviles</AlertTitle>
-                <AlertDescription class="text-gray-700">
+            <Alert v-if="isMobileDevice() && statusData?.existing_registration?.status === 'completed'" class="mt-4 border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/50">
+                <Info class="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                <AlertTitle class="text-blue-700 dark:text-blue-300">Consejo para dispositivos móviles</AlertTitle>
+                <AlertDescription class="text-gray-700 dark:text-gray-300">
                     <ul class="list-disc list-inside space-y-1 mt-2 text-sm">
                         <li>Si tienes la app de Zoom instalada, el enlace debería abrirla automáticamente</li>
                         <li>Si no se abre, usa el enlace manual "Abrir Zoom manualmente"</li>
@@ -653,10 +653,10 @@ onUnmounted(() => {
             </Alert>
 
             <!-- Advertencia sobre compartir link -->
-            <Alert variant="destructive" class="mt-4">
-                <AlertCircle class="h-4 w-4" />
-                <AlertTitle>Advertencia</AlertTitle>
-                <AlertDescription>
+            <Alert variant="destructive" class="mt-4 dark:border-red-800 dark:bg-red-950/50">
+                <AlertCircle class="h-4 w-4 dark:text-red-400" />
+                <AlertTitle class="dark:text-red-400">Advertencia</AlertTitle>
+                <AlertDescription class="dark:text-red-300">
                     Tu link es único, cuídalo, no lo compartas, si lo compartes podrías quedarte por fuera de la reunión, ya que solo se admite un usuario por link.
                 </AlertDescription>
             </Alert>
