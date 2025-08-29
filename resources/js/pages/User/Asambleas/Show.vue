@@ -230,11 +230,11 @@ const formatearFechaHora = (fecha: string) => {
 const getTipoParticipacionBadge = (tipo: string) => {
     switch (tipo) {
         case 'moderador':
-            return 'bg-purple-100 text-purple-800';
+            return 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300';
         case 'secretario':
-            return 'bg-blue-100 text-blue-800';
+            return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300';
         default:
-            return 'bg-gray-100 text-gray-800';
+            return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300';
     }
 };
 
@@ -464,10 +464,10 @@ onMounted(() => {
                         <Badge :class="asamblea.estado_color">
                             {{ asamblea.estado_label }}
                         </Badge>
-                        <Badge :class="asamblea.tipo === 'ordinaria' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'">
+                        <Badge :class="asamblea.tipo === 'ordinaria' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300' : 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300'">
                             {{ asamblea.tipo_label }}
                         </Badge>
-                        <Badge v-if="esParticipante" class="bg-green-100 text-green-800">
+                        <Badge v-if="esParticipante" class="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
                             <UserCheck class="mr-1 h-3 w-3" />
                             Participante
                         </Badge>
@@ -480,10 +480,10 @@ onMounted(() => {
             </div>
 
             <!-- Mi Participación -->
-            <Alert v-if="esParticipante && miParticipacion" class="border-green-200">
-                <CheckCircle class="h-4 w-4 text-green-600" />
-                <AlertTitle>Tu Participación</AlertTitle>
-                <AlertDescription>
+            <Alert v-if="esParticipante && miParticipacion" class="border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950/30">
+                <CheckCircle class="h-4 w-4 text-green-600 dark:text-green-400" />
+                <AlertTitle class="text-green-800 dark:text-green-200">Tu Participación</AlertTitle>
+                <AlertDescription class="text-green-700 dark:text-green-300">
                     <div class="mt-2 space-y-1">
                         <p>Estás registrado como <strong>{{ getTipoParticipacionLabel(miParticipacion.tipo) }}</strong> en esta asamblea.</p>
                         <p v-if="miParticipacion.asistio">
@@ -496,10 +496,10 @@ onMounted(() => {
                 </AlertDescription>
             </Alert>
 
-            <Alert v-else-if="esDesuTerritorio" class="border-blue-200">
-                <Info class="h-4 w-4 text-blue-600" />
-                <AlertTitle>Asamblea de tu Territorio</AlertTitle>
-                <AlertDescription>
+            <Alert v-else-if="esDesuTerritorio" class="border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/50">
+                <Info class="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                <AlertTitle class="text-blue-800 dark:text-blue-200">Asamblea de tu Territorio</AlertTitle>
+                <AlertDescription class="text-blue-700 dark:text-blue-300">
                     Esta es una asamblea pública de tu territorio. Puedes ver la información general pero no la lista de participantes.
                 </AlertDescription>
             </Alert>
@@ -673,10 +673,10 @@ onMounted(() => {
                     </div>
 
                     <!-- Mensaje informativo para moderadores -->
-                    <Alert v-if="!loadingParticipantes && puedoTomarAsistencia" class="mb-4 border-blue-200">
-                        <Info class="h-4 w-4 text-blue-600" />
-                        <AlertTitle>Toma de Asistencia Habilitada</AlertTitle>
-                        <AlertDescription>
+                    <Alert v-if="!loadingParticipantes && puedoTomarAsistencia" class="mb-4 border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/50">
+                        <Info class="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                        <AlertTitle class="text-blue-800 dark:text-blue-200">Toma de Asistencia Habilitada</AlertTitle>
+                        <AlertDescription class="text-blue-700 dark:text-blue-300">
                             Como moderador, puedes marcar la asistencia de los participantes usando los checkboxes en la tabla.
                         </AlertDescription>
                     </Alert>
@@ -723,28 +723,28 @@ onMounted(() => {
                                             </div>
                                             <span 
                                                 v-if="participante.asistio" 
-                                                class="text-green-600 transition-all duration-300"
+                                                class="text-green-600 dark:text-green-400 transition-all duration-300"
                                             >
                                                 Presente
                                             </span>
                                             <span 
                                                 v-else 
-                                                class="text-gray-400 transition-all duration-300"
+                                                class="text-gray-400 dark:text-gray-500 transition-all duration-300"
                                             >
                                                 Ausente
                                             </span>
                                         </div>
                                         <!-- Vista solo lectura para no moderadores o cuando la asamblea no está en curso -->
                                         <div v-else>
-                                            <Badge v-if="participante.asistio" class="bg-green-100 text-green-800">
+                                            <Badge v-if="participante.asistio" class="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
                                                 <CheckCircle class="mr-1 h-3 w-3" />
                                                 Presente
                                             </Badge>
-                                            <Badge v-else-if="asamblea.estado === 'finalizada'" class="bg-red-100 text-red-800">
+                                            <Badge v-else-if="asamblea.estado === 'finalizada'" class="bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300">
                                                 <XCircle class="mr-1 h-3 w-3" />
                                                 Ausente
                                             </Badge>
-                                            <Badge v-else variant="outline">
+                                            <Badge v-else variant="outline" class="dark:border-gray-700 dark:text-gray-400">
                                                 Pendiente
                                             </Badge>
                                         </div>
