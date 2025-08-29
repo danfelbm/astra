@@ -23,8 +23,8 @@ import { type BreadcrumbItemType } from '@/types';
 import UserLayout from "@/layouts/UserLayout.vue";
 import DynamicFormRenderer from '@/components/forms/DynamicFormRenderer.vue';
 import { Head, useForm, router } from '@inertiajs/vue3';
-import { Vote, ArrowLeft, Clock, AlertTriangle } from 'lucide-vue-next';
-import { ref, computed } from 'vue';
+import { Vote, ArrowLeft, Clock, AlertTriangle, CheckCircle } from 'lucide-vue-next';
+import { ref, computed, Teleport, Transition } from 'vue';
 
 interface Categoria {
     id: number;
@@ -224,7 +224,7 @@ const isFormValid = computed(() => {
     <Head :title="`Votar: ${votacion.titulo}`" />
 
     <UserLayout :breadcrumbs="breadcrumbs">
-        <div class="flex h-full flex-1 flex-col gap-6 rounded-xl p-4">
+        <div class="flex h-full flex-1 flex-col gap-3 sm:gap-6 rounded-xl p-2 sm:p-4">
             <!-- Header -->
             <div class="flex items-center justify-between">
                 <div>
@@ -303,17 +303,8 @@ const isFormValid = computed(() => {
                             context="votacion"
                         />
 
-                        <!-- Botón de envío -->
-                        <div class="flex justify-end pt-6 border-t">
-                            <Button 
-                                type="submit" 
-                                :disabled="!isFormValid || form.processing"
-                                class="min-w-32"
-                            >
-                                <Vote class="mr-2 h-4 w-4" />
-                                {{ form.processing ? 'Enviando...' : 'Enviar Voto' }}
-                            </Button>
-                        </div>
+                        <!-- Espacio para la barra flotante -->
+                        <div class="h-20"></div>
                     </form>
                 </CardContent>
             </Card>
@@ -336,5 +327,61 @@ const isFormValid = computed(() => {
                 </AlertDialogContent>
             </AlertDialog>
         </div>
+
+        <!-- Barra flotante con botón de voto y efecto glassmorphing -->
+        <Teleport to="body">
+            <Transition
+                enter-active-class="transition ease-out duration-300"
+                enter-from-class="translate-y-4 opacity-0"
+                enter-to-class="translate-y-0 opacity-100"
+                leave-active-class="transition ease-in duration-200"
+                leave-from-class="translate-y-0 opacity-100"
+                leave-to-class="translate-y-4 opacity-0"
+            >
+                <div v-if="true" class="fixed bottom-0 left-0 right-0 z-50 px-2 sm:px-4 pb-2 sm:pb-4">
+                    <div class="mx-auto max-w-7xl">
+                        <div class="backdrop-blur-lg bg-white/80 dark:bg-gray-900/80 border border-gray-200/50 dark:border-gray-700/50 rounded-xl sm:rounded-2xl shadow-2xl p-3 sm:p-4">
+                            <!-- Diseño responsive: centrado en móvil, con info en desktop -->
+                            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+                                <!-- Información de la votación - oculta en móvil, visible en desktop -->
+                                <div class="hidden sm:flex items-center gap-4 text-sm text-muted-foreground">
+                                    <div class="flex items-center gap-2">
+                                        <Clock class="h-4 w-4" />
+                                        <span>{{ timeRemaining }}</span>
+                                    </div>
+                                    <div class="h-4 w-px bg-gray-300 dark:bg-gray-600"></div>
+                                    <span class="font-medium">{{ votacion.titulo }}</span>
+                                </div>
+                                
+                                <!-- Botón de envío centrado -->
+                                <div class="flex justify-center sm:justify-end">
+                                    <Button 
+                                        @click="showConfirmDialog = true"
+                                        :disabled="!isFormValid || form.processing"
+                                        class="bg-green-600 hover:bg-green-700 text-white border-green-600 hover:border-green-700 disabled:bg-gray-400 disabled:border-gray-400 min-w-[150px] sm:min-w-[180px]"
+                                    >
+                                        <template v-if="form.processing">
+                                            <Clock class="mr-2 h-4 w-4 animate-spin" />
+                                            Enviando...
+                                        </template>
+                                        <template v-else>
+                                            <CheckCircle class="mr-2 h-4 w-4" />
+                                            Enviar Voto
+                                        </template>
+                                    </Button>
+                                </div>
+                            </div>
+                            
+                            <!-- Barra de progreso compacta para móvil -->
+                            <div class="sm:hidden mt-3 text-center">
+                                <span class="text-xs text-muted-foreground">
+                                    Tiempo restante: {{ timeRemaining }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </Transition>
+        </Teleport>
     </UserLayout>
 </template>
