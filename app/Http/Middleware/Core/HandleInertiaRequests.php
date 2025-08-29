@@ -39,10 +39,10 @@ class HandleInertiaRequests extends Middleware
     {
         [$message, $author] = str(Inspiring::quotes()->random())->explode('-');
 
-        // Cargar roles del usuario si está autenticado
+        // Cargar roles y relaciones geográficas del usuario si está autenticado
         $user = $request->user();
         if ($user) {
-            $user->load('roles');
+            $user->load(['roles', 'territorio', 'departamento', 'municipio', 'localidad']);
         }
 
         // Obtener información del tenant actual y disponibles para super admin

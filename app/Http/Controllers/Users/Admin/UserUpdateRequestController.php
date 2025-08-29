@@ -27,7 +27,14 @@ class UserUpdateRequestController extends AdminController
      */
     public function index(Request $request): Response
     {
-        $query = UserUpdateRequest::with(['user', 'admin'])
+        $query = UserUpdateRequest::with([
+                'user', 
+                'admin',
+                'newTerritorio',
+                'newDepartamento',
+                'newMunicipio',
+                'newLocalidad'
+            ])
             ->orderBy('created_at', 'desc');
 
         // Aplicar filtros avanzados
@@ -80,7 +87,18 @@ class UserUpdateRequestController extends AdminController
      */
     public function show(UserUpdateRequest $updateRequest): Response
     {
-        $updateRequest->load(['user', 'admin']);
+        $updateRequest->load([
+            'user',
+            'user.territorio',
+            'user.departamento',
+            'user.municipio',
+            'user.localidad',
+            'admin',
+            'newTerritorio',
+            'newDepartamento',
+            'newMunicipio',
+            'newLocalidad'
+        ]);
         
         // Protección adicional si el usuario no existe
         if (!$updateRequest->user) {
@@ -99,11 +117,23 @@ class UserUpdateRequestController extends AdminController
                     'email' => $updateRequest->user->email,
                     'telefono' => $updateRequest->user->telefono,
                     'documento_identidad' => $updateRequest->user->documento_identidad,
+                    'territorio' => $updateRequest->user->territorio,
+                    'departamento' => $updateRequest->user->departamento,
+                    'municipio' => $updateRequest->user->municipio,
+                    'localidad' => $updateRequest->user->localidad,
                 ],
                 'new_email' => $updateRequest->new_email,
                 'new_telefono' => $updateRequest->new_telefono,
+                'new_territorio' => $updateRequest->newTerritorio,
+                'new_departamento' => $updateRequest->newDepartamento,
+                'new_municipio' => $updateRequest->newMunicipio,
+                'new_localidad' => $updateRequest->newLocalidad,
                 'current_email' => $updateRequest->current_email,
                 'current_telefono' => $updateRequest->current_telefono,
+                'current_territorio_id' => $updateRequest->current_territorio_id,
+                'current_departamento_id' => $updateRequest->current_departamento_id,
+                'current_municipio_id' => $updateRequest->current_municipio_id,
+                'current_localidad_id' => $updateRequest->current_localidad_id,
                 'documentos_soporte' => $updateRequest->getDocumentInfo(),
                 'status' => $updateRequest->status,
                 'admin' => $updateRequest->admin ? [

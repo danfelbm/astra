@@ -10,9 +10,14 @@ const sidebarNavItems: NavItem[] = [
         title: 'Profile',
         href: '/settings/profile',
     },
+    // Password oculto - funcionalidad preservada pero sin acceso desde menú
+    // {
+    //     title: 'Password',
+    //     href: '/settings/password',
+    // },
     {
-        title: 'Password',
-        href: '/settings/password',
+        title: 'Actualización de Datos',
+        href: '/settings/update-data',
     },
     {
         title: 'Appearance',
