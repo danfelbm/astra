@@ -24,7 +24,8 @@ import {
     Clock,
     AlertCircle,
     CheckCircle,
-    XCircle
+    XCircle,
+    MapPin
 } from 'lucide-vue-next';
 import { format, formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -38,11 +39,23 @@ interface UpdateRequest {
         email: string;
         telefono: string | null;
         documento_identidad: string;
+        territorio?: { id: number; nombre: string } | null;
+        departamento?: { id: number; nombre: string } | null;
+        municipio?: { id: number; nombre: string } | null;
+        localidad?: { id: number; nombre: string } | null;
     };
     new_email: string | null;
     new_telefono: string | null;
+    new_territorio?: { id: number; nombre: string } | null;
+    new_departamento?: { id: number; nombre: string } | null;
+    new_municipio?: { id: number; nombre: string } | null;
+    new_localidad?: { id: number; nombre: string } | null;
     current_email: string;
     current_telefono: string | null;
+    current_territorio_id?: number | null;
+    current_departamento_id?: number | null;
+    current_municipio_id?: number | null;
+    current_localidad_id?: number | null;
     documentos_soporte: Array<{
         path: string;
         url: string;
@@ -68,6 +81,24 @@ interface UpdateRequest {
         telefono?: {
             current: string | null;
             new: string;
+        };
+        ubicacion?: {
+            current: {
+                territorio_id?: number | null;
+                departamento_id?: number | null;
+                municipio_id?: number | null;
+                localidad_id?: number | null;
+            };
+            new: {
+                territorio_id?: number | null;
+                territorio_nombre?: string | null;
+                departamento_id?: number | null;
+                departamento_nombre?: string | null;
+                municipio_id?: number | null;
+                municipio_nombre?: string | null;
+                localidad_id?: number | null;
+                localidad_nombre?: string | null;
+            };
         };
     };
     has_changes: boolean;
@@ -322,6 +353,40 @@ const getStatusIcon = (status: string) => {
                                             <div class="flex items-center gap-2">
                                                 <span class="text-sm text-muted-foreground">Nuevo:</span>
                                                 <span class="font-mono text-sm font-semibold text-green-600">{{ updateRequest.changes_summary.telefono.new }}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Cambio de ubicación -->
+                                <div v-if="updateRequest.changes_summary.ubicacion" class="flex items-start gap-3">
+                                    <MapPin class="h-5 w-5 text-muted-foreground mt-0.5" />
+                                    <div class="flex-1 space-y-2">
+                                        <Label>Ubicación de Residencia</Label>
+                                        <div class="grid gap-2">
+                                            <div class="flex items-start gap-2">
+                                                <span class="text-sm text-muted-foreground min-w-[60px]">Actual:</span>
+                                                <span class="font-mono text-sm">
+                                                    {{ 
+                                                        [
+                                                            updateRequest.user.departamento?.nombre,
+                                                            updateRequest.user.municipio?.nombre,
+                                                            updateRequest.user.localidad?.nombre
+                                                        ].filter(Boolean).join(', ') || 'No registrada'
+                                                    }}
+                                                </span>
+                                            </div>
+                                            <div class="flex items-start gap-2">
+                                                <span class="text-sm text-muted-foreground min-w-[60px]">Nueva:</span>
+                                                <span class="font-mono text-sm font-semibold text-green-600">
+                                                    {{ 
+                                                        [
+                                                            updateRequest.changes_summary.ubicacion.new.departamento_nombre,
+                                                            updateRequest.changes_summary.ubicacion.new.municipio_nombre,
+                                                            updateRequest.changes_summary.ubicacion.new.localidad_nombre
+                                                        ].filter(Boolean).join(', ')
+                                                    }}
+                                                </span>
                                             </div>
                                         </div>
                                     </div>

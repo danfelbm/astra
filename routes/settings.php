@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Core\Settings\UpdateDataController;
 use App\Http\Controllers\Core\Settings\PasswordController;
 use App\Http\Controllers\Core\Settings\ProfileController;
 use App\Http\Controllers\Core\Settings\ProfileLocationController;
@@ -22,6 +23,11 @@ Route::middleware('auth')->group(function () {
 
     Route::get('settings/password', [PasswordController::class, 'edit'])->name('password.edit');
     Route::put('settings/password', [PasswordController::class, 'update'])->name('password.update');
+
+    // Rutas para actualización de datos con solicitud de aprobación
+    Route::get('settings/update-data', [UpdateDataController::class, 'edit'])->name('update-data.edit');
+    Route::post('settings/update-data', [UpdateDataController::class, 'update'])->name('update-data.update');
+    Route::delete('settings/update-data/cancel', [UpdateDataController::class, 'cancel'])->name('update-data.cancel');
 
     Route::get('settings/appearance', function () {
         return Inertia::render('User/Settings/Appearance');

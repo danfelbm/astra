@@ -16,9 +16,17 @@ class UserUpdateRequest extends Model
         'user_id',
         'new_email',
         'new_telefono',
+        'new_territorio_id',
+        'new_departamento_id',
+        'new_municipio_id',
+        'new_localidad_id',
         'documentos_soporte',
         'current_email',
         'current_telefono',
+        'current_territorio_id',
+        'current_departamento_id',
+        'current_municipio_id',
+        'current_localidad_id',
         'status',
         'admin_id',
         'admin_notes',
@@ -52,6 +60,29 @@ class UserUpdateRequest extends Model
     public function admin(): BelongsTo
     {
         return $this->belongsTo(User::class, 'admin_id');
+    }
+
+    /**
+     * Relaciones con ubicación nueva solicitada
+     */
+    public function newTerritorio(): BelongsTo
+    {
+        return $this->belongsTo(\App\Models\Geografico\Territorio::class, 'new_territorio_id');
+    }
+
+    public function newDepartamento(): BelongsTo
+    {
+        return $this->belongsTo(\App\Models\Geografico\Departamento::class, 'new_departamento_id');
+    }
+
+    public function newMunicipio(): BelongsTo
+    {
+        return $this->belongsTo(\App\Models\Geografico\Municipio::class, 'new_municipio_id');
+    }
+
+    public function newLocalidad(): BelongsTo
+    {
+        return $this->belongsTo(\App\Models\Geografico\Localidad::class, 'new_localidad_id');
     }
 
     /**
@@ -136,6 +167,43 @@ class UserUpdateRequest extends Model
                         'user_id' => $this->user_id,
                         'old' => $this->current_telefono,
                         'new' => $this->new_telefono
+                    ]);
+                }
+                
+                // Actualizar ubicación si cambió
+                if ($this->new_territorio_id && $this->new_territorio_id != $this->current_territorio_id) {
+                    $updateData['territorio_id'] = $this->new_territorio_id;
+                    \Log::info('[UserUpdateRequest::approve] Actualizando territorio', [
+                        'user_id' => $this->user_id,
+                        'old' => $this->current_territorio_id,
+                        'new' => $this->new_territorio_id
+                    ]);
+                }
+                
+                if ($this->new_departamento_id && $this->new_departamento_id != $this->current_departamento_id) {
+                    $updateData['departamento_id'] = $this->new_departamento_id;
+                    \Log::info('[UserUpdateRequest::approve] Actualizando departamento', [
+                        'user_id' => $this->user_id,
+                        'old' => $this->current_departamento_id,
+                        'new' => $this->new_departamento_id
+                    ]);
+                }
+                
+                if ($this->new_municipio_id && $this->new_municipio_id != $this->current_municipio_id) {
+                    $updateData['municipio_id'] = $this->new_municipio_id;
+                    \Log::info('[UserUpdateRequest::approve] Actualizando municipio', [
+                        'user_id' => $this->user_id,
+                        'old' => $this->current_municipio_id,
+                        'new' => $this->new_municipio_id
+                    ]);
+                }
+                
+                if ($this->new_localidad_id != $this->current_localidad_id) {
+                    $updateData['localidad_id'] = $this->new_localidad_id;
+                    \Log::info('[UserUpdateRequest::approve] Actualizando localidad', [
+                        'user_id' => $this->user_id,
+                        'old' => $this->current_localidad_id,
+                        'new' => $this->new_localidad_id
                     ]);
                 }
                 
@@ -228,8 +296,12 @@ class UserUpdateRequest extends Model
     {
         $hasEmailChange = $this->new_email && $this->new_email !== $this->current_email;
         $hasPhoneChange = $this->new_telefono && $this->new_telefono !== $this->current_telefono;
+        $hasLocationChange = ($this->new_territorio_id && $this->new_territorio_id != $this->current_territorio_id) ||
+                           ($this->new_departamento_id && $this->new_departamento_id != $this->current_departamento_id) ||
+                           ($this->new_municipio_id && $this->new_municipio_id != $this->current_municipio_id) ||
+                           ($this->new_localidad_id != $this->current_localidad_id);
         
-        return $hasEmailChange || $hasPhoneChange;
+        return $hasEmailChange || $hasPhoneChange || $hasLocationChange;
     }
 
     /**
@@ -250,6 +322,34 @@ class UserUpdateRequest extends Model
             $changes['telefono'] = [
                 'current' => $this->current_telefono,
                 'new' => $this->new_telefono,
+            ];
+        }
+        
+        // Verificar si hay cambios de ubicación
+        $hasLocationChange = ($this->new_territorio_id && $this->new_territorio_id != $this->current_territorio_id) ||
+                           ($this->new_departamento_id && $this->new_departamento_id != $this->current_departamento_id) ||
+                           ($this->new_municipio_id && $this->new_municipio_id != $this->current_municipio_id) ||
+                           ($this->new_localidad_id != $this->current_localidad_id);
+        
+        if ($hasLocationChange) {
+            $this->loadMissing(['newTerritorio', 'newDepartamento', 'newMunicipio', 'newLocalidad']);
+            $changes['ubicacion'] = [
+                'current' => [
+                    'territorio_id' => $this->current_territorio_id,
+                    'departamento_id' => $this->current_departamento_id,
+                    'municipio_id' => $this->current_municipio_id,
+                    'localidad_id' => $this->current_localidad_id,
+                ],
+                'new' => [
+                    'territorio_id' => $this->new_territorio_id,
+                    'territorio_nombre' => $this->newTerritorio?->nombre,
+                    'departamento_id' => $this->new_departamento_id,
+                    'departamento_nombre' => $this->newDepartamento?->nombre,
+                    'municipio_id' => $this->new_municipio_id,
+                    'municipio_nombre' => $this->newMunicipio?->nombre,
+                    'localidad_id' => $this->new_localidad_id,
+                    'localidad_nombre' => $this->newLocalidad?->nombre,
+                ],
             ];
         }
         

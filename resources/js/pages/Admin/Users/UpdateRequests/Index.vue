@@ -61,6 +61,10 @@ interface UpdateRequest {
     };
     new_email: string | null;
     new_telefono: string | null;
+    new_territorio?: { id: number; nombre: string } | null;
+    new_departamento?: { id: number; nombre: string } | null;
+    new_municipio?: { id: number; nombre: string } | null;
+    new_localidad?: { id: number; nombre: string } | null;
     documentos_soporte: any[];
     status: 'pending' | 'approved' | 'rejected';
     admin?: {
@@ -412,7 +416,10 @@ const getStatusText = (status: string) => {
                                             <div v-if="request.new_telefono" class="text-sm">
                                                 📱 {{ request.new_telefono }}
                                             </div>
-                                            <div v-if="!request.new_email && !request.new_telefono" class="text-sm text-muted-foreground">
+                                            <div v-if="request.new_municipio" class="text-sm">
+                                                📍 {{ [request.new_departamento?.nombre, request.new_municipio?.nombre].filter(Boolean).join(', ') }}
+                                            </div>
+                                            <div v-if="!request.new_email && !request.new_telefono && !request.new_municipio" class="text-sm text-muted-foreground">
                                                 Sin cambios
                                             </div>
                                         </div>

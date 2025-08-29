@@ -2,6 +2,7 @@
 import AppContent from '@/components/AppContent.vue';
 import AppShell from '@/components/AppShell.vue';
 import AppHeader from '@/components/AppHeader.vue';
+import UserTopbar from '@/components/UserTopbar.vue';
 import { Toaster } from '@/components/ui/sonner';
 import UpdateLocationModal from '@/components/modals/UpdateLocationModal.vue';
 import type { BreadcrumbItemType } from '@/types';
@@ -42,6 +43,9 @@ const hasAdminAccess = computed(() => {
 
 <template>
     <AppShell variant="header">
+        <!-- Topbar con información de ubicación y ayuda -->
+        <UserTopbar />
+        
         <!-- Header horizontal para usuarios (sin sidebar) -->
         <AppHeader :breadcrumbs="breadcrumbs" />
         
