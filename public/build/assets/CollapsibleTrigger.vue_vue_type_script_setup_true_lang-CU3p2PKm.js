@@ -1,1 +1,0 @@
-import{Y as o}from"./index-BwbrqajW.js";import{d as r,j as t,o as n,e as p,s as l,v as i,x as c,u as m}from"./app-Dj_CApPI.js";const _=r({__name:"CollapsibleTrigger",props:{asChild:{type:Boolean},as:{}},setup(e){const s=e;return(a,u)=>(n(),t(m(o),i(c(s)),{default:p(()=>[l(a.$slots,"default")]),_:3},16))}});export{_};
