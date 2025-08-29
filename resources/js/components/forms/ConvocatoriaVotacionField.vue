@@ -280,7 +280,8 @@ const getInitials = (name: string): string => {
                 class="space-y-4"
             >
                 <!-- Grid de candidatos y voto en blanco -->
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <!-- Móvil: 2 columnas, Desktop: 2-3 columnas -->
+                <div class="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4">
                     <Card 
                         v-for="candidato in candidatos" 
                         :key="candidato.id"
@@ -288,38 +289,49 @@ const getInitials = (name: string): string => {
                         :class="modelValue === candidato.name ? 'ring-2 ring-primary' : ''"
                         @click="handleRadioChange(candidato.name)"
                     >
-                        <CardContent class="p-4">
-                            <!-- Avatar y nombre -->
-                            <div class="flex items-center gap-3 mb-3">
-                                <Avatar class="h-12 w-12">
-                                    <AvatarImage v-if="candidato.avatar_url" :src="candidato.avatar_url" :alt="candidato.name" />
-                                    <AvatarFallback class="bg-primary/10 text-primary font-semibold">
-                                        {{ getInitials(candidato.name) }}
-                                    </AvatarFallback>
-                                </Avatar>
+                        <CardContent class="p-3 sm:p-6">
+                            <!-- Diseño responsive: vertical en móvil, horizontal en desktop -->
+                            <div class="flex flex-col sm:flex-row sm:gap-4 sm:items-start">
+                                <!-- Avatar: arriba en móvil, al lado en desktop -->
+                                <div class="flex justify-center sm:justify-start mb-3 sm:mb-0">
+                                    <Avatar class="h-14 w-14 sm:h-20 sm:w-20">
+                                        <AvatarImage v-if="candidato.avatar_url" :src="candidato.avatar_url" :alt="candidato.name" />
+                                        <AvatarFallback class="bg-primary/10 text-primary font-semibold text-lg sm:text-2xl">
+                                            {{ getInitials(candidato.name) }}
+                                        </AvatarFallback>
+                                    </Avatar>
+                                </div>
+                                
+                                <!-- Información: abajo en móvil, al lado en desktop -->
                                 <div class="flex-1 min-w-0">
-                                    <p class="font-medium truncate">{{ candidato.name }}</p>
-                                    <p v-if="candidato.email" class="text-xs text-muted-foreground truncate">
-                                        {{ candidato.email }}
-                                    </p>
+                                    <!-- Nombre y email -->
+                                    <div class="mb-2 sm:mb-3 text-center sm:text-left">
+                                        <p class="font-semibold text-sm sm:text-base leading-tight line-clamp-2">{{ candidato.name }}</p>
+                                        <p v-if="candidato.email" class="text-xs sm:text-sm text-muted-foreground mt-0.5 sm:mt-1 line-clamp-1">
+                                            {{ candidato.email }}
+                                        </p>
+                                    </div>
+
+                                    <!-- Información adicional -->
+                                    <div class="space-y-1 sm:space-y-1.5 text-xs sm:text-sm">
+                                        <p v-if="candidato.cargo" class="text-muted-foreground">
+                                            <span class="font-medium hidden sm:inline">Cargo:</span>
+                                            <span class="sm:hidden">{{ candidato.cargo }}</span>
+                                            <span class="hidden sm:block text-xs">{{ candidato.cargo }}</span>
+                                        </p>
+                                        <p v-if="formatUbicacion(candidato)" class="text-muted-foreground">
+                                            <span class="font-medium hidden sm:inline">Ubicación:</span>
+                                            <span class="text-xs line-clamp-2 sm:line-clamp-none">{{ formatUbicacion(candidato) }}</span>
+                                        </p>
+                                        <p v-if="getInfoAdicional(candidato)" class="text-blue-600 text-xs mt-1 sm:mt-2 line-clamp-2">
+                                            {{ getInfoAdicional(candidato) }}
+                                        </p>
+                                    </div>
                                 </div>
                             </div>
 
-                            <!-- Información adicional -->
-                            <div class="space-y-1 text-xs text-muted-foreground">
-                                <p v-if="candidato.cargo" class="truncate">
-                                    <span class="font-medium">Cargo:</span> {{ candidato.cargo }}
-                                </p>
-                                <p v-if="formatUbicacion(candidato)" class="truncate">
-                                    <span class="font-medium">Ubicación:</span> {{ formatUbicacion(candidato) }}
-                                </p>
-                                <p v-if="getInfoAdicional(candidato)" class="text-blue-600 truncate">
-                                    {{ getInfoAdicional(candidato) }}
-                                </p>
-                            </div>
-
                             <!-- Radio button -->
-                            <div class="flex justify-end mt-3 pt-3 border-t">
+                            <div class="flex justify-end mt-3 sm:mt-4 pt-3 sm:pt-4 border-t">
                                 <RadioGroupItem 
                                     :value="candidato.name" 
                                     :checked="modelValue === candidato.name"
@@ -336,10 +348,10 @@ const getInitials = (name: string): string => {
                         :class="modelValue === null ? 'ring-2 ring-primary' : ''"
                         @click="handleRadioChange('null')"
                     >
-                        <CardContent class="flex items-center justify-center h-full min-h-[180px] p-4">
+                        <CardContent class="flex items-center justify-center h-full min-h-[150px] sm:min-h-[240px] p-3 sm:p-6">
                             <div class="text-center">
-                                <span class="text-muted-foreground text-lg">Voto en blanco</span>
-                                <div class="mt-4">
+                                <span class="text-muted-foreground text-sm sm:text-lg">Voto en blanco</span>
+                                <div class="mt-3 sm:mt-4">
                                     <RadioGroupItem 
                                         value="null" 
                                         :checked="modelValue === null"
@@ -354,7 +366,8 @@ const getInitials = (name: string): string => {
 
             <!-- Vista Cards - Selección múltiple (checkboxes) -->
             <div v-else-if="multiple && vistaPreferida === 'cards'" class="space-y-4">
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <!-- Móvil: 2 columnas, Desktop: 2-3 columnas -->
+                <div class="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4">
                     <Card 
                         v-for="candidato in candidatos" 
                         :key="candidato.id"
@@ -362,38 +375,49 @@ const getInitials = (name: string): string => {
                         :class="isSelected(candidato.name) ? 'ring-2 ring-primary' : ''"
                         @click="handleCheckboxChange(candidato.name, !isSelected(candidato.name))"
                     >
-                        <CardContent class="p-4">
-                            <!-- Avatar y nombre -->
-                            <div class="flex items-center gap-3 mb-3">
-                                <Avatar class="h-12 w-12">
-                                    <AvatarImage v-if="candidato.avatar_url" :src="candidato.avatar_url" :alt="candidato.name" />
-                                    <AvatarFallback class="bg-primary/10 text-primary font-semibold">
-                                        {{ getInitials(candidato.name) }}
-                                    </AvatarFallback>
-                                </Avatar>
+                        <CardContent class="p-3 sm:p-6">
+                            <!-- Diseño responsive: vertical en móvil, horizontal en desktop -->
+                            <div class="flex flex-col sm:flex-row sm:gap-4 sm:items-start">
+                                <!-- Avatar: arriba en móvil, al lado en desktop -->
+                                <div class="flex justify-center sm:justify-start mb-3 sm:mb-0">
+                                    <Avatar class="h-14 w-14 sm:h-20 sm:w-20">
+                                        <AvatarImage v-if="candidato.avatar_url" :src="candidato.avatar_url" :alt="candidato.name" />
+                                        <AvatarFallback class="bg-primary/10 text-primary font-semibold text-lg sm:text-2xl">
+                                            {{ getInitials(candidato.name) }}
+                                        </AvatarFallback>
+                                    </Avatar>
+                                </div>
+                                
+                                <!-- Información: abajo en móvil, al lado en desktop -->
                                 <div class="flex-1 min-w-0">
-                                    <p class="font-medium truncate">{{ candidato.name }}</p>
-                                    <p v-if="candidato.email" class="text-xs text-muted-foreground truncate">
-                                        {{ candidato.email }}
-                                    </p>
+                                    <!-- Nombre y email -->
+                                    <div class="mb-2 sm:mb-3 text-center sm:text-left">
+                                        <p class="font-semibold text-sm sm:text-base leading-tight line-clamp-2">{{ candidato.name }}</p>
+                                        <p v-if="candidato.email" class="text-xs sm:text-sm text-muted-foreground mt-0.5 sm:mt-1 line-clamp-1">
+                                            {{ candidato.email }}
+                                        </p>
+                                    </div>
+
+                                    <!-- Información adicional -->
+                                    <div class="space-y-1 sm:space-y-1.5 text-xs sm:text-sm">
+                                        <p v-if="candidato.cargo" class="text-muted-foreground">
+                                            <span class="font-medium hidden sm:inline">Cargo:</span>
+                                            <span class="sm:hidden">{{ candidato.cargo }}</span>
+                                            <span class="hidden sm:block text-xs">{{ candidato.cargo }}</span>
+                                        </p>
+                                        <p v-if="formatUbicacion(candidato)" class="text-muted-foreground">
+                                            <span class="font-medium hidden sm:inline">Ubicación:</span>
+                                            <span class="text-xs line-clamp-2 sm:line-clamp-none">{{ formatUbicacion(candidato) }}</span>
+                                        </p>
+                                        <p v-if="getInfoAdicional(candidato)" class="text-blue-600 text-xs mt-1 sm:mt-2 line-clamp-2">
+                                            {{ getInfoAdicional(candidato) }}
+                                        </p>
+                                    </div>
                                 </div>
                             </div>
 
-                            <!-- Información adicional -->
-                            <div class="space-y-1 text-xs text-muted-foreground">
-                                <p v-if="candidato.cargo" class="truncate">
-                                    <span class="font-medium">Cargo:</span> {{ candidato.cargo }}
-                                </p>
-                                <p v-if="formatUbicacion(candidato)" class="truncate">
-                                    <span class="font-medium">Ubicación:</span> {{ formatUbicacion(candidato) }}
-                                </p>
-                                <p v-if="getInfoAdicional(candidato)" class="text-blue-600 truncate">
-                                    {{ getInfoAdicional(candidato) }}
-                                </p>
-                            </div>
-
                             <!-- Checkbox -->
-                            <div class="flex justify-end mt-3 pt-3 border-t">
+                            <div class="flex justify-end mt-3 sm:mt-4 pt-3 sm:pt-4 border-t">
                                 <Checkbox
                                     :checked="isSelected(candidato.name)"
                                     @update:checked="(checked) => handleCheckboxChange(candidato.name, checked)"
