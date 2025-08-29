@@ -73,8 +73,8 @@ class ProfileLocationController extends Controller
                 'required',
                 'string',
                 'min:7',
-                'max:15',
-                'regex:/^[0-9]+$/', // Solo números
+                'max:20',
+                'regex:/^\+?[0-9]+$/', // Números y opcionalmente + al inicio
             ],
         ]);
         
@@ -95,8 +95,8 @@ class ProfileLocationController extends Controller
             'localidad_id.exists' => 'La localidad seleccionada no es válida para este municipio.',
             'telefono.required' => 'El teléfono es obligatorio.',
             'telefono.min' => 'El teléfono debe tener al menos 7 dígitos.',
-            'telefono.max' => 'El teléfono no puede tener más de 15 dígitos.',
-            'telefono.regex' => 'El teléfono solo debe contener números.',
+            'telefono.max' => 'El teléfono no puede tener más de 20 caracteres.',
+            'telefono.regex' => 'El teléfono solo debe contener números y puede empezar con +.',
         ];
         
         $validated = $request->validate($rules, $messages);

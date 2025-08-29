@@ -22,6 +22,7 @@ const user = computed(() => page.props.auth.user);
 
 // Estado del formulario
 const loading = ref(false);
+const telefonoError = ref('');
 const formData = ref({
     name: user.value?.name || '',
     documento_identidad: user.value?.documento_identidad || '',
@@ -37,6 +38,9 @@ const shouldShowDocumento = computed(() => {
     return !user.value?.documento_identidad || user.value.documento_identidad.trim() === '';
 });
 
+// Verificar si es territorio internacional
+const isInternational = computed(() => formData.value.territorio_id === 2);
+
 // Datos geográficos para el componente selector
 const geographicData = ref({
     territorio_id: formData.value.territorio_id,
@@ -49,9 +53,17 @@ const geographicData = ref({
 const handleGeographicChange = (value: any) => {
     geographicData.value = value;
     formData.value.territorio_id = value.territorio_id || undefined;
-    formData.value.departamento_id = value.departamento_id || undefined;
+    
+    // Si es territorio internacional (id 2), asumir departamento_id = 35
+    if (formData.value.territorio_id === 2) {
+        formData.value.departamento_id = 35;
+        formData.value.localidad_id = undefined; // No mostrar localidad para internacional
+    } else {
+        formData.value.departamento_id = value.departamento_id || undefined;
+        formData.value.localidad_id = value.localidad_id || undefined;
+    }
+    
     formData.value.municipio_id = value.municipio_id || undefined;
-    formData.value.localidad_id = value.localidad_id || undefined;
 };
 
 // Validar si el formulario está completo (localidad es opcional)
@@ -110,16 +122,52 @@ const saveLocation = async () => {
 // Formatear teléfono mientras se escribe
 const formatPhone = (event: Event) => {
     const input = event.target as HTMLInputElement;
-    // Eliminar todo lo que no sea dígito
-    let value = input.value.replace(/\D/g, '');
+    let value = input.value;
     
-    // Limitar a 10 dígitos para Colombia
-    if (value.length > 10) {
-        value = value.slice(0, 10);
+    // Permitir solo + al inicio y números
+    // Si hay un + al inicio, preservarlo
+    const hasPlus = value.startsWith('+');
+    
+    // Eliminar todo excepto números y el + inicial
+    value = value.replace(/[^\d+]/g, '');
+    
+    // Si había un + al inicio y se eliminó, restaurarlo
+    if (hasPlus && !value.startsWith('+')) {
+        value = '+' + value.replace(/\+/g, ''); // Asegurar solo un + al inicio
+    }
+    
+    // Eliminar cualquier + que no esté al inicio
+    if (value.includes('+')) {
+        const parts = value.split('+');
+        value = (hasPlus ? '+' : '') + parts.join('');
+    }
+    
+    // Limitar a 20 caracteres para permitir códigos internacionales
+    if (value.length > 20) {
+        value = value.slice(0, 20);
     }
     
     formData.value.telefono = value;
+    
+    // Validar el formato
+    validatePhone(value);
 };
+
+// Validar teléfono
+const validatePhone = (value: string) => {
+    if (value && !/^\+?[0-9]+$/.test(value)) {
+        telefonoError.value = 'El teléfono solo debe contener números y puede empezar con +';
+    } else if (value && value.length < 7) {
+        telefonoError.value = 'El teléfono debe tener al menos 7 dígitos';
+    } else {
+        telefonoError.value = '';
+    }
+};
+
+// Validar teléfono cuando cambia
+watch(() => formData.value.telefono, (newValue) => {
+    validatePhone(newValue);
+});
 </script>
 
 <template>
@@ -196,6 +244,10 @@ const formatPhone = (event: Event) => {
                         :show-card="false"
                         title=""
                         description=""
+                        :departamento-label="isInternational ? 'Circunscripción' : 'Departamento'"
+                        :municipio-label="isInternational ? 'País' : 'Municipio'"
+                        :show-localidad="!isInternational"
+                        :show-departamento="true"
                     />
                 </div>
 
@@ -209,14 +261,17 @@ const formatPhone = (event: Event) => {
                         id="telefono"
                         v-model="formData.telefono"
                         type="tel"
-                        placeholder="3001234567"
-                        maxlength="10"
+                        placeholder="+573001234567"
+                        maxlength="20"
                         @input="formatPhone"
                         :disabled="loading"
                         class="font-mono"
                     />
-                    <p class="text-xs text-muted-foreground">
-                        Ingresa tu número de teléfono sin espacios ni guiones
+                    <p v-if="telefonoError" class="text-xs text-red-600">
+                        {{ telefonoError }}
+                    </p>
+                    <p v-else class="text-xs text-muted-foreground">
+                        Ingresa tu número de teléfono. Puedes incluir código de país (+57)
                     </p>
                 </div>
                 </div>

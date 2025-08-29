@@ -30,6 +30,7 @@ interface Props {
     description?: string;
     mode?: 'single' | 'multiple'; // Nuevo prop para controlar el modo
     showCard?: boolean; // Si mostrar con Card o sin ella
+    departamentoLabel?: string; // Label personalizado para departamento
     municipioLabel?: string; // Label personalizado para municipio
     showLocalidad?: boolean; // Si mostrar o no el campo de localidad
     showDepartamento?: boolean; // Si mostrar o no el campo de departamento
@@ -45,6 +46,7 @@ const props = withDefaults(defineProps<Props>(), {
     description: 'Selecciona la ubicación',
     mode: 'multiple', // Por defecto mantiene compatibilidad con el comportamiento actual
     showCard: true,
+    departamentoLabel: 'Departamento',
     municipioLabel: 'Municipio',
     showLocalidad: true,
     showDepartamento: true,
@@ -324,7 +326,7 @@ const getSelectionText = (count: number, singular: string, plural: string) => {
 
             <!-- Departamentos -->
             <div v-if="showDepartamento && departamentos.length > 0" class="w-full">
-                <Label>Departamento{{ isMultipleMode ? 's' : '' }}</Label>
+                <Label>{{ departamentoLabel }}{{ isMultipleMode ? 's' : '' }}</Label>
                 <Select 
                     :model-value="isMultipleMode ? selectedDepartamentos.map(id => id.toString()) : (selectedDepartamentos[0]?.toString() || '')"
                     @update:model-value="(value) => handleUpdate(value, 'departamento')"
@@ -332,7 +334,7 @@ const getSelectionText = (count: number, singular: string, plural: string) => {
                     :disabled="disabled || loading"
                 >
                     <SelectTrigger class="w-full">
-                        <SelectValue :placeholder="`Seleccionar departamento${isMultipleMode ? 's' : ''}...`" />
+                        <SelectValue :placeholder="`Seleccionar ${departamentoLabel.toLowerCase()}${isMultipleMode ? 's' : ''}...`" />
                     </SelectTrigger>
                     <SelectContent>
                         <SelectItem 
@@ -345,7 +347,7 @@ const getSelectionText = (count: number, singular: string, plural: string) => {
                     </SelectContent>
                 </Select>
                 <p v-if="isMultipleMode" class="text-xs text-muted-foreground mt-1">
-                    {{ getSelectionText(selectedDepartamentos.length, 'departamento', 'departamentos') }}
+                    {{ getSelectionText(selectedDepartamentos.length, departamentoLabel.toLowerCase(), departamentoLabel.toLowerCase() + 's') }}
                 </p>
             </div>
 
