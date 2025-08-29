@@ -386,11 +386,12 @@ onUnmounted(() => {
             </div>
         </form>
 
-        <!-- Enlace a registro -->
+        <!-- Enlace a registro - deshabilitado
         <div v-if="step === 'credential'" class="mt-6 text-center text-sm text-muted-foreground">
             ¿Deseas ser precandidato por la Colombia Humana pero no eres militante del partido?
             <TextLink :href="route('register')" class="underline underline-offset-4">Regístrate aquí</TextLink>
         </div>
+        -->
 
         <!-- Información adicional -->
         <div class="mt-6 text-center text-xs text-muted-foreground">
