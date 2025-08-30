@@ -3,7 +3,7 @@ import UserLayout from "@/layouts/UserLayout.vue";
 import { Head, Link } from '@inertiajs/vue3';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Vote, ArrowRight } from 'lucide-vue-next';
+import { Vote, Users, ArrowRight } from 'lucide-vue-next';
 
 interface Props {
     hasAssemblyAccess: boolean;
@@ -51,6 +51,27 @@ defineProps<Props>();
                             <Link href="/miembro/votaciones">
                                 <Button class="w-full group bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700">
                                     Ver Votaciones
+                                    <ArrowRight class="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                                </Button>
+                            </Link>
+                        </CardContent>
+                    </Card>
+
+                    <!-- CTA Card para Asambleas -->
+                    <Card class="hover:shadow-lg transition-shadow duration-300 border-green-200 dark:border-green-800">
+                        <CardHeader class="pb-3">
+                            <CardTitle class="flex items-center gap-2 text-green-700 dark:text-green-300">
+                                <Users class="h-6 w-6" />
+                                Participar en Asambleas
+                            </CardTitle>
+                            <CardDescription>
+                                Accede a las asambleas del movimiento, consulta información y participa en las sesiones.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent class="pt-0">
+                            <Link href="/miembro/asambleas">
+                                <Button class="w-full group bg-green-600 hover:bg-green-700 dark:bg-green-600 dark:hover:bg-green-700">
+                                    Ver Asambleas
                                     <ArrowRight class="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
                                 </Button>
                             </Link>

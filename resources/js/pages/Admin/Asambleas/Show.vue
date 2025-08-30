@@ -36,13 +36,20 @@ import {
     ChevronLeft,
     ChevronRight,
     Upload,
-    History
+    History,
+    Vote,
+    Loader2,
+    RefreshCw,
+    AlertCircle
 } from 'lucide-vue-next';
 import { ref, computed, onMounted, watch } from 'vue';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { toast } from 'vue-sonner';
 import axios from 'axios';
+import VotacionGrid from '@/components/votaciones/VotacionGrid.vue';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Progress } from '@/components/ui/progress';
 
 interface Territorio {
     id: number;
@@ -106,6 +113,19 @@ interface Asamblea {
     participantes_count: number;
 }
 
+interface Votacion {
+    id: number;
+    titulo: string;
+    descripcion?: string;
+    estado: string;
+    fecha_inicio: string;
+    fecha_fin: string;
+    categoria?: any;
+    votantes_count: number;
+    sincronizados_count: number;
+    puede_sincronizar: boolean;
+}
+
 interface Props {
     asamblea: Asamblea;
     puede_gestionar_participantes: boolean;
@@ -166,6 +186,13 @@ const showImportWizard = ref(false);
 const showImportHistory = ref(false);
 const recentImports = ref<any[]>([]);
 const importHistoryRef = ref<InstanceType<typeof ImportHistory> | null>(null);
+
+// Estado para votaciones asociadas
+const votaciones = ref<Votacion[]>([]);
+const loadingVotaciones = ref(false);
+const syncingVotacion = ref<number | null>(null);
+const syncProgress = ref<{ [key: number]: any }>({});
+const syncPollingIntervals = ref<{ [key: number]: any }>({});
 
 // Formatear fecha
 const formatearFecha = (fecha: string) => {
@@ -535,11 +562,99 @@ const handleImportCancel = () => {
     showImportWizard.value = false;
 };
 
+// Funciones para manejar votaciones
+const cargarVotaciones = async () => {
+    loadingVotaciones.value = true;
+    try {
+        const response = await axios.get(`/admin/asambleas/${props.asamblea.id}/votaciones`);
+        if (response.data.success) {
+            votaciones.value = response.data.data;
+        }
+    } catch (error) {
+        console.error('Error cargando votaciones:', error);
+        toast.error('Error al cargar las votaciones');
+    } finally {
+        loadingVotaciones.value = false;
+    }
+};
+
+const sincronizarParticipantes = async (votacionId: number) => {
+    if (syncingVotacion.value) return;
+    
+    syncingVotacion.value = votacionId;
+    delete syncProgress.value[votacionId];
+    
+    try {
+        const response = await axios.post(
+            `/admin/asambleas/${props.asamblea.id}/votaciones/${votacionId}/sync`
+        );
+        
+        if (response.data.success) {
+            toast.success('Sincronización iniciada');
+            
+            // Iniciar polling para obtener el progreso
+            const jobId = response.data.job_id;
+            pollSyncProgress(votacionId, jobId);
+        }
+    } catch (error: any) {
+        console.error('Error iniciando sincronización:', error);
+        toast.error(error.response?.data?.message || 'Error al iniciar la sincronización');
+        syncingVotacion.value = null;
+    }
+};
+
+const pollSyncProgress = (votacionId: number, jobId: string) => {
+    // Limpiar cualquier polling anterior para esta votación
+    if (syncPollingIntervals.value[votacionId]) {
+        clearInterval(syncPollingIntervals.value[votacionId]);
+    }
+    
+    // Configurar nuevo polling
+    syncPollingIntervals.value[votacionId] = setInterval(async () => {
+        try {
+            const response = await axios.get(`/admin/sync-job/${jobId}/status`);
+            
+            if (response.data.success) {
+                const status = response.data.data;
+                syncProgress.value[votacionId] = status;
+                
+                // Si el job terminó, detener el polling
+                if (status.status === 'completed' || 
+                    status.status === 'completed_with_errors' || 
+                    status.status === 'failed') {
+                    
+                    clearInterval(syncPollingIntervals.value[votacionId]);
+                    delete syncPollingIntervals.value[votacionId];
+                    syncingVotacion.value = null;
+                    
+                    // Recargar votaciones para actualizar contadores
+                    setTimeout(() => {
+                        cargarVotaciones();
+                    }, 2000);
+                    
+                    // Limpiar progreso después de 5 segundos
+                    setTimeout(() => {
+                        delete syncProgress.value[votacionId];
+                    }, 5000);
+                }
+            }
+        } catch (error) {
+            console.error('Error obteniendo progreso:', error);
+            // Si hay error, detener el polling
+            clearInterval(syncPollingIntervals.value[votacionId]);
+            delete syncPollingIntervals.value[votacionId];
+            syncingVotacion.value = null;
+        }
+    }, 2000); // Polling cada 2 segundos
+};
+
 // Cargar SOLO la primera página de participantes al montar (verdadero lazy loading)
 onMounted(() => {
     // Siempre cargar la primera página (solo 20 registros)
     // No importa si hay 10, 100 o 1800+ participantes totales
     cargarParticipantes();
+    // Cargar votaciones asociadas
+    cargarVotaciones();
 });
 </script>
 
@@ -852,6 +967,99 @@ onMounted(() => {
                                 Siguiente
                                 <ChevronRight class="h-4 w-4" />
                             </Button>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <!-- Votaciones Asociadas -->
+            <Card>
+                <CardHeader>
+                    <CardTitle class="flex items-center gap-2">
+                        <Vote class="h-5 w-5" />
+                        Votaciones Asociadas
+                    </CardTitle>
+                    <CardDescription>
+                        Votaciones vinculadas a esta asamblea y estado de sincronización de participantes
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div v-if="loadingVotaciones" class="flex justify-center py-8">
+                        <Loader2 class="h-8 w-8 animate-spin text-gray-400" />
+                    </div>
+                    
+                    <div v-else-if="votaciones.length === 0" class="text-center py-8 text-gray-500">
+                        <Vote class="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                        <p>No hay votaciones asociadas a esta asamblea</p>
+                        <Button 
+                            variant="outline" 
+                            class="mt-4"
+                            @click="() => router.visit(`/admin/asambleas/${asamblea.id}/edit`)"
+                        >
+                            <Edit class="h-4 w-4 mr-2" />
+                            Editar Asamblea para Agregar Votaciones
+                        </Button>
+                    </div>
+                    
+                    <div v-else class="space-y-4">
+                        <div 
+                            v-for="votacion in votaciones" 
+                            :key="votacion.id"
+                            class="border rounded-lg p-4 space-y-3"
+                        >
+                            <!-- Información de la votación -->
+                            <div class="flex justify-between items-start">
+                                <div class="flex-1">
+                                    <h4 class="font-semibold text-lg">{{ votacion.titulo }}</h4>
+                                    <p v-if="votacion.descripcion" class="text-sm text-gray-600 mt-1">
+                                        {{ votacion.descripcion }}
+                                    </p>
+                                    <div class="flex gap-4 mt-2 text-sm text-gray-500">
+                                        <span>Estado: <Badge :variant="votacion.estado === 'activa' ? 'default' : 'secondary'">{{ votacion.estado }}</Badge></span>
+                                        <span>Votantes: {{ votacion.votantes_count }}</span>
+                                        <span>Sincronizados desde asamblea: {{ votacion.sincronizados_count }}</span>
+                                    </div>
+                                </div>
+                                
+                                <!-- Botón de sincronización -->
+                                <Button
+                                    v-if="votacion.puede_sincronizar && puede_gestionar_participantes"
+                                    @click="sincronizarParticipantes(votacion.id)"
+                                    :disabled="syncingVotacion === votacion.id"
+                                    variant="outline"
+                                >
+                                    <RefreshCw 
+                                        class="h-4 w-4 mr-2" 
+                                        :class="{ 'animate-spin': syncingVotacion === votacion.id }"
+                                    />
+                                    {{ syncingVotacion === votacion.id ? 'Sincronizando...' : 'Sincronizar Participantes' }}
+                                </Button>
+                            </div>
+                            
+                            <!-- Progreso de sincronización -->
+                            <div v-if="syncProgress[votacion.id]" class="space-y-2">
+                                <div class="flex justify-between text-sm">
+                                    <span>{{ syncProgress[votacion.id].message }}</span>
+                                    <span>{{ Math.round(syncProgress[votacion.id].progress) }}%</span>
+                                </div>
+                                <Progress :model-value="syncProgress[votacion.id].progress" />
+                                
+                                <Alert v-if="syncProgress[votacion.id].status === 'completed'" class="mt-2">
+                                    <CheckCircle class="h-4 w-4" />
+                                    <AlertTitle>Sincronización completada</AlertTitle>
+                                    <AlertDescription>
+                                        {{ syncProgress[votacion.id].message }}
+                                    </AlertDescription>
+                                </Alert>
+                                
+                                <Alert v-if="syncProgress[votacion.id].status === 'failed'" variant="destructive" class="mt-2">
+                                    <AlertCircle class="h-4 w-4" />
+                                    <AlertTitle>Error en sincronización</AlertTitle>
+                                    <AlertDescription>
+                                        {{ syncProgress[votacion.id].message }}
+                                    </AlertDescription>
+                                </Alert>
+                            </div>
                         </div>
                     </div>
                 </CardContent>

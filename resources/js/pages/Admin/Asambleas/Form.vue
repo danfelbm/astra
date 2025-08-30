@@ -13,8 +13,9 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { type BreadcrumbItemType } from '@/types';
 import AdminLayout from "@/layouts/AdminLayout.vue";
 import { Head, useForm, router } from '@inertiajs/vue3';
-import { ArrowLeft, MapPin, Save, Video, Settings, Users, Mic, Camera, Info } from 'lucide-vue-next';
+import { ArrowLeft, MapPin, Save, Video, Settings, Users, Mic, Camera, Info, Vote, Plus, X } from 'lucide-vue-next';
 import { ref, computed, watch } from 'vue';
+import CreateVotacionModal from '@/components/admin/CreateVotacionModal.vue';
 
 interface Asamblea {
     id: number;
@@ -82,12 +83,23 @@ interface Localidad {
     municipio_id: number;
 }
 
+interface Votacion {
+    id: number;
+    titulo: string;
+    descripcion?: string;
+    estado: string;
+    fecha_inicio: string;
+    fecha_fin: string;
+}
+
 interface Props {
     asamblea?: Asamblea | null;
     territorios: Territorio[];
     departamentos: Departamento[];
     municipios: Municipio[];
     localidades: Localidad[];
+    votaciones?: Votacion[];
+    asambleaVotaciones?: number[];
     canManageParticipants?: boolean;
 }
 
@@ -150,7 +162,13 @@ const form = useForm({
     // Campos de consulta pública de participantes
     public_participants_enabled: props.asamblea?.public_participants_enabled ?? false,
     public_participants_mode: props.asamblea?.public_participants_mode || 'list',
+    // Votaciones asociadas
+    votacion_ids: props.asambleaVotaciones || [],
 });
+
+// Estados del componente
+const showCreateVotacionModal = ref(false);
+const selectedVotaciones = ref<number[]>(props.asambleaVotaciones || []);
 
 // Validaciones de fecha
 const fechaFinError = computed(() => {
@@ -204,6 +222,34 @@ watch(() => form.municipio_id, (newVal, oldVal) => {
     }
 });
 
+
+// Funciones para manejo de votaciones
+const handleVotacionCreated = (votacionId: number) => {
+    // Agregar la nueva votación a las seleccionadas
+    if (!form.votacion_ids.includes(votacionId)) {
+        form.votacion_ids.push(votacionId);
+    }
+    showCreateVotacionModal.value = false;
+};
+
+const removeVotacion = (votacionId: number) => {
+    const index = form.votacion_ids.indexOf(votacionId);
+    if (index > -1) {
+        form.votacion_ids.splice(index, 1);
+    }
+};
+
+// Computed para obtener las votaciones seleccionadas
+const votacionesSeleccionadas = computed(() => {
+    if (!props.votaciones || !form.votacion_ids.length) return [];
+    return props.votaciones.filter(v => form.votacion_ids.includes(v.id));
+});
+
+// Computed para obtener las votaciones disponibles (no seleccionadas)
+const votacionesDisponibles = computed(() => {
+    if (!props.votaciones) return [];
+    return props.votaciones.filter(v => !form.votacion_ids.includes(v.id));
+});
 
 // Enviar formulario
 const submit = () => {
@@ -927,6 +973,100 @@ const cancelar = () => {
                     </CardContent>
                 </Card>
 
+                <!-- Votaciones Asociadas -->
+                <Card>
+                    <CardHeader>
+                        <CardTitle class="flex items-center gap-2">
+                            <Vote class="h-5 w-5" />
+                            Votaciones Asociadas
+                        </CardTitle>
+                        <CardDescription>
+                            Vincule votaciones existentes o cree nuevas votaciones para esta asamblea
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent class="space-y-4">
+                        <!-- Selector de votaciones existentes -->
+                        <div class="space-y-2">
+                            <Label>Vincular votaciones existentes</Label>
+                            <div class="flex gap-2">
+                                <Select 
+                                    :model-value="''"
+                                    @update:model-value="(val) => val && !form.votacion_ids.includes(Number(val)) && form.votacion_ids.push(Number(val))"
+                                >
+                                    <SelectTrigger class="flex-1">
+                                        <SelectValue placeholder="Seleccionar votación para agregar..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem 
+                                            v-for="votacion in votacionesDisponibles" 
+                                            :key="votacion.id"
+                                            :value="votacion.id.toString()"
+                                        >
+                                            {{ votacion.titulo }}
+                                            <span class="text-xs text-muted-foreground ml-2">
+                                                ({{ votacion.estado }})
+                                            </span>
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                
+                                <Button
+                                    type="button"
+                                    @click="showCreateVotacionModal = true"
+                                    variant="outline"
+                                >
+                                    <Plus class="h-4 w-4 mr-2" />
+                                    Crear nueva
+                                </Button>
+                            </div>
+                        </div>
+
+                        <!-- Lista de votaciones seleccionadas -->
+                        <div v-if="votacionesSeleccionadas.length > 0" class="space-y-2">
+                            <Label>Votaciones vinculadas</Label>
+                            <div class="space-y-2">
+                                <div 
+                                    v-for="votacion in votacionesSeleccionadas" 
+                                    :key="votacion.id"
+                                    class="flex items-center justify-between p-3 border rounded-lg bg-gray-50 dark:bg-gray-900"
+                                >
+                                    <div class="flex-1">
+                                        <div class="font-medium">{{ votacion.titulo }}</div>
+                                        <div class="text-sm text-muted-foreground">
+                                            {{ votacion.descripcion }}
+                                        </div>
+                                        <div class="text-xs text-muted-foreground mt-1">
+                                            Estado: {{ votacion.estado }} | 
+                                            Inicio: {{ new Date(votacion.fecha_inicio).toLocaleDateString() }} | 
+                                            Fin: {{ new Date(votacion.fecha_fin).toLocaleDateString() }}
+                                        </div>
+                                    </div>
+                                    <Button
+                                        type="button"
+                                        @click="removeVotacion(votacion.id)"
+                                        variant="ghost"
+                                        size="sm"
+                                    >
+                                        <X class="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <Alert v-else>
+                            <Info class="h-4 w-4" />
+                            <AlertTitle>Sin votaciones vinculadas</AlertTitle>
+                            <AlertDescription>
+                                Esta asamblea no tiene votaciones asociadas. Puede vincular votaciones existentes o crear nuevas.
+                            </AlertDescription>
+                        </Alert>
+
+                        <span v-if="form.errors.votacion_ids" class="text-sm text-red-500">
+                            {{ form.errors.votacion_ids }}
+                        </span>
+                    </CardContent>
+                </Card>
+
                 <!-- Botones de acción -->
                 <div class="flex justify-end gap-4">
                     <Button type="button" variant="outline" @click="cancelar">
@@ -939,5 +1079,13 @@ const cancelar = () => {
                 </div>
             </form>
         </div>
+
+        <!-- Modal de creación rápida de votación -->
+        <CreateVotacionModal 
+            v-if="showCreateVotacionModal"
+            :open="showCreateVotacionModal"
+            @close="showCreateVotacionModal = false"
+            @created="handleVotacionCreated"
+        />
     </AdminLayout>
 </template>

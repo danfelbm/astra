@@ -2,6 +2,7 @@
 
 namespace App\Models\Votaciones;
 
+use App\Models\Asamblea\Asamblea;
 use App\Models\Core\User;
 use App\Models\Geografico\Territorio;
 use App\Traits\HasTenant;
@@ -145,7 +146,7 @@ class Votacion extends Model
         $tenantId = app(\App\Services\Core\TenantService::class)->getCurrentTenant()?->id;
         
         return $this->belongsToMany(User::class, 'votacion_usuario', 'votacion_id', 'usuario_id')
-            ->withPivot('tenant_id')
+            ->withPivot(['tenant_id', 'origen_id', 'model_type'])
             ->wherePivot('tenant_id', $tenantId)
             ->withTimestamps();
     }
@@ -156,6 +157,25 @@ class Votacion extends Model
     public function votos()
     {
         return $this->hasMany(Voto::class);
+    }
+
+    /**
+     * Las asambleas asociadas a esta votación.
+     */
+    public function asambleas()
+    {
+        $tenantId = app(\App\Services\Core\TenantService::class)->getCurrentTenant()?->id;
+        
+        $relation = $this->belongsToMany(Asamblea::class, 'asamblea_votacion', 'votacion_id', 'asamblea_id')
+            ->withPivot(['tenant_id'])
+            ->withTimestamps();
+            
+        // Solo aplicar filtro de tenant si existe un tenant activo
+        if ($tenantId) {
+            $relation->wherePivot('tenant_id', $tenantId);
+        }
+        
+        return $relation;
     }
 
     /**
@@ -270,5 +290,46 @@ class Votacion extends Model
         $fechaInscripcionUsuario = Carbon::parse($user->created_at)->setTimezone($this->timezone);
         
         return $fechaInscripcionUsuario <= $limiteCenso;
+    }
+
+    // ================== SCOPES ==================
+
+    /**
+     * Scope para votaciones con asambleas asociadas
+     */
+    public function scopeConAsambleas($query)
+    {
+        return $query->whereHas('asambleas');
+    }
+
+    /**
+     * Scope para votaciones sin asambleas
+     */
+    public function scopeSinAsambleas($query)
+    {
+        return $query->whereDoesntHave('asambleas');
+    }
+
+    /**
+     * Scope para votaciones de una asamblea específica
+     */
+    public function scopeDeAsamblea($query, $asambleaId)
+    {
+        return $query->whereHas('asambleas', function ($q) use ($asambleaId) {
+            $q->where('asambleas.id', $asambleaId);
+        });
+    }
+
+    /**
+     * Scope para votaciones con participantes sincronizados de asamblea
+     */
+    public function scopeConParticipantesSincronizados($query, $asambleaId = null)
+    {
+        return $query->whereHas('votantes', function ($q) use ($asambleaId) {
+            $q->where('model_type', 'App\Models\Asamblea\Asamblea');
+            if ($asambleaId) {
+                $q->where('origen_id', $asambleaId);
+            }
+        });
     }
 }

@@ -1,0 +1,144 @@
+<template>
+    <div 
+        class="relative bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 hover:border-primary-300 dark:hover:border-primary-600 transition-all duration-200"
+        :class="{ 'opacity-75': votacion.vote_processing }"
+    >
+        <!-- Indicador de procesamiento -->
+        <div v-if="votacion.vote_processing" class="absolute inset-0 bg-white/50 dark:bg-gray-800/50 rounded-lg flex items-center justify-center z-10">
+            <div class="flex flex-col items-center space-y-2">
+                <Loader2 class="h-8 w-8 animate-spin text-primary-600" />
+                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Firmando digitalmente...
+                </span>
+            </div>
+        </div>
+
+        <!-- Encabezado con estado -->
+        <div class="flex justify-between items-start mb-3">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 line-clamp-2">
+                {{ votacion.titulo }}
+            </h3>
+            <VotacionStatus :estado="votacion.estado_visual" :small="true" />
+        </div>
+
+        <!-- Categoría -->
+        <div v-if="votacion.categoria" class="mb-2">
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200">
+                {{ votacion.categoria.nombre }}
+            </span>
+        </div>
+
+        <!-- Descripción -->
+        <p v-if="votacion.descripcion" class="text-sm text-gray-600 dark:text-gray-400 mb-3 line-clamp-2">
+            {{ votacion.descripcion }}
+        </p>
+
+        <!-- Fechas -->
+        <div class="text-sm text-gray-500 dark:text-gray-400 space-y-1 mb-4">
+            <div class="flex items-center gap-1">
+                <Calendar class="h-4 w-4" />
+                <span>Inicio: {{ formatDate(votacion.fecha_inicio) }}</span>
+            </div>
+            <div class="flex items-center gap-1">
+                <Clock class="h-4 w-4" />
+                <span>Fin: {{ formatDate(votacion.fecha_fin) }}</span>
+            </div>
+        </div>
+
+        <!-- Indicadores de estado -->
+        <div class="flex flex-wrap gap-2 mb-4">
+            <Badge v-if="votacion.ya_voto" variant="success">
+                <CheckCircle2 class="h-3 w-3 mr-1" />
+                Ya votaste
+            </Badge>
+            <Badge v-if="votacion.resultados_visibles" variant="secondary">
+                <BarChart2 class="h-3 w-3 mr-1" />
+                Resultados disponibles
+            </Badge>
+            <Badge v-if="votacion.votantes_count" variant="outline">
+                <Users class="h-3 w-3 mr-1" />
+                {{ votacion.votantes_count }} participantes
+            </Badge>
+        </div>
+
+        <!-- Acciones -->
+        <div class="flex gap-2">
+            <slot name="actions" :votacion="votacion">
+                <!-- Acciones por defecto -->
+                <Button
+                    v-if="votacion.puede_votar && canVote"
+                    @click="$emit('votar', votacion)"
+                    size="sm"
+                    class="flex-1"
+                >
+                    <Vote class="h-4 w-4 mr-1" />
+                    Votar
+                </Button>
+                
+                <Button
+                    v-if="votacion.puede_ver_voto && canViewOwnVote"
+                    @click="$emit('ver-voto', votacion)"
+                    variant="outline"
+                    size="sm"
+                    class="flex-1"
+                >
+                    <Eye class="h-4 w-4 mr-1" />
+                    Mi voto
+                </Button>
+                
+                <Button
+                    v-if="votacion.resultados_visibles && canViewResults"
+                    @click="$emit('ver-resultados', votacion)"
+                    variant="outline"
+                    size="sm"
+                    class="flex-1"
+                >
+                    <BarChart2 class="h-4 w-4 mr-1" />
+                    Resultados
+                </Button>
+            </slot>
+        </div>
+    </div>
+</template>
+
+<script setup lang="ts">
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import VotacionStatus from './VotacionStatus.vue';
+import { 
+    Calendar, 
+    Clock, 
+    CheckCircle2, 
+    BarChart2, 
+    Users, 
+    Vote, 
+    Eye,
+    Loader2 
+} from 'lucide-vue-next';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
+
+interface Props {
+    votacion: any;
+    canVote?: boolean;
+    canViewResults?: boolean;
+    canViewOwnVote?: boolean;
+}
+
+withDefaults(defineProps<Props>(), {
+    canVote: true,
+    canViewResults: true,
+    canViewOwnVote: true
+});
+
+defineEmits<{
+    votar: [votacion: any];
+    'ver-voto': [votacion: any];
+    'ver-resultados': [votacion: any];
+}>();
+
+// Formatear fecha
+const formatDate = (date: string) => {
+    return format(new Date(date), "dd/MM/yyyy HH:mm", { locale: es });
+};
+</script>
