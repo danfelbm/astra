@@ -38,6 +38,7 @@ interface User {
     municipio?: { id: number; nombre: string };
     localidad?: { id: number; nombre: string };
     cargo?: { id: number; nombre: string };
+    created_at?: string;
 }
 
 interface Cargo {
@@ -84,6 +85,7 @@ const form = useForm({
     municipio_id: props.user.municipio_id || null,
     localidad_id: props.user.localidad_id || null,
     activo: props.user.activo,
+    created_at: '', // Campo para modificar fecha de creación
 });
 
 // Geographic data
@@ -231,13 +233,14 @@ const handleAvatarDelete = async () => {
                             </div>
 
                             <div>
-                                <Label for="documento_identidad">Documento de identidad</Label>
+                                <Label for="documento_identidad">Documento de identidad *</Label>
                                 <Input
                                     id="documento_identidad"
                                     v-model="form.documento_identidad"
                                     type="text"
                                     placeholder="12345678"
                                     :class="{ 'border-red-500': form.errors.documento_identidad }"
+                                    required
                                 />
                                 <p v-if="form.errors.documento_identidad" class="text-sm text-red-600 mt-1">
                                     {{ form.errors.documento_identidad }}
@@ -245,13 +248,14 @@ const handleAvatarDelete = async () => {
                             </div>
 
                             <div>
-                                <Label for="telefono">Teléfono</Label>
+                                <Label for="telefono">Teléfono *</Label>
                                 <Input
                                     id="telefono"
                                     v-model="form.telefono"
                                     type="tel"
                                     placeholder="3001234567"
                                     :class="{ 'border-red-500': form.errors.telefono }"
+                                    required
                                 />
                                 <p v-if="form.errors.telefono" class="text-sm text-red-600 mt-1">
                                     {{ form.errors.telefono }}
@@ -270,6 +274,23 @@ const handleAvatarDelete = async () => {
                             />
                             <p v-if="form.errors.direccion" class="text-sm text-red-600 mt-1">
                                 {{ form.errors.direccion }}
+                            </p>
+                        </div>
+
+                        <div>
+                            <Label for="created_at">Fecha de creación (opcional)</Label>
+                            <Input
+                                id="created_at"
+                                v-model="form.created_at"
+                                type="datetime-local"
+                                :class="{ 'border-red-500': form.errors.created_at }"
+                                step="1"
+                            />
+                            <p class="text-xs text-muted-foreground mt-1">
+                                Deja vacío para mantener la fecha actual del usuario: {{ user.created_at || 'No disponible' }}
+                            </p>
+                            <p v-if="form.errors.created_at" class="text-sm text-red-600 mt-1">
+                                {{ form.errors.created_at }}
                             </p>
                         </div>
                     </CardContent>

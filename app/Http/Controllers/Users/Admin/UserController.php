@@ -218,8 +218,9 @@ class UserController extends AdminController
                     $fail('El cargo seleccionado no es válido.');
                 }
             }],
-            'documento_identidad' => 'nullable|string|max:20|unique:users,documento_identidad',
-            'telefono' => 'nullable|string|max:20',
+            'documento_identidad' => 'required|string|max:20|unique:users,documento_identidad',
+            'telefono' => 'required|string|max:20',
+            'created_at' => 'nullable|date_format:Y-m-d H:i:s',
             'direccion' => 'nullable|string|max:255',
             'territorio_id' => 'nullable|exists:territorios,id',
             'departamento_id' => 'nullable|exists:departamentos,id',
@@ -263,6 +264,11 @@ class UserController extends AdminController
         
         $validated['password'] = Hash::make($validated['password']);
         $validated['activo'] = $validated['activo'] ?? true;
+        
+        // Si se proporcionó created_at, usarlo; si no, usar el valor por defecto
+        if (empty($validated['created_at'])) {
+            unset($validated['created_at']);
+        }
 
         // Determinar los roles basado en permisos
         $roleIds = [];
@@ -366,8 +372,9 @@ class UserController extends AdminController
                     $fail('El cargo seleccionado no es válido.');
                 }
             }],
-            'documento_identidad' => 'nullable|string|max:20|unique:users,documento_identidad,' . $usuario->id,
-            'telefono' => 'nullable|string|max:20',
+            'documento_identidad' => 'required|string|max:20|unique:users,documento_identidad,' . $usuario->id,
+            'telefono' => 'required|string|max:20',
+            'created_at' => 'nullable|date_format:Y-m-d H:i:s',
             'direccion' => 'nullable|string|max:255',
             'territorio_id' => 'nullable|exists:territorios,id',
             'departamento_id' => 'nullable|exists:departamentos,id',
@@ -415,6 +422,11 @@ class UserController extends AdminController
             unset($validated['password']);
         } else {
             $validated['password'] = Hash::make($validated['password']);
+        }
+        
+        // Si no se proporciona created_at, no actualizar
+        if (empty($validated['created_at'])) {
+            unset($validated['created_at']);
         }
 
         // Manejar actualización de roles basado en permisos

@@ -53,6 +53,7 @@ class User extends Authenticatable
         'cargo_id',
         'telefono',
         'direccion',
+        'created_at',
     ];
 
     /**

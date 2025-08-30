@@ -56,6 +56,7 @@ const form = useForm({
     localidad_id: null as number | null,
     activo: true,
     avatar: null as File | null, // Campo para el archivo de avatar
+    created_at: '', // Campo para fecha de creación personalizada
 });
 
 // Estado para el preview del avatar
@@ -206,13 +207,14 @@ const submit = () => {
                             </div>
 
                             <div>
-                                <Label for="documento_identidad">Documento de identidad</Label>
+                                <Label for="documento_identidad">Documento de identidad *</Label>
                                 <Input
                                     id="documento_identidad"
                                     v-model="form.documento_identidad"
                                     type="text"
                                     placeholder="12345678"
                                     :class="{ 'border-red-500': form.errors.documento_identidad }"
+                                    required
                                 />
                                 <p v-if="form.errors.documento_identidad" class="text-sm text-red-600 mt-1">
                                     {{ form.errors.documento_identidad }}
@@ -220,13 +222,14 @@ const submit = () => {
                             </div>
 
                             <div>
-                                <Label for="telefono">Teléfono</Label>
+                                <Label for="telefono">Teléfono *</Label>
                                 <Input
                                     id="telefono"
                                     v-model="form.telefono"
                                     type="tel"
                                     placeholder="3001234567"
                                     :class="{ 'border-red-500': form.errors.telefono }"
+                                    required
                                 />
                                 <p v-if="form.errors.telefono" class="text-sm text-red-600 mt-1">
                                     {{ form.errors.telefono }}
@@ -245,6 +248,23 @@ const submit = () => {
                             />
                             <p v-if="form.errors.direccion" class="text-sm text-red-600 mt-1">
                                 {{ form.errors.direccion }}
+                            </p>
+                        </div>
+
+                        <div>
+                            <Label for="created_at">Fecha de creación (opcional)</Label>
+                            <Input
+                                id="created_at"
+                                v-model="form.created_at"
+                                type="datetime-local"
+                                :class="{ 'border-red-500': form.errors.created_at }"
+                                step="1"
+                            />
+                            <p class="text-xs text-muted-foreground mt-1">
+                                Deja vacío para usar la fecha actual. Formato: YYYY-MM-DD HH:MM:SS
+                            </p>
+                            <p v-if="form.errors.created_at" class="text-sm text-red-600 mt-1">
+                                {{ form.errors.created_at }}
                             </p>
                         </div>
                     </CardContent>
