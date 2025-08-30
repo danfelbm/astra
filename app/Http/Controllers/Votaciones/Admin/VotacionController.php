@@ -342,7 +342,16 @@ class VotacionController extends AdminController
         }
 
         $categorias = Categoria::activas()->get();
-        $votacione->load(['votantes']);
+        
+        // Comentado: Cargar todos los votantes causaba problemas de rendimiento con grandes censos
+        // $votacione->load(['votantes']);
+        
+        // Cargar solo los primeros 50 votantes para mostrar inicialmente
+        // El resto se cargará mediante paginación en el endpoint getAssignedVoters()
+        $votantesIniciales = $votacione->votantes()
+            ->select('users.id', 'users.name', 'users.email', 'users.documento_identidad', 'users.telefono')
+            ->take(50)
+            ->get();
 
         // Convertir fechas de UTC a zona horaria local para mostrar al usuario
         $votacionParaFrontend = $votacione->toArray();
@@ -368,6 +377,10 @@ class VotacionController extends AdminController
         }
         // Incluir mensaje_limite_censo si existe
         $votacionParaFrontend['mensaje_limite_censo'] = $votacione->mensaje_limite_censo;
+        
+        // Incluir solo los primeros 50 votantes y el total
+        $votacionParaFrontend['votantes'] = $votantesIniciales;
+        $votacionParaFrontend['votantes_total'] = $votacione->votantes()->count();
 
         // Obtener cargos y períodos para el filtro de perfil_candidatura
         $cargos = \App\Models\Elecciones\Cargo::activos()
@@ -603,58 +616,98 @@ class VotacionController extends AdminController
     }
 
     /**
+     * Get assigned voters with pagination and search
+     * Nuevo endpoint para cargar votantes asignados de forma paginada
+     */
+    public function getAssignedVoters(Request $request, Votacion $votacione)
+    {
+        // Verificar permisos
+        abort_unless(auth()->user()->can('votaciones.view'), 403, 'No tienes permisos para ver votantes');
+        
+        $query = $request->input('query', '');
+        $page = $request->input('page', 1);
+        $perPage = $request->input('per_page', 50);
+        
+        // Construir consulta base de votantes asignados
+        $votantesQuery = $votacione->votantes()
+            ->select('users.id', 'users.name', 'users.email', 'users.documento_identidad', 'users.telefono');
+        
+        // Aplicar búsqueda si hay query
+        if (strlen($query) >= 2) {
+            $votantesQuery->where(function($q) use ($query) {
+                $q->where('users.name', 'like', "%{$query}%")
+                  ->orWhere('users.email', 'like', "%{$query}%")
+                  ->orWhere('users.documento_identidad', 'like', "%{$query}%")
+                  ->orWhere('users.telefono', 'like', "%{$query}%");
+            });
+        }
+        
+        // Ordenar por nombre
+        $votantesQuery->orderBy('users.name');
+        
+        // Aplicar paginación
+        $votantes = $votantesQuery->paginate($perPage, ['*'], 'page', $page);
+        
+        return response()->json([
+            'data' => $votantes->items(),
+            'total' => $votantes->total(),
+            'per_page' => $votantes->perPage(),
+            'current_page' => $votantes->currentPage(),
+            'last_page' => $votantes->lastPage(),
+            'has_more' => $votantes->hasMorePages(),
+        ]);
+    }
+    
+    /**
      * Search users for voting assignment with pagination
+     * Actualizado para ser compatible con AddUsersModal
      */
     public function searchUsers(Request $request, Votacion $votacione)
     {
         // Verificar permisos
         abort_unless(auth()->user()->can('votaciones.manage_voters'), 403, 'No tienes permisos para gestionar votantes');
         
-        $query = $request->input('query', '');
+        // Usar 'search' como parámetro principal (compatible con AddUsersModal)
+        // Mantener compatibilidad con 'query' para llamadas antiguas
+        $search = $request->input('search', $request->input('query', ''));
         $page = $request->input('page', 1);
-        $perPage = 20;
-        
-        // Si no hay búsqueda, retornar vacío
-        if (strlen($query) < 2) {
-            return response()->json([
-                'users' => [],
-                'has_more' => false,
-                'total' => 0,
-            ]);
-        }
+        $perPage = $request->input('per_page', 50); // Aumentado a 50 como en Asambleas
         
         // Obtener IDs de votantes ya asignados
         $votantesAsignadosIds = $votacione->votantes()->pluck('users.id');
         
-        // Construir consulta de búsqueda
+        // Construir consulta base
         $usersQuery = User::whereDoesntHave('roles', function($q) {
                 $q->whereIn('name', ['admin', 'super_admin']);
             })
             ->where('activo', true)
-            ->whereNotIn('id', $votantesAsignadosIds)
-            ->where(function($q) use ($query) {
-                $q->where('name', 'like', "%{$query}%")
-                  ->orWhere('email', 'like', "%{$query}%")
-                  ->orWhere('documento_identidad', 'like', "%{$query}%")
-                  ->orWhere('telefono', 'like', "%{$query}%");
-            })
+            ->whereNotIn('id', $votantesAsignadosIds);
+        
+        // Aplicar búsqueda si existe (permitir búsquedas vacías para mostrar todos)
+        if (!empty($search)) {
+            $usersQuery->where(function($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%")
+                  ->orWhere('documento_identidad', 'like', "%{$search}%")
+                  ->orWhere('telefono', 'like', "%{$search}%");
+            });
+        }
+        
+        // Paginar resultados usando el método paginate de Laravel
+        $usersPaginated = $usersQuery
             ->select('id', 'name', 'email', 'documento_identidad', 'telefono')
-            ->orderBy('name');
+            ->orderBy('name')
+            ->paginate($perPage);
         
-        // Obtener total antes de paginar
-        $total = $usersQuery->count();
-        
-        // Aplicar paginación
-        $users = $usersQuery
-            ->limit($perPage)
-            ->offset(($page - 1) * $perPage)
-            ->get();
-        
+        // Retornar en formato compatible con AddUsersModal
         return response()->json([
-            'users' => $users,
-            'has_more' => $total > ($page * $perPage),
-            'total' => $total,
-            'page' => $page,
+            'users' => $usersPaginated->items(),
+            'data' => $usersPaginated->items(), // Alias para compatibilidad
+            'current_page' => $usersPaginated->currentPage(),
+            'last_page' => $usersPaginated->lastPage(),
+            'per_page' => $usersPaginated->perPage(),
+            'total' => $usersPaginated->total(),
+            'has_more' => $usersPaginated->hasMorePages(),
         ]);
     }
     
