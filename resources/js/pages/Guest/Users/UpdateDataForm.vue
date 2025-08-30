@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { Head } from '@inertiajs/vue3';
 import GuestLayout from '@/layouts/GuestLayout.vue';
+import GeographicSelector from '@/components/forms/GeographicSelector.vue';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { SPhoneInput } from '@/components/ui/phone-input';
 import { Progress } from '@/components/ui/progress';
-import { Loader2, Upload, X, FileText, CheckCircle, AlertCircle } from 'lucide-vue-next';
+import { Loader2, Upload, X, FileText, CheckCircle, AlertCircle, MapPin } from 'lucide-vue-next';
 import axios from 'axios';
 import { toast } from 'vue-sonner';
 
@@ -23,6 +24,14 @@ const props = defineProps<{
         email: string;
         telefono: string | null;
         documento_identidad: string;
+        territorio_id?: number;
+        territorio?: { id: number; nombre: string };
+        departamento_id?: number;
+        departamento?: { id: number; nombre: string };
+        municipio_id?: number;
+        municipio?: { id: number; nombre: string };
+        localidad_id?: number;
+        localidad?: { id: number; nombre: string };
     };
 }>();
 
@@ -82,9 +91,30 @@ const isSubmitting = ref(false);
 const showUpdateForm = ref(!props.verification.is_verified); // Solo mostrar formulario si NO está verificado
 const showSuccessMessage = ref(false); // Para mostrar mensaje de éxito después del envío
 const formData = ref({
-    email: props.user.email || '',
-    telefono: props.user.telefono || ''
+    email: '', // No prellenar por seguridad
+    telefono: '', // No prellenar por seguridad
+    territorio_id: props.user.territorio_id || undefined,
+    departamento_id: props.user.departamento_id || undefined,
+    municipio_id: props.user.municipio_id || undefined,
+    localidad_id: props.user.localidad_id || undefined
 });
+
+// Ubicación actual como texto
+const currentLocation = computed(() => {
+    const parts = [];
+    if (props.user.departamento?.nombre) parts.push(props.user.departamento.nombre);
+    if (props.user.municipio?.nombre) parts.push(props.user.municipio.nombre);
+    if (props.user.localidad?.nombre) parts.push(props.user.localidad.nombre);
+    return parts.length > 0 ? parts.join(', ') : 'No definida';
+});
+
+// Manejar actualización de ubicación geográfica
+const handleGeographicUpdate = (value: any) => {
+    formData.value.territorio_id = value.territorio_id;
+    formData.value.departamento_id = value.departamento_id;
+    formData.value.municipio_id = value.municipio_id;
+    formData.value.localidad_id = value.localidad_id;
+};
 
 // Estados de archivos
 const selectedFiles = ref<File[]>([]);
@@ -158,8 +188,12 @@ const submitForm = async () => {
     // Validar que haya cambios o archivos
     const hasEmailChange = formData.value.email && formData.value.email !== props.user.email;
     const hasPhoneChange = formData.value.telefono && formData.value.telefono !== props.user.telefono;
+    const hasLocationChange = formData.value.territorio_id !== props.user.territorio_id ||
+                             formData.value.departamento_id !== props.user.departamento_id ||
+                             formData.value.municipio_id !== props.user.municipio_id ||
+                             formData.value.localidad_id !== props.user.localidad_id;
     
-    if (!hasEmailChange && !hasPhoneChange && selectedFiles.value.length === 0) {
+    if (!hasEmailChange && !hasPhoneChange && !hasLocationChange && selectedFiles.value.length === 0) {
         toast.error('No se detectaron cambios para actualizar');
         return;
     }
@@ -185,6 +219,20 @@ const submitForm = async () => {
         
         if (formData.value.telefono && formData.value.telefono !== props.user.telefono) {
             data.append('telefono', formData.value.telefono);
+        }
+        
+        // Agregar campos geográficos si hay cambios
+        if (formData.value.territorio_id !== props.user.territorio_id) {
+            data.append('territorio_id', formData.value.territorio_id?.toString() || '');
+        }
+        if (formData.value.departamento_id !== props.user.departamento_id) {
+            data.append('departamento_id', formData.value.departamento_id?.toString() || '');
+        }
+        if (formData.value.municipio_id !== props.user.municipio_id) {
+            data.append('municipio_id', formData.value.municipio_id?.toString() || '');
+        }
+        if (formData.value.localidad_id !== props.user.localidad_id) {
+            data.append('localidad_id', formData.value.localidad_id?.toString() || '');
         }
         
         // Agregar archivos
@@ -389,6 +437,7 @@ const goBack = () => {
                                 <p><strong>Documento:</strong> {{ user.documento_identidad }}</p>
                                 <p><strong>Email:</strong> {{ user.email ? censorEmail(user.email) : 'No registrado' }}</p>
                                 <p><strong>Teléfono:</strong> {{ user.telefono ? censorPhone(user.telefono) : 'No registrado' }}</p>
+                                <p><strong>Ubicación:</strong> {{ currentLocation }}</p>
                             </div>
                         </div>
 
@@ -400,7 +449,7 @@ const goBack = () => {
                                 id="email"
                                 v-model="formData.email"
                                 type="email"
-                                :placeholder="user.email || 'ejemplo@correo.com'"
+                                placeholder="ejemplo@correo.com"
                                 class="mt-1"
                             />
                             <p class="text-xs text-muted-foreground mt-1">
@@ -415,12 +464,35 @@ const goBack = () => {
                                 id="telefono"
                                 v-model="formData.telefono"
                                 :default-country="'CO'"
-                                :placeholder="user.telefono || '300 123 4567'"
+                                placeholder="300 123 4567"
                                 class="mt-1"
                                 @keydown.enter.prevent
                             />
                             <p class="text-xs text-muted-foreground mt-1">
                                 Deja vacío si no deseas cambiar el teléfono
+                            </p>
+                        </div>
+
+                        <!-- Ubicación Geográfica -->
+                        <div>
+                            <Label class="mb-2 flex items-center gap-2">
+                                <MapPin class="h-4 w-4" />
+                                Nueva Ubicación de Residencia
+                            </Label>
+                            <GeographicSelector
+                                :model-value="{
+                                    territorio_id: formData.territorio_id,
+                                    departamento_id: formData.departamento_id,
+                                    municipio_id: formData.municipio_id,
+                                    localidad_id: formData.localidad_id,
+                                }"
+                                @update:model-value="handleGeographicUpdate"
+                                mode="single"
+                                :show-card="false"
+                                :disabled="isSubmitting"
+                            />
+                            <p class="text-xs text-muted-foreground mt-1">
+                                Selecciona tu ubicación actual si ha cambiado
                             </p>
                         </div>
 

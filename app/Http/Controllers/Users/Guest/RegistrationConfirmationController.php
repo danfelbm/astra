@@ -224,8 +224,8 @@ class RegistrationConfirmationController extends GuestController
                 ->with('error', 'Sesión inválida. Por favor, inicia el proceso nuevamente.');
         }
 
-        // Cargar relación con user
-        $verificationRequest->load('user');
+        // Cargar relación con user y datos geográficos
+        $verificationRequest->load(['user.territorio', 'user.departamento', 'user.municipio', 'user.localidad']);
 
         // Verificar si puede proceder
         if (!$this->verificationService->canProceedToUpdate($verificationRequest)) {
@@ -244,6 +244,14 @@ class RegistrationConfirmationController extends GuestController
                 'email' => $verificationRequest->user->email,
                 'telefono' => $verificationRequest->user->telefono,
                 'documento_identidad' => $verificationRequest->user->documento_identidad,
+                'territorio_id' => $verificationRequest->user->territorio_id,
+                'territorio' => $verificationRequest->user->territorio,
+                'departamento_id' => $verificationRequest->user->departamento_id,
+                'departamento' => $verificationRequest->user->departamento,
+                'municipio_id' => $verificationRequest->user->municipio_id,
+                'municipio' => $verificationRequest->user->municipio,
+                'localidad_id' => $verificationRequest->user->localidad_id,
+                'localidad' => $verificationRequest->user->localidad,
             ],
         ]);
     }
@@ -257,6 +265,10 @@ class RegistrationConfirmationController extends GuestController
             'verification_id' => 'required|exists:user_verification_requests,id',
             'email' => 'nullable|email|max:255',
             'telefono' => 'nullable|string|max:20',
+            'territorio_id' => 'nullable|exists:territorios,id',
+            'departamento_id' => 'nullable|exists:departamentos,id',
+            'municipio_id' => 'nullable|exists:municipios,id',
+            'localidad_id' => 'nullable|exists:localidades,id',
             'documentos' => 'nullable|array|max:5',
             'documentos.*' => 'file|mimes:pdf,doc,docx,png,jpg,jpeg|max:10240', // 10MB
         ]);
@@ -291,6 +303,19 @@ class RegistrationConfirmationController extends GuestController
         if ($request->telefono && $request->telefono !== $verificationRequest->user->telefono) {
             $hasChanges = true;
         }
+        // Verificar cambios en ubicación
+        if ($request->has('territorio_id') && $request->territorio_id != $verificationRequest->user->territorio_id) {
+            $hasChanges = true;
+        }
+        if ($request->has('departamento_id') && $request->departamento_id != $verificationRequest->user->departamento_id) {
+            $hasChanges = true;
+        }
+        if ($request->has('municipio_id') && $request->municipio_id != $verificationRequest->user->municipio_id) {
+            $hasChanges = true;
+        }
+        if ($request->has('localidad_id') && $request->localidad_id != $verificationRequest->user->localidad_id) {
+            $hasChanges = true;
+        }
 
         if (!$hasChanges && empty($request->file('documentos'))) {
             return response()->json([
@@ -322,6 +347,10 @@ class RegistrationConfirmationController extends GuestController
                 [
                     'email' => $request->email,
                     'telefono' => $request->telefono,
+                    'territorio_id' => $request->territorio_id,
+                    'departamento_id' => $request->departamento_id,
+                    'municipio_id' => $request->municipio_id,
+                    'localidad_id' => $request->localidad_id,
                 ],
                 $documents,
                 $request->ip(),
@@ -334,6 +363,10 @@ class RegistrationConfirmationController extends GuestController
                 [
                     'email' => $request->email,
                     'telefono' => $request->telefono,
+                    'territorio_id' => $request->territorio_id,
+                    'departamento_id' => $request->departamento_id,
+                    'municipio_id' => $request->municipio_id,
+                    'localidad_id' => $request->localidad_id,
                 ],
                 $documents
             );
