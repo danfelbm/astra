@@ -588,6 +588,7 @@ class AsambleaPublicController extends UserController
                 ],
                 'fecha_inicio' => $votacion->fecha_inicio,
                 'fecha_fin' => $votacion->fecha_fin,
+                'timezone' => $votacion->timezone,
                 'estado' => $votacion->estado,
                 'estado_visual' => $votacion->estado === 'activa' && now()->lt($votacion->fecha_inicio) ? 'pendiente' :
                                   ($votacion->estado === 'activa' && now()->gt($votacion->fecha_fin) ? 'finalizada' : $votacion->estado),
