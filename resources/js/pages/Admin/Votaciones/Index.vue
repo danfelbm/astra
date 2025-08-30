@@ -382,7 +382,7 @@ const formatDate = (dateString: string) => {
                                                 <BarChart3 class="h-4 w-4" />
                                             </Button>
                                             <Button 
-                                                v-if="votacion.estado === 'borrador' && canEdit" 
+                                                v-if="votacion.estado !== 'finalizada' && canEdit" 
                                                 variant="ghost" 
                                                 size="sm" 
                                                 as-child

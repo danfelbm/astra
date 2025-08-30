@@ -326,11 +326,19 @@ class VotacionController extends AdminController
         // Verificar permisos
         abort_unless(auth()->user()->can('votaciones.edit'), 403, 'No tienes permisos para editar votaciones');
         
-        // No permitir editar votaciones activas o finalizadas
-        if (in_array($votacione->estado, ['activa', 'finalizada'])) {
+        // Comentado: Restricción original que impedía editar votaciones activas
+        // Ahora solo impedimos editar votaciones finalizadas
+        // if (in_array($votacione->estado, ['activa', 'finalizada'])) {
+        //     return redirect()
+        //         ->route('admin.votaciones.index')
+        //         ->with('error', 'No se puede editar una votación que está activa o finalizada.');
+        // }
+        
+        // Nueva validación: Solo impedir edición de votaciones finalizadas
+        if ($votacione->estado === 'finalizada') {
             return redirect()
                 ->route('admin.votaciones.index')
-                ->with('error', 'No se puede editar una votación que está activa o finalizada.');
+                ->with('error', 'No se puede editar una votación finalizada.');
         }
 
         $categorias = Categoria::activas()->get();
@@ -428,9 +436,15 @@ class VotacionController extends AdminController
         // Verificar permisos
         abort_unless(auth()->user()->can('votaciones.edit'), 403, 'No tienes permisos para editar votaciones');
         
-        // No permitir editar votaciones activas o finalizadas
-        if (in_array($votacione->estado, ['activa', 'finalizada'])) {
-            return back()->with('error', 'No se puede editar una votación que está activa o finalizada.');
+        // Comentado: Restricción original que impedía editar votaciones activas
+        // Ahora solo impedimos editar votaciones finalizadas
+        // if (in_array($votacione->estado, ['activa', 'finalizada'])) {
+        //     return back()->with('error', 'No se puede editar una votación que está activa o finalizada.');
+        // }
+        
+        // Nueva validación: Solo impedir edición de votaciones finalizadas
+        if ($votacione->estado === 'finalizada') {
+            return back()->with('error', 'No se puede editar una votación finalizada.');
         }
 
         $validator = Validator::make($request->all(), [
