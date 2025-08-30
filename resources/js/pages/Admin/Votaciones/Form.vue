@@ -13,7 +13,7 @@ import { DateTimePicker } from '@/components/ui/datetime-picker';
 import { type BreadcrumbItemType } from '@/types';
 import AdminLayout from "@/layouts/AdminLayout.vue";
 import { Head, useForm, router } from '@inertiajs/vue3';
-import { Plus, Trash2, Eye, Upload, X, History, Clock, CheckCircle, XCircle, AlertCircle } from 'lucide-vue-next';
+import { Plus, Trash2, Eye, Upload, X, History, Clock, CheckCircle, XCircle, AlertCircle, Search, ChevronLeft, ChevronRight, Loader2 } from 'lucide-vue-next';
 import { ref, computed, watch, onMounted } from 'vue';
 
 // Import new reusable components
@@ -21,7 +21,7 @@ import DynamicFormBuilder from '@/components/forms/DynamicFormBuilder.vue';
 import GeographicRestrictions from '@/components/forms/GeographicRestrictions.vue';
 import TimezoneSelector from '@/components/forms/TimezoneSelector.vue';
 import CsvImportWizard from '@/components/imports/CsvImportWizard.vue';
-import { UserMultiSelectCombobox } from '@/components/ui/user-search-combobox';
+import AddUsersModal from '@/components/modals/AddUsersModal.vue';
 import type { FormField, GeographicRestrictions as GeographicRestrictionsType } from '@/types/forms';
 
 interface Categoria {
@@ -55,7 +55,10 @@ interface Votacion {
         id: number;
         name: string;
         email: string;
+        documento_identidad?: string;
+        telefono?: string;
     }>;
+    votantes_total?: number;
 }
 
 interface CsvImport {
@@ -269,9 +272,16 @@ const canProceedToVotantes = computed(() => {
     return canProceedToFormulario.value && form.formulario_config.length > 0;
 });
 
-// Gestión de votantes
+// Gestión de votantes con paginación
 const votantesAsignados = ref(props.votacion?.votantes || []);
+const votantesTotal = ref(props.votacion?.votantes_total || 0);
+const votantesCurrentPage = ref(1);
+const votantesPerPage = ref(50);
+const votantesLoading = ref(false);
+const votantesSearchQuery = ref('');
+const votantesLastPage = ref(1);
 const showImportWizard = ref(false);
+const showAddUsersModal = ref(false); // Modal para añadir votantes
 
 // Estado de importaciones recientes
 const recentImports = ref<CsvImport[]>([]);
@@ -327,30 +337,81 @@ const formatImportDate = (dateString: string) => {
 };
 
 // Ya no necesitamos cargar todos los votantes disponibles
-// El componente UserSearchCombobox maneja la búsqueda con lazy loading
+// El modal AddUsersModal maneja la búsqueda con lazy loading
 
-// Agregar votantes (ahora acepta múltiples usuarios)
-const addVotantes = (users: any[]) => {
-    if (!users || users.length === 0 || !isEditing.value || !props.votacion?.id) return;
+// Importar debounce para búsqueda
+import { debounce } from 'lodash-es';
+
+// Cargar votantes asignados con paginación y búsqueda
+const loadAssignedVoters = async (page: number = 1, search: string = '') => {
+    if (!props.votacion?.id) return;
     
-    const votanteIds = users.map(u => u.id.toString());
+    votantesLoading.value = true;
+    
+    try {
+        const params = new URLSearchParams({
+            page: page.toString(),
+            per_page: votantesPerPage.value.toString(),
+            ...(search && { query: search })
+        });
+        
+        const response = await fetch(`/admin/votaciones/${props.votacion.id}/assigned-voters?${params}`);
+        const data = await response.json();
+        
+        votantesAsignados.value = data.data || [];
+        votantesTotal.value = data.total || 0;
+        votantesCurrentPage.value = data.current_page || 1;
+        votantesLastPage.value = data.last_page || 1;
+    } catch (error) {
+        console.error('Error cargando votantes:', error);
+    } finally {
+        votantesLoading.value = false;
+    }
+};
+
+// Debounce para búsqueda de votantes asignados
+const searchAssignedVoters = debounce(() => {
+    votantesCurrentPage.value = 1;
+    loadAssignedVoters(1, votantesSearchQuery.value);
+}, 300);
+
+// Cambiar página de votantes
+const changeVotantesPage = (page: number) => {
+    votantesCurrentPage.value = page;
+    loadAssignedVoters(page, votantesSearchQuery.value);
+};
+
+// Watch para búsqueda de votantes
+watch(votantesSearchQuery, () => {
+    searchAssignedVoters();
+});
+
+// Cargar votantes cuando se active el tab
+watch(() => activeTab.value, (newTab) => {
+    if (newTab === 'votantes' && props.votacion?.id && votantesTotal.value > 0) {
+        // Solo cargar si no hemos cargado antes
+        if (votantesAsignados.value.length === 0 || 
+            (votantesAsignados.value.length < votantesTotal.value && votantesAsignados.value.length <= 50)) {
+            loadAssignedVoters();
+        }
+    }
+});
+
+// Manejar adición de votantes desde el modal
+const handleAddVotantes = (data: { userIds: number[]; extraData: Record<string, any> }) => {
+    if (!data.userIds || data.userIds.length === 0 || !isEditing.value || !props.votacion?.id) return;
     
     router.post(`/admin/votaciones/${props.votacion.id}/votantes`, {
-        votante_ids: votanteIds
+        votante_ids: data.userIds.map(id => id.toString())
     }, {
         preserveScroll: true,
         onSuccess: () => {
-            // Agregar a la lista local
-            users.forEach(user => {
-                // Verificar que no esté ya en la lista
-                if (!votantesAsignados.value.some(v => v.id === user.id)) {
-                    votantesAsignados.value.push({
-                        id: user.id,
-                        name: user.name,
-                        email: user.email
-                    });
-                }
-            });
+            // Actualizar el total y recargar la lista
+            votantesTotal.value += data.userIds.length;
+            // Recargar la página actual para reflejar los cambios
+            loadAssignedVoters(votantesCurrentPage.value, votantesSearchQuery.value);
+            // Cerrar el modal
+            showAddUsersModal.value = false;
         },
         onError: (errors) => {
             console.error('Error adding votantes:', errors);
@@ -369,8 +430,14 @@ const removeVotante = (votanteId: number) => {
         },
         preserveScroll: true,
         onSuccess: () => {
-            // Remover de la lista local
-            votantesAsignados.value = votantesAsignados.value.filter(v => v.id !== votanteId);
+            // Actualizar el total y recargar la lista
+            votantesTotal.value -= 1;
+            // Si la página actual queda vacía, ir a la página anterior
+            if (votantesAsignados.value.length === 1 && votantesCurrentPage.value > 1) {
+                changeVotantesPage(votantesCurrentPage.value - 1);
+            } else {
+                loadAssignedVoters(votantesCurrentPage.value, votantesSearchQuery.value);
+            }
         },
         onError: (errors) => {
             console.error('Error removing votante:', errors);
@@ -784,12 +851,17 @@ onMounted(() => {
                                     </CardTitle>
                                 </CardHeader>
                                 <CardContent>
-                                    <UserMultiSelectCombobox
-                                        v-if="props.votacion?.id"
-                                        :votacion-id="props.votacion.id"
-                                        placeholder="Buscar usuarios por nombre, email, cédula o teléfono..."
-                                        @add-users="addVotantes"
-                                    />
+                                    <Button 
+                                        @click="showAddUsersModal = true"
+                                        class="w-full"
+                                        variant="outline"
+                                    >
+                                        <Plus class="h-4 w-4 mr-2" />
+                                        Buscar y Añadir Votantes
+                                    </Button>
+                                    <p class="text-sm text-muted-foreground mt-2">
+                                        Busca usuarios por nombre, email, documento o teléfono
+                                    </p>
                                 </CardContent>
                             </Card>
 
@@ -860,29 +932,85 @@ onMounted(() => {
                                 </CardContent>
                             </Card>
 
-                            <!-- Lista de votantes asignados -->
+                            <!-- Lista de votantes asignados con búsqueda y paginación -->
                             <Card>
                                 <CardHeader>
-                                    <CardTitle>Votantes Asignados ({{ votantesAsignados.length }})</CardTitle>
+                                    <CardTitle>Votantes Asignados ({{ votantesTotal }})</CardTitle>
                                 </CardHeader>
-                                <CardContent>
-                                    <div v-if="votantesAsignados.length === 0" class="text-center py-8 text-muted-foreground">
-                                        <p>No hay votantes asignados a esta votación</p>
+                                <CardContent class="space-y-4">
+                                    <!-- Campo de búsqueda -->
+                                    <div class="relative">
+                                        <Search class="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                        <Input
+                                            v-model="votantesSearchQuery"
+                                            type="text"
+                                            placeholder="Buscar por nombre, email, documento o teléfono..."
+                                            class="pl-10"
+                                        />
+                                    </div>
+                                    
+                                    <!-- Estado de carga -->
+                                    <div v-if="votantesLoading" class="flex items-center justify-center py-8">
+                                        <Loader2 class="h-8 w-8 animate-spin text-muted-foreground" />
+                                        <span class="ml-2 text-muted-foreground">Cargando votantes...</span>
+                                    </div>
+                                    
+                                    <!-- Lista de votantes -->
+                                    <div v-else-if="votantesAsignados.length === 0" class="text-center py-8 text-muted-foreground">
+                                        <p v-if="votantesSearchQuery">No se encontraron votantes que coincidan con "{{ votantesSearchQuery }}"</p>
+                                        <p v-else>No hay votantes asignados a esta votación</p>
                                         <p class="text-sm">Importa un archivo CSV o agrega votantes manualmente</p>
                                     </div>
-                                    <div v-else class="space-y-2">
-                                        <div
-                                            v-for="votante in votantesAsignados"
-                                            :key="votante.id"
-                                            class="flex items-center justify-between p-3 border rounded-lg"
-                                        >
-                                            <div>
-                                                <p class="font-medium">{{ votante.name }}</p>
-                                                <p class="text-sm text-muted-foreground">{{ votante.email }}</p>
+                                    
+                                    <div v-else>
+                                        <!-- Lista de votantes -->
+                                        <div class="space-y-2 max-h-96 overflow-y-auto">
+                                            <div
+                                                v-for="votante in votantesAsignados"
+                                                :key="votante.id"
+                                                class="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50"
+                                            >
+                                                <div class="flex-1 min-w-0">
+                                                    <p class="font-medium truncate">{{ votante.name }}</p>
+                                                    <div class="flex items-center gap-4 text-sm text-muted-foreground">
+                                                        <span class="truncate">{{ votante.email }}</span>
+                                                        <span v-if="votante.documento_identidad">Doc: {{ votante.documento_identidad }}</span>
+                                                        <span v-if="votante.telefono">Tel: {{ votante.telefono }}</span>
+                                                    </div>
+                                                </div>
+                                                <Button variant="ghost" size="sm" @click="removeVotante(votante.id)">
+                                                    <Trash2 class="h-4 w-4 text-destructive" />
+                                                </Button>
                                             </div>
-                                            <Button variant="ghost" size="sm" @click="removeVotante(votante.id)">
-                                                <Trash2 class="h-4 w-4 text-destructive" />
-                                            </Button>
+                                        </div>
+                                        
+                                        <!-- Paginación -->
+                                        <div v-if="votantesLastPage > 1" class="flex items-center justify-between pt-4 border-t">
+                                            <div class="text-sm text-muted-foreground">
+                                                Mostrando {{ (votantesCurrentPage - 1) * votantesPerPage + 1 }} - 
+                                                {{ Math.min(votantesCurrentPage * votantesPerPage, votantesTotal) }} 
+                                                de {{ votantesTotal }} votantes
+                                            </div>
+                                            <div class="flex gap-2">
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    :disabled="votantesCurrentPage === 1"
+                                                    @click="changeVotantesPage(votantesCurrentPage - 1)"
+                                                >
+                                                    <ChevronLeft class="h-4 w-4" />
+                                                    Anterior
+                                                </Button>
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    :disabled="votantesCurrentPage === votantesLastPage"
+                                                    @click="changeVotantesPage(votantesCurrentPage + 1)"
+                                                >
+                                                    Siguiente
+                                                    <ChevronRight class="h-4 w-4" />
+                                                </Button>
+                                            </div>
                                         </div>
                                     </div>
                                 </CardContent>
@@ -903,5 +1031,18 @@ onMounted(() => {
                 </Card>
             </div>
         </div>
+
+        <!-- Modal para añadir votantes -->
+        <AddUsersModal
+            v-model="showAddUsersModal"
+            title="Añadir Votantes"
+            description="Selecciona los usuarios que deseas añadir como votantes de esta votación"
+            :search-endpoint="`/admin/votaciones/${props.votacion?.id}/search-users`"
+            search-placeholder="Buscar por nombre, email, documento o teléfono..."
+            submit-button-text="Añadir Votantes"
+            empty-message="Escribe para buscar usuarios disponibles"
+            no-results-message="No se encontraron usuarios con esa búsqueda"
+            @submit="handleAddVotantes"
+        />
     </AdminLayout>
 </template>

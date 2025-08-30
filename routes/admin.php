@@ -165,6 +165,9 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
     Route::get('votaciones/{votacione}/search-users', [VotacionController::class, 'searchUsers'])
         ->middleware('can:votaciones.manage_voters')
         ->name('votaciones.search-users');
+    Route::get('votaciones/{votacione}/assigned-voters', [VotacionController::class, 'getAssignedVoters'])
+        ->middleware('can:votaciones.view')
+        ->name('votaciones.assigned-voters');
     Route::post('votaciones/{votacione}/importar-votantes', [VotacionController::class, 'importarVotantes'])
         ->middleware('can:votaciones.manage_voters')
         ->name('votaciones.importar-votantes');
