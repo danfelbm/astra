@@ -34,14 +34,29 @@
         </p>
 
         <!-- Fechas -->
-        <div class="text-sm text-gray-500 dark:text-gray-400 space-y-1 mb-4">
-            <div class="flex items-center gap-1">
-                <Calendar class="h-4 w-4" />
-                <span>Inicio: {{ formatDate(votacion.fecha_inicio) }}</span>
+        <div class="text-sm mb-4">
+            <!-- Horario oficial de la votación -->
+            <div class="space-y-1 mb-2">
+                <div class="flex items-center gap-1 text-gray-700 dark:text-gray-300 font-medium">
+                    <Calendar class="h-4 w-4" />
+                    <span>Horario oficial ({{ getTimezoneAbbr(votacionTimezone) }}):</span>
+                </div>
+                <div class="ml-5 text-gray-600 dark:text-gray-400">
+                    <div>Inicio: {{ formatVotacionDate(votacion.fecha_inicio) }}</div>
+                    <div>Fin: {{ formatVotacionDate(votacion.fecha_fin) }}</div>
+                </div>
             </div>
-            <div class="flex items-center gap-1">
-                <Clock class="h-4 w-4" />
-                <span>Fin: {{ formatDate(votacion.fecha_fin) }}</span>
+            
+            <!-- Horario local (solo si es diferente) -->
+            <div v-if="isLocalDifferent(votacion.fecha_inicio)" class="space-y-1">
+                <div class="flex items-center gap-1 text-gray-500 dark:text-gray-500 text-xs">
+                    <Globe class="h-3 w-3" />
+                    <span>Tu hora local:</span>
+                </div>
+                <div class="ml-5 text-gray-500 dark:text-gray-500 text-xs">
+                    <div>Inicio: {{ formatLocalDate(votacion.fecha_inicio) }}</div>
+                    <div>Fin: {{ formatLocalDate(votacion.fecha_fin) }}</div>
+                </div>
             </div>
         </div>
 
@@ -113,10 +128,13 @@ import {
     Users, 
     Vote, 
     Eye,
-    Loader2 
+    Loader2,
+    Globe 
 } from 'lucide-vue-next';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { formatInTimeZone } from 'date-fns-tz';
+import { computed } from 'vue';
 
 interface Props {
     votacion: any;
@@ -125,7 +143,7 @@ interface Props {
     canViewOwnVote?: boolean;
 }
 
-withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<Props>(), {
     canVote: true,
     canViewResults: true,
     canViewOwnVote: true
@@ -137,8 +155,33 @@ defineEmits<{
     'ver-resultados': [votacion: any];
 }>();
 
-// Formatear fecha
-const formatDate = (date: string) => {
+// Obtener el timezone de la votación (por defecto America/Bogota)
+const votacionTimezone = computed(() => props.votacion.timezone || 'America/Bogota');
+
+// Obtener el nombre corto del timezone
+const getTimezoneAbbr = (timezone: string) => {
+    const abbrs: Record<string, string> = {
+        'America/Bogota': 'COT',
+        'America/New_York': 'EST',
+        'America/Los_Angeles': 'PST',
+        'Europe/Madrid': 'CET',
+        'America/Mexico_City': 'CST',
+    };
+    return abbrs[timezone] || timezone;
+};
+
+// Formatear fecha en la zona horaria de la votación
+const formatVotacionDate = (date: string) => {
+    return formatInTimeZone(date, votacionTimezone.value, "dd/MM/yyyy HH:mm", { locale: es });
+};
+
+// Formatear fecha en hora local del usuario
+const formatLocalDate = (date: string) => {
     return format(new Date(date), "dd/MM/yyyy HH:mm", { locale: es });
+};
+
+// Detectar si la hora local es diferente a la hora de la votación
+const isLocalDifferent = (date: string) => {
+    return formatVotacionDate(date) !== formatLocalDate(date);
 };
 </script>
