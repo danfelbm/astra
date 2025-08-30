@@ -266,6 +266,17 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
         ->middleware('can:asambleas.manage_participants')
         ->name('asambleas.imports.store');
     
+    // Rutas de votaciones asociadas a asambleas
+    Route::get('asambleas/{asamblea}/votaciones', [AsambleaController::class, 'getVotaciones'])
+        ->middleware('can:asambleas.view')
+        ->name('asambleas.votaciones');
+    Route::post('asambleas/{asamblea}/votaciones/{votacion}/sync', [AsambleaController::class, 'syncParticipantsToVotacion'])
+        ->middleware('can:asambleas.sync_participants')
+        ->name('asambleas.sync-participants');
+    Route::get('sync-job/{jobId}/status', [AsambleaController::class, 'getSyncJobStatus'])
+        ->middleware('can:asambleas.view')
+        ->name('sync-job.status');
+    
     // Convocatorias routes
     Route::get('convocatorias', [ConvocatoriaController::class, 'index'])
         ->middleware('can:convocatorias.view')

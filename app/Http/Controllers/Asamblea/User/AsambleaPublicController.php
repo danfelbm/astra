@@ -3,10 +3,9 @@
 namespace App\Http\Controllers\Asamblea\User;
 
 use App\Http\Controllers\Core\UserController;
-
-
 use App\Models\Asamblea\Asamblea;
 use App\Models\Core\User;
+use App\Models\Votaciones\Votacion;
 use App\Traits\HasAdvancedFilters;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -252,6 +251,7 @@ class AsambleaPublicController extends UserController
             'esParticipante' => $esParticipante,
             'esDesuTerritorio' => $esDesuTerritorio,
             'miParticipacion' => $miParticipacion,
+            'votaciones' => $this->getVotacionesAsociadas($asamblea, $user, $esParticipante),
             // Props de permisos generales
             'canParticipate' => auth()->user()->can('asambleas.participate'),
             'canViewMinutes' => auth()->user()->can('asambleas.view_minutes'),
@@ -538,5 +538,67 @@ class AsambleaPublicController extends UserController
                 'updated_by_name' => $user->name
             ]
         ]);
+    }
+
+    /**
+     * Obtener votaciones asociadas a la asamblea
+     */
+    private function getVotacionesAsociadas(Asamblea $asamblea, User $user, bool $esParticipante)
+    {
+        // Solo mostrar votaciones si es participante
+        if (!$esParticipante) {
+            return [];
+        }
+
+        // Obtener votaciones asociadas a la asamblea
+        $votaciones = $asamblea->votaciones()
+            ->whereIn('estado', ['activa', 'finalizada'])
+            ->orderBy('fecha_inicio', 'desc')
+            ->get();
+
+        // Transformar para incluir información de voto del usuario
+        return $votaciones->map(function ($votacion) use ($user) {
+            // Verificar si el usuario ya votó
+            $yaVoto = $votacion->votos()
+                ->where('usuario_id', $user->id)
+                ->exists();
+
+            // Verificar si puede votar
+            $puedeVotar = !$yaVoto && 
+                          $votacion->estado === 'activa' &&
+                          now()->between($votacion->fecha_inicio, $votacion->fecha_fin);
+
+            // Verificar si puede ver resultados
+            $resultadosVisibles = false;
+            if ($votacion->resultados_publicos) {
+                if ($votacion->fecha_publicacion_resultados) {
+                    $resultadosVisibles = now()->gte($votacion->fecha_publicacion_resultados);
+                } else {
+                    $resultadosVisibles = $votacion->estado === 'finalizada';
+                }
+            }
+
+            return [
+                'id' => $votacion->id,
+                'titulo' => $votacion->titulo,
+                'descripcion' => $votacion->descripcion,
+                'categoria' => [
+                    'id' => $votacion->categoria->id,
+                    'nombre' => $votacion->categoria->nombre,
+                ],
+                'fecha_inicio' => $votacion->fecha_inicio,
+                'fecha_fin' => $votacion->fecha_fin,
+                'estado' => $votacion->estado,
+                'estado_visual' => $votacion->estado === 'activa' && now()->lt($votacion->fecha_inicio) ? 'pendiente' :
+                                  ($votacion->estado === 'activa' && now()->gt($votacion->fecha_fin) ? 'finalizada' : $votacion->estado),
+                'ya_voto' => $yaVoto,
+                'puede_votar' => $puedeVotar,
+                'ha_finalizado' => $votacion->estado === 'finalizada' || now()->gt($votacion->fecha_fin),
+                'puede_ver_voto' => $yaVoto,
+                'resultados_visibles' => $resultadosVisibles,
+                'vote_processing' => false,
+                'vote_status' => null,
+            ];
+        })->toArray();
     }
 }

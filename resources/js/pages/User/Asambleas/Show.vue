@@ -26,13 +26,15 @@ import {
     UserCheck,
     Video,
     ChevronLeft,
-    ChevronRight
+    ChevronRight,
+    Vote
 } from 'lucide-vue-next';
 import { computed, ref, onMounted, watch, defineAsyncComponent } from 'vue';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useGeographicFilters } from '@/composables/useGeographicFilters';
 import { useDebounce } from '@/composables/useDebounce';
+import VotacionGrid from '@/components/votaciones/VotacionGrid.vue';
 
 interface Territorio {
     id: number;
@@ -106,6 +108,19 @@ interface Asamblea {
     zoom_estado_mensaje?: string;
 }
 
+interface Votacion {
+    id: number;
+    titulo: string;
+    descripcion?: string;
+    estado: string;
+    fecha_inicio: string;
+    fecha_fin: string;
+    categoria?: any;
+    es_activa: boolean;
+    ya_voto: boolean;
+    puede_votar: boolean;
+}
+
 interface Props {
     asamblea: Asamblea;
     esParticipante: boolean;
@@ -115,6 +130,7 @@ interface Props {
         asistio: boolean;
         hora_registro?: string;
     };
+    votaciones?: Votacion[];
     // Props de permisos generales
     canParticipate: boolean;
     canViewMinutes: boolean;
@@ -134,6 +150,11 @@ const breadcrumbs: BreadcrumbItemType[] = [
 
 // Tab activo - cambiar a "informacion" si no es participante
 const activeTab = ref(props.esParticipante ? 'videoconferencia' : 'informacion');
+
+// Computed para verificar si hay votaciones
+const tieneVotaciones = computed(() => {
+    return props.votaciones && props.votaciones.length > 0;
+});
 
 // Control de lazy loading para optimizar rendimiento
 const participantesCargados = ref(false);
@@ -506,7 +527,11 @@ onMounted(() => {
 
             <!-- Navegación con Tabs -->
             <Tabs v-model="activeTab" class="w-full">
-                <TabsList :class="esParticipante ? 'grid w-full grid-cols-3' : 'grid w-full grid-cols-2'">
+                <TabsList :class="[
+                    'grid w-full',
+                    esParticipante && tieneVotaciones ? 'grid-cols-4' :
+                    esParticipante ? 'grid-cols-3' : 'grid-cols-2'
+                ]">
                     <TabsTrigger 
                         v-if="esParticipante"
                         value="videoconferencia" 
@@ -518,6 +543,14 @@ onMounted(() => {
                     </TabsTrigger>
                     <TabsTrigger value="informacion">Información</TabsTrigger>
                     <TabsTrigger value="participantes" :disabled="!esParticipante">Participantes</TabsTrigger>
+                    <TabsTrigger 
+                        v-if="esParticipante && tieneVotaciones"
+                        value="votaciones"
+                        class="flex items-center gap-2"
+                    >
+                        <Vote class="h-4 w-4" />
+                        Votaciones
+                    </TabsTrigger>
                 </TabsList>
 
                 <!-- Tab de Información General -->
@@ -875,6 +908,28 @@ onMounted(() => {
                             Esta asamblea no tiene videoconferencia habilitada.
                         </AlertDescription>
                     </Alert>
+                </TabsContent>
+
+                <!-- Tab de Votaciones -->
+                <TabsContent v-if="esParticipante && tieneVotaciones" value="votaciones" class="space-y-4 mt-6">
+                    <div class="space-y-4">
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <h3 class="text-lg font-semibold">Votaciones de la Asamblea</h3>
+                                <p class="text-sm text-gray-600">
+                                    Votaciones asociadas a esta asamblea en las que puedes participar
+                                </p>
+                            </div>
+                            <Badge>{{ votaciones.length }} votación(es)</Badge>
+                        </div>
+                        
+                        <VotacionGrid 
+                            :votaciones="votaciones"
+                            :can-vote="true"
+                            :can-view-results="false"
+                            view-mode="grid"
+                        />
+                    </div>
                 </TabsContent>
 
             </Tabs>

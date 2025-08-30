@@ -7,6 +7,7 @@ use App\Models\Geografico\Departamento;
 use App\Models\Geografico\Localidad;
 use App\Models\Geografico\Municipio;
 use App\Models\Geografico\Territorio;
+use App\Models\Votaciones\Votacion;
 use App\Traits\HasTenant;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
@@ -95,6 +96,23 @@ class Asamblea extends Model
         return $this->belongsToMany(User::class, 'asamblea_usuario', 'asamblea_id', 'usuario_id')
             ->withPivot(['tenant_id', 'tipo_participacion', 'asistio', 'hora_registro', 'updated_by'])
             ->withTimestamps();
+    }
+
+    // Relación con votaciones asociadas
+    public function votaciones(): BelongsToMany
+    {
+        $tenantId = app(\App\Services\Core\TenantService::class)->getCurrentTenant()?->id;
+        
+        $relation = $this->belongsToMany(Votacion::class, 'asamblea_votacion', 'asamblea_id', 'votacion_id')
+            ->withPivot(['tenant_id'])
+            ->withTimestamps();
+            
+        // Solo aplicar filtro de tenant si existe un tenant activo
+        if ($tenantId) {
+            $relation->wherePivot('tenant_id', $tenantId);
+        }
+        
+        return $relation;
     }
 
     // Relaciones con ubicaciones geográficas
@@ -629,5 +647,41 @@ class Asamblea extends Model
         }
         
         return $baseConfig;
+    }
+
+    // ================== SCOPES ==================
+
+    /**
+     * Scope para asambleas con votaciones asociadas
+     */
+    public function scopeConVotaciones(Builder $query): Builder
+    {
+        return $query->whereHas('votaciones');
+    }
+
+    /**
+     * Scope para asambleas sin votaciones
+     */
+    public function scopeSinVotaciones(Builder $query): Builder
+    {
+        return $query->whereDoesntHave('votaciones');
+    }
+
+    /**
+     * Scope para asambleas con votaciones activas
+     */
+    public function scopeConVotacionesActivas(Builder $query): Builder
+    {
+        return $query->whereHas('votaciones', function ($q) {
+            $q->where('estado', 'activa');
+        });
+    }
+
+    /**
+     * Scope para filtrar por cantidad de votaciones
+     */
+    public function scopeConMinimoVotaciones(Builder $query, int $minimo): Builder
+    {
+        return $query->has('votaciones', '>=', $minimo);
     }
 }

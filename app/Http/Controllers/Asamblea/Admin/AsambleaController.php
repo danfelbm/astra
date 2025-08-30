@@ -3,12 +3,14 @@
 namespace App\Http\Controllers\Asamblea\Admin;
 
 use App\Http\Controllers\Core\AdminController;
+use App\Jobs\Asamblea\SyncParticipantsToVotacionJob;
 use App\Models\Asamblea\Asamblea;
 use App\Models\Core\User;
 use App\Models\Geografico\Territorio;
 use App\Models\Geografico\Departamento;
 use App\Models\Geografico\Municipio;
 use App\Models\Geografico\Localidad;
+use App\Models\Votaciones\Votacion;
 use App\Services\Asamblea\ZoomService;
 use App\Traits\HasAdvancedFilters;
 use App\Traits\HasGeographicFilters;
@@ -231,6 +233,11 @@ class AsambleaController extends AdminController
             'departamentos' => Departamento::all(),
             'municipios' => Municipio::all(),
             'localidades' => Localidad::all(),
+            'votaciones' => Votacion::select('id', 'titulo', 'descripcion', 'estado', 'fecha_inicio', 'fecha_fin')
+                ->where('estado', 'activa')
+                ->orderBy('titulo')
+                ->get(),
+            'asambleaVotaciones' => [],
             'canManageParticipants' => auth()->user()->can('asambleas.manage_participants'),
         ]);
     }
@@ -281,6 +288,9 @@ class AsambleaController extends AdminController
             // Campos de consulta pública de participantes
             'public_participants_enabled' => 'boolean',
             'public_participants_mode' => 'nullable|in:list,search',
+            // Votaciones asociadas
+            'votacion_ids' => 'nullable|array',
+            'votacion_ids.*' => 'exists:votaciones,id',
         ], [
             'nombre.required' => 'El nombre es requerido.',
             'tipo.required' => 'El tipo de asamblea es requerido.',
@@ -313,6 +323,16 @@ class AsambleaController extends AdminController
         }
 
         $asamblea = Asamblea::create($data);
+
+        // Sincronizar votaciones asociadas si se proporcionaron
+        if (!empty($request->votacion_ids)) {
+            $tenantId = app(\App\Services\Core\TenantService::class)->getCurrentTenant()?->id;
+            $syncData = [];
+            foreach ($request->votacion_ids as $votacionId) {
+                $syncData[$votacionId] = ['tenant_id' => $tenantId];
+            }
+            $asamblea->votaciones()->sync($syncData);
+        }
 
         // Crear reunión de Zoom solo si está habilitado y es modo SDK
         if (($data['zoom_enabled'] ?? false) && ($data['zoom_integration_type'] ?? 'sdk') === 'sdk') {
@@ -378,6 +398,11 @@ class AsambleaController extends AdminController
             'departamentos' => Departamento::all(),
             'municipios' => Municipio::all(),
             'localidades' => Localidad::all(),
+            'votaciones' => Votacion::select('id', 'titulo', 'descripcion', 'estado', 'fecha_inicio', 'fecha_fin')
+                ->where('estado', 'activa')
+                ->orderBy('titulo')
+                ->get(),
+            'asambleaVotaciones' => $asamblea->votaciones()->pluck('votaciones.id')->toArray(),
             'canManageParticipants' => auth()->user()->can('asambleas.manage_participants'),
         ]);
     }
@@ -430,6 +455,9 @@ class AsambleaController extends AdminController
             // Campos de consulta pública de participantes
             'public_participants_enabled' => 'boolean',
             'public_participants_mode' => 'nullable|in:list,search',
+            // Votaciones asociadas
+            'votacion_ids' => 'nullable|array',
+            'votacion_ids.*' => 'exists:votaciones,id',
         ], [
             'nombre.required' => 'El nombre es requerido.',
             'tipo.required' => 'El tipo de asamblea es requerido.',
@@ -513,6 +541,16 @@ class AsambleaController extends AdminController
 
         $asamblea->update($data);
 
+        // Sincronizar votaciones asociadas
+        if (isset($request->votacion_ids)) {
+            $tenantId = app(\App\Services\Core\TenantService::class)->getCurrentTenant()?->id;
+            $syncData = [];
+            foreach ($request->votacion_ids as $votacionId) {
+                $syncData[$votacionId] = ['tenant_id' => $tenantId];
+            }
+            $asamblea->votaciones()->sync($syncData);
+        }
+
         $message = 'Asamblea actualizada exitosamente.';
         if (!empty($zoomMessages)) {
             $message .= ' ' . implode(' ', $zoomMessages);
@@ -538,6 +576,12 @@ class AsambleaController extends AdminController
         // Verificar que no tenga acta registrada
         if ($asamblea->acta_url) {
             return back()->withErrors(['delete' => 'No se puede eliminar una asamblea con acta registrada.']);
+        }
+
+        // Verificar que no tenga votaciones asociadas
+        if ($asamblea->votaciones()->exists()) {
+            $cantidadVotaciones = $asamblea->votaciones()->count();
+            return back()->withErrors(['delete' => "No se puede eliminar una asamblea con {$cantidadVotaciones} votación(es) asociada(s). Primero debe desvincular las votaciones."]);
         }
 
         $asamblea->delete();
@@ -810,5 +854,101 @@ class AsambleaController extends AdminController
 
             return back()->with('success', 'Participante actualizado exitosamente.');
         }
+    }
+
+    /**
+     * Sincronizar participantes de asamblea a votación
+     */
+    public function syncParticipantsToVotacion(Request $request, Asamblea $asamblea, Votacion $votacion): JsonResponse
+    {
+        // Verificar permisos
+        abort_unless(auth()->user()->can('asambleas.sync_participants'), 403, 'No tienes permisos para sincronizar participantes');
+
+        // Verificar que la votación esté asociada a la asamblea
+        if (!$asamblea->votaciones()->where('votaciones.id', $votacion->id)->exists()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'La votación no está asociada a esta asamblea'
+            ], 400);
+        }
+
+        // Verificar que la asamblea tenga participantes
+        if ($asamblea->participantes()->count() === 0) {
+            return response()->json([
+                'success' => false,
+                'message' => 'La asamblea no tiene participantes para sincronizar'
+            ], 400);
+        }
+
+        // Despachar el job de sincronización
+        $job = new SyncParticipantsToVotacionJob($asamblea, $votacion);
+        dispatch($job);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Sincronización iniciada',
+            'job_id' => $job->getJobId()
+        ]);
+    }
+
+    /**
+     * Obtener el estado de un job de sincronización
+     */
+    public function getSyncJobStatus(Request $request, string $jobId): JsonResponse
+    {
+        $cacheKey = "sync_job_{$jobId}";
+        $status = \Cache::get($cacheKey);
+
+        if (!$status) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Job no encontrado o expirado'
+            ], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => $status
+        ]);
+    }
+
+    /**
+     * Obtener votaciones de una asamblea
+     */
+    public function getVotaciones(Asamblea $asamblea): JsonResponse
+    {
+        // Verificar permisos
+        abort_unless(auth()->user()->can('asambleas.view'), 403, 'No tienes permisos para ver asambleas');
+
+        $votaciones = $asamblea->votaciones()
+            ->with('categoria')
+            ->withCount('votantes')
+            ->get()
+            ->map(function ($votacion) use ($asamblea) {
+                // Contar participantes sincronizados desde esta asamblea
+                $sincronizados = \DB::table('votacion_usuario')
+                    ->where('votacion_id', $votacion->id)
+                    ->where('origen_id', $asamblea->id)
+                    ->where('model_type', 'App\Models\Asamblea\Asamblea')
+                    ->count();
+                
+                return [
+                    'id' => $votacion->id,
+                    'titulo' => $votacion->titulo,
+                    'descripcion' => $votacion->descripcion,
+                    'estado' => $votacion->estado,
+                    'fecha_inicio' => $votacion->fecha_inicio,
+                    'fecha_fin' => $votacion->fecha_fin,
+                    'categoria' => $votacion->categoria,
+                    'votantes_count' => $votacion->votantes_count,
+                    'sincronizados_count' => $sincronizados,
+                    'puede_sincronizar' => $votacion->estado === 'activa'
+                ];
+            });
+
+        return response()->json([
+            'success' => true,
+            'data' => $votaciones
+        ]);
     }
 }
