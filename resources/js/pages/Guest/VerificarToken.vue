@@ -126,7 +126,20 @@ const formatDate = (dateString: string) => {
 
 // Formatear respuesta según tipo de campo
 const formatRespuesta = (field: FormField, valor: any) => {
-    if (!valor && valor !== 0) return 'Sin respuesta';
+    // Hotfix: Para preguntas de candidatos, mostrar "Voto en blanco" en lugar de "Sin respuesta"
+    if (!valor && valor !== 0) {
+        // Detectar si es una pregunta de votación por candidatos
+        const esPreguntaCandidatos = 
+            field.title?.toLowerCase().includes('candidato') ||
+            field.title?.toLowerCase().includes('elige') ||
+            field.title === '1. Elige un candidato por el que desees votar' ||
+            (field.type === 'radio' && field.title?.match(/^\d+\.\s*Elige/));
+        
+        if (esPreguntaCandidatos) {
+            return 'Voto en blanco';
+        }
+        return 'Sin respuesta';
+    }
     
     if (field.type === 'checkbox') {
         if (Array.isArray(valor) && valor.length > 0) {
