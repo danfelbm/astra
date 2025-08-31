@@ -11,7 +11,7 @@ import BarChart from '@/components/BarChart.vue';
 import { type BreadcrumbItemType } from '@/types';
 import UserLayout from "@/layouts/UserLayout.vue";
 import { Head, router } from '@inertiajs/vue3';
-import { ArrowLeft, BarChart3, Globe, Shield, Calendar, Users, ExternalLink, ChevronDown, ChevronRight, Loader2 } from 'lucide-vue-next';
+import { ArrowLeft, BarChart3, Globe, Shield, Calendar, Users, ExternalLink, ChevronDown, ChevronRight, Loader2, Download } from 'lucide-vue-next';
 import { ref, onMounted } from 'vue';
 
 interface Categoria {
@@ -31,6 +31,7 @@ interface Votacion {
     fecha_fin: string;
     fecha_publicacion_resultados?: string;
     total_votos: number;
+    allow_tokens_download: boolean;
 }
 
 interface User {
@@ -83,6 +84,12 @@ const volverAVotaciones = () => {
 // Función para ir a verificar token
 const irAVerificarToken = (token: string) => {
     const url = `/verificar-token/${token}`;
+    window.open(url, '_blank');
+};
+
+// Función para descargar CSV de tokens
+const descargarTokensCsv = () => {
+    const url = `/api/votaciones/${props.votacion.id}/resultados/tokens/download`;
     window.open(url, '_blank');
 };
 
@@ -642,6 +649,15 @@ onMounted(() => {
                                     />
                                     <Button @click="buscarTokens" variant="outline">
                                         Buscar
+                                    </Button>
+                                    <Button 
+                                        v-if="props.votacion.allow_tokens_download"
+                                        @click="descargarTokensCsv" 
+                                        variant="outline"
+                                        title="Descargar todos los tokens en formato CSV"
+                                    >
+                                        <Download class="mr-2 h-4 w-4" />
+                                        Descargar CSV
                                     </Button>
                                 </div>
                             </div>

@@ -43,6 +43,7 @@ interface Votacion {
     fecha_fin: string;
     estado: 'borrador' | 'activa' | 'finalizada';
     resultados_publicos: boolean;
+    allow_tokens_download: boolean;
     fecha_publicacion_resultados?: string;
     limite_censo?: string;
     mensaje_limite_censo?: string;
@@ -145,6 +146,7 @@ const getInitialFormData = () => {
             fecha_fin: null,
             estado: 'borrador',
             resultados_publicos: false,
+            allow_tokens_download: false,
             fecha_publicacion_resultados: null,
             limite_censo: null,
             mensaje_limite_censo: '',
@@ -167,6 +169,7 @@ const getInitialFormData = () => {
         fecha_fin: votacion.fecha_fin || null,
         estado: votacion.estado || 'borrador',
         resultados_publicos: !!votacion.resultados_publicos,
+        allow_tokens_download: !!votacion.allow_tokens_download,
         fecha_publicacion_resultados: votacion.fecha_publicacion_resultados || null,
         limite_censo: votacion.limite_censo || null,
         mensaje_limite_censo: votacion.mensaje_limite_censo || '',
@@ -474,6 +477,7 @@ watch(() => props.votacion, (newVotacion) => {
         form.fecha_fin = newData.fecha_fin;
         form.estado = newData.estado;
         form.resultados_publicos = newData.resultados_publicos;
+        form.allow_tokens_download = newData.allow_tokens_download;
         form.fecha_publicacion_resultados = newData.fecha_publicacion_resultados;
         form.formulario_config = newData.formulario_config;
         form.timezone = newData.timezone;
@@ -677,6 +681,20 @@ onMounted(() => {
                                         <p class="text-xs text-muted-foreground">
                                             Si se especifica una fecha, los resultados serán visibles desde esa fecha. 
                                             Si se deja vacío, los resultados solo serán visibles después de que termine la votación.
+                                        </p>
+                                        
+                                        <div class="flex items-center space-x-2 mt-4">
+                                            <Checkbox
+                                                id="allow_tokens_download"
+                                                :checked="form.allow_tokens_download"
+                                                @update:checked="form.allow_tokens_download = $event"
+                                            />
+                                            <Label for="allow_tokens_download">
+                                                Permitir descarga de tokens en CSV
+                                            </Label>
+                                        </div>
+                                        <p class="text-xs text-muted-foreground ml-6">
+                                            Permite a los usuarios descargar todos los tokens de verificación en formato CSV para análisis externos.
                                         </p>
                                         </div>
                                     </Transition>
