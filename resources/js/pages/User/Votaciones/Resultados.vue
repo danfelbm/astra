@@ -6,11 +6,12 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import BarChart from '@/components/BarChart.vue';
 import { type BreadcrumbItemType } from '@/types';
 import UserLayout from "@/layouts/UserLayout.vue";
 import { Head, router } from '@inertiajs/vue3';
-import { ArrowLeft, BarChart3, Globe, Shield, Calendar, Users, ExternalLink } from 'lucide-vue-next';
+import { ArrowLeft, BarChart3, Globe, Shield, Calendar, Users, ExternalLink, ChevronDown, ChevronRight, Loader2 } from 'lucide-vue-next';
 import { ref, onMounted } from 'vue';
 
 interface Categoria {
@@ -66,6 +67,14 @@ const agrupacionTerritorio = ref('territorio');
 const busquedaToken = ref('');
 const paginaTokens = ref(1);
 
+// Estados para manejo de expansiones
+const expandedTerritories = ref<Set<number>>(new Set());
+const expandedOptions = ref<Map<string, Set<string>>>(new Map());
+const loadingTerritoriesDetails = ref<Record<string, boolean>>({});
+const territoriesDetailsData = ref<Record<string, any>>({});
+const loadingOptionsDetails = ref<Record<string, boolean>>({});
+const optionsDetailsData = ref<Record<string, any>>({});
+
 // Función para volver a votaciones
 const volverAVotaciones = () => {
     router.get(props.user.es_admin ? '/admin/votaciones' : '/miembro/votaciones');
@@ -80,6 +89,9 @@ const irAVerificarToken = (token: string) => {
 // Cargar datos consolidados
 const cargarDatosConsolidado = async () => {
     loadingConsolidado.value = true;
+    // Limpiar opciones expandidas al recargar
+    expandedOptions.value.clear();
+    optionsDetailsData.value = {};
     try {
         const response = await fetch(`/api/votaciones/${props.votacion.id}/resultados/consolidado`);
         const data = await response.json();
@@ -135,7 +147,23 @@ const formatDate = (dateString: string) => {
 };
 
 // Cuando cambia la agrupación de territorio
-const onAgrupacionChange = () => {
+const onAgrupacionChange = async () => {
+    // Limpiar territorios expandidos cuando cambia la agrupación (Tab 2)
+    expandedTerritories.value.clear();
+    territoriesDetailsData.value = {};
+    
+    // Para Tab 1 (Consolidado): Recargar distribución geográfica de opciones expandidas
+    const opcionesExpandidasBackup = new Map(expandedOptions.value);
+    optionsDetailsData.value = {};
+    
+    // Recargar datos de opciones que estaban expandidas con la nueva agrupación
+    for (const [preguntaId, opciones] of opcionesExpandidasBackup) {
+        for (const opcion of opciones) {
+            await loadOptionDetails(preguntaId, opcion);
+        }
+    }
+    
+    // Cargar datos de la tab de territorio
     cargarDatosTerritorio();
 };
 
@@ -154,6 +182,80 @@ const getChartDataFromResponses = (respuestas: any[]) => {
             data: respuestas.map(r => r.cantidad)
         }]
     };
+};
+
+// Función para togglear expansión de territorio
+const toggleTerritoryExpansion = async (grupoId: number, nombreGrupo: string) => {
+    const key = `${agrupacionTerritorio.value}_${grupoId}`;
+    
+    if (expandedTerritories.value.has(grupoId)) {
+        expandedTerritories.value.delete(grupoId);
+    } else {
+        expandedTerritories.value.add(grupoId);
+        
+        // Si no hay datos cargados, cargarlos
+        if (!territoriesDetailsData.value[key]) {
+            await loadTerritoryDetails(grupoId, nombreGrupo);
+        }
+    }
+};
+
+// Cargar detalles de ranking por territorio
+const loadTerritoryDetails = async (grupoId: number, nombreGrupo: string) => {
+    const key = `${agrupacionTerritorio.value}_${grupoId}`;
+    loadingTerritoriesDetails.value[key] = true;
+    
+    try {
+        const response = await fetch(`/api/votaciones/${props.votacion.id}/resultados/ranking-territorio?agrupacion=${agrupacionTerritorio.value}&grupo_id=${grupoId}`);
+        const data = await response.json();
+        territoriesDetailsData.value[key] = data;
+    } catch (error) {
+        console.error('Error cargando detalles del territorio:', error);
+    } finally {
+        loadingTerritoriesDetails.value[key] = false;
+    }
+};
+
+// Función para togglear expansión de opción en consolidado
+const toggleOptionExpansion = async (preguntaId: string, opcion: string) => {
+    if (!expandedOptions.value.has(preguntaId)) {
+        expandedOptions.value.set(preguntaId, new Set());
+    }
+    
+    const preguntaOptions = expandedOptions.value.get(preguntaId)!;
+    const key = `${preguntaId}_${opcion}`;
+    
+    if (preguntaOptions.has(opcion)) {
+        preguntaOptions.delete(opcion);
+    } else {
+        preguntaOptions.add(opcion);
+        
+        // Si no hay datos cargados, cargarlos
+        if (!optionsDetailsData.value[key]) {
+            await loadOptionDetails(preguntaId, opcion);
+        }
+    }
+};
+
+// Cargar distribución geográfica por opción
+const loadOptionDetails = async (preguntaId: string, opcion: string) => {
+    const key = `${preguntaId}_${opcion}`;
+    loadingOptionsDetails.value[key] = true;
+    
+    try {
+        const response = await fetch(`/api/votaciones/${props.votacion.id}/resultados/distribucion-opcion?pregunta_id=${preguntaId}&opcion=${encodeURIComponent(opcion)}&agrupacion=${agrupacionTerritorio.value}`);
+        const data = await response.json();
+        optionsDetailsData.value[key] = data;
+    } catch (error) {
+        console.error('Error cargando distribución geográfica:', error);
+    } finally {
+        loadingOptionsDetails.value[key] = false;
+    }
+};
+
+// Verificar si una opción está expandida
+const isOptionExpanded = (preguntaId: string, opcion: string): boolean => {
+    return expandedOptions.value.get(preguntaId)?.has(opcion) || false;
 };
 
 // Cargar datos iniciales
@@ -211,6 +313,21 @@ onMounted(() => {
                 </CardContent>
             </Card>
 
+            <!-- Filtro de agrupación territorial -->
+            <div class="flex items-center gap-3">
+                <span class="text-sm font-medium">Filtrar resultados:</span>
+                <Select v-model="agrupacionTerritorio" @update:model-value="onAgrupacionChange">
+                    <SelectTrigger class="w-48">
+                        <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="territorio">Por Territorio</SelectItem>
+                        <SelectItem value="departamento">Por Departamento</SelectItem>
+                        <SelectItem value="municipio">Por Municipio</SelectItem>
+                    </SelectContent>
+                </Select>
+            </div>
+
             <!-- Pestañas de resultados -->
             <Tabs default-value="consolidado" class="flex-1">
                 <TabsList class="grid w-full grid-cols-3">
@@ -258,28 +375,85 @@ onMounted(() => {
                                             />
                                         </div>
                                         
-                                        <!-- Tabla de resultados -->
+                                        <!-- Tabla de resultados con expansión -->
                                         <div class="space-y-2">
-                                            <div 
+                                            <Collapsible 
                                                 v-for="respuesta in pregunta.respuestas" 
                                                 :key="respuesta.opcion"
-                                                class="flex items-center justify-between p-3 bg-muted/30 rounded-lg"
+                                                :open="isOptionExpanded(pregunta.id, respuesta.opcion)"
                                             >
-                                                <div class="flex-1">
-                                                    <div class="flex items-center justify-between mb-1">
-                                                        <span class="font-medium">{{ respuesta.opcion }}</span>
-                                                        <span class="text-sm text-muted-foreground">
-                                                            {{ respuesta.cantidad }} ({{ respuesta.porcentaje }}%)
-                                                        </span>
+                                                <CollapsibleTrigger 
+                                                    @click="toggleOptionExpansion(pregunta.id, respuesta.opcion)"
+                                                    class="w-full"
+                                                >
+                                                    <div class="flex items-center justify-between p-3 bg-muted/30 rounded-lg hover:bg-muted/40 transition-colors cursor-pointer">
+                                                        <div class="flex items-center gap-2">
+                                                            <ChevronRight 
+                                                                v-if="!isOptionExpanded(pregunta.id, respuesta.opcion)"
+                                                                class="h-4 w-4 text-muted-foreground"
+                                                            />
+                                                            <ChevronDown 
+                                                                v-else
+                                                                class="h-4 w-4 text-muted-foreground"
+                                                            />
+                                                            <span class="font-medium">{{ respuesta.opcion }}</span>
+                                                        </div>
+                                                        <div class="flex items-center gap-4">
+                                                            <span class="text-sm text-muted-foreground">
+                                                                {{ respuesta.cantidad }} votos
+                                                            </span>
+                                                            <Badge variant="secondary">{{ respuesta.porcentaje }}%</Badge>
+                                                        </div>
                                                     </div>
-                                                    <div class="w-full bg-muted rounded-full h-2">
-                                                        <div 
-                                                            class="bg-primary h-2 rounded-full transition-all duration-300"
-                                                            :style="{ width: `${respuesta.porcentaje}%` }"
-                                                        ></div>
+                                                </CollapsibleTrigger>
+                                                
+                                                <CollapsibleContent>
+                                                    <div class="mt-2 p-4 bg-muted/20 rounded-lg border">
+                                                        <div v-if="loadingOptionsDetails[`${pregunta.id}_${respuesta.opcion}`]" class="flex items-center justify-center py-4">
+                                                            <Loader2 class="h-5 w-5 animate-spin text-muted-foreground mr-2" />
+                                                            <span class="text-sm text-muted-foreground">Cargando distribución geográfica...</span>
+                                                        </div>
+                                                        <div v-else-if="optionsDetailsData[`${pregunta.id}_${respuesta.opcion}`]" class="space-y-4">
+                                                            <h5 class="font-medium text-sm mb-3">
+                                                                Distribución geográfica de votos para "{{ respuesta.opcion }}"
+                                                            </h5>
+                                                            
+                                                            <!-- Top territorios/departamentos/municipios -->
+                                                            <div class="space-y-2">
+                                                                <div 
+                                                                    v-for="(territorio, index) in optionsDetailsData[`${pregunta.id}_${respuesta.opcion}`].distribucion.slice(0, 10)" 
+                                                                    :key="territorio.grupo_id"
+                                                                    class="flex items-center justify-between p-2 bg-background rounded"
+                                                                >
+                                                                    <div class="flex items-center gap-2">
+                                                                        <Badge variant="outline" class="w-8 h-6 flex items-center justify-center">
+                                                                            {{ index + 1 }}
+                                                                        </Badge>
+                                                                        <span class="text-sm">
+                                                                            {{ territorio.nombre_grupo }}
+                                                                            <span v-if="territorio.departamento_nombre" class="text-muted-foreground">
+                                                                                ({{ territorio.departamento_nombre }})
+                                                                            </span>
+                                                                        </span>
+                                                                    </div>
+                                                                    <div class="flex items-center gap-3">
+                                                                        <span class="text-sm font-medium">{{ territorio.total_votos }} votos</span>
+                                                                        <Badge variant="outline">{{ territorio.porcentaje }}%</Badge>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            
+                                                            <div v-if="optionsDetailsData[`${pregunta.id}_${respuesta.opcion}`].distribucion.length > 10" class="text-xs text-muted-foreground text-center">
+                                                                Mostrando top 10 de {{ optionsDetailsData[`${pregunta.id}_${respuesta.opcion}`].distribucion.length }} ubicaciones
+                                                            </div>
+                                                            
+                                                            <div v-if="optionsDetailsData[`${pregunta.id}_${respuesta.opcion}`].distribucion.length === 0" class="text-center py-2 text-sm text-muted-foreground">
+                                                                No hay datos de distribución geográfica disponibles.
+                                                            </div>
+                                                        </div>
                                                     </div>
-                                                </div>
-                                            </div>
+                                                </CollapsibleContent>
+                                            </Collapsible>
                                         </div>
                                     </div>
                                     
@@ -308,19 +482,7 @@ onMounted(() => {
                 <TabsContent value="territorio" class="space-y-4">
                     <Card>
                         <CardHeader>
-                            <div class="flex items-center justify-between">
-                                <CardTitle>Resultados por Territorio</CardTitle>
-                                <Select v-model="agrupacionTerritorio" @update:model-value="onAgrupacionChange">
-                                    <SelectTrigger class="w-48">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="territorio">Por Territorio</SelectItem>
-                                        <SelectItem value="departamento">Por Departamento</SelectItem>
-                                        <SelectItem value="municipio">Por Municipio</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
+                            <CardTitle>Resultados por {{ agrupacionTerritorio === 'territorio' ? 'Territorio' : agrupacionTerritorio === 'departamento' ? 'Departamento' : 'Municipio' }}</CardTitle>
                         </CardHeader>
                         <CardContent>
                             <div v-if="loadingTerritorio" class="text-center py-8">
@@ -331,6 +493,7 @@ onMounted(() => {
                                     <Table>
                                         <TableHeader>
                                             <TableRow>
+                                                <TableHead class="w-12"></TableHead>
                                                 <TableHead>{{ agrupacionTerritorio === 'territorio' ? 'Territorio' : agrupacionTerritorio === 'departamento' ? 'Departamento' : 'Municipio' }}</TableHead>
                                                 <TableHead v-if="agrupacionTerritorio === 'municipio'">Departamento</TableHead>
                                                 <TableHead class="text-right">Votos</TableHead>
@@ -338,22 +501,104 @@ onMounted(() => {
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
-                                            <TableRow v-for="resultado in datosTerritorio.resultados" :key="resultado.grupo_id">
-                                                <TableCell class="font-medium">
-                                                    {{ 
+                                            <template v-for="resultado in datosTerritorio.resultados" :key="resultado.grupo_id">
+                                                <TableRow 
+                                                    class="cursor-pointer hover:bg-muted/50 transition-colors"
+                                                    @click="toggleTerritoryExpansion(
+                                                        resultado.grupo_id, 
                                                         agrupacionTerritorio === 'territorio' 
                                                             ? (resultado.territorio_nombre || 'Sin especificar')
                                                             : agrupacionTerritorio === 'departamento'
                                                                 ? (resultado.departamento_nombre || 'Sin especificar')
                                                                 : (resultado.municipio_nombre || 'Sin especificar')
-                                                    }}
-                                                </TableCell>
-                                                <TableCell v-if="agrupacionTerritorio === 'municipio'">{{ resultado.departamento_nombre || 'N/A' }}</TableCell>
-                                                <TableCell class="text-right">{{ resultado.total_votos }}</TableCell>
-                                                <TableCell class="text-right">
-                                                    <Badge variant="secondary">{{ resultado.porcentaje }}%</Badge>
-                                                </TableCell>
-                                            </TableRow>
+                                                    )"
+                                                >
+                                                    <TableCell>
+                                                        <ChevronRight 
+                                                            v-if="!expandedTerritories.has(resultado.grupo_id)"
+                                                            class="h-4 w-4 text-muted-foreground"
+                                                        />
+                                                        <ChevronDown 
+                                                            v-else
+                                                            class="h-4 w-4 text-muted-foreground"
+                                                        />
+                                                    </TableCell>
+                                                    <TableCell class="font-medium">
+                                                        {{ 
+                                                            agrupacionTerritorio === 'territorio' 
+                                                                ? (resultado.territorio_nombre || 'Sin especificar')
+                                                                : agrupacionTerritorio === 'departamento'
+                                                                    ? (resultado.departamento_nombre || 'Sin especificar')
+                                                                    : (resultado.municipio_nombre || 'Sin especificar')
+                                                        }}
+                                                    </TableCell>
+                                                    <TableCell v-if="agrupacionTerritorio === 'municipio'">{{ resultado.departamento_nombre || 'N/A' }}</TableCell>
+                                                    <TableCell class="text-right">{{ resultado.total_votos }}</TableCell>
+                                                    <TableCell class="text-right">
+                                                        <Badge variant="secondary">{{ resultado.porcentaje }}%</Badge>
+                                                    </TableCell>
+                                                </TableRow>
+                                                
+                                                <!-- Fila expandible con detalles -->
+                                                <TableRow v-if="expandedTerritories.has(resultado.grupo_id)">
+                                                    <TableCell :colspan="agrupacionTerritorio === 'municipio' ? 5 : 4" class="p-0">
+                                                        <div class="bg-muted/20 p-6 border-t">
+                                                            <div v-if="loadingTerritoriesDetails[`${agrupacionTerritorio}_${resultado.grupo_id}`]" class="flex items-center justify-center py-8">
+                                                                <Loader2 class="h-6 w-6 animate-spin text-muted-foreground mr-2" />
+                                                                <span class="text-muted-foreground">Cargando ranking de votación...</span>
+                                                            </div>
+                                                            <div v-else-if="territoriesDetailsData[`${agrupacionTerritorio}_${resultado.grupo_id}`]" class="space-y-6">
+                                                                <h4 class="font-semibold text-lg mb-4">
+                                                                    Ranking de votación desde {{ 
+                                                                        agrupacionTerritorio === 'territorio' 
+                                                                            ? (resultado.territorio_nombre || 'Sin especificar')
+                                                                            : agrupacionTerritorio === 'departamento'
+                                                                                ? (resultado.departamento_nombre || 'Sin especificar')
+                                                                                : (resultado.municipio_nombre || 'Sin especificar')
+                                                                    }}
+                                                                </h4>
+                                                                
+                                                                <div v-for="pregunta in territoriesDetailsData[`${agrupacionTerritorio}_${resultado.grupo_id}`].preguntas" :key="pregunta.id" class="space-y-3">
+                                                                    <div>
+                                                                        <h5 class="font-medium">{{ pregunta.titulo }}</h5>
+                                                                        <p class="text-sm text-muted-foreground">
+                                                                            Total de respuestas: {{ pregunta.respuestas.reduce((sum, r) => sum + r.cantidad, 0) }}
+                                                                        </p>
+                                                                    </div>
+                                                                    
+                                                                    <!-- Gráfico de barras para esta pregunta -->
+                                                                    <div v-if="pregunta.respuestas.length > 0" class="bg-card border rounded-lg p-4">
+                                                                        <BarChart 
+                                                                            :data="getChartDataFromResponses(pregunta.respuestas)"
+                                                                            :title="`Distribución: ${pregunta.titulo}`"
+                                                                            :height="200"
+                                                                        />
+                                                                    </div>
+                                                                    
+                                                                    <!-- Tabla de detalles -->
+                                                                    <div class="space-y-2">
+                                                                        <div 
+                                                                            v-for="respuesta in pregunta.respuestas" 
+                                                                            :key="respuesta.opcion"
+                                                                            class="flex items-center justify-between p-2 bg-background rounded"
+                                                                        >
+                                                                            <span class="text-sm">{{ respuesta.opcion }}</span>
+                                                                            <div class="flex items-center gap-4">
+                                                                                <span class="text-sm font-medium">{{ respuesta.cantidad }} votos</span>
+                                                                                <Badge variant="outline">{{ respuesta.porcentaje }}%</Badge>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                                
+                                                                <div v-if="territoriesDetailsData[`${agrupacionTerritorio}_${resultado.grupo_id}`].preguntas.length === 0" class="text-center py-4 text-muted-foreground">
+                                                                    No hay datos de votación disponibles para este {{ agrupacionTerritorio }}.
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </TableCell>
+                                                </TableRow>
+                                            </template>
                                         </TableBody>
                                     </Table>
                                 </div>
