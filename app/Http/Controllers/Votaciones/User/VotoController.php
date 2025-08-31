@@ -53,10 +53,12 @@ class VotoController extends UserController
                   ->orWhere('fecha_fin', '<', now());
             });
         } else {
-            // Mostrar solo votaciones activas (incluyendo las próximas a abrir) que no hayan terminado
-            // Excluir votaciones en borrador - solo mostrar las activas
-            $query->where('estado', 'activa')
-                  ->where('fecha_fin', '>=', now());
+            // CAMBIO CRÍTICO: Mostrar TODAS las votaciones (activas Y finalizadas)
+            // Las finalizadas deben verse para consultar resultados y verificar tokens
+            // El bloqueo para votar se hace en el método show(), NO aquí
+            // Solo excluimos las que están en borrador
+            $query->where('estado', '!=', 'borrador');
+            // NO filtramos por fecha_fin - mostramos todas las asignadas al usuario
         }
 
         // Definir campos permitidos para filtrar

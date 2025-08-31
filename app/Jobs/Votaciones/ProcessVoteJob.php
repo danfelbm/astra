@@ -143,39 +143,55 @@ class ProcessVoteJob implements ShouldQueue, ShouldBeUnique
                     'urnaOpenedDateTime' => $urnaOpenedDateTime ? $urnaOpenedDateTime->toISOString() : 'null',
                     'voteTimestamp' => $voteTimestamp->toISOString()
                 ]);
-                
-                // Generar token firmado con las respuestas y timestamps de urna
-                // Incluir tanto created_at como urna_opened_at en el token
-                $token = TokenService::generateSignedToken(
-                    $this->votacion->id,
-                    $this->respuestas,
-                    $voteTimestamp->toISOString(),  // created_at del voto
-                    $urnaOpenedDateTime ? $urnaOpenedDateTime->toISOString() : null  // urna_opened_at
-                );
 
                 // Crear el voto con retry automático para manejar posibles locks
-                $voto = retry(3, function () use ($token, $voteTimestamp, $urnaOpenedDateTime) {
-                    Log::info('ProcessVoteJob: Creando voto', [
-                        'urnaOpenedDateTime_before_save' => $urnaOpenedDateTime ? $urnaOpenedDateTime->toISOString() : 'null'
+                // CRÍTICO: Token se genera DENTRO del retry para evitar duplicados
+                $voto = retry(3, function () use ($voteTimestamp, $urnaOpenedDateTime) {
+                    // VERIFICACIÓN DE SEGURIDAD: ¿Ya existe el voto?
+                    $votoExistente = Voto::where('votacion_id', $this->votacion->id)
+                        ->where('usuario_id', $this->user->id)
+                        ->first();
+                    
+                    if ($votoExistente) {
+                        Log::info('ProcessVoteJob: Voto ya existe en retry, retornando existente', [
+                            'voto_id' => $votoExistente->id,
+                            'user_id' => $this->user->id,
+                            'votacion_id' => $this->votacion->id
+                        ]);
+                        return $votoExistente; // Retornar el existente, NO crear duplicado
+                    }
+                    
+                    // GENERAR TOKEN ÚNICO para este intento específico
+                    // El salt aleatorio garantiza un token diferente cada vez
+                    $token = TokenService::generateSignedToken(
+                        $this->votacion->id,
+                        $this->respuestas,
+                        $voteTimestamp->toISOString(),  // created_at del voto
+                        $urnaOpenedDateTime ? $urnaOpenedDateTime->toISOString() : null  // urna_opened_at
+                    );
+                    
+                    Log::info('ProcessVoteJob: Creando voto con token único', [
+                        'token_first_50' => substr($token, 0, 50),
+                        'user_id' => $this->user->id
                     ]);
                     
                     return Voto::create([
                         'votacion_id' => $this->votacion->id,
                         'usuario_id' => $this->user->id,
                         'token_unico' => $token,
-                        'urna_opened_at' => $urnaOpenedDateTime,  // Guardar timestamp de apertura como DateTime
+                        'urna_opened_at' => $urnaOpenedDateTime,
                         'respuestas' => $this->respuestas,
                         'ip_address' => $this->ipAddress,
                         'user_agent' => $this->userAgent,
                     ]);
                 }, 100); // Reintentar después de 100ms si hay lock
                 
-                // Log para verificar qué se guardó realmente
-                Log::info('ProcessVoteJob: Voto creado', [
+                // Log final del voto procesado
+                Log::info('ProcessVoteJob: Voto procesado exitosamente', [
                     'voto_id' => $voto->id,
                     'urna_opened_at_saved' => $voto->urna_opened_at ? $voto->urna_opened_at->toISOString() : 'null',
                     'created_at' => $voto->created_at->toISOString(),
-                    'token_first_100' => substr($voto->token_unico, 0, 100)
+                    'token_first_50' => substr($voto->token_unico, 0, 50)
                 ]);
 
                 // Cerrar la sesión de urna SOLO después de guardar el voto exitosamente
@@ -218,13 +234,6 @@ class ProcessVoteJob implements ShouldQueue, ShouldBeUnique
                 
                 // También guardar el ID del voto para referencia rápida
                 Cache::put("vote_id_{$this->votacion->id}_{$this->user->id}", $voto->id, 3600);
-
-                Log::info('Voto procesado exitosamente', [
-                    'user_id' => $this->user->id,
-                    'votacion_id' => $this->votacion->id,
-                    'voto_id' => $voto->id,
-                    'token' => substr($token, 0, 8) . '...' // Solo log parcial del token
-                ]);
             });
 
         } catch (\Illuminate\Database\QueryException $e) {
