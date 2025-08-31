@@ -160,6 +160,14 @@ class Votacion extends Model
     }
 
     /**
+     * Get the urna sessions for the votacion.
+     */
+    public function urnaSessions()
+    {
+        return $this->hasMany(UrnaSession::class);
+    }
+
+    /**
      * Las asambleas asociadas a esta votación.
      */
     public function asambleas()

@@ -9,6 +9,7 @@ use App\Jobs\Votaciones\ProcessVoteJob;
 use App\Jobs\Votaciones\SendVoteConfirmationEmailJob;
 use App\Jobs\Votaciones\SendVoteConfirmationWhatsAppJob;
 use App\Models\Votaciones\Categoria;
+use App\Models\Votaciones\UrnaSession;
 use App\Models\Votaciones\Votacion;
 use App\Models\Votaciones\Voto;
 use App\Services\Core\IpAddressService;
@@ -157,14 +158,6 @@ class VotoController extends UserController
                 ->with('error', 'Esta votación no está activa.');
         }
 
-        // Verificar que esté en el rango de fechas válido
-        $now = now();
-        if ($now < $votacion->fecha_inicio || $now > $votacion->fecha_fin) {
-            return redirect()
-                ->route('user.votaciones.index')
-                ->with('error', 'Esta votación no está disponible en este momento.');
-        }
-
         // Verificar que el usuario no haya votado ya
         if ($votacion->votos()->where('usuario_id', $user->id)->exists()) {
             return redirect()
@@ -172,10 +165,61 @@ class VotoController extends UserController
                 ->with('error', 'Ya has participado en esta votación.');
         }
 
+        // Buscar sesión de urna activa existente
+        $urnaSession = UrnaSession::where('votacion_id', $votacion->id)
+            ->where('usuario_id', $user->id)
+            ->where('status', 'active')
+            ->first();
+
+        $now = Carbon::now();
+        $sessionDuration = config('votaciones.urna_session_duration', 5);
+        
+        // Si no hay sesión activa, verificar si puede crear una nueva
+        if (!$urnaSession) {
+            // Verificar que esté en el rango de fechas válido para abrir urna
+            if ($now < $votacion->fecha_inicio || $now > $votacion->fecha_fin) {
+                return redirect()
+                    ->route('user.votaciones.index')
+                    ->with('error', 'Esta votación no está disponible en este momento.');
+            }
+
+            // Crear nueva sesión de urna
+            $urnaSession = UrnaSession::create([
+                'votacion_id' => $votacion->id,
+                'usuario_id' => $user->id,
+                'opened_at' => $now,
+                'status' => 'active',
+                'ip_address' => IpAddressService::getRealIp(request()),
+                'user_agent' => request()->userAgent(),
+                'expires_at' => $now->copy()->addMinutes($sessionDuration),
+            ]);
+
+            // Registrar apertura de urna en audit log
+            $urnaSession->logAction('abrió urna', "Sesión de {$sessionDuration} minutos iniciada");
+        } else {
+            // Verificar que la sesión no haya expirado
+            if ($urnaSession->hasExpired()) {
+                $urnaSession->expire();
+                return redirect()
+                    ->route('user.votaciones.index')
+                    ->with('error', 'Tu sesión de votación ha expirado. Por favor, intenta nuevamente.');
+            }
+
+            // Verificar consistencia de IP si está configurado
+            if (config('votaciones.urna_verify_ip', true)) {
+                $currentIp = IpAddressService::getRealIp(request());
+                if ($urnaSession->ip_address !== $currentIp) {
+                    $urnaSession->logUnauthorizedAttempt('acceso desde IP diferente', "IP original: {$urnaSession->ip_address}, IP actual: {$currentIp}");
+                    return redirect()
+                        ->route('user.votaciones.index')
+                        ->with('error', 'Sesión inválida. Por seguridad, debes completar tu voto desde la misma conexión.');
+                }
+            }
+        }
+
         $votacion->load('categoria');
         
         // Convertir fechas a la zona horaria de la votación para mostrar al usuario
-        // Esto asegura que el usuario vea las fechas en la zona horaria configurada
         $votacionData = $votacion->toArray();
         $votacionData['fecha_inicio_local'] = Carbon::parse($votacion->fecha_inicio)
             ->setTimezone($votacion->timezone)
@@ -183,6 +227,16 @@ class VotoController extends UserController
         $votacionData['fecha_fin_local'] = Carbon::parse($votacion->fecha_fin)
             ->setTimezone($votacion->timezone)
             ->toISOString();
+        
+        // Agregar información de la sesión de urna
+        $votacionData['urna_session'] = [
+            'opened_at' => $urnaSession->opened_at->toISOString(),
+            'expires_at' => $urnaSession->expires_at->toISOString(),
+            'remaining_seconds' => $urnaSession->getRemainingSeconds(),
+            'remaining_formatted' => $urnaSession->getRemainingTimeFormatted(),
+            'warning_time' => config('votaciones.urna_warning_time', 2) * 60, // en segundos
+            'critical_time' => config('votaciones.urna_critical_time', 1) * 60, // en segundos
+        ];
         
         // Obtener candidatos elegibles para campos perfil_candidatura
         $candidatosElegibles = $this->obtenerCandidatosElegibles($votacion);
@@ -213,9 +267,38 @@ class VotoController extends UserController
             return back()->with('error', 'Esta votación no está activa.');
         }
 
-        // Verificar que esté en el rango de fechas válido
-        $now = now();
-        if ($now < $votacion->fecha_inicio || $now > $votacion->fecha_fin) {
+        // Verificar sesión de urna activa
+        $urnaSession = UrnaSession::where('votacion_id', $votacion->id)
+            ->where('usuario_id', $user->id)
+            ->where('status', 'active')
+            ->first();
+
+        if (!$urnaSession) {
+            return back()->with('error', 'No tienes una sesión de votación activa. Por favor, vuelve a intentar.');
+        }
+
+        // Verificar que la sesión no haya expirado
+        if ($urnaSession->hasExpired()) {
+            $urnaSession->expire();
+            return back()->with('error', 'Tu sesión de votación ha expirado. Por favor, intenta nuevamente.');
+        }
+
+        // Verificar consistencia de IP si está configurado
+        if (config('votaciones.urna_verify_ip', true)) {
+            $currentIp = IpAddressService::getRealIp($request);
+            if ($urnaSession->ip_address !== $currentIp) {
+                $urnaSession->logUnauthorizedAttempt('intento de voto desde IP diferente', "IP original: {$urnaSession->ip_address}, IP actual: {$currentIp}");
+                return back()->with('error', 'Sesión inválida. Por seguridad, debes completar tu voto desde la misma conexión.');
+            }
+        }
+
+        $now = Carbon::now();
+        
+        // Verificar si el usuario entró antes del cierre PERO tiene sesión activa
+        // Esto permite que alguien que entró a las 4:59 PM pueda votar hasta las 5:04 PM si la votación cierra a las 5:00 PM
+        $puedeVotarPorSesion = $urnaSession->opened_at <= $votacion->fecha_fin && $urnaSession->isActive();
+        
+        if (!$puedeVotarPorSesion) {
             return back()->with('error', 'Esta votación no está disponible en este momento.');
         }
 
@@ -264,14 +347,28 @@ class VotoController extends UserController
             $cacheKey = "vote_status_{$votacion->id}_{$user->id}";
             Cache::put($cacheKey, 'pending', 120);
             
+            // Log de debugging para verificar urna session
+            \Log::info('VotoController: Despachando job con urna session', [
+                'urna_session_id' => $urnaSession->id,
+                'urna_session_opened_at' => $urnaSession->opened_at->toISOString(),
+                'urna_session_opened_at_string' => $urnaSession->opened_at->toDateTimeString(),
+                'user_id' => $user->id,
+                'votacion_id' => $votacion->id
+            ]);
+            
             // Despachar el job para procesar el voto de forma asíncrona
+            // Incluir el timestamp de apertura de urna (convertir a string para serialización)
             ProcessVoteJob::dispatch(
                 $votacion,
                 $user,
                 $respuestas,
                 IpAddressService::getRealIp($request),
-                $request->userAgent()
+                $request->userAgent(),
+                $urnaSession->opened_at->toDateTimeString()  // Pasar como string para correcta serialización
             );
+            
+            // Cerrar la sesión de urna por voto exitoso
+            $urnaSession->closeByVote();
             
             // Redirigir inmediatamente con un mensaje informativo
             // El frontend mostrará un loading y hará polling al estado
@@ -332,6 +429,47 @@ class VotoController extends UserController
                 'created_at' => $voto->created_at->format('Y-m-d H:i:s'),
                 'ip_address' => $voto->ip_address,
             ],
+        ]);
+    }
+
+    /**
+     * Check urna session status
+     */
+    public function checkUrnaSession(Votacion $votacion): \Illuminate\Http\JsonResponse
+    {
+        $user = Auth::user();
+        
+        // Buscar sesión de urna activa
+        $urnaSession = UrnaSession::where('votacion_id', $votacion->id)
+            ->where('usuario_id', $user->id)
+            ->where('status', 'active')
+            ->first();
+        
+        if (!$urnaSession) {
+            return response()->json([
+                'active' => false,
+                'message' => 'No hay sesión activa',
+            ]);
+        }
+        
+        // Verificar si ha expirado
+        if ($urnaSession->hasExpired()) {
+            $urnaSession->expire();
+            return response()->json([
+                'active' => false,
+                'expired' => true,
+                'message' => 'La sesión ha expirado',
+            ]);
+        }
+        
+        return response()->json([
+            'active' => true,
+            'opened_at' => $urnaSession->opened_at->toISOString(),
+            'expires_at' => $urnaSession->expires_at->toISOString(),
+            'remaining_seconds' => $urnaSession->getRemainingSeconds(),
+            'remaining_formatted' => $urnaSession->getRemainingTimeFormatted(),
+            'warning_time' => config('votaciones.urna_warning_time', 2) * 60,
+            'critical_time' => config('votaciones.urna_critical_time', 1) * 60,
         ]);
     }
 

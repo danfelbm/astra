@@ -7,6 +7,7 @@ use App\Models\Core\User;
 use App\Models\Votaciones\Votacion;
 use App\Models\Votaciones\Voto;
 use App\Services\Votaciones\TokenService;
+use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
@@ -48,6 +49,7 @@ class ProcessVoteJob implements ShouldQueue, ShouldBeUnique
     protected string $ipAddress;
     protected string $userAgent;
     protected string $cacheKey;
+    protected ?string $urnaOpenedAt;
 
     /**
      * Create a new job instance.
@@ -57,13 +59,15 @@ class ProcessVoteJob implements ShouldQueue, ShouldBeUnique
         User $user,
         array $respuestas,
         string $ipAddress,
-        string $userAgent
+        string $userAgent,
+        ?string $urnaOpenedAt = null
     ) {
         $this->votacion = $votacion;
         $this->user = $user;
         $this->respuestas = $respuestas;
         $this->ipAddress = $ipAddress;
         $this->userAgent = $userAgent;
+        $this->urnaOpenedAt = $urnaOpenedAt;
         
         // Clave para actualizar el estado del voto en cache
         $this->cacheKey = "vote_status_{$votacion->id}_{$user->id}";
@@ -103,24 +107,54 @@ class ProcessVoteJob implements ShouldQueue, ShouldBeUnique
 
             // Usar transacción para garantizar atomicidad
             DB::transaction(function () {
-                // Generar token firmado con las respuestas
+                // Momento actual del voto
+                $voteTimestamp = now();
+                
+                // Convertir string de urna_opened_at a DateTime si existe
+                $urnaOpenedDateTime = $this->urnaOpenedAt ? Carbon::parse($this->urnaOpenedAt) : null;
+                
+                // Log de debugging
+                Log::info('ProcessVoteJob: Procesando voto', [
+                    'user_id' => $this->user->id,
+                    'votacion_id' => $this->votacion->id,
+                    'urnaOpenedAt_raw' => $this->urnaOpenedAt,
+                    'urnaOpenedDateTime' => $urnaOpenedDateTime ? $urnaOpenedDateTime->toISOString() : 'null',
+                    'voteTimestamp' => $voteTimestamp->toISOString()
+                ]);
+                
+                // Generar token firmado con las respuestas y timestamps de urna
+                // Incluir tanto created_at como urna_opened_at en el token
                 $token = TokenService::generateSignedToken(
                     $this->votacion->id,
                     $this->respuestas,
-                    now()->toISOString()
+                    $voteTimestamp->toISOString(),  // created_at del voto
+                    $urnaOpenedDateTime ? $urnaOpenedDateTime->toISOString() : null  // urna_opened_at
                 );
 
                 // Crear el voto con retry automático para manejar posibles locks
-                $voto = retry(3, function () use ($token) {
+                $voto = retry(3, function () use ($token, $voteTimestamp, $urnaOpenedDateTime) {
+                    Log::info('ProcessVoteJob: Creando voto', [
+                        'urnaOpenedDateTime_before_save' => $urnaOpenedDateTime ? $urnaOpenedDateTime->toISOString() : 'null'
+                    ]);
+                    
                     return Voto::create([
                         'votacion_id' => $this->votacion->id,
                         'usuario_id' => $this->user->id,
                         'token_unico' => $token,
+                        'urna_opened_at' => $urnaOpenedDateTime,  // Guardar timestamp de apertura como DateTime
                         'respuestas' => $this->respuestas,
                         'ip_address' => $this->ipAddress,
                         'user_agent' => $this->userAgent,
                     ]);
                 }, 100); // Reintentar después de 100ms si hay lock
+                
+                // Log para verificar qué se guardó realmente
+                Log::info('ProcessVoteJob: Voto creado', [
+                    'voto_id' => $voto->id,
+                    'urna_opened_at_saved' => $voto->urna_opened_at ? $voto->urna_opened_at->toISOString() : 'null',
+                    'created_at' => $voto->created_at->toISOString(),
+                    'token_first_100' => substr($voto->token_unico, 0, 100)
+                ]);
 
                 // Cargar la relación de categoría para las notificaciones
                 $this->votacion->load('categoria');

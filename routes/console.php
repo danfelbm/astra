@@ -14,3 +14,10 @@ Schedule::job(new CleanExpiredOTPsJob)
     ->everyFiveMinutes()
     ->name('clean-expired-otps')
     ->withoutOverlapping();
+
+// Programar limpieza automática de sesiones de urna expiradas
+Schedule::command('urna:cleanup')
+    ->everyFiveMinutes()
+    ->name('clean-expired-urna-sessions')
+    ->withoutOverlapping()
+    ->appendOutputTo(storage_path('logs/urna-cleanup.log'));
