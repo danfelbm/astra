@@ -24,13 +24,15 @@ class ProcessVoteJob implements ShouldQueue, ShouldBeUnique
 
     /**
      * El número de veces que el job puede ser intentado.
+     * Reducido a 2 para minimizar problemas de duplicados
      */
-    public $tries = 3;
+    public $tries = 2;
 
     /**
      * El número de segundos para esperar antes de reintentar el job.
+     * Aumentado para dar tiempo a que se complete el primero
      */
-    public $backoff = [1, 3, 5]; // Backoff exponencial: 1s, 3s, 5s
+    public $backoff = [5, 10]; // Backoff: 5s, 10s
 
     /**
      * El tiempo máximo que el job puede ejecutarse antes de timeout
@@ -50,6 +52,7 @@ class ProcessVoteJob implements ShouldQueue, ShouldBeUnique
     protected string $userAgent;
     protected string $cacheKey;
     protected ?string $urnaOpenedAt;
+    protected ?int $urnaSessionId;
 
     /**
      * Create a new job instance.
@@ -60,7 +63,8 @@ class ProcessVoteJob implements ShouldQueue, ShouldBeUnique
         array $respuestas,
         string $ipAddress,
         string $userAgent,
-        ?string $urnaOpenedAt = null
+        ?string $urnaOpenedAt = null,
+        ?int $urnaSessionId = null
     ) {
         $this->votacion = $votacion;
         $this->user = $user;
@@ -68,6 +72,7 @@ class ProcessVoteJob implements ShouldQueue, ShouldBeUnique
         $this->ipAddress = $ipAddress;
         $this->userAgent = $userAgent;
         $this->urnaOpenedAt = $urnaOpenedAt;
+        $this->urnaSessionId = $urnaSessionId;
         
         // Clave para actualizar el estado del voto en cache
         $this->cacheKey = "vote_status_{$votacion->id}_{$user->id}";
@@ -96,11 +101,28 @@ class ProcessVoteJob implements ShouldQueue, ShouldBeUnique
 
             // Verificar una vez más que el usuario no haya votado
             // (por si hubo una condición de carrera)
-            if ($this->votacion->votos()->where('usuario_id', $this->user->id)->exists()) {
-                Cache::put($this->cacheKey, 'duplicate', 60);
-                Log::warning('Intento de voto duplicado detectado en job', [
+            $votoExistente = $this->votacion->votos()->where('usuario_id', $this->user->id)->first();
+            
+            if ($votoExistente) {
+                // Si ya existe el voto, cerrar la sesión de urna si está pendiente
+                if ($this->urnaSessionId) {
+                    $urnaSession = \App\Models\Votaciones\UrnaSession::find($this->urnaSessionId);
+                    if ($urnaSession && $urnaSession->status === 'active') {
+                        $urnaSession->closeByVote();
+                        Log::info('Sesión de urna cerrada en reintento de job', [
+                            'urna_session_id' => $this->urnaSessionId,
+                            'voto_id' => $votoExistente->id
+                        ]);
+                    }
+                }
+                
+                Cache::put($this->cacheKey, 'completed', 300);
+                Cache::put("vote_id_{$this->votacion->id}_{$this->user->id}", $votoExistente->id, 3600);
+                
+                Log::info('Voto ya existe, job terminando exitosamente', [
                     'user_id' => $this->user->id,
-                    'votacion_id' => $this->votacion->id
+                    'votacion_id' => $this->votacion->id,
+                    'voto_id' => $votoExistente->id
                 ]);
                 return;
             }
@@ -156,10 +178,24 @@ class ProcessVoteJob implements ShouldQueue, ShouldBeUnique
                     'token_first_100' => substr($voto->token_unico, 0, 100)
                 ]);
 
+                // Cerrar la sesión de urna SOLO después de guardar el voto exitosamente
+                if ($this->urnaSessionId) {
+                    $urnaSession = \App\Models\Votaciones\UrnaSession::find($this->urnaSessionId);
+                    if ($urnaSession && $urnaSession->status === 'active') {
+                        $urnaSession->closeByVote();
+                        Log::info('Sesión de urna cerrada exitosamente después de guardar voto', [
+                            'urna_session_id' => $this->urnaSessionId,
+                            'voto_id' => $voto->id
+                        ]);
+                    }
+                }
+
                 // Cargar la relación de categoría para las notificaciones
                 $this->votacion->load('categoria');
 
-                // Despachar jobs de notificación
+                // Despachar jobs de notificación EN JOBS SEPARADOS
+                // NO especificar cola - los jobs ya tienen configurada su cola correcta
+                // (otp-emails y otp-whatsapp) en WithRateLimiting trait
                 if (!empty($this->user->email)) {
                     SendVoteConfirmationEmailJob::dispatch(
                         $this->user,
@@ -192,10 +228,34 @@ class ProcessVoteJob implements ShouldQueue, ShouldBeUnique
             });
 
         } catch (\Illuminate\Database\QueryException $e) {
-            // Si es un error de constraint único, marcar como duplicado
+            // Si es un error de constraint único, verificar si el voto ya existe
             if ($e->getCode() === '23000') {
-                Cache::put($this->cacheKey, 'duplicate', 60);
-                Log::warning('Constraint único violado - voto duplicado', [
+                // Verificar si el voto ya fue guardado (por un intento anterior)
+                $votoExistente = $this->votacion->votos()->where('usuario_id', $this->user->id)->first();
+                
+                if ($votoExistente) {
+                    // El voto SÍ existe, marcar como exitoso y cerrar sesión
+                    if ($this->urnaSessionId) {
+                        $urnaSession = \App\Models\Votaciones\UrnaSession::find($this->urnaSessionId);
+                        if ($urnaSession && $urnaSession->status === 'active') {
+                            $urnaSession->closeByVote();
+                        }
+                    }
+                    
+                    Cache::put($this->cacheKey, 'completed', 300);
+                    Cache::put("vote_id_{$this->votacion->id}_{$this->user->id}", $votoExistente->id, 3600);
+                    
+                    Log::info('Constraint único pero voto existe - marcando como exitoso', [
+                        'user_id' => $this->user->id,
+                        'votacion_id' => $this->votacion->id,
+                        'voto_id' => $votoExistente->id
+                    ]);
+                    return; // No reintentar, el voto ya está guardado
+                }
+                
+                // Si no existe el voto, entonces sí es un error real
+                Cache::put($this->cacheKey, 'error', 60);
+                Log::error('Constraint único sin voto existente - error real', [
                     'user_id' => $this->user->id,
                     'votacion_id' => $this->votacion->id,
                     'error' => $e->getMessage()

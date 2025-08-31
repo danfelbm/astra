@@ -173,10 +173,27 @@ const buscarTokens = () => {
     cargarTokens();
 };
 
+// Función para formatear opciones de respuesta (hotfix para voto en blanco)
+const formatearOpcion = (opcion: any, preguntaTitulo?: string): string => {
+    // Si la opción es null o 'Sin respuesta' y es una pregunta de candidatos
+    if ((!opcion || opcion === 'Sin respuesta') && preguntaTitulo) {
+        const esPreguntaCandidatos = 
+            preguntaTitulo.toLowerCase().includes('candidato') ||
+            preguntaTitulo.toLowerCase().includes('elige') ||
+            preguntaTitulo === '1. Elige un candidato por el que desees votar';
+        
+        if (esPreguntaCandidatos) {
+            return 'Voto en blanco';
+        }
+    }
+    
+    return opcion || 'Sin respuesta';
+};
+
 // Función para generar datos de gráfico desde respuestas
-const getChartDataFromResponses = (respuestas: any[]) => {
+const getChartDataFromResponses = (respuestas: any[], preguntaTitulo?: string) => {
     return {
-        labels: respuestas.map(r => r.opcion),
+        labels: respuestas.map(r => formatearOpcion(r.opcion, preguntaTitulo)),
         datasets: [{
             label: 'Votos',
             data: respuestas.map(r => r.cantidad)
@@ -369,7 +386,7 @@ onMounted(() => {
                                         <!-- Gráfico de barras -->
                                         <div class="bg-card border rounded-lg p-4">
                                             <BarChart 
-                                                :data="getChartDataFromResponses(pregunta.respuestas)"
+                                                :data="getChartDataFromResponses(pregunta.respuestas, pregunta.titulo)"
                                                 :title="`Distribución de respuestas: ${pregunta.titulo}`"
                                                 :height="300"
                                             />
@@ -396,7 +413,7 @@ onMounted(() => {
                                                                 v-else
                                                                 class="h-4 w-4 text-muted-foreground"
                                                             />
-                                                            <span class="font-medium">{{ respuesta.opcion }}</span>
+                                                            <span class="font-medium">{{ formatearOpcion(respuesta.opcion, pregunta.titulo) }}</span>
                                                         </div>
                                                         <div class="flex items-center gap-4">
                                                             <span class="text-sm text-muted-foreground">
@@ -415,7 +432,7 @@ onMounted(() => {
                                                         </div>
                                                         <div v-else-if="optionsDetailsData[`${pregunta.id}_${respuesta.opcion}`]" class="space-y-4">
                                                             <h5 class="font-medium text-sm mb-3">
-                                                                Distribución geográfica de votos para "{{ respuesta.opcion }}"
+                                                                Distribución geográfica de votos para "{{ formatearOpcion(respuesta.opcion, pregunta.titulo) }}"
                                                             </h5>
                                                             
                                                             <!-- Top territorios/departamentos/municipios -->
@@ -569,7 +586,7 @@ onMounted(() => {
                                                                     <!-- Gráfico de barras para esta pregunta -->
                                                                     <div v-if="pregunta.respuestas.length > 0" class="bg-card border rounded-lg p-4">
                                                                         <BarChart 
-                                                                            :data="getChartDataFromResponses(pregunta.respuestas)"
+                                                                            :data="getChartDataFromResponses(pregunta.respuestas, pregunta.titulo)"
                                                                             :title="`Distribución: ${pregunta.titulo}`"
                                                                             :height="200"
                                                                         />

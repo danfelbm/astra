@@ -357,18 +357,19 @@ class VotoController extends UserController
             ]);
             
             // Despachar el job para procesar el voto de forma asíncrona
-            // Incluir el timestamp de apertura de urna (convertir a string para serialización)
+            // IMPORTANTE: NO cerrar la sesión aquí - el job la cerrará solo si el voto se guarda exitosamente
             ProcessVoteJob::dispatch(
                 $votacion,
                 $user,
                 $respuestas,
                 IpAddressService::getRealIp($request),
                 $request->userAgent(),
-                $urnaSession->opened_at->toDateTimeString()  // Pasar como string para correcta serialización
+                $urnaSession->opened_at->toDateTimeString(),  // Pasar como string para correcta serialización
+                $urnaSession->id  // Pasar ID de sesión para cerrarla SOLO si el voto se guarda
             );
             
-            // Cerrar la sesión de urna por voto exitoso
-            $urnaSession->closeByVote();
+            // NO cerrar la sesión aquí - se cerrará en el job solo si el voto es exitoso
+            // Esto previene sesiones marcadas como "voted" sin votos reales
             
             // Redirigir inmediatamente con un mensaje informativo
             // El frontend mostrará un loading y hará polling al estado
