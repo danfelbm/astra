@@ -297,4 +297,242 @@ class ResultadosController extends UserController
             ],
         ]);
     }
+
+    /**
+     * Obtener ranking de opciones votadas desde un territorio específico.
+     * Usado en la tab "Por Territorio" cuando se expande una fila.
+     */
+    public function rankingPorTerritorio(Votacion $votacion, Request $request)
+    {
+        // Verificar permisos para ver resultados
+        abort_unless(auth()->user()->can('votaciones.view_results'), 403, 'No tienes permisos para ver resultados de votaciones');
+        
+        // Verificar que los resultados sean públicos y visibles
+        if (!$votacion->resultadosVisibles()) {
+            abort(404, 'Los resultados de esta votación no están disponibles públicamente.');
+        }
+
+        $agrupacion = $request->get('agrupacion', 'territorio'); // territorio, departamento, municipio
+        $grupoId = $request->get('grupo_id'); // ID del territorio/departamento/municipio específico
+        $preguntaId = $request->get('pregunta_id'); // ID de la pregunta a analizar (opcional)
+
+        // Construir query base para obtener votos del territorio específico
+        $query = DB::table('votos')
+            ->join('users', 'votos.usuario_id', '=', 'users.id')
+            ->where('votos.votacion_id', $votacion->id);
+
+        // Filtrar por el grupo geográfico específico
+        switch ($agrupacion) {
+            case 'departamento':
+                $query->where('users.departamento_id', $grupoId);
+                break;
+            case 'municipio':
+                $query->where('users.municipio_id', $grupoId);
+                break;
+            default: // territorio
+                $query->where('users.territorio_id', $grupoId);
+                break;
+        }
+
+        $votos = $query->select('votos.respuestas')->get();
+        $totalVotosGrupo = $votos->count();
+
+        // Si no hay votos, retornar vacío
+        if ($totalVotosGrupo === 0) {
+            return response()->json([
+                'preguntas' => [],
+                'total_votos_grupo' => 0,
+                'agrupacion' => $agrupacion,
+                'grupo_id' => $grupoId,
+            ]);
+        }
+
+        // Procesar resultados por pregunta
+        $formularioConfig = $votacion->formulario_config;
+        $resultadosPorPregunta = [];
+
+        foreach ($formularioConfig as $pregunta) {
+            // Si se especificó una pregunta específica, solo procesar esa
+            if ($preguntaId && $pregunta['id'] !== $preguntaId) {
+                continue;
+            }
+
+            $preguntaData = [
+                'id' => $pregunta['id'],
+                'titulo' => $pregunta['title'],
+                'tipo' => $pregunta['type'],
+                'respuestas' => [],
+            ];
+
+            // Procesar según el tipo de pregunta
+            if (in_array($pregunta['type'], ['select', 'radio', 'convocatoria', 'perfil_candidatura'])) {
+                // Contar respuestas para esta pregunta
+                $conteos = [];
+                foreach ($votos as $voto) {
+                    $respuestas = json_decode($voto->respuestas, true);
+                    $respuesta = $respuestas[$pregunta['id']] ?? null;
+                    
+                    if ($respuesta === null) {
+                        $respuesta = 'Voto en blanco';
+                    }
+                    
+                    if (!isset($conteos[$respuesta])) {
+                        $conteos[$respuesta] = 0;
+                    }
+                    $conteos[$respuesta]++;
+                }
+
+                // Ordenar por cantidad de votos
+                arsort($conteos);
+
+                // Formatear respuestas
+                foreach ($conteos as $opcion => $cantidad) {
+                    $porcentaje = round(($cantidad / $totalVotosGrupo) * 100, 2);
+                    $preguntaData['respuestas'][] = [
+                        'opcion' => $opcion,
+                        'cantidad' => $cantidad,
+                        'porcentaje' => $porcentaje,
+                    ];
+                }
+            } elseif ($pregunta['type'] === 'checkbox') {
+                // Para opciones múltiples
+                $todasLasOpciones = [];
+                foreach ($votos as $voto) {
+                    $respuestas = json_decode($voto->respuestas, true);
+                    $opciones = $respuestas[$pregunta['id']] ?? [];
+                    if (is_array($opciones)) {
+                        $todasLasOpciones = array_merge($todasLasOpciones, $opciones);
+                    }
+                }
+                
+                $conteos = array_count_values($todasLasOpciones);
+                arsort($conteos);
+                
+                foreach ($conteos as $opcion => $cantidad) {
+                    $porcentaje = round(($cantidad / $totalVotosGrupo) * 100, 2);
+                    $preguntaData['respuestas'][] = [
+                        'opcion' => $opcion,
+                        'cantidad' => $cantidad,
+                        'porcentaje' => $porcentaje,
+                    ];
+                }
+            }
+
+            // Solo agregar si tiene respuestas
+            if (!empty($preguntaData['respuestas'])) {
+                $resultadosPorPregunta[] = $preguntaData;
+            }
+        }
+
+        return response()->json([
+            'preguntas' => $resultadosPorPregunta,
+            'total_votos_grupo' => $totalVotosGrupo,
+            'agrupacion' => $agrupacion,
+            'grupo_id' => $grupoId,
+        ]);
+    }
+
+    /**
+     * Obtener distribución geográfica de votos para una opción específica.
+     * Usado en la tab "Consolidado" cuando se expande una opción.
+     */
+    public function distribucionGeograficaPorOpcion(Votacion $votacion, Request $request)
+    {
+        // Verificar permisos para ver resultados
+        abort_unless(auth()->user()->can('votaciones.view_results'), 403, 'No tienes permisos para ver resultados de votaciones');
+        
+        // Verificar que los resultados sean públicos y visibles
+        if (!$votacion->resultadosVisibles()) {
+            abort(404, 'Los resultados de esta votación no están disponibles públicamente.');
+        }
+
+        $preguntaId = $request->get('pregunta_id');
+        $opcion = $request->get('opcion');
+        $agrupacion = $request->get('agrupacion', 'territorio'); // territorio, departamento, municipio
+
+        // Obtener todos los votos con esa opción seleccionada
+        $query = DB::table('votos')
+            ->join('users', 'votos.usuario_id', '=', 'users.id')
+            ->where('votos.votacion_id', $votacion->id);
+
+        // Filtrar por respuesta específica
+        // Para opciones simples (select, radio)
+        $query->where(function($q) use ($preguntaId, $opcion) {
+            // Buscar donde la respuesta es exactamente la opción
+            $q->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(respuestas, '$.{$preguntaId}')) = ?", [$opcion])
+              // O para checkbox donde la opción está en el array
+              ->orWhereRaw("JSON_CONTAINS(JSON_EXTRACT(respuestas, '$.{$preguntaId}'), ?, '$')", [json_encode($opcion)]);
+        });
+
+        // Agrupar por ubicación geográfica
+        switch ($agrupacion) {
+            case 'departamento':
+                $query->leftJoin('departamentos', 'users.departamento_id', '=', 'departamentos.id')
+                      ->select(
+                          'users.departamento_id as grupo_id',
+                          'departamentos.nombre as nombre_grupo',
+                          DB::raw('COUNT(*) as total_votos')
+                      )
+                      ->groupBy('users.departamento_id', 'departamentos.nombre');
+                break;
+            case 'municipio':
+                $query->leftJoin('municipios', 'users.municipio_id', '=', 'municipios.id')
+                      ->leftJoin('departamentos', 'users.departamento_id', '=', 'departamentos.id')
+                      ->select(
+                          'users.municipio_id as grupo_id',
+                          'municipios.nombre as nombre_grupo',
+                          'departamentos.nombre as departamento_nombre',
+                          DB::raw('COUNT(*) as total_votos')
+                      )
+                      ->groupBy('users.municipio_id', 'municipios.nombre', 'departamentos.nombre');
+                break;
+            default: // territorio
+                $query->leftJoin('territorios', 'users.territorio_id', '=', 'territorios.id')
+                      ->select(
+                          'users.territorio_id as grupo_id',
+                          'territorios.nombre as nombre_grupo',
+                          DB::raw('COUNT(*) as total_votos')
+                      )
+                      ->groupBy('users.territorio_id', 'territorios.nombre');
+                break;
+        }
+
+        $resultados = $query->orderBy('total_votos', 'desc')
+                           ->limit(20) // Top 20 ubicaciones
+                           ->get();
+
+        // Obtener total de votos para esta opción
+        $totalVotosOpcion = DB::table('votos')
+            ->where('votacion_id', $votacion->id)
+            ->where(function($q) use ($preguntaId, $opcion) {
+                $q->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(respuestas, '$.{$preguntaId}')) = ?", [$opcion])
+                  ->orWhereRaw("JSON_CONTAINS(JSON_EXTRACT(respuestas, '$.{$preguntaId}'), ?, '$')", [json_encode($opcion)]);
+            })
+            ->count();
+
+        // Calcular porcentajes
+        $resultadosConPorcentaje = $resultados->map(function ($resultado) use ($totalVotosOpcion) {
+            $data = [
+                'grupo_id' => $resultado->grupo_id,
+                'nombre_grupo' => $resultado->nombre_grupo ?: 'Sin especificar',
+                'total_votos' => $resultado->total_votos,
+                'porcentaje' => $totalVotosOpcion > 0 ? round(($resultado->total_votos / $totalVotosOpcion) * 100, 2) : 0,
+            ];
+            
+            // Agregar departamento para municipios
+            if (isset($resultado->departamento_nombre)) {
+                $data['departamento_nombre'] = $resultado->departamento_nombre;
+            }
+            
+            return $data;
+        });
+
+        return response()->json([
+            'distribucion' => $resultadosConPorcentaje,
+            'total_votos_opcion' => $totalVotosOpcion,
+            'pregunta_id' => $preguntaId,
+            'opcion' => $opcion,
+            'agrupacion' => $agrupacion,
+        ]);
+    }
 }
