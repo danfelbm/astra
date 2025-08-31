@@ -40,6 +40,7 @@ class ResultadosController extends UserController
                 'fecha_fin' => $votacion->fecha_fin->format('Y-m-d H:i:s'),
                 'fecha_publicacion_resultados' => $votacion->fecha_publicacion_resultados?->format('Y-m-d H:i:s'),
                 'total_votos' => $votacion->votos()->count(),
+                'allow_tokens_download' => $votacion->allow_tokens_download,
             ],
             'user' => [
                 'es_admin' => auth()->user()?->hasAdministrativeAccess() ?? false,
@@ -88,8 +89,11 @@ class ResultadosController extends UserController
                     if ($item->respuesta === null || $item->respuesta === 'null') {
                         return 'Voto en blanco';
                     }
-                    // Remover comillas del JSON si es un string
-                    return trim($item->respuesta, '"');
+                    // IMPORTANTE: Usar json_decode para manejar correctamente caracteres especiales
+                    // JSON_EXTRACT devuelve valores como "S\u00ed" que necesitan ser decodificados
+                    $decoded = json_decode($item->respuesta);
+                    // Si json_decode falla, intentar limpiar manualmente (fallback)
+                    return $decoded !== null ? $decoded : trim($item->respuesta, '"');
                 })->filter(); // Filtrar valores vacíos
 
                 $conteos = $respuestasProcesadas->countBy();
@@ -534,5 +538,126 @@ class ResultadosController extends UserController
             'opcion' => $opcion,
             'agrupacion' => $agrupacion,
         ]);
+    }
+
+    /**
+     * Descargar todos los tokens en formato CSV
+     */
+    public function downloadTokensCsv(Votacion $votacion)
+    {
+        // Verificar permisos para ver resultados
+        abort_unless(auth()->user()->can('votaciones.view_results'), 403, 'No tienes permisos para ver resultados de votaciones');
+        
+        // Verificar que los resultados sean públicos y visibles
+        if (!$votacion->resultadosVisibles()) {
+            abort(404, 'Los resultados de esta votación no están disponibles públicamente.');
+        }
+
+        // Verificar que la descarga de tokens esté habilitada
+        if (!$votacion->allow_tokens_download) {
+            abort(403, 'La descarga de tokens no está habilitada para esta votación.');
+        }
+
+        // Obtener todos los votos con información necesaria (sin usuario_id para mantener anonimato)
+        $votos = $votacion->votos()
+            ->select(['token_unico', 'respuestas', 'created_at'])
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        // Obtener la configuración del formulario para mapear IDs a títulos
+        $formularioConfig = $votacion->formulario_config ?? [];
+        
+        // Crear un mapa de field_id => título
+        $fieldMap = [];
+        $fieldOrder = [];
+        foreach ($formularioConfig as $field) {
+            $fieldMap[$field['id']] = $field['title'] ?? 'Campo sin título';
+            $fieldOrder[] = $field['id'];
+        }
+
+        // Preparar el nombre del archivo
+        $filename = 'tokens-' . \Str::slug($votacion->titulo) . '-' . now()->format('Y-m-d-His') . '.csv';
+
+        // Preparar los headers del CSV
+        $headers = [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            'Pragma' => 'no-cache',
+            'Cache-Control' => 'must-revalidate, post-check=0, pre-check=0',
+            'Expires' => '0'
+        ];
+
+        // Callback para generar el CSV
+        $callback = function() use ($votos, $votacion, $fieldMap, $fieldOrder) {
+            $file = fopen('php://output', 'w');
+            
+            // UTF-8 BOM para correcta visualización en Excel
+            fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF));
+            
+            // Construir headers del CSV: Token + títulos de campos + Fecha
+            $csvHeaders = ['Token'];
+            foreach ($fieldOrder as $fieldId) {
+                $csvHeaders[] = $fieldMap[$fieldId];
+            }
+            $csvHeaders[] = 'Fecha de Voto';
+            
+            // Escribir headers
+            fputcsv($file, $csvHeaders, ';');
+            
+            // Procesar cada voto
+            foreach ($votos as $voto) {
+                $row = [];
+                
+                // Token
+                $row[] = $voto->token_unico;
+                
+                // Procesar respuestas manteniendo el orden de campos
+                $respuestas = $voto->respuestas ?? [];
+                
+                // Detectar si es voto en blanco (primer campo es null)
+                $primerCampoEsNull = false;
+                if (!empty($fieldOrder)) {
+                    $primerFieldId = $fieldOrder[0];
+                    $primerCampoEsNull = !isset($respuestas[$primerFieldId]) || $respuestas[$primerFieldId] === null;
+                }
+                
+                // Llenar valores de respuestas en el orden correcto
+                foreach ($fieldOrder as $index => $fieldId) {
+                    if (isset($respuestas[$fieldId])) {
+                        $valor = $respuestas[$fieldId];
+                        
+                        // Si es el primer campo y es null, mostrar "Voto en blanco"
+                        if ($index === 0 && $valor === null) {
+                            $row[] = 'Voto en blanco';
+                        } else {
+                            // Decodificar caracteres Unicode escapados
+                            if (is_string($valor)) {
+                                // Decodificar secuencias Unicode como \u00ed
+                                $valor = json_decode('"' . $valor . '"') ?: $valor;
+                            }
+                            $row[] = $valor ?? '';
+                        }
+                    } else {
+                        // Si es el primer campo y no existe o es null, mostrar "Voto en blanco"
+                        if ($index === 0 && $primerCampoEsNull) {
+                            $row[] = 'Voto en blanco';
+                        } else {
+                            $row[] = '';
+                        }
+                    }
+                }
+                
+                // Fecha formateada en zona horaria de la votación
+                $fecha = $voto->created_at->setTimezone($votacion->timezone)->format('Y-m-d H:i:s');
+                $row[] = $fecha;
+                
+                // Escribir fila
+                fputcsv($file, $row, ';');
+            }
+            
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
     }
 }
