@@ -15,6 +15,7 @@ class Voto extends Model
         'votacion_id',
         'usuario_id',
         'token_unico',
+        'urna_opened_at',
         'respuestas',
         'ip_address',
         'user_agent',
@@ -28,6 +29,7 @@ class Voto extends Model
     {
         return [
             'respuestas' => 'array',
+            'urna_opened_at' => 'datetime',
         ];
     }
 

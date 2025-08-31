@@ -34,7 +34,15 @@ interface Votacion {
 interface VoteData {
     votacion_id: number;
     respuestas: Record<string, any>;
-    timestamp: string;
+    timestamp?: string; // Campo antiguo para compatibilidad
+    vote_created_at?: string; // Nuevo campo para timestamp del voto
+    urna_opened_at?: string; // Timestamp de apertura de urna
+    tiempo_en_urna?: {
+        minutos: number;
+        segundos: number;
+        total_segundos: number;
+        formato_legible: string;
+    };
     vote_hash: string;
 }
 
@@ -355,9 +363,17 @@ const clearSearch = () => {
                     <CardContent>
                         <div class="space-y-6">
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm mb-6">
+                                <div v-if="currentVerification.vote_data.urna_opened_at">
+                                    <Label class="text-muted-foreground">Apertura de Urna</Label>
+                                    <p class="font-medium">{{ formatDate(currentVerification.vote_data.urna_opened_at) }}</p>
+                                </div>
                                 <div>
                                     <Label class="text-muted-foreground">Fecha del Voto</Label>
-                                    <p class="font-medium">{{ formatDate(currentVerification.vote_data.timestamp) }}</p>
+                                    <p class="font-medium">{{ formatDate(currentVerification.vote_data.vote_created_at || currentVerification.vote_data.timestamp) }}</p>
+                                </div>
+                                <div v-if="currentVerification.vote_data.tiempo_en_urna">
+                                    <Label class="text-muted-foreground">Tiempo en Urna</Label>
+                                    <p class="font-medium">{{ currentVerification.vote_data.tiempo_en_urna.formato_legible || `${currentVerification.vote_data.tiempo_en_urna.minutos}:${String(currentVerification.vote_data.tiempo_en_urna.segundos).padStart(2, '0')}` }}</p>
                                 </div>
                                 <div>
                                     <Label class="text-muted-foreground">Hash de Verificación</Label>

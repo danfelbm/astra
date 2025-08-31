@@ -129,7 +129,10 @@ class TokenVerificationController extends GuestController
             'vote_data' => [
                 'votacion_id' => $voteData['votacion_id'],
                 'respuestas' => $voteData['respuestas'],
-                'timestamp' => $voteData['timestamp'],
+                'timestamp' => $voteData['vote_created_at'] ?? $voteData['timestamp'] ?? null, // Compatibilidad con tokens antiguos
+                'vote_created_at' => $voteData['vote_created_at'] ?? $voteData['timestamp'] ?? null,
+                'urna_opened_at' => $voteData['urna_opened_at'] ?? null,
+                'tiempo_en_urna' => $voteData['tiempo_en_urna'] ?? null,
                 'vote_hash' => $voteData['vote_hash'],
             ],
             'votacion' => $votacion ? [

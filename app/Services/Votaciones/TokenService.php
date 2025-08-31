@@ -8,18 +8,58 @@ class TokenService
 {
     /**
      * Genera un token firmado digitalmente que incluye las respuestas del formulario
+     * y timestamps de apertura y cierre de urna
+     * 
+     * @param int $votacionId ID de la votación
+     * @param array $respuestas Respuestas del formulario
+     * @param string $timestamp Timestamp del momento del voto (created_at)
+     * @param string|null $urnaOpenedAt Timestamp de apertura de urna
      */
-    public static function generateSignedToken(int $votacionId, array $respuestas, string $timestamp = null): string
+    public static function generateSignedToken(
+        int $votacionId, 
+        array $respuestas, 
+        string $timestamp = null,
+        ?string $urnaOpenedAt = null
+    ): string
     {
         $timestamp = $timestamp ?: now()->toISOString();
         
-        // Datos del voto
+        // Log de debugging
+        \Log::info('TokenService: Generando token', [
+            'votacion_id' => $votacionId,
+            'timestamp' => $timestamp,
+            'urnaOpenedAt' => $urnaOpenedAt,
+            'urnaOpenedAt_is_null' => is_null($urnaOpenedAt),
+            'urnaOpenedAt_is_empty' => empty($urnaOpenedAt)
+        ]);
+        
+        // Datos del voto - IMPORTANTE: Ambos timestamps forman parte del hash
         $voteData = [
             'votacion_id' => $votacionId,
             'respuestas' => $respuestas,
-            'timestamp' => $timestamp,
+            'vote_created_at' => $timestamp,  // Momento exacto del voto (created_at de la tabla votos)
+            'urna_opened_at' => $urnaOpenedAt,  // Momento de apertura de urna
             'salt' => bin2hex(random_bytes(16))
         ];
+        
+        // Calcular tiempo en urna si está disponible
+        if ($urnaOpenedAt) {
+            $opened = new \DateTime($urnaOpenedAt);
+            $voted = new \DateTime($timestamp);
+            $interval = $opened->diff($voted);
+            
+            // Calcular minutos y segundos totales correctamente
+            $totalSeconds = ($voted->getTimestamp() - $opened->getTimestamp());
+            $minutes = floor($totalSeconds / 60);
+            $seconds = $totalSeconds % 60;
+            
+            $voteData['tiempo_en_urna'] = [
+                'minutos' => $minutes,
+                'segundos' => $seconds,
+                'total_segundos' => $totalSeconds,
+                'formato_legible' => sprintf('%d:%02d', $minutes, $seconds)
+            ];
+        }
 
         // Generar hash de los datos
         $voteData['vote_hash'] = CryptoService::hashData($voteData);
@@ -38,6 +78,7 @@ class TokenService
 
     /**
      * Decodifica y verifica un token firmado
+     * Retorna información completa incluyendo timestamps de apertura y cierre de urna
      */
     public static function verifyToken(string $token): array
     {
@@ -65,9 +106,17 @@ class TokenService
             $storedHash = $voteData['vote_hash'] ?? '';
             $hashMatches = hash_equals($expectedHash, $storedHash);
 
+            // Extraer información temporal para facilitar acceso
+            $timestamps = [
+                'vote_created_at' => $voteData['vote_created_at'] ?? $voteData['timestamp'] ?? null, // Compatibilidad con tokens antiguos
+                'urna_opened_at' => $voteData['urna_opened_at'] ?? null,
+                'tiempo_en_urna' => $voteData['tiempo_en_urna'] ?? null
+            ];
+
             return [
                 'is_valid' => $isValid && $hashMatches,
                 'vote_data' => $voteData,
+                'timestamps' => $timestamps,
                 'signature_valid' => $isValid,
                 'hash_valid' => $hashMatches,
                 'error' => null
@@ -77,6 +126,7 @@ class TokenService
             return [
                 'is_valid' => false,
                 'vote_data' => null,
+                'timestamps' => null,
                 'signature_valid' => false,
                 'hash_valid' => false,
                 'error' => $e->getMessage()

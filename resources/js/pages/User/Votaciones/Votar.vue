@@ -23,8 +23,10 @@ import { type BreadcrumbItemType } from '@/types';
 import UserLayout from "@/layouts/UserLayout.vue";
 import DynamicFormRenderer from '@/components/forms/DynamicFormRenderer.vue';
 import { Head, useForm, router } from '@inertiajs/vue3';
-import { Vote, ArrowLeft, Clock, AlertTriangle, CheckCircle } from 'lucide-vue-next';
-import { ref, computed, Teleport, Transition } from 'vue';
+import { Vote, ArrowLeft, Clock, AlertTriangle, CheckCircle, Timer, AlertCircle } from 'lucide-vue-next';
+import { ref, computed, Teleport, Transition, onMounted, onUnmounted } from 'vue';
+import axios from 'axios';
+import { toast } from 'sonner';
 
 interface Categoria {
     id: number;
@@ -43,6 +45,15 @@ interface FormField {
     [key: string]: any; // Para campos adicionales específicos del tipo
 }
 
+interface UrnaSession {
+    opened_at: string;
+    expires_at: string;
+    remaining_seconds: number;
+    remaining_formatted: string;
+    warning_time: number;
+    critical_time: number;
+}
+
 interface Votacion {
     id: number;
     titulo: string;
@@ -56,6 +67,7 @@ interface Votacion {
     timezone: string;
     estado: 'borrador' | 'activa' | 'finalizada';
     resultados_publicos: boolean;
+    urna_session?: UrnaSession;
 }
 
 interface CandidatoElegible {
@@ -104,6 +116,13 @@ const form = useForm(initializeFormData());
 
 const showConfirmDialog = ref(false);
 
+// Variables para el cronómetro de sesión de urna
+const remainingSeconds = ref(props.votacion.urna_session?.remaining_seconds || 0);
+const sessionActive = ref(!!props.votacion.urna_session);
+const sessionStatus = ref<'normal' | 'warning' | 'critical'>('normal');
+const countdownInterval = ref<number | null>(null);
+const checkSessionInterval = ref<number | null>(null);
+
 // Función para enviar el voto
 const submitVote = () => {
     form.post(route('user.votaciones.store', { votacion: props.votacion.id }), {
@@ -121,6 +140,85 @@ const submitVote = () => {
 // Función para volver
 const goBack = () => {
     router.get(route('user.votaciones.index'));
+};
+
+// Funciones para el cronómetro de sesión de urna
+const formatTime = (seconds: number): string => {
+    if (seconds <= 0) return '0:00';
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+};
+
+const updateSessionStatus = () => {
+    if (!props.votacion.urna_session) return;
+    
+    const warningTime = props.votacion.urna_session.warning_time;
+    const criticalTime = props.votacion.urna_session.critical_time;
+    
+    if (remainingSeconds.value <= criticalTime) {
+        sessionStatus.value = 'critical';
+    } else if (remainingSeconds.value <= warningTime) {
+        sessionStatus.value = 'warning';
+    } else {
+        sessionStatus.value = 'normal';
+    }
+};
+
+const startCountdown = () => {
+    if (countdownInterval.value) return;
+    
+    countdownInterval.value = window.setInterval(() => {
+        if (remainingSeconds.value > 0) {
+            remainingSeconds.value--;
+            updateSessionStatus();
+            
+            // Mostrar alertas en momentos clave
+            if (remainingSeconds.value === 120) {
+                toast.warning('⏱️ Quedan 2 minutos para completar tu voto');
+            } else if (remainingSeconds.value === 60) {
+                toast.error('⚠️ Queda 1 minuto para completar tu voto');
+            } else if (remainingSeconds.value === 0) {
+                toast.error('❌ Tu sesión de votación ha expirado');
+                setTimeout(() => {
+                    router.get(route('user.votaciones.index'));
+                }, 2000);
+            }
+        }
+    }, 1000);
+};
+
+const checkUrnaSession = async () => {
+    try {
+        const response = await axios.get(route('user.votaciones.check-urna-session', { 
+            votacion: props.votacion.id 
+        }));
+        
+        if (response.data.active) {
+            remainingSeconds.value = response.data.remaining_seconds;
+            sessionActive.value = true;
+            updateSessionStatus();
+        } else {
+            sessionActive.value = false;
+            if (response.data.expired) {
+                toast.error('Tu sesión de votación ha expirado');
+                setTimeout(() => {
+                    router.get(route('user.votaciones.index'));
+                }, 2000);
+            }
+        }
+    } catch (error) {
+        console.error('Error verificando sesión de urna:', error);
+    }
+};
+
+const startSessionCheck = () => {
+    if (checkSessionInterval.value) return;
+    
+    // Verificar cada 30 segundos
+    checkSessionInterval.value = window.setInterval(() => {
+        checkUrnaSession();
+    }, 30000);
 };
 
 // Obtener abreviación de zona horaria
@@ -218,6 +316,24 @@ const isFormValid = computed(() => {
         return value && value.toString().trim() !== '';
     });
 });
+
+// Hooks de ciclo de vida
+onMounted(() => {
+    if (props.votacion.urna_session) {
+        updateSessionStatus();
+        startCountdown();
+        startSessionCheck();
+    }
+});
+
+onUnmounted(() => {
+    if (countdownInterval.value) {
+        clearInterval(countdownInterval.value);
+    }
+    if (checkSessionInterval.value) {
+        clearInterval(checkSessionInterval.value);
+    }
+});
 </script>
 
 <template>
@@ -276,6 +392,78 @@ const isFormValid = computed(() => {
                                     <span class="text-xs text-muted-foreground ml-1">({{ votacion.timezone }})</span>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <!-- Cronómetro de sesión de urna -->
+            <Card v-if="votacion.urna_session && sessionActive" 
+                  :class="{
+                      'border-orange-500': sessionStatus === 'warning',
+                      'border-red-500 animate-pulse': sessionStatus === 'critical'
+                  }">
+                <CardContent class="pt-6">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <Timer :class="{
+                                'h-5 w-5': true,
+                                'text-green-600': sessionStatus === 'normal',
+                                'text-orange-600': sessionStatus === 'warning',
+                                'text-red-600': sessionStatus === 'critical'
+                            }" />
+                            <div>
+                                <p class="font-semibold">Tiempo de sesión de urna</p>
+                                <p class="text-sm text-muted-foreground">
+                                    Tu sesión para votar está activa
+                                </p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <p :class="{
+                                'text-3xl font-bold': true,
+                                'text-green-600': sessionStatus === 'normal',
+                                'text-orange-600': sessionStatus === 'warning',
+                                'text-red-600': sessionStatus === 'critical'
+                            }">
+                                {{ formatTime(remainingSeconds) }}
+                            </p>
+                            <p class="text-sm text-muted-foreground">
+                                minutos restantes
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <!-- Barra de progreso -->
+                    <div class="mt-4">
+                        <div class="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                            <div :class="{
+                                'h-full transition-all duration-1000': true,
+                                'bg-green-600': sessionStatus === 'normal',
+                                'bg-orange-600': sessionStatus === 'warning',
+                                'bg-red-600': sessionStatus === 'critical'
+                            }"
+                                 :style="`width: ${(remainingSeconds / (votacion.urna_session.remaining_seconds || 300)) * 100}%`">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Alertas según el estado -->
+                    <div v-if="sessionStatus === 'warning'" class="mt-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                        <div class="flex items-center gap-2">
+                            <AlertCircle class="h-4 w-4 text-orange-600" />
+                            <p class="text-sm text-orange-800">
+                                Tu tiempo se está agotando. Por favor, completa tu voto pronto.
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <div v-if="sessionStatus === 'critical'" class="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                        <div class="flex items-center gap-2">
+                            <AlertTriangle class="h-4 w-4 text-red-600" />
+                            <p class="text-sm text-red-800 font-semibold">
+                                ¡ATENCIÓN! Tu sesión está a punto de expirar. Envía tu voto ahora.
+                            </p>
                         </div>
                     </div>
                 </CardContent>
