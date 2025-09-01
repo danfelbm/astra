@@ -58,9 +58,14 @@ return [
     | Configuración para integración con Evolution API para envío de mensajes
     | de WhatsApp. Requiere una instancia de Evolution API configurada.
     |
+    | Mode Options:
+    | - 'production': Envía mensajes reales via Evolution API (producción)
+    | - 'log': Solo registra en laravel.log sin enviar mensajes reales (desarrollo)
+    |
     */
     'whatsapp' => [
         'enabled' => env('WHATSAPP_ENABLED', false),
+        'mode' => env('WHATSAPP_MODE', 'production'), // 'log' o 'production'
         'api_key' => env('WHATSAPP_API_KEY'),
         'base_url' => env('WHATSAPP_BASE_URL'),
         'instance' => env('WHATSAPP_INSTANCE'),

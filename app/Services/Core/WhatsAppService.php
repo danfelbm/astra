@@ -12,6 +12,7 @@ class WhatsAppService
     protected string $baseUrl;
     protected string $instance;
     protected bool $enabled;
+    protected string $mode;
 
     public function __construct()
     {
@@ -19,6 +20,7 @@ class WhatsAppService
         $this->baseUrl = rtrim(config('services.whatsapp.base_url', ''), '/');
         $this->instance = config('services.whatsapp.instance', '');
         $this->enabled = config('services.whatsapp.enabled', false);
+        $this->mode = config('services.whatsapp.mode', 'production');
     }
 
     /**
@@ -27,6 +29,14 @@ class WhatsAppService
     public function isEnabled(): bool
     {
         return $this->enabled && !empty($this->apiKey) && !empty($this->baseUrl) && !empty($this->instance);
+    }
+
+    /**
+     * Verificar si está en modo LOG
+     */
+    public function isLogMode(): bool
+    {
+        return $this->mode === 'log';
     }
 
     /**
@@ -39,15 +49,20 @@ class WhatsAppService
             return false;
         }
 
-        try {
-            // Formatear número de teléfono
-            $formattedPhone = $this->formatPhoneNumber($phone);
-            
-            if (!$this->validatePhoneNumber($formattedPhone)) {
-                Log::error("Número de teléfono inválido: {$phone}");
-                return false;
-            }
+        // Formatear número de teléfono y validar
+        $formattedPhone = $this->formatPhoneNumber($phone);
+        
+        if (!$this->validatePhoneNumber($formattedPhone)) {
+            Log::error("Número de teléfono inválido: {$phone}");
+            return false;
+        }
 
+        // Si está en modo LOG, solo registrar en log
+        if ($this->isLogMode()) {
+            return $this->logMessage($formattedPhone, $message);
+        }
+
+        try {
             // Construir URL del endpoint
             $url = $this->buildApiUrl('/message/sendText/' . $this->instance);
             
@@ -70,7 +85,7 @@ class WhatsAppService
             if ($response->successful()) {
                 return true;
             } else {
-                Log::error("Error enviando WhatsApp OTP", [
+                Log::error("Error enviando WhatsApp", [
                     'phone' => $formattedPhone,
                     'status' => $response->status(),
                     'response' => $response->body()
@@ -81,6 +96,67 @@ class WhatsAppService
         } catch (Exception $e) {
             Log::error("No se pudo enviar el mensaje de WhatsApp: " . $e->getMessage());
             return false;
+        }
+    }
+
+    /**
+     * Registrar mensaje en modo LOG
+     */
+    private function logMessage(string $phone, string $message): bool
+    {
+        // Obtener tipo de mensaje basado en el contenido
+        $messageType = $this->detectMessageType($message);
+        
+        // Crear preview del mensaje sin información sensible
+        $preview = $this->createMessagePreview($message, $messageType);
+
+        Log::info('[WHATSAPP MODE LOG] Mensaje enviado satisfactoriamente', [
+            'mode' => 'log',
+            'to' => $phone,
+            'type' => $messageType,
+            'preview' => $preview,
+            'timestamp' => now()->toISOString(),
+        ]);
+
+        return true;
+    }
+
+    /**
+     * Detectar tipo de mensaje basado en el contenido
+     */
+    private function detectMessageType(string $message): string
+    {
+        if (str_contains($message, 'código de verificación')) {
+            return 'OTP';
+        } elseif (str_contains($message, 'Confirmación de Voto')) {
+            return 'VOTE_CONFIRMATION';
+        } elseif (str_contains($message, 'Zoom')) {
+            return 'ZOOM_ACCESS';
+        } elseif (str_contains($message, 'candidatura')) {
+            return 'CANDIDATURA_UPDATE';
+        } else {
+            return 'GENERAL';
+        }
+    }
+
+    /**
+     * Crear preview del mensaje ocultando información sensible
+     */
+    private function createMessagePreview(string $message, string $type): string
+    {
+        switch ($type) {
+            case 'OTP':
+                // Ocultar el código OTP
+                return preg_replace('/\*([0-9]{4,6})\*/', '******', $message);
+            
+            case 'VOTE_CONFIRMATION':
+                // Ocultar el token
+                $preview = preg_replace('/```([^`]+)```/', '```[TOKEN_OCULTO]```', $message);
+                return substr($preview, 0, 150) . '...';
+            
+            default:
+                // Para otros tipos, mostrar solo los primeros caracteres
+                return substr($message, 0, 100) . '...';
         }
     }
 
@@ -142,6 +218,12 @@ class WhatsAppService
     {
         if (!$this->isEnabled()) {
             return false;
+        }
+
+        // En modo LOG, simular conexión exitosa
+        if ($this->isLogMode()) {
+            Log::info('[WHATSAPP MODE LOG] Conexión simulada exitosa');
+            return true;
         }
 
         try {
@@ -246,9 +328,11 @@ class WhatsAppService
     {
         return [
             'enabled' => $this->isEnabled(),
+            'mode' => $this->mode,
             'instance' => $this->instance,
             'base_url' => $this->baseUrl,
             'connection_test' => $this->isEnabled() ? $this->testConnection() : false,
+            'is_log_mode' => $this->isLogMode(),
         ];
     }
 }
