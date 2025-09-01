@@ -79,15 +79,41 @@
         <!-- Acciones -->
         <div class="flex gap-2">
             <slot name="actions" :votacion="votacion">
-                <!-- Acciones por defecto -->
+                <!-- Acciones por defecto - Botones dinámicos según estado de sesión de urna -->
+                
+                <!-- Sin sesión de urna: Mostrar botón "Votar" normal -->
                 <Button
-                    v-if="votacion.puede_votar && canVote"
+                    v-if="!votacion.urna_session_status && votacion.puede_votar && canVote"
                     @click="$emit('votar', votacion)"
                     size="sm"
                     class="flex-1"
                 >
                     <Vote class="h-4 w-4 mr-1" />
                     Votar
+                </Button>
+                
+                <!-- Sesión activa: Mostrar botón "Volver a la Urna" -->
+                <Button
+                    v-if="votacion.urna_session_status === 'active' && votacion.puede_votar && canVote"
+                    @click="$emit('votar', votacion)"
+                    size="sm"
+                    class="flex-1"
+                    variant="secondary"
+                >
+                    <Clock class="h-4 w-4 mr-1" />
+                    Volver a la Urna
+                </Button>
+                
+                <!-- Sesión expirada: Mostrar botón "Reiniciar Urna" -->
+                <Button
+                    v-if="votacion.urna_session_status === 'expired' && votacion.puede_votar && canVote"
+                    @click="$emit('reiniciar-urna', votacion)"
+                    size="sm"
+                    class="flex-1"
+                    variant="outline"
+                >
+                    <RefreshCw class="h-4 w-4 mr-1" />
+                    Reiniciar Urna
                 </Button>
                 
                 <Button
@@ -129,7 +155,8 @@ import {
     Vote, 
     Eye,
     Loader2,
-    Globe 
+    Globe,
+    RefreshCw
 } from 'lucide-vue-next';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';

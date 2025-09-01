@@ -45,17 +45,59 @@ class CleanExpiredUrnaSessions extends Command
             if (!$dryRun) {
                 foreach ($expiredSessions as $session) {
                     $session->expire();
-                    $this->line("  ✓ Expirada sesión ID: {$session->id} - Usuario: {$session->usuario_id}");
+                    $this->line("  ✓ Eliminada sesión ID: {$session->id} - Usuario: {$session->usuario_id}");
                 }
-                $this->info("✅ {$expiredCount} sesiones marcadas como expiradas");
+                $this->info("✅ {$expiredCount} sesiones eliminadas");
             } else {
-                $this->warn("  [DRY RUN] Se marcarían {$expiredCount} sesiones como expiradas");
+                $this->warn("  [DRY RUN] Se eliminarían {$expiredCount} sesiones expiradas");
             }
         } else {
             $this->info("✓ No hay sesiones activas expiradas");
         }
         
-        // 2. Eliminar sesiones antiguas (más de X días)
+        // 2. NUEVO: Limpiar sesiones huérfanas (activas sin voto después de tiempo prudencial)
+        // Sesiones que están activas pero han pasado más de 10 minutos desde su expiración
+        // y el usuario no tiene voto registrado
+        $orphanedSessions = UrnaSession::where('status', 'active')
+            ->where('expires_at', '<', Carbon::now()->subMinutes(10))
+            ->whereDoesntHave('votacion.votos', function($query) {
+                $query->whereColumn('votos.usuario_id', 'urna_sessions.usuario_id');
+            })
+            ->get();
+        
+        $orphanedCount = $orphanedSessions->count();
+        
+        if ($orphanedCount > 0) {
+            $this->info("🔍 Encontradas {$orphanedCount} sesiones huérfanas (activas sin voto asociado)");
+            
+            if (!$dryRun) {
+                foreach ($orphanedSessions as $session) {
+                    // Registrar en audit log antes de eliminar
+                    $session->logAction('expiró por sesión huérfana', 
+                        'Sesión eliminada - activa sin voto después de 10 minutos post-expiración');
+                    
+                    Log::info('Sesión huérfana eliminada', [
+                        'session_id' => $session->id,
+                        'votacion_id' => $session->votacion_id,
+                        'usuario_id' => $session->usuario_id,
+                        'opened_at' => $session->opened_at,
+                        'expires_at' => $session->expires_at,
+                    ]);
+                    
+                    // Eliminar la sesión huérfana completamente
+                    $session->delete();
+                    
+                    $this->line("  ✓ Eliminada sesión huérfana ID: {$session->id} - Usuario: {$session->usuario_id}");
+                }
+                $this->info("✅ {$orphanedCount} sesiones huérfanas eliminadas");
+            } else {
+                $this->warn("  [DRY RUN] Se eliminarían {$orphanedCount} sesiones huérfanas");
+            }
+        } else {
+            $this->info("✓ No hay sesiones huérfanas");
+        }
+        
+        // 3. Eliminar sesiones antiguas (más de X días)
         $cutoffDate = Carbon::now()->subDays($days);
         $oldSessions = UrnaSession::where('status', '!=', 'active')
             ->where('created_at', '<', $cutoffDate)
@@ -97,7 +139,7 @@ class CleanExpiredUrnaSessions extends Command
         $stats = [
             'Sesiones activas' => UrnaSession::where('status', 'active')->count(),
             'Sesiones con voto' => UrnaSession::where('status', 'voted')->count(),
-            'Sesiones expiradas' => UrnaSession::where('status', 'expired')->count(),
+            'Sesiones eliminadas (total histórico)' => 0, // Ya no existen sesiones 'expired', se eliminan completamente
             'Total de sesiones' => UrnaSession::count(),
         ];
         

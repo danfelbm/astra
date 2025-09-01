@@ -50,6 +50,9 @@ Route::middleware(['auth', 'verified', 'user'])->prefix('miembro')->name('user.'
     Route::post('votaciones/{votacion}/votar', [VotoController::class, 'store'])
         ->middleware('can:votaciones.vote')
         ->name('votaciones.store');
+    Route::post('votaciones/{votacion}/reset-urna', [VotoController::class, 'resetUrna'])
+        ->middleware('can:votaciones.vote')
+        ->name('votaciones.reset-urna');
     Route::get('votaciones/{votacion}/check-urna-session', [VotoController::class, 'checkUrnaSession'])
         ->middleware('can:votaciones.vote')
         ->name('votaciones.check-urna-session');

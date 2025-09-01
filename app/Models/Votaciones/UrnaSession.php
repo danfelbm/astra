@@ -115,18 +115,17 @@ class UrnaSession extends Model
     }
 
     /**
-     * Expirar la sesión
+     * Expirar la sesión eliminándola completamente
      */
     public function expire(): void
     {
         if ($this->status === 'active') {
-            $this->update([
-                'status' => 'expired',
-                'closed_at' => Carbon::now(),
-            ]);
+            // Registrar en audit log antes de eliminar
+            $this->logAction('expiró urna', 'Sesión eliminada por tiempo agotado');
             
-            // Registrar en audit log
-            $this->logAction('expiró urna', 'Tiempo de sesión agotado');
+            // Eliminar la sesión completamente para evitar problemas de constraint único
+            // Esto permite al usuario reintentar inmediatamente
+            $this->delete();
         }
     }
 

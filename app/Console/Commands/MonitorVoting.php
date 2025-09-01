@@ -99,9 +99,7 @@ class MonitorVoting extends Command
             'sesiones_votadas' => UrnaSession::where('votacion_id', $votacion->id)
                 ->where('status', 'voted')
                 ->count(),
-            'sesiones_expiradas' => UrnaSession::where('votacion_id', $votacion->id)
-                ->where('status', 'expired')
-                ->count(),
+            'sesiones_eliminadas' => 0, // Ya no existen sesiones 'expired', se eliminan completamente
             
             // Jobs en proceso
             'votos_pendientes' => $this->getVotosPendientes($votacion->id),
@@ -172,10 +170,10 @@ class MonitorVoting extends Command
         // Sesiones de urna
         $this->info("🗳️ SESIONES DE URNA");
         $this->line(sprintf(
-            "  Activas: %d | Votadas: %d | Expiradas: %d",
+            "  Activas: %d | Votadas: %d | Eliminadas: %d",
             $this->stats['sesiones_activas'],
             $this->stats['sesiones_votadas'],
-            $this->stats['sesiones_expiradas']
+            $this->stats['sesiones_eliminadas']
         ));
 
         // Procesamiento

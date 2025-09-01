@@ -10,6 +10,7 @@
                 :can-view-results="canViewResults"
                 :can-view-own-vote="canViewOwnVote"
                 @votar="handleVotar"
+                @reiniciar-urna="handleReiniciarUrna"
                 @ver-voto="handleVerVoto"
                 @ver-resultados="handleVerResultados"
             >
@@ -58,13 +59,38 @@
                     
                     <div class="ml-4 flex items-center gap-2">
                         <slot name="list-actions" :votacion="votacion">
+                            <!-- Botones dinámicos según estado de sesión de urna (vista lista) -->
+                            
+                            <!-- Sin sesión de urna: Mostrar botón "Votar" normal -->
                             <Button
-                                v-if="votacion.puede_votar && canVote"
+                                v-if="!votacion.urna_session_status && votacion.puede_votar && canVote"
                                 @click="handleVotar(votacion)"
                                 size="sm"
                             >
                                 <Vote class="h-4 w-4 mr-1" />
                                 Votar
+                            </Button>
+                            
+                            <!-- Sesión activa: Mostrar botón "Volver a la Urna" -->
+                            <Button
+                                v-if="votacion.urna_session_status === 'active' && votacion.puede_votar && canVote"
+                                @click="handleVotar(votacion)"
+                                size="sm"
+                                variant="secondary"
+                            >
+                                <Clock class="h-4 w-4 mr-1" />
+                                Volver
+                            </Button>
+                            
+                            <!-- Sesión expirada: Mostrar botón "Reiniciar Urna" -->
+                            <Button
+                                v-if="votacion.urna_session_status === 'expired' && votacion.puede_votar && canVote"
+                                @click="handleReiniciarUrna(votacion)"
+                                size="sm"
+                                variant="outline"
+                            >
+                                <RefreshCw class="h-4 w-4 mr-1" />
+                                Reiniciar
                             </Button>
                             
                             <Button
@@ -116,7 +142,9 @@ import {
     Vote, 
     Eye, 
     BarChart2, 
-    Inbox 
+    Inbox,
+    Clock,
+    RefreshCw 
 } from 'lucide-vue-next';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -140,6 +168,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<{
     votar: [votacion: any];
+    'reiniciar-urna': [votacion: any];
     'ver-voto': [votacion: any];
     'ver-resultados': [votacion: any];
 }>();
@@ -155,6 +184,16 @@ const handleVotar = (votacion: any) => {
     // Navegación por defecto si no hay listener
     if (!emit('votar')) {
         router.visit(route('user.votaciones.votar', votacion.id));
+    }
+};
+
+const handleReiniciarUrna = (votacion: any) => {
+    emit('reiniciar-urna', votacion);
+    // Navegación por defecto si no hay listener - usaremos la nueva ruta de reinicio con POST
+    if (!emit('reiniciar-urna')) {
+        router.visit(route('user.votaciones.reset-urna', votacion.id), {
+            method: 'post'
+        });
     }
 };
 
