@@ -6,10 +6,7 @@ import { Head, router } from '@inertiajs/vue3';
 import { Vote, LayoutGrid, List } from 'lucide-vue-next';
 import VotacionGrid from '@/components/votaciones/VotacionGrid.vue';
 import VotacionFilters from '@/components/votaciones/VotacionFilters.vue';
-import VoteProcessingModal from '@/components/voting/VoteProcessingModal.vue';
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
-import { toast } from 'vue-sonner';
-import axios from 'axios';
+import { ref, computed } from 'vue';
 import { Button } from '@/components/ui/button';
 
 interface Categoria {
@@ -36,8 +33,6 @@ interface Votacion {
     puede_ver_voto: boolean;
     resultados_visibles: boolean;
     estado_visual: 'activa' | 'finalizada' | 'pendiente' | 'inactiva';
-    vote_processing: boolean;
-    vote_status: string | null;
 }
 
 interface Props {
@@ -63,7 +58,6 @@ interface Props {
     };
     mostrar_pasadas: boolean;
     filterFieldsConfig: any[];
-    hasProcessingVotes: boolean;
     // Props de permisos
     canVote: boolean;
     canViewResults: boolean;
@@ -77,20 +71,11 @@ const breadcrumbs: BreadcrumbItemType[] = [
     { title: 'Mis Votaciones', href: '/miembro/votaciones' },
 ];
 
-// Estado para el modal de procesamiento
-const showProcessingModal = ref(false);
-const processingVotacionId = ref<number | null>(null);
-const processingCheckUrl = ref<string>('');
-
 // Estado de vista (grid o lista)
 const viewMode = ref<'grid' | 'list'>('grid');
 
 // Helper para obtener route
 const { route } = window as any;
-
-// Polling para votos en procesamiento
-const pollingInterval = ref<NodeJS.Timeout | null>(null);
-const isPolling = ref(false);
 
 // Filtros locales
 const localFilters = ref({
@@ -116,65 +101,6 @@ const handleFiltersApplied = (filters: any) => {
     });
 };
 
-// Función para iniciar el polling
-const startPolling = () => {
-    if (isPolling.value || !props.hasProcessingVotes) return;
-    
-    isPolling.value = true;
-    
-    // Por ahora simplemente recargamos la página periódicamente si hay votos procesándose
-    pollingInterval.value = setInterval(() => {
-        // Recargar la página para actualizar el estado
-        router.reload({ 
-            preserveScroll: true,
-            only: ['votaciones', 'hasProcessingVotes'],
-            onSuccess: () => {
-                // Si ya no hay votos procesándose, detener el polling
-                if (!props.hasProcessingVotes) {
-                    stopPolling();
-                    toast.success('Todos los votos han sido procesados');
-                }
-            }
-        });
-    }, 5000); // Cada 5 segundos
-};
-
-// Función para detener el polling
-const stopPolling = () => {
-    if (pollingInterval.value) {
-        clearInterval(pollingInterval.value);
-        pollingInterval.value = null;
-    }
-    isPolling.value = false;
-};
-
-// Manejar la votación procesándose
-const handleVoteProcessing = (votacionId: number, checkUrl: string) => {
-    processingVotacionId.value = votacionId;
-    processingCheckUrl.value = checkUrl;
-    showProcessingModal.value = true;
-};
-
-// Cerrar el modal de procesamiento
-const handleProcessingComplete = () => {
-    showProcessingModal.value = false;
-    processingVotacionId.value = null;
-    processingCheckUrl.value = '';
-    // Recargar la página para actualizar el estado
-    router.reload({ preserveScroll: true });
-};
-
-// Iniciar polling si hay votos procesándose
-onMounted(() => {
-    if (props.hasProcessingVotes) {
-        startPolling();
-    }
-});
-
-// Limpiar al desmontar
-onBeforeUnmount(() => {
-    stopPolling();
-});
 </script>
 
 <template>
@@ -228,7 +154,6 @@ onBeforeUnmount(() => {
                 :view-mode="viewMode"
                 :can-vote="canVote"
                 :can-view-results="canViewResults"
-                @vote-processing="handleVoteProcessing"
             />
 
             <!-- Paginación -->
@@ -253,15 +178,6 @@ onBeforeUnmount(() => {
                     </template>
                 </nav>
             </div>
-
-            <!-- Modal de procesamiento -->
-            <VoteProcessingModal
-                v-if="showProcessingModal"
-                :votacion-id="processingVotacionId!"
-                :check-url="processingCheckUrl"
-                @complete="handleProcessingComplete"
-                @close="showProcessingModal = false"
-            />
         </div>
     </UserLayout>
 </template>

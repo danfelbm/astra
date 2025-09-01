@@ -4,8 +4,6 @@ namespace App\Http\Controllers\Votaciones\User;
 
 use App\Http\Controllers\Core\UserController;
 
-
-use App\Jobs\Votaciones\ProcessVoteJob;
 use App\Jobs\Votaciones\SendVoteConfirmationEmailJob;
 use App\Jobs\Votaciones\SendVoteConfirmationWhatsAppJob;
 use App\Models\Votaciones\Categoria;
@@ -20,6 +18,7 @@ use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -83,10 +82,22 @@ class VotoController extends UserController
             $now = now();
             $yaVoto = $votacion->votos()->where('usuario_id', $user->id)->exists();
             
-            // Verificar si hay un voto en procesamiento
-            $cacheKey = "vote_status_{$votacion->id}_{$user->id}";
-            $voteStatus = Cache::get($cacheKey, null);
-            $processingVote = in_array($voteStatus, ['pending', 'processing']);
+            // Buscar sesión de urna existente para determinar estado
+            $urnaSession = UrnaSession::where('votacion_id', $votacion->id)
+                ->where('usuario_id', $user->id)
+                ->first();
+            
+            // Determinar estado de la sesión de urna
+            $urnaSessionStatus = null;
+            if ($urnaSession) {
+                if ($urnaSession->status === 'voted') {
+                    $urnaSessionStatus = 'voted';
+                } elseif ($urnaSession->hasExpired()) {
+                    $urnaSessionStatus = 'expired';
+                } else {
+                    $urnaSessionStatus = 'active';
+                }
+            }
             
             // Determinar estado de la votación
             $esActiva = $votacion->estado === 'activa';
@@ -94,11 +105,10 @@ class VotoController extends UserController
             $haFinalizado = $now > $votacion->fecha_fin || $votacion->estado === 'finalizada';
             
             $votacion->ya_voto = $yaVoto;
-            $votacion->vote_processing = $processingVote; // Indicador de voto en procesamiento
-            $votacion->vote_status = $voteStatus; // Estado específico del voto
-            $votacion->puede_votar = $esActiva && $estaEnPeriodo && !$yaVoto && !$processingVote;
+            $votacion->urna_session_status = $urnaSessionStatus; // Estado de la sesión de urna
+            $votacion->puede_votar = $esActiva && $estaEnPeriodo && !$yaVoto;
             $votacion->ha_finalizado = $haFinalizado;
-            $votacion->puede_ver_voto = $yaVoto && !$processingVote; // Puede ver su voto si votó y no está procesando
+            $votacion->puede_ver_voto = $yaVoto; // Puede ver su voto si ya votó
             $votacion->resultados_visibles = $votacion->resultadosVisibles(); // Puede ver resultados si están públicos
             
             // Estado visual
@@ -117,18 +127,12 @@ class VotoController extends UserController
 
         $categorias = Categoria::activas()->get();
 
-        // Verificar si hay algún voto en procesamiento para activar polling
-        $hasProcessingVotes = $votaciones->getCollection()->contains(function ($votacion) {
-            return $votacion->vote_processing;
-        });
-
         return Inertia::render('User/Votaciones/Index', [
             'votaciones' => $votaciones,
             'categorias' => $categorias,
             'filters' => $request->only(['search', 'advanced_filters', 'mostrar_pasadas']),
             'mostrar_pasadas' => $mostrarPasadas,
             'filterFieldsConfig' => $this->getFilterFieldsConfig(),
-            'hasProcessingVotes' => $hasProcessingVotes, // Indicador para activar polling
             // Props de permisos de usuario
             'canVote' => auth()->user()->can('votaciones.vote'),
             'canViewResults' => auth()->user()->can('votaciones.view_results'),
@@ -160,23 +164,22 @@ class VotoController extends UserController
                 ->with('error', 'Esta votación no está activa.');
         }
 
-        // Verificar que el usuario no haya votado ya
-        if ($votacion->votos()->where('usuario_id', $user->id)->exists()) {
-            return redirect()
-                ->route('user.votaciones.index')
-                ->with('error', 'Ya has participado en esta votación.');
-        }
-
-        // Buscar sesión de urna activa existente
+        // Buscar CUALQUIER sesión existente para el usuario/votación (constraint único absoluto)
         $urnaSession = UrnaSession::where('votacion_id', $votacion->id)
             ->where('usuario_id', $user->id)
-            ->where('status', 'active')
             ->first();
+
+        // Si existe sesión con status 'voted', el usuario ya participó
+        if ($urnaSession && $urnaSession->status === 'voted') {
+            return redirect()
+                ->route('user.votaciones.mi-voto', ['votacion' => $votacion->id])
+                ->with('info', 'Ya has participado en esta votación. Puedes consultar tu voto aquí.');
+        }
 
         $now = Carbon::now();
         $sessionDuration = config('votaciones.urna_session_duration', 5);
         
-        // Si no hay sesión activa, verificar si puede crear una nueva
+        // Si no hay ninguna sesión, crear una nueva sesión active
         if (!$urnaSession) {
             // Verificar que esté en el rango de fechas válido para abrir urna
             if ($now < $votacion->fecha_inicio || $now > $votacion->fecha_fin) {
@@ -199,9 +202,15 @@ class VotoController extends UserController
             // Registrar apertura de urna en audit log
             $urnaSession->logAction('abrió urna', "Sesión de {$sessionDuration} minutos iniciada");
         } else {
+            // Aquí sabemos que existe sesión active (el caso voted ya se manejó arriba)
             // Verificar que la sesión no haya expirado
             if ($urnaSession->hasExpired()) {
-                $urnaSession->expire();
+                // Registrar en audit log antes de eliminar
+                $urnaSession->logAction('expiró urna', 'Sesión eliminada por expiración - usuario puede reintentar');
+                
+                // Eliminar la sesión expirada completamente para evitar errores de constraint
+                $urnaSession->delete();
+                
                 return redirect()
                     ->route('user.votaciones.index')
                     ->with('error', 'Tu sesión de votación ha expirado. Por favor, intenta nuevamente.');
@@ -254,6 +263,11 @@ class VotoController extends UserController
      */
     public function store(Request $request, Votacion $votacion): RedirectResponse
     {
+        // Establecer tiempo límite de ejecución para evitar timeouts
+        // Damos 60 segundos para procesar el voto (suficiente incluso en alta carga)
+        set_time_limit(60);
+        ini_set('max_execution_time', 60);
+        
         // Verificar permisos de votación
         abort_unless(auth()->user()->can('votaciones.vote'), 403, 'No tienes permisos para participar en votaciones');
         
@@ -345,50 +359,154 @@ class VotoController extends UserController
             // Obtener las respuestas
             $respuestas = $request->input('respuestas', []);
             
-            // Marcar en cache que el voto está pendiente
-            $cacheKey = "vote_status_{$votacion->id}_{$user->id}";
-            Cache::put($cacheKey, 'pending', 120);
+            // PROCESAMIENTO SÍNCRONO CON LOCK PESIMISTA PARA GARANTIZAR INTEGRIDAD
+            $voto = null;
             
-            // Log de debugging para verificar urna session
-            \Log::info('VotoController: Despachando job con urna session', [
-                'urna_session_id' => $urnaSession->id,
-                'urna_session_opened_at' => $urnaSession->opened_at->toISOString(),
-                'urna_session_opened_at_string' => $urnaSession->opened_at->toDateTimeString(),
-                'user_id' => $user->id,
-                'votacion_id' => $votacion->id
-            ]);
+            // Usar lock distribuido para prevenir race conditions en múltiples servidores
+            $lockKey = "vote_lock_{$votacion->id}_{$user->id}";
+            $lock = Cache::lock($lockKey, 10); // Lock por 10 segundos máximo
             
-            // Despachar el job para procesar el voto de forma asíncrona
-            // IMPORTANTE: NO cerrar la sesión aquí - el job la cerrará solo si el voto se guarda exitosamente
-            ProcessVoteJob::dispatch(
-                $votacion,
-                $user,
-                $respuestas,
-                IpAddressService::getRealIp($request),
-                $request->userAgent(),
-                $urnaSession->opened_at->toDateTimeString(),  // Pasar como string para correcta serialización
-                $urnaSession->id  // Pasar ID de sesión para cerrarla SOLO si el voto se guarda
-            );
+            if (!$lock->get()) {
+                // Otro proceso está procesando el voto, verificar si ya existe
+                sleep(1); // Esperar un momento
+                $votoExistente = Voto::where('votacion_id', $votacion->id)
+                    ->where('usuario_id', $user->id)
+                    ->first();
+                    
+                if ($votoExistente) {
+                    return redirect()
+                        ->route('user.votaciones.mi-voto', ['votacion' => $votacion->id])
+                        ->with('success', 'Tu voto ha sido registrado exitosamente.');
+                }
+                
+                return back()->with('error', 'Tu voto está siendo procesado. Por favor, espera un momento.');
+            }
             
-            // NO cerrar la sesión aquí - se cerrará en el job solo si el voto es exitoso
-            // Esto previene sesiones marcadas como "voted" sin votos reales
+            try {
+                // Procesar el voto dentro de una transacción con locks pesimistas
+                DB::transaction(function() use ($votacion, $user, $respuestas, $request, $urnaSession, &$voto) {
+                    // Lock pesimista en la votación para prevenir modificaciones concurrentes
+                    $votacionLocked = Votacion::where('id', $votacion->id)
+                        ->lockForUpdate()
+                        ->first();
+                    
+                    // Verificar DENTRO de la transacción si ya votó (con lock)
+                    $votoExistente = Voto::where('votacion_id', $votacion->id)
+                        ->where('usuario_id', $user->id)
+                        ->lockForUpdate()
+                        ->first();
+                    
+                    if ($votoExistente) {
+                        // Ya votó, cerrar sesión y usar el voto existente
+                        if ($urnaSession->status === 'active') {
+                            $urnaSession->closeByVote();
+                        }
+                        $voto = $votoExistente;
+                        
+                        \Log::info('Voto ya existente encontrado en transacción', [
+                            'voto_id' => $votoExistente->id,
+                            'user_id' => $user->id,
+                            'votacion_id' => $votacion->id
+                        ]);
+                        
+                        return;
+                    }
+                    
+                    // Generar token único con información de la sesión de urna
+                    $voteTimestamp = now();
+                    $token = TokenService::generateSignedToken(
+                        $votacion->id,
+                        $respuestas,
+                        $voteTimestamp->toISOString(),
+                        $urnaSession->opened_at->toISOString()
+                    );
+                    
+                    // Crear el voto
+                    $voto = Voto::create([
+                        'votacion_id' => $votacion->id,
+                        'usuario_id' => $user->id,
+                        'token_unico' => $token,
+                        'urna_opened_at' => $urnaSession->opened_at,
+                        'respuestas' => $respuestas,
+                        'ip_address' => IpAddressService::getRealIp($request),
+                        'user_agent' => $request->userAgent(),
+                    ]);
+                    
+                    // Cerrar la sesión de urna inmediatamente después de guardar el voto
+                    $urnaSession->closeByVote();
+                    
+                    \Log::info('Voto procesado exitosamente de forma síncrona', [
+                        'voto_id' => $voto->id,
+                        'user_id' => $user->id,
+                        'votacion_id' => $votacion->id,
+                        'urna_session_id' => $urnaSession->id,
+                        'token_first_50' => substr($token, 0, 50)
+                    ]);
+                });
+                
+            } finally {
+                // Siempre liberar el lock
+                $lock->release();
+            }
             
-            // Redirigir inmediatamente con un mensaje informativo
-            // El frontend mostrará un loading y hará polling al estado
-            return redirect()
-                ->route('user.votaciones.index')
-                ->with('info', 'Tu voto está siendo firmado digitalmente. Te notificaremos cuando esté listo.')
-                ->with('processing_vote', [
-                    'votacion_id' => $votacion->id,
-                    'check_status_url' => route('user.votaciones.check-status', $votacion->id)
-                ]);
+            // Despachar notificaciones DESPUÉS de la transacción exitosa
+            if ($voto) {
+                // Cargar relaciones necesarias para las notificaciones
+                $votacion->load('categoria');
+                
+                // Enviar notificaciones de forma asíncrona (no crítico para el flujo)
+                if (!empty($user->email)) {
+                    SendVoteConfirmationEmailJob::dispatch($user, $votacion, $voto);
+                }
+                
+                if (!empty($user->telefono)) {
+                    SendVoteConfirmationWhatsAppJob::dispatch($user, $votacion, $voto);
+                }
+                
+                // Redirigir al usuario a ver su voto confirmado
+                return redirect()
+                    ->route('user.votaciones.mi-voto', ['votacion' => $votacion->id])
+                    ->with('success', 'Tu voto ha sido registrado exitosamente. Se ha enviado una confirmación a tu correo electrónico.');
+            }
+            
+            // Si llegamos aquí, algo salió mal
+            return back()->with('error', 'No se pudo procesar tu voto. Por favor, inténtalo de nuevo.');
 
-        } catch (\Exception $e) {
-            // Log del error
-            \Log::error('Error al despachar job de voto', [
+        } catch (\Illuminate\Database\QueryException $e) {
+            // Manejar error de constraint único (por si acaso)
+            if ($e->getCode() === '23000') {
+                // Verificar si el voto existe
+                $votoExistente = Voto::where('votacion_id', $votacion->id)
+                    ->where('usuario_id', $user->id)
+                    ->first();
+                
+                if ($votoExistente) {
+                    // Cerrar sesión de urna si está activa
+                    if ($urnaSession->status === 'active') {
+                        $urnaSession->closeByVote();
+                    }
+                    
+                    return redirect()
+                        ->route('user.votaciones.mi-voto', ['votacion' => $votacion->id])
+                        ->with('success', 'Tu voto ha sido registrado exitosamente.');
+                }
+            }
+            
+            \Log::error('Error de base de datos al procesar voto', [
                 'user_id' => $user->id,
                 'votacion_id' => $votacion->id,
                 'error' => $e->getMessage()
+            ]);
+            
+            return back()->with('error', 'Ocurrió un error al procesar tu voto. Por favor, inténtalo de nuevo.');
+            
+        } catch (\Exception $e) {
+            // Log del error general
+            \Log::error('Error al procesar voto de forma síncrona', [
+                'user_id' => $user->id,
+                'votacion_id' => $votacion->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
             ]);
             
             return back()->with('error', 'Ocurrió un error al procesar tu voto. Por favor, inténtalo de nuevo.');
@@ -442,16 +560,24 @@ class VotoController extends UserController
     {
         $user = Auth::user();
         
-        // Buscar sesión de urna activa
+        // Buscar cualquier sesión existente (constraint único absoluto)
         $urnaSession = UrnaSession::where('votacion_id', $votacion->id)
             ->where('usuario_id', $user->id)
-            ->where('status', 'active')
             ->first();
         
         if (!$urnaSession) {
             return response()->json([
                 'active' => false,
                 'message' => 'No hay sesión activa',
+            ]);
+        }
+        
+        // Si la sesión es voted, el usuario ya participó
+        if ($urnaSession->status === 'voted') {
+            return response()->json([
+                'active' => false,
+                'voted' => true,
+                'message' => 'Ya has participado en esta votación',
             ]);
         }
         
@@ -710,5 +836,85 @@ class VotoController extends UserController
         }
         
         return $candidatosPorCampo;
+    }
+
+    /**
+     * Reiniciar sesión de urna expirada
+     * Borra la sesión expirada y crea una nueva activa automáticamente
+     */
+    public function resetUrna(Votacion $votacion): RedirectResponse
+    {
+        $user = auth()->user();
+        
+        // Verificar permisos
+        abort_unless($user->can('votaciones.vote'), 403, 'No tienes permisos para participar en votaciones');
+        
+        // Verificar que la votación esté activa
+        if ($votacion->estado !== 'activa') {
+            return redirect()
+                ->route('user.votaciones.index')
+                ->with('error', 'Esta votación no está activa.');
+        }
+        
+        // Buscar sesión existente
+        $urnaSession = UrnaSession::where('votacion_id', $votacion->id)
+            ->where('usuario_id', $user->id)
+            ->first();
+        
+        // Si existe sesión con status 'voted', el usuario ya participó
+        if ($urnaSession && $urnaSession->status === 'voted') {
+            return redirect()
+                ->route('user.votaciones.mi-voto', ['votacion' => $votacion->id])
+                ->with('info', 'Ya has participado en esta votación.');
+        }
+        
+        // Si existe sesión y está expirada, eliminarla
+        if ($urnaSession && ($urnaSession->hasExpired() || $urnaSession->status === 'active')) {
+            // Registrar en audit log antes de eliminar
+            $urnaSession->logAction('reinició urna', 'Sesión reiniciada por usuario - sesión anterior eliminada');
+            $urnaSession->delete();
+        }
+        
+        // Verificar que esté en el rango de fechas válido
+        $now = Carbon::now();
+        if ($now < $votacion->fecha_inicio || $now > $votacion->fecha_fin) {
+            return redirect()
+                ->route('user.votaciones.index')
+                ->with('error', 'Esta votación no está disponible en este momento.');
+        }
+        
+        // Crear nueva sesión activa automáticamente
+        $sessionDuration = config('votaciones.urna_session_duration', 5);
+        
+        try {
+            $newUrnaSession = UrnaSession::create([
+                'votacion_id' => $votacion->id,
+                'usuario_id' => $user->id,
+                'opened_at' => $now,
+                'status' => 'active',
+                'ip_address' => IpAddressService::getRealIp(request()),
+                'user_agent' => request()->userAgent(),
+                'expires_at' => $now->copy()->addMinutes($sessionDuration),
+            ]);
+            
+            // Registrar apertura de urna en audit log
+            $newUrnaSession->logAction('abrió urna', "Sesión reiniciada - {$sessionDuration} minutos iniciados");
+            
+            // Redirigir directamente al formulario de votación
+            return redirect()
+                ->route('user.votaciones.votar', ['votacion' => $votacion->id])
+                ->with('success', 'Urna reiniciada exitosamente. Tienes ' . $sessionDuration . ' minutos para votar.');
+                
+        } catch (\Exception $e) {
+            \Log::error('Error al reiniciar urna', [
+                'user_id' => $user->id,
+                'votacion_id' => $votacion->id,
+                'error' => $e->getMessage()
+            ]);
+            
+            return redirect()
+                ->route('user.votaciones.index')
+                ->with('error', 'Ocurrió un error al reiniciar la urna. Por favor, inténtalo de nuevo.');
+        }
     }
 }

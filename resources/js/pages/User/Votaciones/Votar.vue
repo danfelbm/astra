@@ -550,7 +550,7 @@ onUnmounted(() => {
                                     >
                                         <template v-if="form.processing">
                                             <Clock class="mr-2 h-4 w-4 animate-spin" />
-                                            Enviando...
+                                            Procesando tu voto de forma segura... No cierres esta ventana
                                         </template>
                                         <template v-else>
                                             <CheckCircle class="mr-2 h-4 w-4" />
