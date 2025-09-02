@@ -111,6 +111,10 @@ const submit = () => {
                     data[key].forEach((id: number) => {
                         formData.append('role_ids[]', id.toString());
                     });
+                } else if (key === 'created_at' && data[key]) {
+                    // Convertir formato datetime-local (YYYY-MM-DDTHH:MM:SS) a MySQL (YYYY-MM-DD HH:MM:SS)
+                    const dateValue = data[key].toString().replace('T', ' ');
+                    formData.append(key, dateValue);
                 } else if (data[key] !== null && data[key] !== undefined) {
                     formData.append(key, data[key].toString());
                 }
@@ -120,7 +124,13 @@ const submit = () => {
             forceFormData: true,
         });
     } else {
-        form.post(route('admin.usuarios.store'));
+        form.transform((data) => {
+            // Convertir formato datetime-local a MySQL para requests sin avatar
+            if (data.created_at) {
+                data.created_at = data.created_at.replace('T', ' ');
+            }
+            return data;
+        }).post(route('admin.usuarios.store'));
     }
 };
 </script>

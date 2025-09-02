@@ -85,7 +85,7 @@ const form = useForm({
     municipio_id: props.user.municipio_id || null,
     localidad_id: props.user.localidad_id || null,
     activo: props.user.activo,
-    created_at: '', // Campo para modificar fecha de creación
+    created_at: props.user.created_at ? props.user.created_at.replace(' ', 'T').substring(0, 19) : '', // Convertir de MySQL a datetime-local format
 });
 
 // Geographic data
@@ -106,7 +106,13 @@ const handleGeographicChange = (value: any) => {
 };
 
 const submit = () => {
-    form.put(route('admin.usuarios.update', props.user.id));
+    form.transform((data) => {
+        // Convertir formato datetime-local (YYYY-MM-DDTHH:MM:SS) a MySQL (YYYY-MM-DD HH:MM:SS)
+        if (data.created_at) {
+            data.created_at = data.created_at.replace('T', ' ');
+        }
+        return data;
+    }).put(route('admin.usuarios.update', props.user.id));
 };
 
 // Estado reactivo para el avatar
