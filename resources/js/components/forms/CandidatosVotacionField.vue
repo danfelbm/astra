@@ -19,7 +19,7 @@ interface CandidatoElegible {
 }
 
 interface Props {
-    modelValue?: number | number[] | null;
+    modelValue?: string | string[] | null;
     candidatosElegibles: CandidatoElegible[];
     label?: string;
     description?: string;
@@ -31,7 +31,7 @@ interface Props {
 }
 
 interface Emits {
-    (e: 'update:modelValue', value: number | number[] | null): void;
+    (e: 'update:modelValue', value: string | string[] | null): void;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -50,31 +50,31 @@ const tieneCandidatos = computed(() => props.candidatosElegibles.length > 0);
 
 // Manejo de selección simple (radio)
 const handleRadioChange = (value: string) => {
-    const numValue = value === 'null' ? null : parseInt(value);
-    emit('update:modelValue', numValue);
+    const nameValue = value === 'null' ? null : value;
+    emit('update:modelValue', nameValue);
 };
 
 // Manejo de selección múltiple (checkbox)
-const isSelected = (candidatoId: number) => {
+const isSelected = (candidatoName: string) => {
     if (props.multiple) {
-        return Array.isArray(props.modelValue) && props.modelValue.includes(candidatoId);
+        return Array.isArray(props.modelValue) && props.modelValue.includes(candidatoName);
     }
-    return props.modelValue === candidatoId;
+    return props.modelValue === candidatoName;
 };
 
-const handleCheckboxChange = (candidatoId: number, checked: boolean) => {
+const handleCheckboxChange = (candidatoName: string, checked: boolean) => {
     if (!props.multiple) {
-        emit('update:modelValue', checked ? candidatoId : null);
+        emit('update:modelValue', checked ? candidatoName : null);
         return;
     }
 
     const currentValue = Array.isArray(props.modelValue) ? props.modelValue : [];
-    let newValue: number[];
+    let newValue: string[];
 
     if (checked) {
-        newValue = [...currentValue, candidatoId];
+        newValue = [...currentValue, candidatoName];
     } else {
-        newValue = currentValue.filter(id => id !== candidatoId);
+        newValue = currentValue.filter(name => name !== candidatoName);
     }
 
     emit('update:modelValue', newValue);
@@ -124,7 +124,7 @@ const formatUbicacion = (candidato: CandidatoElegible): string => {
             <!-- Selección simple (radio buttons) -->
             <RadioGroup 
                 v-if="!multiple"
-                :model-value="modelValue?.toString() || 'null'"
+                :model-value="modelValue || 'null'"
                 @update:model-value="handleRadioChange"
                 :disabled="disabled"
                 class="space-y-2"
@@ -147,7 +147,7 @@ const formatUbicacion = (candidato: CandidatoElegible): string => {
                                 class="flex items-start space-x-3 py-2"
                             >
                                 <RadioGroupItem 
-                                    :value="candidato.id.toString()" 
+                                    :value="candidato.name" 
                                     :id="`candidato_${candidato.id}`" 
                                 />
                                 <Label 
@@ -194,8 +194,8 @@ const formatUbicacion = (candidato: CandidatoElegible): string => {
                         >
                             <Checkbox
                                 :id="`candidato_check_${candidato.id}`"
-                                :checked="isSelected(candidato.id)"
-                                @update:checked="(checked) => handleCheckboxChange(candidato.id, checked)"
+                                :checked="isSelected(candidato.name)"
+                                @update:checked="(checked) => handleCheckboxChange(candidato.name, checked)"
                                 :disabled="disabled"
                             />
                             <Label 

@@ -1,21 +1,12 @@
 <script setup lang="ts">
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
-import { Plus, Trash2, Eye, X, GitBranch } from 'lucide-vue-next';
-import { watch, onMounted, ref, computed } from 'vue';
+import { watch, nextTick, ref } from 'vue';
 import { useFormBuilder } from '@/composables/useFormBuilder';
-import GeographicRestrictions from '@/components/forms/GeographicRestrictions.vue';
-import RepeaterBuilder from './RepeaterBuilder.vue';
-import ConditionalFieldConfig from './ConditionalFieldConfig.vue';
-import type { FormField, GeographicRestrictions as GeographicRestrictionsType } from '@/types/forms';
-import { FIELD_TYPES } from '@/types/forms';
+
+// Importar componentes modulares
+import FieldForm from './dynamicformbuilder/FieldForm.vue';
+import FieldList from './dynamicformbuilder/FieldList.vue';
+
+import type { FormField } from '@/types/forms';
 
 interface Props {
     modelValue: FormField[];
@@ -58,853 +49,269 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<Emits>();
 
-const {
-    fields,
-    newField,
-    showFieldForm,
-    editingFieldIndex,
-    addField,
-    editField,
-    removeField,
-    resetFieldForm,
-    addOption,
-    removeOption,
-    setFields,
-    canSave,
-} = useFormBuilder(props.modelValue);
+// Estado local simple sin useFormBuilder problemático
+const fields = ref<FormField[]>([...props.modelValue]);
+const showFieldForm = ref(false);
+const editingFieldIndex = ref<number | null>(null);
 
-// Watch para inicializar configuraciones cuando se cambia el tipo de campo
-watch(() => newField.type, (newType) => {
-    // Siempre asegurar que conditionalConfig existe
-    if (!newField.conditionalConfig) {
-        newField.conditionalConfig = {
-            enabled: false,
-            showWhen: 'all',
-            conditions: [],
-        };
-    }
-    
-    if (newType === 'perfil_candidatura' && !newField.perfilCandidaturaConfig) {
-        newField.perfilCandidaturaConfig = {
-            cargo_id: undefined,
-            periodo_electoral_id: undefined,
-            territorio_id: undefined,
-            departamento_id: undefined,
-            municipio_id: undefined,
-            localidad_id: undefined,
-            territorios_ids: [],
-            departamentos_ids: [],
-            municipios_ids: [],
-            localidades_ids: [],
-            multiple: false,
-            mostrarVotoBlanco: true,
-        };
-    }
-    if (newType === 'convocatoria' && !newField.convocatoriaConfig) {
-        newField.convocatoriaConfig = {
-            convocatoria_id: undefined,
-            multiple: false,
-            mostrarVotoBlanco: props.context === 'votacion', // Solo en votaciones
-            filtrarPorUbicacion: props.context === 'candidatura', // Solo en candidaturas
-            ordenCandidatos: newField.convocatoriaConfig?.ordenCandidatos || 'aleatorio', // Preservar valor existente o usar por defecto
-            vistaPreferida: newField.convocatoriaConfig?.vistaPreferida || 'lista', // Preservar valor existente o usar por defecto
-        };
-    }
-    if (newType === 'file' && !newField.fileConfig) {
-        newField.fileConfig = {
-            multiple: false,
-            maxFiles: 5,
-            maxFileSize: 10,
-            accept: '.pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif',
-        };
-    }
-    if (newType === 'datepicker' && !newField.datepickerConfig) {
-        newField.datepickerConfig = {
-            minDate: undefined,
-            maxDate: undefined,
-            format: 'DD/MM/YYYY',
-            allowPastDates: true,
-            allowFutureDates: true,
-        };
-    }
-    if (newType === 'disclaimer' && !newField.disclaimerConfig) {
-        newField.disclaimerConfig = {
-            disclaimerText: '',
-            modalTitle: 'Términos y Condiciones',
-            acceptButtonText: 'Acepto',
-            declineButtonText: 'No acepto',
-        };
-    }
-    if (newType === 'repeater' && !newField.repeaterConfig) {
-        newField.repeaterConfig = {
-            minItems: 0,
-            maxItems: 10,
-            itemName: 'Elemento',
-            addButtonText: 'Agregar elemento',
-            removeButtonText: 'Eliminar',
-            fields: [],
-        };
-    }
-});
+// Variables de estado para el formulario
+const currentFormMode = ref<'create' | 'edit'>('create');
+const editingField = ref<FormField | undefined>(undefined);
 
-// Watch for external changes to modelValue
-watch(() => props.modelValue, (newValue) => {
-    if (JSON.stringify(newValue) !== JSON.stringify(fields.value)) {
-        setFields(newValue);
-    }
-}, { deep: true });
-
-// Emit changes to parent
-watch(fields, (newFields) => {
-    emit('update:modelValue', newFields);
-}, { deep: true });
-
-// Handle field addition with validation
-const handleAddField = () => {
-    if (!newField.title.trim()) return;
-    addField();
+// Métodos simples para manejo de campos
+const removeField = (index: number) => {
+    fields.value.splice(index, 1);
+    emitFieldsChange();
 };
 
-// Filtrar tipos de campo disponibles según el contexto
-const availableFieldTypes = computed(() => {
-    if (props.context === 'votacion') {
-        // En votaciones, no mostrar perfil_candidatura, mostrar convocatoria
-        return FIELD_TYPES.filter(type => type.value !== 'perfil_candidatura');
-    } else if (props.context === 'candidatura') {
-        // En candidaturas, mostrar convocatoria pero no perfil_candidatura
-        return FIELD_TYPES.filter(type => type.value !== 'perfil_candidatura');
-    } else {
-        // En convocatorias, mostrar perfil_candidatura pero no convocatoria
-        return FIELD_TYPES.filter(type => type.value !== 'convocatoria');
-    }
-});
+const canSave = () => {
+    return fields.value.length > 0;
+};
 
-onMounted(() => {
-    setFields(props.modelValue);
-    
-    // Asegurar que conditionalConfig existe al montar
-    if (!newField.conditionalConfig) {
-        newField.conditionalConfig = {
-            enabled: false,
-            showWhen: 'all',
-            conditions: [],
-        };
+// Flag para prevenir loops infinitos
+const isUpdatingFromProps = ref(false);
+
+// Watchers SIN loop infinito
+watch(() => props.modelValue, (newFields) => {
+    if (!isUpdatingFromProps.value) {
+        isUpdatingFromProps.value = true;
+        fields.value = [...newFields];
+        nextTick(() => {
+            isUpdatingFromProps.value = false;
+        });
     }
+}, { immediate: true });
+
+// Solo emitir cambios cuando NO vengan de props
+const emitFieldsChange = () => {
+    if (!isUpdatingFromProps.value) {
+        emit('update:modelValue', [...fields.value]);
+    }
+};
+
+// Métodos para manejar acciones del FieldList
+const handleAddField = (event?: Event) => {
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+    
+    console.log('handleAddField called');
+    currentFormMode.value = 'create';
+    editingField.value = undefined;
+    editingFieldIndex.value = null;
+    showFieldForm.value = true;
+    scrollToForm(true);
+};
+
+const handleEditField = (index: number, event?: Event) => {
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+    
+    console.log('handleEditField called with index:', index);
+    const field = fields.value[index];
+    if (!field) return;
+    
+    editingField.value = { ...field };
+    currentFormMode.value = 'edit';
+    editingFieldIndex.value = index;
+    showFieldForm.value = true;
+    scrollToForm(false, index);
+};
+
+const handleDeleteField = async (index: number, event?: Event) => {
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+    
+    const field = fields.value[index];
+    if (!field) return;
+    
+    // Modal de confirmación usando confirm nativo por ahora
+    // TODO: Implementar modal personalizado con Shadcn
+    const confirmed = confirm(
+        `¿Estás seguro de eliminar el campo "${field.title || 'Sin título'}"?\n\nEsta acción no se puede deshacer.`
+    );
+    
+    if (confirmed) {
+        removeField(index);
+        console.log('Field deleted:', field.title);
+        
+        // Si estamos editando este campo, cerrar el formulario
+        if (editingFieldIndex.value === index) {
+            handleCancelForm();
+        }
+        // Si estamos editando un campo que está después del eliminado, ajustar el índice
+        else if (editingFieldIndex.value !== null && editingFieldIndex.value > index) {
+            editingFieldIndex.value = editingFieldIndex.value - 1;
+        }
+    }
+};
+
+const handleDuplicateField = (originalField: FormField, event?: Event) => {
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+    
+    // Crear una copia completa del campo con nuevo ID
+    const duplicatedField: FormField = {
+        ...originalField,
+        id: `field_${Date.now()}`, // Nuevo ID único
+        title: `${originalField.title} (Copia)`, // Indicar que es una copia
+    };
+    
+    console.log('Duplicating field:', { original: originalField.title, duplicate: duplicatedField.title });
+    
+    // Agregar el campo duplicado a la lista
+    fields.value.push(duplicatedField);
+    emitFieldsChange();
+};
+
+const handlePreviewField = (field: FormField, event?: Event) => {
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+    // Vista previa básica usando alert por ahora
+    // TODO: Implementar modal personalizado con Shadcn
+    
+    const fieldTypeInfo = {
+        'text': 'Campo de texto',
+        'textarea': 'Área de texto',
+        'select': 'Lista desplegable',
+        'radio': 'Opción múltiple',
+        'checkbox': 'Casillas de verificación',
+        'file': 'Subida de archivo',
+        'datepicker': 'Selector de fecha',
+        'number': 'Campo numérico',
+        'disclaimer': 'Términos y condiciones',
+        'repeater': 'Campo repetible',
+        'convocatoria': 'Selector de convocatoria',
+        'perfil_candidatura': 'Perfil de candidatura'
+    };
+    
+    let previewText = `📋 VISTA PREVIA DEL CAMPO\n\n`;
+    previewText += `Título: ${field.title || 'Sin título'}\n`;
+    previewText += `Tipo: ${fieldTypeInfo[field.type] || field.type}\n`;
+    previewText += `Requerido: ${field.required ? 'Sí' : 'No'}\n`;
+    
+    if (field.description) {
+        previewText += `Descripción: ${field.description}\n`;
+    }
+    
+    if (field.options && field.options.length > 0) {
+        previewText += `Opciones: ${field.options.join(', ')}\n`;
+    }
+    
+    if (field.conditionalConfig?.enabled) {
+        previewText += `Campo condicional: Sí (${field.conditionalConfig.conditions.length} condiciones)\n`;
+    }
+    
+    alert(previewText);
+};
+
+
+// Métodos para manejar acciones del FieldForm
+const handleSaveField = (field: FormField) => {
+    console.log('Saving field:', { mode: currentFormMode.value, field, editingIndex: editingFieldIndex.value });
+    
+    if (currentFormMode.value === 'edit' && editingFieldIndex.value !== null) {
+        // Editar campo existente
+        fields.value[editingFieldIndex.value] = { ...field };
+        console.log('Field edited successfully');
+    } else {
+        // Agregar nuevo campo
+        fields.value.push({ ...field });
+        console.log('Field added successfully');
+    }
+    emitFieldsChange();
+    handleCancelForm();
+};
+
+const handleCancelForm = (event?: Event) => {
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+    
+    console.log('handleCancelForm called');
+    showFieldForm.value = false;
+    editingFieldIndex.value = null;
+    editingField.value = undefined;
+    currentFormMode.value = 'create';
+};
+
+// Función de scroll mejorada
+const scrollToForm = async (isNewField: boolean = false, fieldIndex?: number) => {
+    try {
+        await nextTick();
+        setTimeout(() => {
+            let targetElement = null;
+            if (isNewField) {
+                targetElement = document.querySelector('[data-form-type="new-field"]');
+            } else if (fieldIndex !== undefined) {
+                targetElement = document.querySelector(`[data-form-type="edit-field"]`);
+                // También podría usar un ID específico si se necesita más precisión
+            }
+            if (targetElement && typeof targetElement.scrollIntoView === 'function') {
+                targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }, 150);
+    } catch (error) {
+        console.warn('Error en auto-scroll:', error);
+    }
+};
+
+// Exponer métodos si es necesario para componente padre
+defineExpose({
+    canSave,
+    fields,
 });
 </script>
 
 <template>
     <div class="space-y-6">
-        <div class="flex items-center justify-between">
-            <div>
-                <h3 class="text-lg font-semibold">{{ title }}</h3>
-                <p class="text-sm text-muted-foreground">
-                    {{ description }}
-                </p>
-            </div>
-            <Button 
-                type="button"
-                @click="showFieldForm = true" 
-                :disabled="disabled"
-            >
-                <Plus class="mr-2 h-4 w-4" />
-                Agregar Campo
-            </Button>
-        </div>
 
-        <!-- Lista de campos existentes -->
-        <div v-if="fields.length > 0" class="space-y-4">
-            <div
-                v-for="(field, index) in fields"
-                :key="field.id"
-                class="border rounded-lg p-4 flex items-center justify-between"
-            >
-                <div class="flex-1">
-                    <div class="flex items-center gap-2">
-                        <Badge variant="outline">{{ availableFieldTypes.find(t => t.value === field.type)?.label || field.type }}</Badge>
-                        <span v-if="field.required" class="text-red-500">*</span>
-                        <Badge v-if="showEditableOption && field.editable" variant="secondary" class="text-xs bg-green-100 text-green-800">
-                            Editable
-                        </Badge>
-                        <Badge v-if="field.conditionalConfig?.enabled" variant="secondary" class="text-xs bg-orange-100 text-orange-800">
-                            <GitBranch class="h-3 w-3 mr-1" />
-                            Condicional
-                        </Badge>
-                        <Badge v-if="field.type === 'convocatoria' && field.convocatoriaConfig?.convocatoria_id" variant="secondary" class="text-xs">
-                            Conv. ID: {{ field.convocatoriaConfig.convocatoria_id }}
-                        </Badge>
-                    </div>
-                    <h4 class="font-medium">{{ field.title }}</h4>
-                    <p v-if="field.description" class="text-sm text-muted-foreground">
-                        {{ field.description }}
-                    </p>
-                    <div v-if="field.options && field.options.length > 0" class="mt-2">
-                        <p class="text-xs text-muted-foreground">Opciones:</p>
-                        <div class="flex flex-wrap gap-1 mt-1">
-                            <Badge v-for="option in field.options" :key="option" variant="secondary" class="text-xs">
-                                {{ option }}
-                            </Badge>
-                        </div>
-                    </div>
-                </div>
-                <div class="flex gap-2">
-                    <Button 
-                        type="button"
-                        variant="ghost" 
-                        size="sm" 
-                        @click="editField(index)"
-                        :disabled="disabled"
-                    >
-                        <Eye class="h-4 w-4" />
-                    </Button>
-                    <Button 
-                        type="button"
-                        variant="ghost" 
-                        size="sm" 
-                        @click="removeField(index)"
-                        :disabled="disabled"
-                    >
-                        <Trash2 class="h-4 w-4 text-destructive" />
-                    </Button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Mensaje cuando no hay campos -->
-        <div v-else class="text-center py-8 text-muted-foreground border-2 border-dashed rounded-lg">
-            <p>No hay campos configurados</p>
-            <p class="text-sm">Agrega al menos un campo para continuar</p>
-        </div>
-
-        <!-- Formulario para agregar/editar campo -->
-        <Card v-if="showFieldForm">
-            <CardHeader>
-                <CardTitle class="flex items-center justify-between">
-                    {{ editingFieldIndex !== null ? 'Editar Campo' : 'Nuevo Campo' }}
-                    <Button type="button" variant="ghost" size="sm" @click="resetFieldForm">
-                        <X class="h-4 w-4" />
-                    </Button>
-                </CardTitle>
-            </CardHeader>
-            <CardContent class="space-y-4">
-                <div class="grid gap-4 md:grid-cols-2">
-                    <div>
-                        <Label>Tipo de Campo</Label>
-                        <Select v-model="newField.type">
-                            <SelectTrigger>
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem
-                                    v-for="type in availableFieldTypes"
-                                    :key="type.value"
-                                    :value="type.value"
-                                >
-                                    {{ type.label }}
-                                </SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-
-                    <div class="space-y-3 mt-6">
-                        <div class="flex items-center space-x-2">
-                            <Checkbox
-                                id="field_required"
-                                :checked="newField.required"
-                                @update:checked="(checked) => newField.required = checked"
-                            />
-                            <Label>Campo obligatorio</Label>
-                        </div>
-                        
-                        <!-- Opción solo para candidaturas -->
-                        <div v-if="showEditableOption" class="flex items-center space-x-2">
-                            <Checkbox
-                                id="field_editable"
-                                :checked="newField.editable"
-                                @update:checked="(checked) => newField.editable = checked"
-                            />
-                            <Label class="text-sm">
-                                Campo editable en candidaturas aprobadas
-                                <span class="text-muted-foreground block text-xs">
-                                    Los usuarios podrán editar este campo incluso con candidatura aprobada
-                                </span>
-                            </Label>
-                        </div>
-                    </div>
-                </div>
-
-                <div>
-                    <Label>Título del Campo *</Label>
-                    <Input
-                        id="field_title"
-                        v-model="newField.title"
-                        placeholder="Ej: ¿Cuál es tu candidato preferido?"
-                    />
-                </div>
-
-                <div>
-                    <Label>Descripción (opcional)</Label>
-                    <Textarea
-                        id="field_description"
-                        v-model="newField.description"
-                        placeholder="Descripción adicional del campo"
-                        rows="2"
-                    />
-                </div>
-
-                <!-- Opciones para select, radio, checkbox -->
-                <div v-if="['select', 'radio', 'checkbox'].includes(newField.type)">
-                    <div class="flex items-center justify-between">
-                        <Label>Opciones</Label>
-                        <Button type="button" variant="outline" size="sm" @click="addOption">
-                            <Plus class="mr-2 h-3 w-3" />
-                            Agregar Opción
-                        </Button>
-                    </div>
-                    <div class="space-y-2 mt-2">
-                        <div
-                            v-for="(option, index) in newField.options"
-                            :key="index"
-                            class="flex gap-2"
-                        >
-                            <Input
-                                v-model="newField.options![index]"
-                                placeholder="Texto de la opción"
-                            />
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                @click="removeOption(index)"
-                            >
-                                <Trash2 class="h-4 w-4" />
-                            </Button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Configuración especial para perfil_candidatura (SOLO para convocatorias, NO para votaciones) -->
-                <div v-if="newField.type === 'perfil_candidatura' && context !== 'votacion' && showPerfilCandidaturaConfig && newField.perfilCandidaturaConfig" class="space-y-4">
-                    <div class="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                        <h4 class="font-medium text-blue-900 mb-3">Configuración de Filtros para Candidatos</h4>
-                        <p class="text-sm text-blue-700 mb-4">
-                            Define los criterios para filtrar qué usuarios con postulaciones aprobadas aparecerán como opciones de voto.
-                        </p>
-                        
-                        <!-- Selector de Cargo -->
-                        <div v-if="props.cargos && props.cargos.length > 0" class="mb-4">
-                            <Label>Cargo (opcional)</Label>
-                            <Select v-model="newField.perfilCandidaturaConfig.cargo_id">
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Todos los cargos" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">Todos los cargos</SelectItem>
-                                    <SelectItem
-                                        v-for="cargo in props.cargos"
-                                        :key="cargo.id"
-                                        :value="cargo.id.toString()"
-                                    >
-                                        {{ cargo.ruta_jerarquica || cargo.nombre }}
-                                    </SelectItem>
-                                </SelectContent>
-                            </Select>
-                            <p class="text-xs text-muted-foreground mt-1">
-                                Filtrar candidatos postulados a este cargo específico
-                            </p>
-                        </div>
-
-                        <!-- Selector de Período Electoral -->
-                        <div v-if="props.periodosElectorales && props.periodosElectorales.length > 0" class="mb-4">
-                            <Label>Período Electoral (opcional)</Label>
-                            <Select v-model="newField.perfilCandidaturaConfig.periodo_electoral_id">
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Todos los períodos" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">Todos los períodos</SelectItem>
-                                    <SelectItem
-                                        v-for="periodo in props.periodosElectorales"
-                                        :key="periodo.id"
-                                        :value="periodo.id.toString()"
-                                    >
-                                        {{ periodo.nombre }}
-                                    </SelectItem>
-                                </SelectContent>
-                            </Select>
-                            <p class="text-xs text-muted-foreground mt-1">
-                                Filtrar candidatos del período electoral seleccionado
-                            </p>
-                        </div>
-
-                        <!-- Restricciones Geográficas -->
-                        <div class="mb-4">
-                            <Label class="mb-2">Restricciones Geográficas (opcional)</Label>
-                            <GeographicRestrictions
-                                v-model="newField.perfilCandidaturaConfig"
-                            />
-                            <p class="text-xs text-muted-foreground mt-1">
-                                Filtrar candidatos por ubicación geográfica
-                            </p>
-                        </div>
-
-                        <!-- Opción de selección múltiple -->
-                        <div class="flex items-center space-x-2 mb-3">
-                            <Checkbox
-                                id="perfil_multiple"
-                                :checked="newField.perfilCandidaturaConfig.multiple"
-                                @update:checked="(checked) => newField.perfilCandidaturaConfig.multiple = checked"
-                            />
-                            <Label class="text-sm">
-                                Permitir selección múltiple
-                                <span class="text-muted-foreground block text-xs">
-                                    Los votantes podrán seleccionar varios candidatos
-                                </span>
-                            </Label>
-                        </div>
-
-                        <!-- Opción de voto en blanco -->
-                        <div class="flex items-center space-x-2">
-                            <Checkbox
-                                id="perfil_voto_blanco"
-                                :checked="newField.perfilCandidaturaConfig.mostrarVotoBlanco"
-                                @update:checked="(checked) => newField.perfilCandidaturaConfig.mostrarVotoBlanco = checked"
-                            />
-                            <Label class="text-sm">
-                                ¿Deseas mostrar Voto en Blanco?
-                                <span class="text-muted-foreground block text-xs">
-                                    Agrega la opción "Voto en blanco" para los votantes
-                                </span>
-                            </Label>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Configuración especial para campo archivo -->
-                <div v-if="newField.type === 'file' && newField.fileConfig" class="space-y-4">
-                    <div class="p-4 bg-purple-50 rounded-lg border border-purple-200">
-                        <h4 class="font-medium text-purple-900 mb-3">Configuración de Carga de Archivos</h4>
-                        <p class="text-sm text-purple-700 mb-4">
-                            Define las opciones para la carga de archivos.
-                        </p>
-                        
-                        <!-- Permitir múltiples archivos -->
-                        <div class="space-y-4">
-                            <div class="flex items-center space-x-2">
-                                <Checkbox
-                                    id="file_multiple"
-                                    :checked="newField.fileConfig.multiple"
-                                    @update:checked="(checked) => newField.fileConfig.multiple = checked"
-                                />
-                                <Label class="text-sm">
-                                    Permitir múltiples archivos
-                                    <span class="text-muted-foreground block text-xs">
-                                        Los usuarios podrán subir más de un archivo
-                                    </span>
-                                </Label>
-                            </div>
-
-                            <!-- Número máximo de archivos (solo si permite múltiples) -->
-                            <div v-if="newField.fileConfig.multiple">
-                                <Label>Número máximo de archivos</Label>
-                                <Input
-                                    v-model.number="newField.fileConfig.maxFiles"
-                                    type="number"
-                                    min="1"
-                                    max="20"
-                                    placeholder="5"
-                                />
-                                <p class="text-xs text-muted-foreground mt-1">
-                                    Cantidad máxima de archivos que se pueden subir (1-20)
-                                </p>
-                            </div>
-
-                            <!-- Tamaño máximo por archivo -->
-                            <div>
-                                <Label>Tamaño máximo por archivo (MB)</Label>
-                                <Input
-                                    v-model.number="newField.fileConfig.maxFileSize"
-                                    type="number"
-                                    min="1"
-                                    max="100"
-                                    placeholder="10"
-                                />
-                                <p class="text-xs text-muted-foreground mt-1">
-                                    Tamaño máximo en megabytes (1-100 MB)
-                                </p>
-                            </div>
-
-                            <!-- Tipos de archivo aceptados -->
-                            <div>
-                                <Label>Tipos de archivo permitidos</Label>
-                                <Input
-                                    v-model="newField.fileConfig.accept"
-                                    placeholder=".pdf,.doc,.docx,.jpg,.png"
-                                />
-                                <p class="text-xs text-muted-foreground mt-1">
-                                    Extensiones separadas por comas (ej: .pdf,.doc,.jpg)
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Configuración especial para campo datepicker -->
-                <div v-if="newField.type === 'datepicker' && newField.datepickerConfig" class="space-y-4">
-                    <div class="p-4 bg-indigo-50 rounded-lg border border-indigo-200">
-                        <h4 class="font-medium text-indigo-900 mb-3">Configuración de Selector de Fecha</h4>
-                        <p class="text-sm text-indigo-700 mb-4">
-                            Define las opciones y restricciones para el selector de fecha.
-                        </p>
-                        
-                        <div class="space-y-4">
-                            <!-- Fecha mínima -->
-                            <div>
-                                <Label>Fecha mínima (opcional)</Label>
-                                <Input
-                                    type="date"
-                                    v-model="newField.datepickerConfig.minDate"
-                                />
-                                <p class="text-xs text-muted-foreground mt-1">
-                                    Fecha más antigua que se puede seleccionar
-                                </p>
-                            </div>
-                            
-                            <!-- Fecha máxima -->
-                            <div>
-                                <Label>Fecha máxima (opcional)</Label>
-                                <Input
-                                    type="date"
-                                    v-model="newField.datepickerConfig.maxDate"
-                                />
-                                <p class="text-xs text-muted-foreground mt-1">
-                                    Fecha más reciente que se puede seleccionar
-                                </p>
-                            </div>
-                            
-                            <!-- Permitir fechas pasadas -->
-                            <div class="flex items-center space-x-2">
-                                <Checkbox
-                                    id="datepicker_past"
-                                    :checked="newField.datepickerConfig.allowPastDates"
-                                    @update:checked="(checked) => newField.datepickerConfig.allowPastDates = checked"
-                                />
-                                <Label class="text-sm">
-                                    Permitir fechas pasadas
-                                    <span class="text-muted-foreground block text-xs">
-                                        Los usuarios podrán seleccionar fechas anteriores a hoy
-                                    </span>
-                                </Label>
-                            </div>
-                            
-                            <!-- Permitir fechas futuras -->
-                            <div class="flex items-center space-x-2">
-                                <Checkbox
-                                    id="datepicker_future"
-                                    :checked="newField.datepickerConfig.allowFutureDates"
-                                    @update:checked="(checked) => newField.datepickerConfig.allowFutureDates = checked"
-                                />
-                                <Label class="text-sm">
-                                    Permitir fechas futuras
-                                    <span class="text-muted-foreground block text-xs">
-                                        Los usuarios podrán seleccionar fechas posteriores a hoy
-                                    </span>
-                                </Label>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Configuración especial para campo disclaimer -->
-                <div v-if="newField.type === 'disclaimer' && newField.disclaimerConfig" class="space-y-4">
-                    <div class="p-4 bg-amber-50 rounded-lg border border-amber-200">
-                        <h4 class="font-medium text-amber-900 mb-3">Configuración del Disclaimer</h4>
-                        <p class="text-sm text-amber-700 mb-4">
-                            Define el texto legal que el usuario debe aceptar.
-                        </p>
-                        
-                        <div class="space-y-4">
-                            <!-- Texto del disclaimer -->
-                            <div>
-                                <Label>Texto del disclaimer *</Label>
-                                <Textarea
-                                    v-model="newField.disclaimerConfig.disclaimerText"
-                                    placeholder="Ingrese aquí el texto de términos y condiciones que el usuario debe aceptar..."
-                                    rows="6"
-                                />
-                                <p class="text-xs text-muted-foreground mt-1">
-                                    Este texto se mostrará en un modal cuando el usuario intente aceptar
-                                </p>
-                            </div>
-                            
-                            <!-- Título del modal -->
-                            <div>
-                                <Label>Título del modal</Label>
-                                <Input
-                                    v-model="newField.disclaimerConfig.modalTitle"
-                                    placeholder="Términos y Condiciones"
-                                />
-                            </div>
-                            
-                            <!-- Texto del botón aceptar -->
-                            <div>
-                                <Label>Texto del botón aceptar</Label>
-                                <Input
-                                    v-model="newField.disclaimerConfig.acceptButtonText"
-                                    placeholder="Acepto"
-                                />
-                            </div>
-                            
-                            <!-- Texto del botón rechazar -->
-                            <div>
-                                <Label>Texto del botón rechazar</Label>
-                                <Input
-                                    v-model="newField.disclaimerConfig.declineButtonText"
-                                    placeholder="No acepto"
-                                />
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Configuración especial para campo repetidor -->
-                <div v-if="newField.type === 'repeater' && newField.repeaterConfig" class="space-y-4">
-                    <div class="p-4 bg-cyan-50 rounded-lg border border-cyan-200">
-                        <h4 class="font-medium text-cyan-900 mb-3">Configuración del Repetidor</h4>
-                        <p class="text-sm text-cyan-700 mb-4">
-                            Define los subcampos y límites del repetidor. Los usuarios podrán agregar múltiples instancias de estos campos.
-                        </p>
-                        
-                        <div class="space-y-4">
-                            <!-- Número mínimo de elementos -->
-                            <div>
-                                <Label>Número mínimo de elementos</Label>
-                                <Input
-                                    type="number"
-                                    v-model.number="newField.repeaterConfig.minItems"
-                                    min="0"
-                                    max="50"
-                                />
-                                <p class="text-xs text-muted-foreground mt-1">
-                                    Cantidad mínima de elementos que debe tener el usuario
-                                </p>
-                            </div>
-                            
-                            <!-- Número máximo de elementos -->
-                            <div>
-                                <Label>Número máximo de elementos</Label>
-                                <Input
-                                    type="number"
-                                    v-model.number="newField.repeaterConfig.maxItems"
-                                    min="1"
-                                    max="50"
-                                />
-                                <p class="text-xs text-muted-foreground mt-1">
-                                    Cantidad máxima de elementos que puede agregar el usuario
-                                </p>
-                            </div>
-                            
-                            <!-- Nombre del elemento -->
-                            <div>
-                                <Label>Nombre del elemento</Label>
-                                <Input
-                                    v-model="newField.repeaterConfig.itemName"
-                                    placeholder="Elemento"
-                                />
-                                <p class="text-xs text-muted-foreground mt-1">
-                                    Cómo se llamará cada instancia (ej: "Referencia", "Experiencia", "Documento")
-                                </p>
-                            </div>
-                            
-                            <!-- Texto del botón agregar -->
-                            <div>
-                                <Label>Texto del botón agregar</Label>
-                                <Input
-                                    v-model="newField.repeaterConfig.addButtonText"
-                                    placeholder="Agregar elemento"
-                                />
-                            </div>
-                            
-                            <!-- Subcampos del repetidor -->
-                            <div>
-                                <Label class="text-sm font-medium mb-2">Configuración de subcampos</Label>
-                                <p class="text-xs text-muted-foreground mb-3">
-                                    Define los campos que se repetirán dentro del repetidor.
-                                </p>
-                                <RepeaterBuilder
-                                    v-model="newField.repeaterConfig.fields"
-                                />
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Configuración especial para convocatoria en votaciones -->
-                <div v-if="newField.type === 'convocatoria' && showConvocatoriaConfig && newField.convocatoriaConfig" class="space-y-4">
-                    <div class="p-4 bg-green-50 rounded-lg border border-green-200">
-                        <h4 class="font-medium text-green-900 mb-3">Selección de Convocatoria para Votación</h4>
-                        <p class="text-sm text-green-700 mb-4">
-                            Selecciona UNA convocatoria específica. Los usuarios con postulaciones APROBADAS a esta convocatoria aparecerán como opciones de voto.
-                        </p>
-                        
-                        <!-- Selector de Convocatoria -->
-                        <div v-if="props.convocatorias && props.convocatorias.length > 0" class="mb-4">
-                            <Label>Convocatoria *</Label>
-                            <Select v-model="newField.convocatoriaConfig.convocatoria_id">
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Selecciona una convocatoria" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem
-                                        v-for="conv in props.convocatorias"
-                                        :key="conv.id"
-                                        :value="conv.id.toString()"
-                                    >
-                                        <div class="flex flex-col">
-                                            <span>{{ conv.nombre }}</span>
-                                            <span v-if="conv.cargo" class="text-xs text-muted-foreground">
-                                                {{ conv.cargo.ruta_jerarquica || conv.cargo.nombre }}
-                                                <span v-if="conv.periodo_electoral"> - {{ conv.periodo_electoral.nombre }}</span>
-                                            </span>
-                                        </div>
-                                    </SelectItem>
-                                </SelectContent>
-                            </Select>
-                            <p class="text-xs text-muted-foreground mt-1">
-                                Se mostrarán los candidatos con postulaciones aprobadas a esta convocatoria
-                            </p>
-                        </div>
-                        
-                        <!-- Mensaje cuando no hay convocatorias -->
-                        <div v-else class="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-md">
-                            <p class="text-sm text-amber-800">
-                                No hay convocatorias con postulaciones aprobadas disponibles. Asegúrate de que existan convocatorias con al menos una postulación aprobada.
-                            </p>
-                        </div>
-
-                        <!-- Opción de selección múltiple -->
-                        <div class="flex items-center space-x-2 mb-3">
-                            <Checkbox
-                                id="conv_multiple"
-                                :checked="newField.convocatoriaConfig.multiple"
-                                @update:checked="(checked) => newField.convocatoriaConfig.multiple = checked"
-                            />
-                            <Label class="text-sm">
-                                Permitir selección múltiple
-                                <span class="text-muted-foreground block text-xs">
-                                    Los votantes podrán seleccionar varios candidatos
-                                </span>
-                            </Label>
-                        </div>
-
-                        <!-- Opción de voto en blanco -->
-                        <div class="flex items-center space-x-2">
-                            <Checkbox
-                                id="conv_voto_blanco"
-                                :checked="newField.convocatoriaConfig.mostrarVotoBlanco"
-                                @update:checked="(checked) => newField.convocatoriaConfig.mostrarVotoBlanco = checked"
-                            />
-                            <Label class="text-sm">
-                                ¿Deseas mostrar Voto en Blanco?
-                                <span class="text-muted-foreground block text-xs">
-                                    Agrega la opción "Voto en blanco" para los votantes
-                                </span>
-                            </Label>
-                        </div>
-
-                        <!-- Orden de candidatos -->
-                        <div class="mt-4 space-y-2">
-                            <Label class="text-sm font-medium">Orden de candidatos</Label>
-                            <RadioGroup v-model="newField.convocatoriaConfig.ordenCandidatos" default-value="aleatorio">
-                                <div class="space-y-2">
-                                    <div class="flex items-start space-x-2">
-                                        <RadioGroupItem value="aleatorio" id="orden_aleatorio" />
-                                        <Label for="orden_aleatorio" class="text-sm font-normal cursor-pointer">
-                                            <div>
-                                                Aleatorio por sesión
-                                                <span class="text-xs text-muted-foreground block">
-                                                    Recomendado para equidad electoral - cada votante ve un orden diferente
-                                                </span>
-                                            </div>
-                                        </Label>
-                                    </div>
-                                    <div class="flex items-start space-x-2">
-                                        <RadioGroupItem value="alfabetico" id="orden_alfabetico" />
-                                        <Label for="orden_alfabetico" class="text-sm font-normal cursor-pointer">
-                                            <div>
-                                                Alfabético por nombre
-                                                <span class="text-xs text-muted-foreground block">
-                                                    Orden predecible y consistente para todos los votantes
-                                                </span>
-                                            </div>
-                                        </Label>
-                                    </div>
-                                    <div class="flex items-start space-x-2">
-                                        <RadioGroupItem value="fecha_postulacion" id="orden_fecha" />
-                                        <Label for="orden_fecha" class="text-sm font-normal cursor-pointer">
-                                            <div>
-                                                Por fecha de postulación
-                                                <span class="text-xs text-muted-foreground block">
-                                                    Más recientes primero - refleja actividad reciente
-                                                </span>
-                                            </div>
-                                        </Label>
-                                    </div>
-                                </div>
-                            </RadioGroup>
-                        </div>
-
-                        <!-- Vista de presentación -->
-                        <div class="mt-4 space-y-2">
-                            <Label class="text-sm font-medium">Vista de presentación</Label>
-                            <RadioGroup v-model="newField.convocatoriaConfig.vistaPreferida" default-value="lista">
-                                <div class="space-y-2">
-                                    <div class="flex items-start space-x-2">
-                                        <RadioGroupItem value="lista" id="vista_lista" />
-                                        <Label for="vista_lista" class="text-sm font-normal cursor-pointer">
-                                            <div>
-                                                Vista en lista
-                                                <span class="text-xs text-muted-foreground block">
-                                                    Lista vertical tradicional - ocupa menos espacio
-                                                </span>
-                                            </div>
-                                        </Label>
-                                    </div>
-                                    <div class="flex items-start space-x-2">
-                                        <RadioGroupItem value="cards" id="vista_cards" />
-                                        <Label for="vista_cards" class="text-sm font-normal cursor-pointer">
-                                            <div>
-                                                Vista en tarjetas
-                                                <span class="text-xs text-muted-foreground block">
-                                                    Tarjetas visuales en grid - más atractivo visualmente
-                                                </span>
-                                            </div>
-                                        </Label>
-                                    </div>
-                                </div>
-                            </RadioGroup>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Configuración condicional (para todos los campos excepto el repetidor y campos especiales) -->
-                <div v-if="!['repeater', 'perfil_candidatura', 'convocatoria'].includes(newField.type)">
-                    <ConditionalFieldConfig
-                        v-model="newField.conditionalConfig"
-                        :fields="fields"
-                        :current-field-id="newField.id || 'new_field'"
-                    />
-                </div>
-
-                <div class="flex justify-end gap-2">
-                    <Button type="button" variant="outline" @click="resetFieldForm">
-                        Cancelar
-                    </Button>
-                    <Button type="button" @click="handleAddField" :disabled="!newField.title.trim()">
-                        {{ editingFieldIndex !== null ? 'Actualizar' : 'Agregar' }} Campo
-                    </Button>
-                </div>
-            </CardContent>
-        </Card>
+        <!-- Formulario de campo (nuevo o edición) -->
+        <FieldForm
+            v-if="showFieldForm"
+            :mode="currentFormMode"
+            :field="editingField"
+            :disabled="disabled"
+            :show-editable-option="showEditableOption"
+            :show-perfil-candidatura-config="showPerfilCandidaturaConfig"
+            :show-convocatoria-config="showConvocatoriaConfig"
+            :cargos="cargos"
+            :periodos-electorales="periodosElectorales"
+            :convocatorias="convocatorias"
+            :context="context"
+            :available-fields="fields"
+            @save="handleSaveField"
+            @cancel="handleCancelForm"
+        />
+        
+        <!-- Lista de campos -->
+        <FieldList
+            :fields="fields"
+            :disabled="disabled"
+            :can-add-fields="!disabled"
+            :can-edit-fields="!disabled"
+            :can-delete-fields="!disabled"
+            :title="title"
+            :description="description"
+            @add-field="handleAddField"
+            @edit-field="handleEditField"
+            @delete-field="handleDeleteField"
+            @duplicate-field="handleDuplicateField"
+            @preview-field="handlePreviewField"
+        />
     </div>
 </template>
+
+<style scoped>
+/* Estilos específicos si son necesarios */
+</style>

@@ -286,12 +286,12 @@ const getTypeLabel = (type: string) => {
         </div>
         
         <!-- Mensaje cuando no hay campos -->
-        <div v-else class="text-center py-4 text-sm text-muted-foreground">
+        <div v-else class="text-center py-4 text-sm text-muted-foreground dark:text-muted-foreground">
             No hay subcampos configurados. Agrega al menos un campo.
         </div>
         
         <!-- Formulario para agregar/editar campo -->
-        <Card v-if="showAddForm" class="border-primary">
+        <Card v-if="showAddForm" class="border-primary dark:border-primary">
             <CardHeader class="pb-3">
                 <div class="flex items-center justify-between">
                     <h4 class="text-sm font-semibold">

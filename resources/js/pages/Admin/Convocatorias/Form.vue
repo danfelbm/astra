@@ -114,6 +114,9 @@ const getInitialFormData = () => {
 // Formulario principal
 const form = useForm(getInitialFormData());
 
+// Estado local para el formulario dinámico (desacoplado de Inertia.js)
+const localFormularioPostulacion = ref<FormField[]>([...form.formulario_postulacion]);
+
 // Restricciones geográficas
 const geographicRestrictions = ref<GeographicRestrictionsType>({
     territorios_ids: form.territorio_id ? [form.territorio_id] : [],
@@ -166,6 +169,9 @@ const cargarPeriodos = async () => {
 
 // Enviar formulario
 const submit = () => {
+    // Sincronizar el formulario dinámico local con el form de Inertia
+    form.formulario_postulacion = [...localFormularioPostulacion.value];
+    
     if (isEditing.value) {
         form.put(`/admin/convocatorias/${props.convocatoria!.id}`, {
             onError: (errors) => {
@@ -532,9 +538,12 @@ const periodoSeleccionado = computed(() => {
                             <!-- Tab 2: Formulario de Postulación -->
                             <TabsContent value="formulario" class="space-y-6">
                                 <DynamicFormBuilder
-                                    v-model="form.formulario_postulacion"
+                                    v-model="localFormularioPostulacion"
                                     title="Formulario de Postulación"
                                     description="Define los campos que deberán completar los postulantes. Estos campos se mostrarán además de la información básica requerida."
+                                    context="convocatoria"
+                                    :cargos="cargos?.filter(c => c.es_cargo) || []"
+                                    :periodos-electorales="periodosElectorales || []"
                                 />
                                 
                                 <div class="p-4 bg-yellow-50 rounded-lg border border-yellow-200">

@@ -163,15 +163,15 @@ const showPreview = ref(false);
 </script>
 
 <template>
-    <Card class="border-orange-200 bg-orange-50">
+    <Card class="border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-950/50">
         <CardHeader>
-            <CardTitle class="text-orange-900 flex items-center justify-between">
+            <CardTitle class="text-orange-900 dark:text-orange-100 flex items-center justify-between">
                 <span>Configuración Condicional</span>
-                <Badge v-if="localConfig.enabled" variant="secondary" class="bg-orange-100">
+                <Badge v-if="localConfig.enabled" variant="secondary" class="bg-orange-100 dark:bg-orange-900/50">
                     {{ localConfig.conditions.length }} condicion{{ localConfig.conditions.length !== 1 ? 'es' : '' }}
                 </Badge>
             </CardTitle>
-            <CardDescription class="text-orange-700">
+            <CardDescription class="text-orange-700 dark:text-orange-300">
                 Define cuándo debe mostrarse este campo basándose en valores de otros campos
             </CardDescription>
         </CardHeader>
@@ -194,10 +194,10 @@ const showPreview = ref(false);
             <!-- Configuración de condiciones -->
             <div v-if="localConfig.enabled" class="space-y-4">
                 <!-- Verificar si hay campos disponibles -->
-                <div v-if="availableSourceFields.length === 0" class="p-4 bg-amber-100 border border-amber-300 rounded-lg">
+                <div v-if="availableSourceFields.length === 0" class="p-4 bg-amber-100 dark:bg-amber-950/50 border border-amber-300 dark:border-amber-700 rounded-lg">
                     <div class="flex items-start gap-2">
                         <AlertCircle class="h-5 w-5 text-amber-600 mt-0.5" />
-                        <div class="text-sm text-amber-800">
+                        <div class="text-sm text-amber-800 dark:text-amber-200">
                             <p class="font-medium">No hay campos disponibles para condiciones</p>
                             <p class="mt-1">Agrega campos de tipo "Lista desplegable", "Opción múltiple" o "Casillas de verificación" antes de configurar condiciones.</p>
                         </div>
@@ -231,7 +231,7 @@ const showPreview = ref(false);
                         <div 
                             v-for="(condition, index) in localConfig.conditions" 
                             :key="index"
-                            class="p-3 bg-white border rounded-lg space-y-3"
+                            class="p-3 bg-white dark:bg-gray-800/50 border dark:border-gray-700 rounded-lg space-y-3"
                         >
                             <!-- Campo fuente -->
                             <div>
@@ -348,11 +348,11 @@ const showPreview = ref(false);
                                 {{ showPreview ? 'Ocultar' : 'Mostrar' }}
                             </Button>
                         </div>
-                        <div v-if="showPreview" class="p-3 bg-gray-100 rounded-lg">
-                            <p class="text-sm text-gray-700">
+                        <div v-if="showPreview" class="p-3 bg-gray-100 dark:bg-gray-800/50 rounded-lg">
+                            <p class="text-sm text-gray-700 dark:text-gray-300">
                                 Este campo se mostrará cuando:
                             </p>
-                            <p class="text-sm font-medium text-gray-900 mt-1">
+                            <p class="text-sm font-medium text-gray-900 dark:text-gray-100 mt-1">
                                 {{ ruleDescription }}
                             </p>
                         </div>

@@ -6,6 +6,7 @@ use App\Http\Controllers\Core\AdminController;
 use App\Models\Formularios\Formulario;
 use App\Models\Formularios\FormularioCategoria;
 use App\Models\Formularios\FormularioRespuesta;
+use App\Models\Elecciones\Convocatoria;
 use App\Traits\HasAdvancedFilters;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -225,8 +226,33 @@ class FormularioController extends AdminController
         
         $categorias = FormularioCategoria::activas()->ordenadas()->get();
         
+        // Obtener convocatorias disponibles (con postulaciones aprobadas)
+        $convocatorias = Convocatoria::with(['cargo', 'periodoElectoral'])
+            ->whereHas('postulaciones', function ($q) {
+                $q->where('estado', 'aceptada');
+            })
+            ->get()
+            ->map(function ($convocatoria) {
+                return [
+                    'id' => $convocatoria->id,
+                    'nombre' => $convocatoria->nombre,
+                    'cargo' => $convocatoria->cargo ? [
+                        'id' => $convocatoria->cargo->id,
+                        'nombre' => $convocatoria->cargo->nombre,
+                        'ruta_jerarquica' => $convocatoria->cargo->ruta_jerarquica,
+                    ] : null,
+                    'periodo_electoral' => $convocatoria->periodoElectoral ? [
+                        'id' => $convocatoria->periodoElectoral->id,
+                        'nombre' => $convocatoria->periodoElectoral->nombre,
+                    ] : null,
+                    'estado_temporal' => $convocatoria->getEstadoTemporal(),
+                    'postulaciones_aprobadas' => $convocatoria->postulaciones()->where('estado', 'aceptada')->count(),
+                ];
+            });
+        
         return Inertia::render('Admin/Formularios/Create', [
             'categorias' => $categorias,
+            'convocatorias' => $convocatorias,
         ]);
     }
 
@@ -367,9 +393,34 @@ class FormularioController extends AdminController
         
         $categorias = FormularioCategoria::activas()->ordenadas()->get();
         
+        // Obtener convocatorias disponibles (con postulaciones aprobadas)
+        $convocatorias = Convocatoria::with(['cargo', 'periodoElectoral'])
+            ->whereHas('postulaciones', function ($q) {
+                $q->where('estado', 'aceptada');
+            })
+            ->get()
+            ->map(function ($convocatoria) {
+                return [
+                    'id' => $convocatoria->id,
+                    'nombre' => $convocatoria->nombre,
+                    'cargo' => $convocatoria->cargo ? [
+                        'id' => $convocatoria->cargo->id,
+                        'nombre' => $convocatoria->cargo->nombre,
+                        'ruta_jerarquica' => $convocatoria->cargo->ruta_jerarquica,
+                    ] : null,
+                    'periodo_electoral' => $convocatoria->periodoElectoral ? [
+                        'id' => $convocatoria->periodoElectoral->id,
+                        'nombre' => $convocatoria->periodoElectoral->nombre,
+                    ] : null,
+                    'estado_temporal' => $convocatoria->getEstadoTemporal(),
+                    'postulaciones_aprobadas' => $convocatoria->postulaciones()->where('estado', 'aceptada')->count(),
+                ];
+            });
+        
         return Inertia::render('Admin/Formularios/Edit', [
             'formulario' => $formulario,
             'categorias' => $categorias,
+            'convocatorias' => $convocatorias,
         ]);
     }
 

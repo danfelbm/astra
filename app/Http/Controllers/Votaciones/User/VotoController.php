@@ -778,13 +778,13 @@ class VotoController extends UserController
                         
                         // Filtrar por convocatoria según cargo y período
                         $q->whereHas('convocatoria', function ($convQ) use ($config) {
-                            // Filtro por cargo
-                            if (!empty($config['cargo_id'])) {
+                            // Filtro por cargo - CORREGIDO: NO aplicar si es 'all'
+                            if (!empty($config['cargo_id']) && $config['cargo_id'] !== 'all') {
                                 $convQ->where('cargo_id', $config['cargo_id']);
                             }
                             
-                            // Filtro por período electoral
-                            if (!empty($config['periodo_electoral_id'])) {
+                            // Filtro por período electoral - CORREGIDO: NO aplicar si es 'all'
+                            if (!empty($config['periodo_electoral_id']) && $config['periodo_electoral_id'] !== 'all') {
                                 $convQ->where('periodo_electoral_id', $config['periodo_electoral_id']);
                             }
                             
