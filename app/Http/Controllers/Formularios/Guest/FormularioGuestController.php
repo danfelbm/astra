@@ -68,6 +68,9 @@ class FormularioGuestController extends GuestController
             }
         }
         
+        // Obtener candidatos elegibles para campos de tipo convocatoria y perfil_candidatura
+        $candidatosElegibles = $this->obtenerCandidatosElegibles($formulario);
+        
         return Inertia::render('Guest/Formularios/Show', [
             'formulario' => [
                 'id' => $formulario->id,
@@ -86,6 +89,7 @@ class FormularioGuestController extends GuestController
                 'respuestas' => $respuestaBorrador->respuestas,
             ] : null,
             'esVisitante' => !$usuario,
+            'candidatosElegibles' => $candidatosElegibles,
         ]);
     }
     
@@ -271,5 +275,179 @@ class FormularioGuestController extends GuestController
             // TODO: Implementar email de confirmación
             // Mail::to($respuesta->email_visitante)->queue(new ConfirmacionFormulario($formulario, $respuesta));
         }
+    }
+    
+    /**
+     * Obtener candidatos elegibles para campos de tipo convocatoria y perfil_candidatura
+     */
+    private function obtenerCandidatosElegibles(Formulario $formulario): array
+    {
+        $candidatosPorCampo = [];
+        
+        // Revisar cada campo del formulario
+        foreach ($formulario->configuracion_campos as $campo) {
+            // Procesar campos de tipo convocatoria
+            if ($campo['type'] === 'convocatoria') {
+                // Obtener la configuración
+                $config = $campo['convocatoriaConfig'] ?? [];
+                
+                // Si no hay convocatoria_id configurado, continuar
+                if (empty($config['convocatoria_id'])) {
+                    $candidatosPorCampo[$campo['id']] = [];
+                    continue;
+                }
+                
+                // Obtener información de la convocatoria
+                $convocatoria = \App\Models\Elecciones\Convocatoria::find($config['convocatoria_id']);
+                if (!$convocatoria) {
+                    $candidatosPorCampo[$campo['id']] = [];
+                    continue;
+                }
+                
+                // Obtener configuración de orden (por defecto aleatorio)
+                $ordenCandidatos = $config['ordenCandidatos'] ?? 'aleatorio';
+                
+                // Construir query base
+                $query = \App\Models\Core\User::query()
+                    ->whereHas('postulaciones', function ($q) use ($config) {
+                        $q->where('estado', 'aceptada')
+                          ->where('convocatoria_id', $config['convocatoria_id']);
+                    })
+                    ->with([
+                        'postulaciones' => function ($q) use ($config) {
+                            $q->where('estado', 'aceptada')
+                              ->where('convocatoria_id', $config['convocatoria_id'])
+                              ->with('convocatoria.cargo');
+                        }
+                    ]);
+                
+                // Aplicar ordenamiento según configuración
+                switch ($ordenCandidatos) {
+                    case 'alfabetico':
+                        // Orden alfabético por nombre
+                        $query->orderBy('name', 'asc');
+                        break;
+                    
+                    case 'fecha_postulacion':
+                        // Orden por fecha de postulación (más recientes primero)
+                        $query->select('users.*')
+                              ->join('postulaciones', function($join) use ($config) {
+                                  $join->on('users.id', '=', 'postulaciones.user_id')
+                                       ->where('postulaciones.convocatoria_id', '=', $config['convocatoria_id'])
+                                       ->where('postulaciones.estado', '=', 'aceptada');
+                              })
+                              ->orderBy('postulaciones.created_at', 'desc');
+                        break;
+                    
+                    case 'aleatorio':
+                    default:
+                        // Orden aleatorio para equidad electoral
+                        $query->inRandomOrder();
+                        break;
+                }
+                
+                // Obtener usuarios con orden aplicado
+                $candidatos = $query->get()
+                    ->map(function ($user) use ($convocatoria) {
+                        // Obtener la postulación específica a esta convocatoria
+                        $postulacion = $user->postulaciones->first();
+                        
+                        return [
+                            'id' => $user->id,
+                            'name' => $user->name,
+                            'email' => $user->email,
+                            'avatar_url' => $user->avatar_url,
+                            'postulacion_id' => $postulacion ? $postulacion->id : null,
+                            'fecha_postulacion' => $postulacion ? $postulacion->created_at->format('Y-m-d') : null,
+                            'candidatura_snapshot' => $postulacion ? $postulacion->candidatura_snapshot : null,
+                            'cargo' => $convocatoria->cargo ? $convocatoria->cargo->getRutaJerarquica() : null,
+                            // Información geográfica del usuario
+                            'territorio' => $user->territorio ? $user->territorio->nombre : null,
+                            'departamento' => $user->departamento ? $user->departamento->nombre : null,
+                            'municipio' => $user->municipio ? $user->municipio->nombre : null,
+                            'localidad' => $user->localidad ? $user->localidad->nombre : null,
+                        ];
+                    })->toArray();
+                
+                // Guardar candidatos para este campo junto con información de la convocatoria
+                $candidatosPorCampo[$campo['id']] = [
+                    'convocatoria' => [
+                        'id' => $convocatoria->id,
+                        'nombre' => $convocatoria->nombre,
+                        'cargo' => $convocatoria->cargo ? $convocatoria->cargo->nombre : null,
+                        'periodo' => $convocatoria->periodoElectoral ? $convocatoria->periodoElectoral->nombre : null,
+                    ],
+                    'candidatos' => $candidatos,
+                ];
+            }
+            // Soporte para perfil_candidatura (deprecated pero necesario para compatibilidad)
+            else if ($campo['type'] === 'perfil_candidatura') {
+                $config = $campo['perfilCandidaturaConfig'] ?? [];
+                
+                // Construir query base: usuarios con postulaciones aceptadas
+                $query = \App\Models\Core\User::query()
+                    ->whereHas('postulaciones', function ($q) use ($config) {
+                        $q->where('estado', 'aceptada');
+                        
+                        // Filtrar por convocatoria según cargo y período
+                        $q->whereHas('convocatoria', function ($convQ) use ($config) {
+                            // Filtro por cargo - NO aplicar si es 'all'
+                            if (!empty($config['cargo_id']) && $config['cargo_id'] !== 'all') {
+                                $convQ->where('cargo_id', $config['cargo_id']);
+                            }
+                            
+                            // Filtro por período electoral - NO aplicar si es 'all'
+                            if (!empty($config['periodo_electoral_id']) && $config['periodo_electoral_id'] !== 'all') {
+                                $convQ->where('periodo_electoral_id', $config['periodo_electoral_id']);
+                            }
+                            
+                            // Filtros geográficos de la convocatoria
+                            if (!empty($config['territorio_id'])) {
+                                $convQ->where('territorio_id', $config['territorio_id']);
+                            }
+                            if (!empty($config['departamento_id'])) {
+                                $convQ->where('departamento_id', $config['departamento_id']);
+                            }
+                            if (!empty($config['municipio_id'])) {
+                                $convQ->where('municipio_id', $config['municipio_id']);
+                            }
+                            if (!empty($config['localidad_id'])) {
+                                $convQ->where('localidad_id', $config['localidad_id']);
+                            }
+                        });
+                    });
+                
+                // Obtener usuarios con información adicional
+                $candidatos = $query->with([
+                    'postulaciones' => function ($q) {
+                        $q->where('estado', 'aceptada')
+                          ->with('convocatoria.cargo');
+                    }
+                ])->get()->map(function ($user) {
+                    // Obtener el cargo de la primera postulación aceptada
+                    $postulacion = $user->postulaciones->first();
+                    $cargo = $postulacion && $postulacion->convocatoria && $postulacion->convocatoria->cargo 
+                        ? $postulacion->convocatoria->cargo->getRutaJerarquica() 
+                        : null;
+                    
+                    return [
+                        'id' => $user->id,
+                        'name' => $user->name,
+                        'email' => $user->email,
+                        'cargo' => $cargo,
+                        // Agregar información geográfica si está disponible
+                        'territorio' => $user->territorio ? $user->territorio->nombre : null,
+                        'departamento' => $user->departamento ? $user->departamento->nombre : null,
+                        'municipio' => $user->municipio ? $user->municipio->nombre : null,
+                        'localidad' => $user->localidad ? $user->localidad->nombre : null,
+                    ];
+                })->toArray();
+                
+                // Guardar candidatos para este campo (formato legacy)
+                $candidatosPorCampo[$campo['id']] = $candidatos;
+            }
+        }
+        
+        return $candidatosPorCampo;
     }
 }

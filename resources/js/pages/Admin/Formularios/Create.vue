@@ -23,6 +23,21 @@ interface Props {
         nombre: string;
         descripcion?: string;
     }>;
+    convocatorias?: Array<{
+        id: number;
+        nombre: string;
+        cargo?: {
+            id: number;
+            nombre: string;
+            ruta_jerarquica?: string;
+        };
+        periodo_electoral?: {
+            id: number;
+            nombre: string;
+        };
+        estado_temporal?: string;
+        postulaciones_aprobadas?: number;
+    }>;
 }
 
 const props = defineProps<Props>();
@@ -368,6 +383,9 @@ watch(() => form.fecha_inicio, (newVal) => {
                                 @update:modelValue="handleFieldsUpdate"
                                 :disabled="false"
                                 :showEditableOption="true"
+                                :show-convocatoria-config="true"
+                                :convocatorias="props.convocatorias || []"
+                                context="formulario"
                             />
                         </CardContent>
                     </Card>

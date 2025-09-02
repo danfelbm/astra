@@ -170,8 +170,8 @@ defineExpose({
         <div class="space-y-4">
             <TransitionGroup name="fade-field">
                 <template v-for="field in visibleFields" :key="field.id">
-                <!-- Campo especial: Convocatoria (nuevo para votaciones) -->
-                <div v-if="field.type === 'convocatoria' && context === 'votacion'">
+                <!-- Campo especial: Convocatoria (para votaciones y formularios) -->
+                <div v-if="field.type === 'convocatoria' && (context === 'votacion' || context === 'formulario')">
                     <ConvocatoriaVotacionField
                         v-model="formData[field.id]"
                         :candidatos="candidatosElegibles[field.id]?.candidatos || []"
@@ -200,9 +200,9 @@ defineExpose({
                         :error="errors['candidatura_id']"
                         :disabled="disabled"
                     />
-                    <!-- En contexto de votación: mostrar candidatos elegibles (deprecated) -->
+                    <!-- En contexto de votación o formulario: mostrar candidatos elegibles -->
                     <CandidatosVotacionField
-                        v-else-if="context === 'votacion'"
+                        v-else-if="context === 'votacion' || context === 'formulario'"
                         v-model="formData[field.id]"
                         :candidatos-elegibles="candidatosElegibles[field.id] || []"
                         :label="field.title"

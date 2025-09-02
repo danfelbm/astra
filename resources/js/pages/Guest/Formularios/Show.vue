@@ -35,6 +35,7 @@ interface Props {
         respuestas: Record<string, any>;
     } | null;
     esVisitante: boolean;
+    candidatosElegibles?: Record<string, any>;
 }
 
 const props = defineProps<Props>();
@@ -402,6 +403,8 @@ const handleFormUpdate = (newData: Record<string, any>) => {
                             :fields="formulario.configuracion_campos || []"
                             :model-value="formDataRef || {}"
                             :disabled="isSubmitting"
+                            :candidatos-elegibles="props.candidatosElegibles || {}"
+                            context="formulario"
                             @update:modelValue="handleFormUpdate"
                         />
                     </CardContent>
