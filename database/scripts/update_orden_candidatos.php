@@ -7,7 +7,7 @@
  * o desde tinker: php artisan tinker < database/scripts/update_orden_candidatos.php
  */
 
-use App\Models\Votaciones\Votacion;
+use Modules\Votaciones\Models\Votacion;
 
 // Cargar el autoloader de Composer
 require_once __DIR__ . '/../../vendor/autoload.php';
