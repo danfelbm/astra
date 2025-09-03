@@ -1,21 +1,21 @@
 <?php
 
-use App\Http\Controllers\Elecciones\Admin\CandidaturaController as AdminCandidaturaController;
-use App\Http\Controllers\Elecciones\Admin\CargoController;
-use App\Http\Controllers\Configuration\Admin\ConfiguracionController;
-use App\Http\Controllers\Elecciones\Admin\ConvocatoriaController;
-use App\Http\Controllers\Geografico\Admin\GeographicController;
-use App\Http\Controllers\Imports\Admin\ImportController;
-use App\Http\Controllers\Configuration\Admin\OTPDashboardController;
-use App\Http\Controllers\Elecciones\Admin\PeriodoElectoralController;
-use App\Http\Controllers\Elecciones\Admin\PostulacionController as AdminPostulacionController;
-use App\Http\Controllers\Asamblea\Admin\AsambleaController;
-use App\Http\Controllers\Asamblea\User\ZoomRedirectController;
-use App\Http\Controllers\Votaciones\Admin\VotacionController;
-use App\Http\Controllers\Users\Admin\UserController;
-use App\Http\Controllers\Tenant\Admin\TenantController;
-use App\Http\Controllers\Rbac\Admin\RoleController;
-use App\Http\Controllers\Rbac\Admin\SegmentController;
+use Modules\Elecciones\Http\Controllers\Admin\CandidaturaController as AdminCandidaturaController;
+use Modules\Elecciones\Http\Controllers\Admin\CargoController;
+use Modules\Configuration\Http\Controllers\Admin\ConfiguracionController;
+use Modules\Elecciones\Http\Controllers\Admin\ConvocatoriaController;
+use Modules\Geografico\Http\Controllers\Admin\GeographicController;
+use Modules\Imports\Http\Controllers\Admin\ImportController;
+use Modules\Configuration\Http\Controllers\Admin\OTPDashboardController;
+use Modules\Elecciones\Http\Controllers\Admin\PeriodoElectoralController;
+use Modules\Elecciones\Http\Controllers\Admin\PostulacionController as AdminPostulacionController;
+use Modules\Asamblea\Http\Controllers\Admin\AsambleaController;
+use Modules\Asamblea\Http\Controllers\User\ZoomRedirectController;
+use Modules\Votaciones\Http\Controllers\Admin\VotacionController;
+use Modules\Users\Http\Controllers\Admin\UserController;
+use Modules\Tenant\Http\Controllers\Admin\TenantController;
+use Modules\Rbac\Http\Controllers\Admin\RoleController;
+use Modules\Rbac\Http\Controllers\Admin\SegmentController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -88,7 +88,7 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
         ->middleware('can:roles.edit')
         ->name('roles.attach-segments');
     
-    // Segments routes - Expandido para usar Spatie
+    // Segments routes
     Route::get('segments', [SegmentController::class, 'index'])
         ->middleware('can:segments.view')
         ->name('segments.index');
@@ -118,22 +118,22 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
         ->name('segments.clear-cache');
     
     // OTP Dashboard routes
-    Route::get('otp-dashboard', [\App\Http\Controllers\Configuration\Admin\OTPDashboardController::class, 'index'])
+    Route::get('otp-dashboard', [\Modules\Configuration\Http\Controllers\Admin\OTPDashboardController::class, 'index'])
         ->middleware('can:dashboard.admin')
         ->name('otp-dashboard');
-    Route::get('api/otp-dashboard/queue-status', [\App\Http\Controllers\Configuration\Admin\OTPDashboardController::class, 'queueStatus'])
+    Route::get('api/otp-dashboard/queue-status', [\Modules\Configuration\Http\Controllers\Admin\OTPDashboardController::class, 'queueStatus'])
         ->middleware('can:dashboard.admin')
         ->name('api.otp-dashboard.queue-status');
-    Route::get('api/otp-dashboard/otp-stats', [\App\Http\Controllers\Configuration\Admin\OTPDashboardController::class, 'otpStats'])
+    Route::get('api/otp-dashboard/otp-stats', [\Modules\Configuration\Http\Controllers\Admin\OTPDashboardController::class, 'otpStats'])
         ->middleware('can:dashboard.admin')
         ->name('api.otp-dashboard.otp-stats');
-    Route::get('api/otp-dashboard/queue/{queueName}/details', [\App\Http\Controllers\Configuration\Admin\OTPDashboardController::class, 'queueDetails'])
+    Route::get('api/otp-dashboard/queue/{queueName}/details', [\Modules\Configuration\Http\Controllers\Admin\OTPDashboardController::class, 'queueDetails'])
         ->middleware('can:queues.manage')
         ->name('api.otp-dashboard.queue-details');
-    Route::post('api/otp-dashboard/retry-failed-jobs', [\App\Http\Controllers\Configuration\Admin\OTPDashboardController::class, 'retryFailedJobs'])
+    Route::post('api/otp-dashboard/retry-failed-jobs', [\Modules\Configuration\Http\Controllers\Admin\OTPDashboardController::class, 'retryFailedJobs'])
         ->middleware('can:queues.manage')
         ->name('api.otp-dashboard.retry-failed');
-    Route::post('api/otp-dashboard/clean-failed-jobs', [\App\Http\Controllers\Configuration\Admin\OTPDashboardController::class, 'cleanFailedJobs'])
+    Route::post('api/otp-dashboard/clean-failed-jobs', [\Modules\Configuration\Http\Controllers\Admin\OTPDashboardController::class, 'cleanFailedJobs'])
         ->middleware('can:queues.manage')
         ->name('api.otp-dashboard.clean-failed');
     
@@ -420,43 +420,43 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
         ->name('postulaciones.exportar');
     
     // Formularios admin routes - 8 rutas (7 CRUD + 1 export)
-    Route::get('formularios', [\App\Http\Controllers\Formularios\Admin\FormularioController::class, 'index'])
+    Route::get('formularios', [\Modules\Formularios\Http\Controllers\Admin\FormularioController::class, 'index'])
         ->middleware('can:formularios.view')
         ->name('formularios.index');
-    Route::get('formularios/create', [\App\Http\Controllers\Formularios\Admin\FormularioController::class, 'create'])
+    Route::get('formularios/create', [\Modules\Formularios\Http\Controllers\Admin\FormularioController::class, 'create'])
         ->middleware('can:formularios.create')
         ->name('formularios.create');
-    Route::post('formularios', [\App\Http\Controllers\Formularios\Admin\FormularioController::class, 'store'])
+    Route::post('formularios', [\Modules\Formularios\Http\Controllers\Admin\FormularioController::class, 'store'])
         ->middleware('can:formularios.create')
         ->name('formularios.store');
-    Route::get('formularios/{formulario}', [\App\Http\Controllers\Formularios\Admin\FormularioController::class, 'show'])
+    Route::get('formularios/{formulario}', [\Modules\Formularios\Http\Controllers\Admin\FormularioController::class, 'show'])
         ->middleware('can:formularios.view')
         ->name('formularios.show');
-    Route::get('formularios/{formulario}/edit', [\App\Http\Controllers\Formularios\Admin\FormularioController::class, 'edit'])
+    Route::get('formularios/{formulario}/edit', [\Modules\Formularios\Http\Controllers\Admin\FormularioController::class, 'edit'])
         ->middleware('can:formularios.edit')
         ->name('formularios.edit');
-    Route::put('formularios/{formulario}', [\App\Http\Controllers\Formularios\Admin\FormularioController::class, 'update'])
+    Route::put('formularios/{formulario}', [\Modules\Formularios\Http\Controllers\Admin\FormularioController::class, 'update'])
         ->middleware('can:formularios.edit')
         ->name('formularios.update');
-    Route::delete('formularios/{formulario}', [\App\Http\Controllers\Formularios\Admin\FormularioController::class, 'destroy'])
+    Route::delete('formularios/{formulario}', [\Modules\Formularios\Http\Controllers\Admin\FormularioController::class, 'destroy'])
         ->middleware('can:formularios.delete')
         ->name('formularios.destroy');
     
     // Ruta adicional de exportación
-    Route::get('formularios/{formulario}/exportar', [\App\Http\Controllers\Formularios\Admin\FormularioController::class, 'exportarRespuestas'])
+    Route::get('formularios/{formulario}/exportar', [\Modules\Formularios\Http\Controllers\Admin\FormularioController::class, 'exportarRespuestas'])
         ->middleware('can:formularios.export')
         ->name('formularios.exportar');
     
     // Gestión de permisos de formularios
-    Route::get('formularios/{formulario}/permisos', [\App\Http\Controllers\Formularios\Admin\FormularioController::class, 'managePermissions'])
+    Route::get('formularios/{formulario}/permisos', [\Modules\Formularios\Http\Controllers\Admin\FormularioController::class, 'managePermissions'])
         ->middleware('can:formularios.manage_permissions')
         ->name('formularios.permisos');
-    Route::put('formularios/{formulario}/permisos', [\App\Http\Controllers\Formularios\Admin\FormularioController::class, 'updatePermissions'])
+    Route::put('formularios/{formulario}/permisos', [\Modules\Formularios\Http\Controllers\Admin\FormularioController::class, 'updatePermissions'])
         ->middleware('can:formularios.manage_permissions')
         ->name('formularios.permisos.update');
     
     // Categorías de formularios (pendiente de implementar)
-    // Route::resource('formulario-categorias', \App\Http\Controllers\Admin\FormularioCategoriaController::class)
+    // Route::resource('formulario-categorias', \Modules\Admin\Http\Controllers\FormularioCategoriaController::class)
     //     ->middleware('permission'); // El middleware inferirá el permiso de la acción
     
     // Import routes - General (usuarios)
@@ -542,7 +542,7 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
         ->name('usuarios.avatar.delete');
     
     // User Update Requests management
-    Route::prefix('solicitudes-actualizacion')->name('update-requests.')->controller(\App\Http\Controllers\Users\Admin\UserUpdateRequestController::class)->group(function () {
+    Route::prefix('solicitudes-actualizacion')->name('update-requests.')->controller(\Modules\Users\Http\Controllers\Admin\UserUpdateRequestController::class)->group(function () {
         Route::get('/', 'index')
             ->middleware('can:users.update_requests')
             ->name('index');

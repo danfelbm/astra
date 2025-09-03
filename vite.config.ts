@@ -3,11 +3,21 @@ import vue from '@vitejs/plugin-vue';
 import laravel from 'laravel-vite-plugin';
 import path from 'path';
 import { defineConfig } from 'vite';
+import { glob } from 'glob';
+
+// Archivo principal de Core (ya no está en resources/js)
+const coreApp = 'modules/Core/Resources/js/app.ts';
+
+// Encontrar otros assets de módulos si los hay
+const moduleAssets = glob.sync('modules/*/Resources/js/app.{js,ts}').filter(file => !file.includes('Core/'));
 
 export default defineConfig({
     plugins: [
         laravel({
-            input: ['resources/js/app.ts'],
+            input: [
+                coreApp, // App principal desde módulo Core
+                ...moduleAssets // Incluir otros assets de módulos
+            ],
             refresh: true,
         }),
         vue({
@@ -23,6 +33,7 @@ export default defineConfig({
     resolve: {
         alias: {
             '@': path.resolve(__dirname, './resources/js'),
+            '@modules': path.resolve(__dirname, './modules'), // Nuevo alias para módulos
         },
     },
     optimizeDeps: {

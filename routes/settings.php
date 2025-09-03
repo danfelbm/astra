@@ -1,9 +1,9 @@
 <?php
 
-use App\Http\Controllers\Core\Settings\UpdateDataController;
-use App\Http\Controllers\Core\Settings\PasswordController;
-use App\Http\Controllers\Core\Settings\ProfileController;
-use App\Http\Controllers\Core\Settings\ProfileLocationController;
+use Modules\Core\Http\Controllers\Settings\UpdateDataController;
+use Modules\Core\Http\Controllers\Settings\PasswordController;
+use Modules\Core\Http\Controllers\Settings\ProfileController;
+use Modules\Core\Http\Controllers\Settings\ProfileLocationController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 

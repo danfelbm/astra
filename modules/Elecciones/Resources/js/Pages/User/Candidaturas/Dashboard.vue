@@ -1,0 +1,368 @@
+<script setup lang="ts">
+import { Badge } from "@modules/Core/Resources/js/components/ui/badge";
+import { Button } from "@modules/Core/Resources/js/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@modules/Core/Resources/js/components/ui/card";
+import HistorialCandidatura from "@modules/Elecciones/Resources/js/components/HistorialCandidatura.vue";
+import { type BreadcrumbItemType, type Candidatura } from "@modules/Core/Resources/js/types";
+import UserLayout from "@modules/Core/Resources/js/layouts/UserLayout.vue";
+import { Head, Link } from '@inertiajs/vue3';
+import { CheckCircle, Clock, Edit, Plus, User, AlertCircle, XCircle, MessageSquare, History, ChevronDown, ChevronUp } from 'lucide-vue-next';
+import { computed, ref } from 'vue';
+
+interface Configuracion {
+    disponible: boolean;
+    resumen: string;
+    version: number;
+}
+
+interface Bloqueo {
+    activo: boolean;
+    titulo: string;
+    mensaje: string;
+    puede_crear: boolean;
+}
+
+interface Props {
+    candidatura: Candidatura | null;
+    configuracion: Configuracion;
+    bloqueo: Bloqueo;
+    // Props de permisos de usuario
+    canCreateOwn: boolean;
+    canEditOwn: boolean;
+    canViewPublic: boolean;
+}
+
+const props = defineProps<Props>();
+
+const breadcrumbs: BreadcrumbItemType[] = [
+    { title: 'Dashboard', href: '/miembro/dashboard' },
+    { title: 'Mi Candidatura', href: '#' },
+];
+
+// Estado local
+const mostrarHistorial = ref(false);
+
+// Computadas
+const hasCandidatura = computed(() => !!props.candidatura);
+
+const statusIcon = computed(() => {
+    if (!props.candidatura) return Plus;
+    
+    switch (props.candidatura.estado) {
+        case 'aprobado':
+            return CheckCircle;
+        case 'rechazado':
+            return XCircle;
+        case 'pendiente':
+            return Clock;
+        case 'borrador':
+            return Edit;
+        default:
+            return AlertCircle;
+    }
+});
+
+const statusColor = computed(() => {
+    if (!props.candidatura) return 'text-blue-600';
+    
+    switch (props.candidatura.estado) {
+        case 'aprobado':
+            return 'text-green-600';
+        case 'rechazado':
+            return 'text-red-600';
+        case 'pendiente':
+            return 'text-blue-600';
+        case 'borrador':
+            return 'text-yellow-600';
+        default:
+            return 'text-gray-600';
+    }
+});
+
+const nextAction = computed(() => {
+    if (!props.candidatura) {
+        // Si hay bloqueo activo, no mostrar acción de crear
+        if (props.bloqueo.activo) {
+            return null;
+        }
+        return {
+            text: 'Crear Perfil de Candidatura',
+            href: '/miembro/candidaturas/create',
+            icon: Plus,
+            description: 'Completa tu perfil para poder postularte a convocatorias'
+        };
+    }
+
+    if (props.candidatura.puede_editar) {
+        let text = 'Editar Candidatura';
+        let description = 'Completa o actualiza la información de tu candidatura';
+        
+        // Si es borrador y hay bloqueo activo (pero puede editar por subsanar=1)
+        if (props.candidatura.estado === 'borrador' && props.bloqueo.activo && props.candidatura.subsanar) {
+            description = 'Tu candidatura ha sido habilitada para subsanación. Puedes editarla aunque el sistema esté bloqueado.';
+        } else if (props.candidatura.estado === 'rechazado') {
+            description = 'Corrige los aspectos señalados y reenvía tu candidatura';
+        } else if (props.candidatura.estado === 'aprobado') {
+            text = 'Editar Campos Permitidos';
+            description = 'Solo puedes editar campos marcados como editables. Los cambios requerirán nueva aprobación.';
+        } else if (!props.candidatura.tiene_datos) {
+            text = 'Completar Candidatura';
+        }
+        
+        return {
+            text,
+            href: `/miembro/candidaturas/${props.candidatura.id}/edit`,
+            icon: Edit,
+            description
+        };
+    }
+
+    return null;
+});
+
+// Función para formatear fecha
+const formatearFecha = (fecha: string | null | undefined) => {
+    if (!fecha) {
+        return 'Fecha no disponible';
+    }
+    
+    try {
+        // Intentar parsear la fecha
+        const dateObj = new Date(fecha);
+        
+        // Verificar si la fecha es válida
+        if (isNaN(dateObj.getTime())) {
+            // Si la fecha viene en formato dd/mm/yyyy HH:mm, intentar parsearlo
+            const parts = fecha.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})/);
+            if (parts) {
+                const [, day, month, year, hour, minute] = parts;
+                const parsedDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), parseInt(hour), parseInt(minute));
+                if (!isNaN(parsedDate.getTime())) {
+                    return parsedDate.toLocaleDateString('es-ES', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                }
+            }
+            return fecha; // Devolver la fecha tal cual si no se puede parsear
+        }
+        
+        return dateObj.toLocaleDateString('es-ES', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    } catch (error) {
+        console.error('Error al formatear fecha:', error);
+        return fecha || 'Fecha no disponible';
+    }
+};
+</script>
+
+<template>
+    <Head title="Mi Candidatura" />
+
+    <UserLayout :breadcrumbs="breadcrumbs">
+        <div class="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
+            <!-- Header -->
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-3xl font-bold">Mi Candidatura</h1>
+                    <p class="text-muted-foreground">
+                        Gestiona tu perfil de candidatura para participar en convocatorias
+                    </p>
+                </div>
+            </div>
+
+            <!-- Mensaje de Bloqueo (cuando aplica) -->
+            <Card v-if="bloqueo.activo && (!candidatura || (candidatura.estado === 'borrador' && !candidatura.subsanar))" 
+                  class="border-yellow-200 dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-950/20">
+                <CardContent class="p-6">
+                    <div class="flex items-start gap-3">
+                        <AlertCircle class="h-6 w-6 text-yellow-600 flex-shrink-0 mt-0.5" />
+                        <div class="flex-1">
+                            <h3 class="font-semibold text-lg mb-2 text-yellow-800 dark:text-yellow-200">
+                                {{ bloqueo.titulo }}
+                            </h3>
+                            <p class="text-yellow-700 dark:text-yellow-300 whitespace-pre-wrap">
+                                {{ bloqueo.mensaje }}
+                            </p>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <!-- Estado Actual -->
+            <Card class="border-2">
+                <CardContent class="p-6">
+                    <div class="flex flex-col sm:flex-row sm:items-center gap-4">
+                        <div class="flex items-center gap-4 flex-1">
+                            <div :class="[statusColor, 'p-3 rounded-full bg-opacity-10 flex-shrink-0']">
+                                <component :is="statusIcon" class="h-8 w-8" />
+                            </div>
+                            
+                            <div class="flex-1">
+                                <h3 class="text-xl font-semibold mb-1">
+                                    {{ hasCandidatura 
+                                        ? (candidatura!.estado === 'pendiente' ? 'Candidatura enviada' : candidatura!.estado_label)
+                                        : 'Sin Candidatura' 
+                                    }}
+                                </h3>
+                                
+                                <p v-if="candidatura?.estado === 'pendiente'" class="text-muted-foreground mb-1">
+                                    Tu Candidatura ahora está pendiente de revisión
+                                </p>
+                                
+                                <p class="text-muted-foreground mb-2">
+                                    {{ hasCandidatura 
+                                        ? `Versión ${candidatura!.version} - Actualizada el ${formatearFecha(candidatura!.updated_at)}`
+                                        : 'Aún no has creado tu perfil de candidatura'
+                                    }}
+                                </p>
+
+                                <div v-if="hasCandidatura" class="flex items-center gap-2 flex-wrap">
+                                    <Badge :class="candidatura!.estado_color">
+                                        {{ candidatura!.estado_label }}
+                                    </Badge>
+                                    
+                                    <Badge v-if="!candidatura!.tiene_datos" variant="outline" class="bg-yellow-50 text-yellow-700">
+                                        Incompleto
+                                    </Badge>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div v-if="nextAction" class="w-full sm:w-auto">
+                            <Link :href="nextAction.href" class="block">
+                                <Button class="w-full sm:w-auto">
+                                    <component :is="nextAction.icon" class="mr-2 h-4 w-4" />
+                                    {{ nextAction.text }}
+                                </Button>
+                            </Link>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <!-- Comentarios de la Comisión -->
+            <Card v-if="candidatura?.comentarios_admin" class="border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/20">
+                <CardHeader>
+                    <CardTitle class="text-blue-800 dark:text-blue-200 flex items-center gap-2">
+                        <MessageSquare class="h-5 w-5" />
+                        Comentarios de la comisión
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div class="text-blue-700 dark:text-blue-300 prose prose-sm max-w-none" v-html="candidatura.comentarios_admin"></div>
+                </CardContent>
+            </Card>
+
+            <!-- Historial de Cambios (Colapsable) -->
+            <div v-if="hasCandidatura && mostrarHistorial">
+                <HistorialCandidatura 
+                    :candidatura-id="candidatura!.id"
+                    :version-actual="candidatura!.version"
+                />
+            </div>
+
+            <!-- Información de la Candidatura (Más compacta y debajo del historial) -->
+            <div class="grid gap-4 md:grid-cols-3">
+                <!-- Estados de Candidatura (más compacto) -->
+                <Card class="h-fit">
+                    <CardHeader class="pb-3">
+                        <CardTitle class="text-base flex items-center gap-2">
+                            <User class="h-4 w-4" />
+                            Estados
+                        </CardTitle>
+                        <p class="text-xs text-muted-foreground mt-1">Este es el listado de posibles estados:</p>
+                    </CardHeader>
+                    <CardContent class="space-y-2">
+                        <div class="flex items-center gap-2">
+                            <Edit class="h-3 w-3 text-yellow-600" />
+                            <p class="text-xs"><span class="font-medium">Borrador:</span> editable dentro de tiempos de subsanación</p>
+                        </div>
+                        
+                        <div class="flex items-center gap-2">
+                            <Clock class="h-3 w-3 text-blue-600" />
+                            <p class="text-xs"><span class="font-medium">Pendiente:</span> En revisión</p>
+                        </div>
+                        
+                        <div class="flex items-center gap-2">
+                            <CheckCircle class="h-3 w-3 text-green-600" />
+                            <p class="text-xs"><span class="font-medium">Aprobado:</span> Listo</p>
+                        </div>
+                        
+                        <div class="flex items-center gap-2">
+                            <XCircle class="h-3 w-3 text-red-600" />
+                            <p class="text-xs"><span class="font-medium">Rechazado:</span> solicitar revision a comité de garantías</p>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <!-- Configuración actual (más compacto) -->
+                <Card class="h-fit">
+                    <CardHeader class="pb-3">
+                        <CardTitle class="text-base flex items-center gap-2">
+                            <AlertCircle class="h-4 w-4" />
+                            Configuración
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent class="space-y-2">
+                        <div>
+                            <p class="text-xs font-medium">Campos:</p>
+                            <p class="text-xs text-muted-foreground">{{ configuracion.resumen }}</p>
+                        </div>
+                        
+                        <div>
+                            <p class="text-xs font-medium">Versión:</p>
+                            <p class="text-xs text-muted-foreground">v{{ configuracion.version }}</p>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <!-- Acciones (con botón de historial) -->
+                <Card v-if="hasCandidatura" class="h-fit">
+                    <CardHeader class="pb-3">
+                        <CardTitle class="text-base">Acciones</CardTitle>
+                    </CardHeader>
+                    <CardContent class="space-y-2">
+                        <!-- Botón de Historial de Cambios -->
+                        <Button 
+                            @click="mostrarHistorial = !mostrarHistorial" 
+                            variant="outline" 
+                            class="w-full"
+                        >
+                            <History class="mr-2 h-4 w-4" />
+                            {{ mostrarHistorial ? 'Ocultar' : 'Mostrar' }} Historial
+                            <component 
+                                :is="mostrarHistorial ? ChevronUp : ChevronDown" 
+                                class="ml-auto h-4 w-4"
+                            />
+                        </Button>
+                        
+                        <div class="flex gap-1">
+                            <Link :href="`/miembro/candidaturas/${candidatura!.id}`">
+                                <Button variant="outline" size="sm">
+                                    <User class="mr-1 h-3 w-3" />
+                                    Ver
+                                </Button>
+                            </Link>
+                            
+                            <Link v-if="candidatura!.puede_editar" :href="`/miembro/candidaturas/${candidatura!.id}/edit`">
+                                <Button variant="outline" size="sm">
+                                    <Edit class="mr-1 h-3 w-3" />
+                                    Editar
+                                </Button>
+                            </Link>
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+        </div>
+    </UserLayout>
+</template>

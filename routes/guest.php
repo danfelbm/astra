@@ -1,11 +1,11 @@
 <?php
 
-use App\Http\Controllers\Votaciones\Guest\TokenVerificationController;
-use App\Http\Controllers\Asamblea\Guest\FrontendAsambleaController;
-use App\Http\Controllers\Elecciones\Guest\PostulacionPublicController;
-use App\Http\Controllers\Asamblea\Guest\AsambleaPublicParticipantsController;
-use App\Http\Controllers\Geografico\Admin\GeographicController;
-use App\Http\Controllers\Elecciones\Guest\PostulacionPublicApiController;
+use Modules\Votaciones\Http\Controllers\Guest\TokenVerificationController;
+use Modules\Asamblea\Http\Controllers\Guest\FrontendAsambleaController;
+use Modules\Elecciones\Http\Controllers\Guest\PostulacionPublicController;
+use Modules\Asamblea\Http\Controllers\Guest\AsambleaPublicParticipantsController;
+use Modules\Geografico\Http\Controllers\Admin\GeographicController;
+use Modules\Elecciones\Http\Controllers\Guest\PostulacionPublicApiController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -31,9 +31,9 @@ Route::prefix('api/verificar-token')->name('api.verificar-token.')->group(functi
 });
 
 // Rutas públicas de formularios (con autenticación opcional)
-Route::get('formularios/{slug}', [\App\Http\Controllers\Formularios\Guest\FormularioGuestController::class, 'show'])->name('formularios.show');
-Route::post('formularios/{slug}/responder', [\App\Http\Controllers\Formularios\Guest\FormularioGuestController::class, 'store'])->name('formularios.store');
-Route::get('formularios/{slug}/success', [\App\Http\Controllers\Formularios\Guest\FormularioGuestController::class, 'success'])->name('formularios.success');
+Route::get('formularios/{slug}', [\Modules\Formularios\Http\Controllers\Guest\FormularioGuestController::class, 'show'])->name('formularios.show');
+Route::post('formularios/{slug}/responder', [\Modules\Formularios\Http\Controllers\Guest\FormularioGuestController::class, 'store'])->name('formularios.store');
+Route::get('formularios/{slug}/success', [\Modules\Formularios\Http\Controllers\Guest\FormularioGuestController::class, 'success'])->name('formularios.success');
 
 // Ruta pública de consulta de participantes (frontend sin autenticación)
 Route::get('consulta-participantes', [FrontendAsambleaController::class, 'consultaParticipantes'])
@@ -70,7 +70,7 @@ Route::get('public-api/postulaciones-aceptadas', [PostulacionPublicApiController
     ->name('api.postulaciones.publicas');
 
 // Confirmación de registro público
-use App\Http\Controllers\Users\Guest\RegistrationConfirmationController;
+use Modules\Users\Http\Controllers\Guest\RegistrationConfirmationController;
 
 Route::prefix('confirmar-registro')->name('registro.confirmacion.')->controller(RegistrationConfirmationController::class)->group(function () {
     Route::get('/', 'index')->name('index');

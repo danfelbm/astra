@@ -3,7 +3,7 @@
 namespace Tests\Unit\RateLimit;
 
 use Tests\TestCase;
-use App\Services\Core\QueueRateLimiterService;
+use Modules\Core\Services\QueueRateLimiterService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Config;

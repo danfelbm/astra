@@ -1,0 +1,1056 @@
+<script setup lang="ts">
+import { Badge } from "@modules/Core/Resources/js/components/ui/badge";
+import { Button } from "@modules/Core/Resources/js/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@modules/Core/Resources/js/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@modules/Core/Resources/js/components/ui/table";
+import AdvancedFilters from "@modules/Core/Resources/js/components/filters/AdvancedFilters.vue";
+import type { AdvancedFilterConfig } from "@modules/Core/Resources/js/types/filters";
+import CsvImportWizard from "@modules/Core/Resources/js/components/imports/CsvImportWizard.vue";
+import ImportHistory from "@modules/Core/Resources/js/components/imports/ImportHistory.vue";
+import AddUsersModal from "@modules/Core/Resources/js/components/modals/AddUsersModal.vue";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@modules/Core/Resources/js/components/ui/select";
+import { Input } from "@modules/Core/Resources/js/components/ui/input";
+import { Checkbox } from "@modules/Core/Resources/js/components/ui/checkbox";
+import { type BreadcrumbItemType } from '@/types';
+import AdminLayout from "@modules/Core/Resources/js/layouts/AdminLayout.vue";
+import { Head, router, useForm } from '@inertiajs/vue3';
+import { 
+    ArrowLeft, 
+    Calendar, 
+    MapPin, 
+    Users, 
+    Edit, 
+    UserPlus,
+    UserMinus,
+    Clock,
+    CheckCircle,
+    XCircle,
+    FileText,
+    ChevronLeft,
+    ChevronRight,
+    Upload,
+    History,
+    Vote,
+    Loader2,
+    RefreshCw,
+    AlertCircle
+} from 'lucide-vue-next';
+import { ref, computed, onMounted, watch } from 'vue';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
+import { toast } from 'vue-sonner';
+import axios from 'axios';
+import VotacionGrid from "@modules/Core/Resources/js/components/votaciones/VotacionGrid.vue";
+import { Alert, AlertDescription, AlertTitle } from "@modules/Core/Resources/js/components/ui/alert";
+import { Progress } from "@modules/Core/Resources/js/components/ui/progress";
+
+interface Territorio {
+    id: number;
+    nombre: string;
+}
+
+interface Departamento {
+    id: number;
+    nombre: string;
+}
+
+interface Municipio {
+    id: number;
+    nombre: string;
+}
+
+interface Localidad {
+    id: number;
+    nombre: string;
+}
+
+interface Participante {
+    id: number;
+    name: string;
+    email: string;
+    pivot: {
+        tenant_id: number;
+        tipo_participacion: 'asistente' | 'moderador' | 'secretario';
+        asistio: boolean;
+        hora_registro?: string;
+        updated_by?: number;
+        updated_by_name?: string;
+    };
+}
+
+interface Asamblea {
+    id: number;
+    nombre: string;
+    descripcion?: string;
+    tipo: 'ordinaria' | 'extraordinaria';
+    tipo_label: string;
+    estado: 'programada' | 'en_curso' | 'finalizada' | 'cancelada';
+    estado_label: string;
+    estado_color: string;
+    fecha_inicio: string;
+    fecha_fin: string;
+    territorio?: Territorio;
+    departamento?: Departamento;
+    municipio?: Municipio;
+    localidad?: Localidad;
+    lugar?: string;
+    ubicacion_completa: string;
+    quorum_minimo?: number;
+    activo: boolean;
+    acta_url?: string;
+    duracion: string;
+    tiempo_restante: string;
+    rango_fechas: string;
+    alcanza_quorum: boolean;
+    asistentes_count: number;
+    participantes_count: number;
+}
+
+interface Votacion {
+    id: number;
+    titulo: string;
+    descripcion?: string;
+    estado: string;
+    fecha_inicio: string;
+    fecha_fin: string;
+    categoria?: any;
+    votantes_count: number;
+    sincronizados_count: number;
+    puede_sincronizar: boolean;
+}
+
+interface Props {
+    asamblea: Asamblea;
+    puede_gestionar_participantes: boolean;
+    filterFieldsConfig: any[];
+}
+
+const props = defineProps<Props>();
+
+const breadcrumbs: BreadcrumbItemType[] = [
+    { title: 'Admin', href: '/admin/dashboard' },
+    { title: 'Asambleas', href: '/admin/asambleas' },
+    { title: props.asamblea.nombre, href: '#' },
+];
+
+// Helper para obtener route
+const { route } = window as any;
+
+// Estado para participantes paginados
+const participantes = ref<Participante[]>([]);
+const participantesPagination = ref<any>({
+    current_page: 1,
+    last_page: 1,
+    per_page: 20,
+    total: 0,
+    from: 0,
+    to: 0,
+});
+const loadingParticipantes = ref(false);
+const currentFilters = ref<any>({});
+
+// Configuración para el componente de filtros avanzados
+const filterConfig: AdvancedFilterConfig = {
+    fields: props.filterFieldsConfig || [],
+    showQuickSearch: true,
+    quickSearchPlaceholder: 'Buscar por nombre, email o documento...',
+    quickSearchFields: ['users.name', 'users.email', 'users.documento_identidad'],
+    maxNestingLevel: 1,
+    allowSaveFilters: false,
+    debounceTime: 500,
+    autoApply: false,
+};
+
+// Estado para el modal de añadir participantes
+const modalAñadirAbierto = ref(false);
+const tipoParticipacionNuevo = ref('asistente');
+
+// Configuración del campo extra para tipo de participación
+const extraFieldsParticipantes = computed(() => [
+    {
+        name: 'tipo_participacion',
+        label: 'Tipo de Participación',
+        type: 'select' as const,
+        options: [
+            { value: 'asistente', label: 'Asistente' },
+            { value: 'moderador', label: 'Moderador' },
+            { value: 'secretario', label: 'Secretario' }
+        ],
+        value: tipoParticipacionNuevo.value,
+        required: false
+    }
+]);
+
+// Estado para registrar asistencia
+const registrandoAsistencia = ref<number | null>(null);
+
+// Estado para el wizard de importación CSV
+const showImportWizard = ref(false);
+const showImportHistory = ref(false);
+const recentImports = ref<any[]>([]);
+const importHistoryRef = ref<InstanceType<typeof ImportHistory> | null>(null);
+
+// Estado para votaciones asociadas
+const votaciones = ref<Votacion[]>([]);
+const loadingVotaciones = ref(false);
+const syncingVotacion = ref<number | null>(null);
+const syncProgress = ref<{ [key: number]: any }>({});
+const syncPollingIntervals = ref<{ [key: number]: any }>({});
+
+// Formatear fecha
+const formatearFecha = (fecha: string) => {
+    if (!fecha) return '';
+    return format(new Date(fecha), 'PPPpp', { locale: es });
+};
+
+// Obtener clase para tipo de participación
+const getTipoParticipacionBadge = (tipo: string) => {
+    switch (tipo) {
+        case 'moderador':
+            return 'bg-purple-100 text-purple-800';
+        case 'secretario':
+            return 'bg-blue-100 text-blue-800';
+        default:
+            return 'bg-gray-100 text-gray-800';
+    }
+};
+
+// Obtener estadísticas
+const estadisticas = computed(() => {
+    const moderadores = participantes.value.filter(p => p.pivot?.tipo_participacion === 'moderador').length;
+    const secretarios = participantes.value.filter(p => p.pivot?.tipo_participacion === 'secretario').length;
+    const asistentes = participantes.value.filter(p => p.pivot?.tipo_participacion === 'asistente').length;
+    const presentes = participantes.value.filter(p => p.pivot?.asistio === true).length;
+    
+    return {
+        moderadores,
+        secretarios,
+        asistentes,
+        presentes,
+        total: participantesPagination.value.total || 0,
+    };
+});
+
+// Cargar participantes con filtros y paginación
+const cargarParticipantes = async (page = 1, filters = {}) => {
+    loadingParticipantes.value = true;
+    try {
+        const params = {
+            page,
+            ...filters,
+        };
+        
+        const response = await axios.get(route('admin.asambleas.participantes-list', props.asamblea.id), {
+            params,
+        });
+        
+        // Mapear los datos correctamente desde el join
+        participantes.value = response.data.participantes.data.map((p: any) => ({
+            ...p,
+            pivot: {
+                tenant_id: p.tenant_id,
+                tipo_participacion: p.tipo_participacion || 'asistente',
+                asistio: p.asistio === 1 || p.asistio === true || p.asistio === '1',
+                hora_registro: p.hora_registro,
+            }
+        }));
+        
+        participantesPagination.value = {
+            current_page: response.data.participantes.current_page,
+            last_page: response.data.participantes.last_page,
+            per_page: response.data.participantes.per_page,
+            total: response.data.participantes.total,
+            from: response.data.participantes.from,
+            to: response.data.participantes.to,
+        };
+    } catch (error) {
+        console.error('Error cargando participantes:', error);
+    } finally {
+        loadingParticipantes.value = false;
+    }
+};
+
+// Cambiar página
+const changePage = (page: number) => {
+    cargarParticipantes(page, currentFilters.value);
+};
+
+// Aplicar filtros
+const handleApplyFilters = (filters: any) => {
+    currentFilters.value = filters;
+    cargarParticipantes(1, filters);
+};
+
+// Limpiar filtros
+const handleClearFilters = () => {
+    currentFilters.value = {};
+    cargarParticipantes(1, {});
+};
+
+// Buscar participantes disponibles con paginación
+// Ya no necesitamos buscarParticipantesDisponibles, el modal lo maneja internamente
+
+// Abrir modal de añadir participantes
+const abrirModalAñadir = () => {
+    modalAñadirAbierto.value = true;
+};
+
+// Limpiar tipo de participación al cerrar el modal
+watch(modalAñadirAbierto, (isOpen) => {
+    if (!isOpen) {
+        tipoParticipacionNuevo.value = 'asistente';
+    }
+});
+
+// Refrescar lista de participantes después de cambios
+const refrescarParticipantes = () => {
+    cargarParticipantes(participantesPagination.value.current_page, currentFilters.value);
+};
+
+// Añadir participantes seleccionados
+// Manejar la respuesta del modal de añadir participantes
+const handleAddParticipantes = (data: { userIds: number[]; extraData: Record<string, any> }) => {
+    if (!data.userIds || data.userIds.length === 0) return;
+
+    const cantidadSeleccionados = data.userIds.length;
+    
+    router.post(route('admin.asambleas.manage-participantes', props.asamblea.id), {
+        participante_ids: data.userIds,
+        tipo_participacion: data.extraData.tipo_participacion || 'asistente',
+    }, {
+        preserveScroll: true,
+        preserveState: true,
+        only: [], // No actualizar ningún prop
+        onSuccess: () => {
+            modalAñadirAbierto.value = false;
+            
+            toast.success(`${cantidadSeleccionados} participante(s) añadido(s) exitosamente`, {
+                duration: 2000,
+            });
+            
+            // Recargar la lista de participantes
+            cargarParticipantes(participantesPagination.value.current_page, currentFilters.value);
+        },
+        onError: () => {
+            toast.error('Error al añadir participantes', {
+                description: 'Por favor intenta nuevamente',
+                duration: 3000,
+            });
+        },
+    });
+};
+
+// Remover participante
+const removerParticipante = (participanteId: number) => {
+    const participante = participantes.value.find(p => p.id === participanteId);
+    const nombreParticipante = participante?.name || 'Participante';
+    
+    if (!confirm(`¿Estás seguro de remover a ${nombreParticipante} de la asamblea?`)) return;
+
+    // Eliminación optimista: remover inmediatamente de la lista
+    const indice = participantes.value.findIndex(p => p.id === participanteId);
+    const participanteRemovido = participantes.value[indice];
+    
+    if (indice !== -1) {
+        participantes.value.splice(indice, 1);
+        // Actualizar el contador total
+        participantesPagination.value.total -= 1;
+    }
+
+    router.delete(route('admin.asambleas.manage-participantes', props.asamblea.id), {
+        data: { participante_id: participanteId },
+        preserveScroll: true,
+        preserveState: true,
+        only: [], // No actualizar ningún prop
+        onSuccess: () => {
+            toast.success(`${nombreParticipante} removido de la asamblea`, {
+                duration: 2000,
+            });
+        },
+        onError: () => {
+            // Restaurar si hay error
+            if (participanteRemovido && indice !== -1) {
+                participantes.value.splice(indice, 0, participanteRemovido);
+                participantesPagination.value.total += 1;
+            }
+            toast.error('Error al remover participante', {
+                duration: 3000,
+            });
+        },
+    });
+};
+
+// Actualizar tipo de participación
+const actualizarTipoParticipacion = (participanteId: number, tipo: string) => {
+    const participante = participantes.value.find(p => p.id === participanteId);
+    const nombreParticipante = participante?.name || 'Participante';
+    const tipoAnterior = participante?.pivot?.tipo_participacion;
+    
+    // Actualización optimista
+    if (participante && participante.pivot) {
+        participante.pivot.tipo_participacion = tipo;
+    }
+    
+    router.put(route('admin.asambleas.manage-participantes', props.asamblea.id), {
+        participante_id: participanteId,
+        tipo_participacion: tipo,
+    }, {
+        preserveScroll: true,
+        preserveState: true,
+        only: [], // No actualizar ningún prop
+        onSuccess: () => {
+            const tipoLabel = tipo.charAt(0).toUpperCase() + tipo.slice(1);
+            toast.success(`${nombreParticipante} asignado como ${tipoLabel}`, {
+                duration: 2000,
+            });
+        },
+        onError: () => {
+            // Revertir en caso de error
+            if (participante && participante.pivot && tipoAnterior) {
+                participante.pivot.tipo_participacion = tipoAnterior;
+            }
+            toast.error('Error al actualizar el tipo de participación', {
+                duration: 3000,
+            });
+        },
+    });
+};
+
+// Registrar asistencia
+const registrarAsistencia = (participanteId: number, asistio: boolean) => {
+    // Evitar múltiples clicks mientras se procesa
+    if (registrandoAsistencia.value === participanteId) return;
+    
+    registrandoAsistencia.value = participanteId;
+    
+    // Actualización optimista: actualizar el estado local inmediatamente
+    const participante = participantes.value.find(p => p.id === participanteId);
+    const nombreParticipante = participante?.name || 'Participante';
+    
+    if (participante && participante.pivot) {
+        const estadoAnterior = participante.pivot.asistio;
+        participante.pivot.asistio = asistio;
+        if (asistio) {
+            participante.pivot.hora_registro = new Date().toISOString();
+        } else {
+            participante.pivot.hora_registro = null;
+        }
+    }
+    
+    // Usar router de Inertia pero sin recargar la página
+    router.put(route('admin.asambleas.manage-participantes', props.asamblea.id), {
+        participante_id: participanteId,
+        asistio: asistio,
+    }, {
+        preserveScroll: true,
+        preserveState: true,
+        only: [], // No actualizar ningún prop, solo ejecutar la acción
+        onSuccess: () => {
+            // Mostrar notificación de éxito
+            if (asistio) {
+                toast.success(`${nombreParticipante} marcado como presente`, {
+                    duration: 2000,
+                });
+            } else {
+                toast.info(`${nombreParticipante} marcado como ausente`, {
+                    duration: 2000,
+                });
+            }
+        },
+        onError: () => {
+            // Si hay error, revertir el cambio optimista
+            if (participante && participante.pivot) {
+                participante.pivot.asistio = !asistio;
+                participante.pivot.hora_registro = null;
+            }
+            
+            // Mostrar notificación de error
+            toast.error('Error al actualizar la asistencia', {
+                description: 'Por favor intenta nuevamente',
+                duration: 3000,
+            });
+        },
+        onFinish: () => {
+            registrandoAsistencia.value = null;
+        },
+    });
+};
+
+// Navegar a edición
+const editarAsamblea = () => {
+    router.visit(route('admin.asambleas.edit', props.asamblea.id));
+};
+
+// Volver al listado
+const volver = () => {
+    router.visit(route('admin.asambleas.index'));
+};
+
+// Funciones para el wizard de importación CSV
+const loadRecentImports = async () => {
+    if (!props.asamblea?.id) return;
+    
+    try {
+        const response = await fetch(`/admin/asambleas/${props.asamblea.id}/imports/recent`);
+        recentImports.value = await response.json();
+    } catch (error) {
+        console.error('Error cargando importaciones recientes:', error);
+    }
+};
+
+const handleImportSuccess = (importId: number) => {
+    showImportWizard.value = false;
+    // Recargar listas de participantes
+    loadRecentImports();
+    cargarParticipantes();
+    
+    // Recargar historial si está visible
+    if (importHistoryRef.value) {
+        importHistoryRef.value.loadRecentImports();
+    }
+    
+    // Redirigir a la página de progreso de importación
+    router.get(`/admin/imports/${importId}`);
+};
+
+const handleImportCancel = () => {
+    showImportWizard.value = false;
+};
+
+// Funciones para manejar votaciones
+const cargarVotaciones = async () => {
+    loadingVotaciones.value = true;
+    try {
+        const response = await axios.get(`/admin/asambleas/${props.asamblea.id}/votaciones`);
+        if (response.data.success) {
+            votaciones.value = response.data.data;
+        }
+    } catch (error) {
+        console.error('Error cargando votaciones:', error);
+        toast.error('Error al cargar las votaciones');
+    } finally {
+        loadingVotaciones.value = false;
+    }
+};
+
+const sincronizarParticipantes = async (votacionId: number) => {
+    if (syncingVotacion.value) return;
+    
+    syncingVotacion.value = votacionId;
+    delete syncProgress.value[votacionId];
+    
+    try {
+        const response = await axios.post(
+            `/admin/asambleas/${props.asamblea.id}/votaciones/${votacionId}/sync`
+        );
+        
+        if (response.data.success) {
+            toast.success('Sincronización iniciada');
+            
+            // Iniciar polling para obtener el progreso
+            const jobId = response.data.job_id;
+            pollSyncProgress(votacionId, jobId);
+        }
+    } catch (error: any) {
+        console.error('Error iniciando sincronización:', error);
+        toast.error(error.response?.data?.message || 'Error al iniciar la sincronización');
+        syncingVotacion.value = null;
+    }
+};
+
+const pollSyncProgress = (votacionId: number, jobId: string) => {
+    // Limpiar cualquier polling anterior para esta votación
+    if (syncPollingIntervals.value[votacionId]) {
+        clearInterval(syncPollingIntervals.value[votacionId]);
+    }
+    
+    // Configurar nuevo polling
+    syncPollingIntervals.value[votacionId] = setInterval(async () => {
+        try {
+            const response = await axios.get(`/admin/sync-job/${jobId}/status`);
+            
+            if (response.data.success) {
+                const status = response.data.data;
+                syncProgress.value[votacionId] = status;
+                
+                // Si el job terminó, detener el polling
+                if (status.status === 'completed' || 
+                    status.status === 'completed_with_errors' || 
+                    status.status === 'failed') {
+                    
+                    clearInterval(syncPollingIntervals.value[votacionId]);
+                    delete syncPollingIntervals.value[votacionId];
+                    syncingVotacion.value = null;
+                    
+                    // Recargar votaciones para actualizar contadores
+                    setTimeout(() => {
+                        cargarVotaciones();
+                    }, 2000);
+                    
+                    // Limpiar progreso después de 5 segundos
+                    setTimeout(() => {
+                        delete syncProgress.value[votacionId];
+                    }, 5000);
+                }
+            }
+        } catch (error) {
+            console.error('Error obteniendo progreso:', error);
+            // Si hay error, detener el polling
+            clearInterval(syncPollingIntervals.value[votacionId]);
+            delete syncPollingIntervals.value[votacionId];
+            syncingVotacion.value = null;
+        }
+    }, 2000); // Polling cada 2 segundos
+};
+
+// Cargar SOLO la primera página de participantes al montar (verdadero lazy loading)
+onMounted(() => {
+    // Siempre cargar la primera página (solo 20 registros)
+    // No importa si hay 10, 100 o 1800+ participantes totales
+    cargarParticipantes();
+    // Cargar votaciones asociadas
+    cargarVotaciones();
+});
+</script>
+
+<template>
+    <Head :title="`Asamblea: ${asamblea.nombre}`" />
+
+    <AdminLayout :breadcrumbs="breadcrumbs">
+        <div class="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
+            <!-- Header -->
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-3xl font-bold">{{ asamblea.nombre }}</h1>
+                    <div class="mt-2 flex items-center gap-2">
+                        <Badge :class="asamblea.estado_color">
+                            {{ asamblea.estado_label }}
+                        </Badge>
+                        <Badge :class="asamblea.tipo === 'ordinaria' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'">
+                            {{ asamblea.tipo_label }}
+                        </Badge>
+                        <Badge v-if="asamblea.activo" class="bg-green-100 text-green-800">
+                            Activa
+                        </Badge>
+                        <Badge v-else class="bg-red-100 text-red-800">
+                            Inactiva
+                        </Badge>
+                    </div>
+                </div>
+                <div class="flex gap-2">
+                    <Button variant="outline" @click="volver">
+                        <ArrowLeft class="mr-2 h-4 w-4" />
+                        Volver
+                    </Button>
+                    <Button @click="editarAsamblea">
+                        <Edit class="mr-2 h-4 w-4" />
+                        Editar
+                    </Button>
+                </div>
+            </div>
+
+            <!-- Información General -->
+            <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                <Card>
+                    <CardHeader class="pb-3">
+                        <CardTitle class="text-sm font-medium">Fechas</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div class="space-y-2">
+                            <div class="flex items-center gap-2 text-sm">
+                                <Calendar class="h-4 w-4 text-muted-foreground" />
+                                <span>{{ asamblea.rango_fechas }}</span>
+                            </div>
+                            <div class="flex items-center gap-2 text-sm">
+                                <Clock class="h-4 w-4 text-muted-foreground" />
+                                <span>Duración: {{ asamblea.duracion }}</span>
+                            </div>
+                            <p class="text-sm font-medium">{{ asamblea.tiempo_restante }}</p>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader class="pb-3">
+                        <CardTitle class="text-sm font-medium">Ubicación</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div class="space-y-2">
+                            <div class="flex items-center gap-2 text-sm">
+                                <MapPin class="h-4 w-4 text-muted-foreground" />
+                                <span>{{ asamblea.lugar || 'No especificado' }}</span>
+                            </div>
+                            <p class="text-sm text-muted-foreground">
+                                {{ asamblea.ubicacion_completa }}
+                            </p>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader class="pb-3">
+                        <CardTitle class="text-sm font-medium">Quórum</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div class="space-y-2">
+                            <div class="flex items-center gap-2">
+                                <Users class="h-4 w-4 text-muted-foreground" />
+                                <span class="text-2xl font-bold">
+                                    {{ asamblea.asistentes_count }} / {{ asamblea.quorum_minimo || '∞' }}
+                                </span>
+                            </div>
+                            <Badge v-if="asamblea.alcanza_quorum" class="bg-green-100 text-green-800">
+                                <CheckCircle class="mr-1 h-3 w-3" />
+                                Quórum alcanzado
+                            </Badge>
+                            <Badge v-else-if="asamblea.quorum_minimo" class="bg-yellow-100 text-yellow-800">
+                                <XCircle class="mr-1 h-3 w-3" />
+                                Quórum no alcanzado
+                            </Badge>
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+
+            <!-- Descripción -->
+            <Card v-if="asamblea.descripcion">
+                <CardHeader>
+                    <CardTitle>Descripción</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <p class="text-sm">{{ asamblea.descripcion }}</p>
+                </CardContent>
+            </Card>
+
+            <!-- Filtros Avanzados -->
+            <AdvancedFilters
+                :config="filterConfig"
+                @apply="handleApplyFilters"
+                @clear="handleClearFilters"
+            />
+
+            <!-- Participantes -->
+            <Card>
+                <CardHeader>
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <CardTitle>Participantes</CardTitle>
+                            <CardDescription>
+                                {{ asamblea.participantes_count }} participantes registrados
+                            </CardDescription>
+                        </div>
+                        <div v-if="participantes.length > 0" class="flex gap-2">
+                            <Badge variant="outline">
+                                Moderadores: {{ estadisticas.moderadores }}
+                            </Badge>
+                            <Badge variant="outline">
+                                Secretarios: {{ estadisticas.secretarios }}
+                            </Badge>
+                            <Badge variant="outline">
+                                Asistentes: {{ estadisticas.asistentes }}
+                            </Badge>
+                            <Badge variant="outline">
+                                Presentes: {{ estadisticas.presentes }}
+                            </Badge>
+                        </div>
+                    </div>
+                </CardHeader>
+                <CardContent>
+                    <div v-if="puede_gestionar_participantes" class="mb-4 flex gap-2">
+                        <Button @click="abrirModalAñadir">
+                            <UserPlus class="mr-2 h-4 w-4" />
+                            Añadir Participantes
+                        </Button>
+                        <Button variant="outline" @click="showImportWizard = true">
+                            <Upload class="mr-2 h-4 w-4" />
+                            Importar CSV
+                        </Button>
+                        <Button variant="outline" @click="showImportHistory = !showImportHistory">
+                            <History class="mr-2 h-4 w-4" />
+                            {{ showImportHistory ? 'Ocultar' : 'Ver' }} Historial
+                        </Button>
+                    </div>
+                    
+                    <!-- Wizard de Importación CSV -->
+                    <CsvImportWizard
+                        v-if="showImportWizard"
+                        mode="asamblea"
+                        :asamblea-id="asamblea.id"
+                        :asamblea-titulo="asamblea.nombre"
+                        :redirect-on-success="true"
+                        @success="handleImportSuccess"
+                        @cancel="handleImportCancel"
+                        class="mb-4"
+                    />
+                    
+                    <!-- Historial de Importaciones -->
+                    <ImportHistory
+                        v-if="showImportHistory"
+                        ref="importHistoryRef"
+                        type="asamblea"
+                        :entity-id="asamblea.id"
+                        title="Historial de Importaciones"
+                        class="mb-4"
+                    />
+
+                    <div v-if="loadingParticipantes" class="flex justify-center py-8">
+                        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                    </div>
+                    
+                    <Table v-else>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Nombre</TableHead>
+                                <TableHead>Email</TableHead>
+                                <TableHead>Tipo de Participación</TableHead>
+                                <TableHead>Asistencia</TableHead>
+                                <TableHead>Hora de Registro</TableHead>
+                                <TableHead>Registrado por</TableHead>
+                                <TableHead v-if="puede_gestionar_participantes" class="text-right">Acciones</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            <TableRow v-for="participante in participantes" :key="participante.id">
+                                <TableCell class="font-medium">{{ participante.name }}</TableCell>
+                                <TableCell>{{ participante.email }}</TableCell>
+                                <TableCell>
+                                    <Badge :class="getTipoParticipacionBadge(participante.pivot?.tipo_participacion || 'asistente')">
+                                        {{ participante.pivot?.tipo_participacion || 'asistente' }}
+                                    </Badge>
+                                </TableCell>
+                                <TableCell>
+                                    <div v-if="puede_gestionar_participantes && asamblea.estado === 'en_curso'" class="flex items-center gap-2">
+                                        <div class="relative">
+                                            <Checkbox
+                                                :checked="participante.pivot?.asistio || false"
+                                                :disabled="registrandoAsistencia === participante.id"
+                                                @update:checked="(value) => registrarAsistencia(participante.id, value)"
+                                                :class="registrandoAsistencia === participante.id ? 'opacity-50' : ''"
+                                            />
+                                            <div v-if="registrandoAsistencia === participante.id" class="absolute inset-0 flex items-center justify-center">
+                                                <div class="animate-spin rounded-full h-3 w-3 border-b-2 border-primary"></div>
+                                            </div>
+                                        </div>
+                                        <span 
+                                            v-if="participante.pivot?.asistio" 
+                                            class="text-green-600 transition-all duration-300"
+                                        >
+                                            Presente
+                                        </span>
+                                        <span 
+                                            v-else 
+                                            class="text-gray-400 transition-all duration-300"
+                                        >
+                                            Ausente
+                                        </span>
+                                    </div>
+                                    <div v-else>
+                                        <Badge v-if="participante.pivot?.asistio" class="bg-green-100 text-green-800">
+                                            Presente
+                                        </Badge>
+                                        <Badge v-else variant="outline">
+                                            Ausente
+                                        </Badge>
+                                    </div>
+                                </TableCell>
+                                <TableCell>
+                                    {{ participante.pivot?.hora_registro ? formatearFecha(participante.pivot.hora_registro) : '-' }}
+                                </TableCell>
+                                <TableCell>
+                                    <span v-if="participante.pivot?.updated_by">
+                                        {{ participante.pivot.updated_by === participante.id ? 'Auto-registro' : (participante.pivot.updated_by_name || 'Admin') }}
+                                    </span>
+                                    <span v-else>-</span>
+                                </TableCell>
+                                <TableCell v-if="puede_gestionar_participantes" class="text-right">
+                                    <div class="flex justify-end gap-2">
+                                        <Select 
+                                            :model-value="participante.pivot?.tipo_participacion || 'asistente'"
+                                            @update:model-value="(value) => actualizarTipoParticipacion(participante.id, value)"
+                                        >
+                                            <SelectTrigger class="w-32">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="asistente">Asistente</SelectItem>
+                                                <SelectItem value="moderador">Moderador</SelectItem>
+                                                <SelectItem value="secretario">Secretario</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            @click="removerParticipante(participante.id)"
+                                        >
+                                            <UserMinus class="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                </TableCell>
+                            </TableRow>
+                            <TableRow v-if="participantes.length === 0">
+                                <TableCell colspan="6" class="text-center py-8">
+                                    <p class="text-muted-foreground">No hay participantes registrados</p>
+                                </TableCell>
+                            </TableRow>
+                        </TableBody>
+                    </Table>
+
+                    <!-- Paginación - Siempre visible para indicar que es una vista paginada -->
+                    <div v-if="participantesPagination.total > 0" class="flex items-center justify-between mt-4">
+                        <div class="text-sm text-muted-foreground">
+                            Mostrando {{ participantesPagination.from }} a {{ participantesPagination.to }} de {{ participantesPagination.total }} resultados
+                        </div>
+                        <div v-if="participantesPagination.last_page > 1" class="flex items-center space-x-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                :disabled="participantesPagination.current_page === 1"
+                                @click="changePage(participantesPagination.current_page - 1)"
+                            >
+                                <ChevronLeft class="h-4 w-4" />
+                                Anterior
+                            </Button>
+                            <div class="text-sm">
+                                Página {{ participantesPagination.current_page }} de {{ participantesPagination.last_page }}
+                            </div>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                :disabled="participantesPagination.current_page === participantesPagination.last_page"
+                                @click="changePage(participantesPagination.current_page + 1)"
+                            >
+                                Siguiente
+                                <ChevronRight class="h-4 w-4" />
+                            </Button>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <!-- Votaciones Asociadas -->
+            <Card>
+                <CardHeader>
+                    <CardTitle class="flex items-center gap-2">
+                        <Vote class="h-5 w-5" />
+                        Votaciones Asociadas
+                    </CardTitle>
+                    <CardDescription>
+                        Votaciones vinculadas a esta asamblea y estado de sincronización de participantes
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div v-if="loadingVotaciones" class="flex justify-center py-8">
+                        <Loader2 class="h-8 w-8 animate-spin text-gray-400" />
+                    </div>
+                    
+                    <div v-else-if="votaciones.length === 0" class="text-center py-8 text-gray-500">
+                        <Vote class="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                        <p>No hay votaciones asociadas a esta asamblea</p>
+                        <Button 
+                            variant="outline" 
+                            class="mt-4"
+                            @click="() => router.visit(`/admin/asambleas/${asamblea.id}/edit`)"
+                        >
+                            <Edit class="h-4 w-4 mr-2" />
+                            Editar Asamblea para Agregar Votaciones
+                        </Button>
+                    </div>
+                    
+                    <div v-else class="space-y-4">
+                        <div 
+                            v-for="votacion in votaciones" 
+                            :key="votacion.id"
+                            class="border rounded-lg p-4 space-y-3"
+                        >
+                            <!-- Información de la votación -->
+                            <div class="flex justify-between items-start">
+                                <div class="flex-1">
+                                    <h4 class="font-semibold text-lg">{{ votacion.titulo }}</h4>
+                                    <p v-if="votacion.descripcion" class="text-sm text-gray-600 mt-1">
+                                        {{ votacion.descripcion }}
+                                    </p>
+                                    <div class="flex gap-4 mt-2 text-sm text-gray-500">
+                                        <span>Estado: <Badge :variant="votacion.estado === 'activa' ? 'default' : 'secondary'">{{ votacion.estado }}</Badge></span>
+                                        <span>Votantes: {{ votacion.votantes_count }}</span>
+                                        <span>Sincronizados desde asamblea: {{ votacion.sincronizados_count }}</span>
+                                    </div>
+                                </div>
+                                
+                                <!-- Botón de sincronización -->
+                                <Button
+                                    v-if="votacion.puede_sincronizar && puede_gestionar_participantes"
+                                    @click="sincronizarParticipantes(votacion.id)"
+                                    :disabled="syncingVotacion === votacion.id"
+                                    variant="outline"
+                                >
+                                    <RefreshCw 
+                                        class="h-4 w-4 mr-2" 
+                                        :class="{ 'animate-spin': syncingVotacion === votacion.id }"
+                                    />
+                                    {{ syncingVotacion === votacion.id ? 'Sincronizando...' : 'Sincronizar Participantes' }}
+                                </Button>
+                            </div>
+                            
+                            <!-- Progreso de sincronización -->
+                            <div v-if="syncProgress[votacion.id]" class="space-y-2">
+                                <div class="flex justify-between text-sm">
+                                    <span>{{ syncProgress[votacion.id].message }}</span>
+                                    <span>{{ Math.round(syncProgress[votacion.id].progress) }}%</span>
+                                </div>
+                                <Progress :model-value="syncProgress[votacion.id].progress" />
+                                
+                                <Alert v-if="syncProgress[votacion.id].status === 'completed'" class="mt-2">
+                                    <CheckCircle class="h-4 w-4" />
+                                    <AlertTitle>Sincronización completada</AlertTitle>
+                                    <AlertDescription>
+                                        {{ syncProgress[votacion.id].message }}
+                                    </AlertDescription>
+                                </Alert>
+                                
+                                <Alert v-if="syncProgress[votacion.id].status === 'failed'" variant="destructive" class="mt-2">
+                                    <AlertCircle class="h-4 w-4" />
+                                    <AlertTitle>Error en sincronización</AlertTitle>
+                                    <AlertDescription>
+                                        {{ syncProgress[votacion.id].message }}
+                                    </AlertDescription>
+                                </Alert>
+                            </div>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <!-- Acta -->
+            <Card v-if="asamblea.acta_url">
+                <CardHeader>
+                    <CardTitle>Acta de la Asamblea</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <a 
+                        :href="asamblea.acta_url" 
+                        target="_blank"
+                        class="flex items-center gap-2 text-blue-600 hover:underline"
+                    >
+                        <FileText class="h-4 w-4" />
+                        Ver Acta
+                    </a>
+                </CardContent>
+            </Card>
+        </div>
+
+        <!-- Modal Añadir Participantes -->
+        <!-- Modal reutilizable para añadir participantes -->
+        <AddUsersModal
+            v-model="modalAñadirAbierto"
+            title="Añadir Participantes"
+            description="Selecciona los usuarios que deseas añadir como participantes de la asamblea"
+            :search-endpoint="route('admin.asambleas.manage-participantes', props.asamblea.id)"
+            :extra-fields="extraFieldsParticipantes"
+            search-placeholder="Buscar por nombre, email, documento o teléfono..."
+            submit-button-text="Añadir Participantes"
+            empty-message="Escribe para buscar usuarios disponibles"
+            no-results-message="No se encontraron usuarios con esa búsqueda"
+            @submit="handleAddParticipantes"
+        />
+    </AdminLayout>
+</template>
