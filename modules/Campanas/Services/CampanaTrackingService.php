@@ -33,15 +33,11 @@ class CampanaTrackingService
             $ahora = now();
             $metadata = $envio->metadata ?? [];
             
-            // Limpiar datos para evitar problemas de UTF-8
-            $cleanUserAgent = mb_convert_encoding($request->userAgent() ?? '', 'UTF-8', 'UTF-8');
-            $cleanIp = $request->ip() ?? 'unknown';
-            
             // Mantener info del dispositivo de la primera apertura
             if (!isset($metadata['device'])) {
                 $metadata['device'] = [
-                    'user_agent' => $cleanUserAgent,
-                    'ip' => $cleanIp,
+                    'user_agent' => $request->userAgent() ?? '',
+                    'ip' => $request->ip() ?? '',
                     'opened_at' => $ahora->toIso8601String(),
                 ];
             }
@@ -53,8 +49,8 @@ class CampanaTrackingService
             
             $metadata['aperturas'][] = [
                 'timestamp' => $ahora->toIso8601String(),
-                'user_agent' => $cleanUserAgent,
-                'ip' => $cleanIp,
+                'user_agent' => $request->userAgent() ?? '',
+                'ip' => $request->ip() ?? '',
             ];
             
             // Preparar TODOS los campos a actualizar
@@ -106,7 +102,7 @@ class CampanaTrackingService
     /**
      * Procesar click en enlace
      */
-    public function trackClick(string $trackingId, string $encodedUrl, Request $request): array
+    public function trackClick(string $trackingId, string $url, Request $request): array
     {
         try {
             $envio = CampanaEnvio::where('tracking_id', $trackingId)
@@ -125,14 +121,12 @@ class CampanaTrackingService
                 ];
             }
             
-            // Decodificar URL
-            $url = base64_decode($encodedUrl);
-            
-            if (!$url) {
+            // La URL ya viene decodificada del controlador
+            if (!$url || !filter_var($url, FILTER_VALIDATE_URL)) {
                 return [
                     'success' => false,
                     'message' => 'URL no válida',
-                    'url' => null
+                    'url' => $url
                 ];
             }
             
@@ -140,17 +134,12 @@ class CampanaTrackingService
             $ahora = now();
             $metadata = $envio->metadata ?? [];
             
-            // Limpiar datos para evitar problemas de UTF-8
-            $cleanUrl = mb_convert_encoding($url, 'UTF-8', 'UTF-8');
-            $cleanUserAgent = mb_convert_encoding($request->userAgent() ?? '', 'UTF-8', 'UTF-8');
-            $cleanIp = $request->ip() ?? 'unknown';
-            
             // Guardar en metadata.clicks (formato simple)
             if (!isset($metadata['clicks'])) {
                 $metadata['clicks'] = [];
             }
             $metadata['clicks'][] = [
-                'url' => $cleanUrl,
+                'url' => $url,
                 'timestamp' => $ahora->toIso8601String(),
             ];
             
@@ -159,10 +148,10 @@ class CampanaTrackingService
                 $metadata['clicks_detail'] = [];
             }
             $metadata['clicks_detail'][] = [
-                'url' => $cleanUrl,
+                'url' => $url,
                 'clicked_at' => $ahora->toIso8601String(),
-                'user_agent' => $cleanUserAgent,
-                'ip' => $cleanIp,
+                'user_agent' => $request->userAgent() ?? '',
+                'ip' => $request->ip() ?? '',
             ];
             
             // Preparar TODOS los campos a actualizar
