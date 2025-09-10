@@ -161,7 +161,7 @@ class RateLimited
      */
     public static function forWhatsApp(): static
     {
-        $limit = config('queue.rate_limits.whatsapp', 5);
+        $limit = config('queue.rate_limits.whatsapp', 1);  // Límite seguro para Evolution API
         return new static('otp_whatsapp', $limit, 1, 'whatsapp');
     }
     
@@ -176,5 +176,29 @@ class RateLimited
     public static function for(string $service, int $maxAttempts, int $decaySeconds = 1): static
     {
         return new static($service, $maxAttempts, $decaySeconds, $service);
+    }
+    
+    /**
+     * Factory method para crear middleware de campañas de email
+     * Garantiza máximo 2 emails por segundo
+     *
+     * @return static
+     */
+    public static function forCampanaEmail(): static
+    {
+        $limit = config('campanas.rate_limits.email', 2);
+        return new static('campana_email', $limit, 1, 'campana');
+    }
+    
+    /**
+     * Factory method para crear middleware de campañas de WhatsApp
+     * Garantiza máximo 1 mensaje WhatsApp por segundo - Límite seguro para Evolution API
+     *
+     * @return static
+     */
+    public static function forCampanaWhatsApp(): static
+    {
+        $limit = config('campanas.rate_limits.whatsapp', 1);  // Límite seguro para Evolution API
+        return new static('campana_whatsapp', $limit, 1, 'campana');
     }
 }

@@ -30,7 +30,7 @@ return [
     // Configuración de rate limiting específico para campañas
     'rate_limits' => [
         'email' => env('CAMPANAS_EMAIL_RATE_LIMIT', 2),      // Emails por segundo
-        'whatsapp' => env('CAMPANAS_WHATSAPP_RATE_LIMIT', 5), // WhatsApp por segundo
+        'whatsapp' => env('CAMPANAS_WHATSAPP_RATE_LIMIT', 1), // WhatsApp por segundo - Límite seguro para Evolution API
     ],
     
     // Variables disponibles para plantillas
