@@ -5,7 +5,7 @@ namespace Modules\Users\Http\Controllers\Guest;
 use Modules\Core\Http\Controllers\GuestController;
 use Modules\Core\Models\UserVerificationRequest;
 use Modules\Votaciones\Models\Votacion;
-use Modules\Core\Services\UserUpdateService;
+use Modules\Users\Services\UserUpdateService;
 use Modules\Core\Services\UserVerificationService;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;

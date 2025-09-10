@@ -96,26 +96,23 @@ class Segment extends Model
             return collect();
         }
         
-        $query = $modelClass::query();
+        // Usar withoutGlobalScopes para evitar conflictos con el trait HasTenant
+        $query = $modelClass::withoutGlobalScopes()->where('tenant_id', $this->tenant_id);
         
         // Verificar si tenemos filtros para aplicar
         if (!empty($this->filters)) {
-            // Simular request con los filtros del segmento
-            $fakeRequest = new \Illuminate\Http\Request();
-            
-            // Los filtros están guardados como: { "advanced_filters": {...} }
-            // Necesitamos pasar solo el contenido de advanced_filters
-            $filtersToApply = $this->filters['advanced_filters'] ?? $this->filters;
-            $fakeRequest->merge(['advanced_filters' => json_encode($filtersToApply)]);
-            
-            $controller = new class {
-                use \Modules\Core\Traits\HasAdvancedFilters;
-            };
-            
-            // Definir campos permitidos según el modelo
-            $allowedFields = $this->getAllowedFieldsForModel($modelClass);
-            
-            $query = $controller->applyAdvancedFilters($query, $fakeRequest, $allowedFields);
+            try {
+                $query = $this->applySegmentFilters($query, $modelClass);
+                
+            } catch (\Exception $e) {
+                // Log del error pero continuar sin filtros en caso de fallo
+                \Log::warning("Error aplicando filtros del segmento {$this->id}: " . $e->getMessage(), [
+                    'segment_id' => $this->id,
+                    'filters' => $this->filters,
+                    'model_class' => $modelClass,
+                    'exception_trace' => $e->getTraceAsString()
+                ]);
+            }
         }
         
         // Actualizar metadata
@@ -123,6 +120,119 @@ class Segment extends Model
         $this->updateMetadata(['contacts_count' => $count]);
         
         return $query->get();
+    }
+
+    /**
+     * Aplicar filtros del segmento a la query
+     */
+    protected function applySegmentFilters($query, $modelClass)
+    {
+        // Extraer filtros avanzados
+        $filtersToApply = $this->filters['advanced_filters'] ?? $this->filters;
+        
+        if (empty($filtersToApply) || !isset($filtersToApply['conditions'])) {
+            return $query;
+        }
+        
+        // Obtener campos permitidos
+        $allowedFields = $this->getAllowedFieldsForModel($modelClass);
+        
+        if (empty($allowedFields)) {
+            \Log::warning("No hay campos permitidos definidos para el modelo {$modelClass}");
+            return $query;
+        }
+        
+        // Aplicar filtros directamente sin fakeRequest
+        $operator = strtoupper($filtersToApply['operator'] ?? 'AND');
+        $conditions = $filtersToApply['conditions'] ?? [];
+        
+        // Aplicar condiciones
+        if ($operator === 'OR') {
+            $query->where(function ($q) use ($conditions, $allowedFields) {
+                foreach ($conditions as $index => $condition) {
+                    $q->orWhere(function ($subQ) use ($condition, $allowedFields, $index) {
+                        $this->applySegmentCondition($subQ, $condition, $allowedFields, $index);
+                    });
+                }
+            });
+        } else {
+            // AND (default)
+            foreach ($conditions as $index => $condition) {
+                $this->applySegmentCondition($query, $condition, $allowedFields, $index);
+            }
+        }
+        
+        return $query;
+    }
+
+    /**
+     * Aplicar una condición individual del segmento
+     */
+    protected function applySegmentCondition($query, $condition, $allowedFields, $index = 0)
+    {
+        $field = $condition['field'] ?? $condition['name'] ?? null;
+        $operator = $condition['operator'] ?? 'equals';
+        $value = $condition['value'] ?? null;
+
+        if (!$field || !in_array($field, $allowedFields)) {
+            \Log::warning("Campo no permitido o vacío en segmento {$this->id}", [
+                'field' => $field,
+                'allowed_fields' => $allowedFields,
+                'condition_index' => $index
+            ]);
+            return;
+        }
+
+        // Aplicar según el operador
+        switch ($operator) {
+            case 'equals':
+                $query->where($field, '=', $value);
+                break;
+                
+            case 'not_equals':
+                $query->where($field, '!=', $value);
+                break;
+                
+            case 'contains':
+                $query->where($field, 'like', "%{$value}%");
+                break;
+                
+            case 'not_contains':
+                $query->where($field, 'not like', "%{$value}%");
+                break;
+                
+            case 'starts_with':
+                $query->where($field, 'like', "{$value}%");
+                break;
+                
+            case 'ends_with':
+                $query->where($field, 'like', "%{$value}");
+                break;
+                
+            case 'is_empty':
+                $query->where(function ($q) use ($field) {
+                    $q->whereNull($field)->orWhere($field, '=', '');
+                });
+                break;
+                
+            case 'is_not_empty':
+                $query->where(function ($q) use ($field) {
+                    $q->whereNotNull($field)->where($field, '!=', '');
+                });
+                break;
+                
+            case 'greater_than':
+                $query->where($field, '>', $value);
+                break;
+                
+            case 'less_than':
+                $query->where($field, '<', $value);
+                break;
+                
+            default:
+                \Log::warning("Operador desconocido en segmento {$this->id}: {$operator}");
+                return;
+        }
     }
 
     /**

@@ -6,6 +6,7 @@ use Modules\Elecciones\Http\Controllers\Guest\PostulacionPublicController;
 use Modules\Asamblea\Http\Controllers\Guest\AsambleaPublicParticipantsController;
 use Modules\Geografico\Http\Controllers\Admin\GeographicController;
 use Modules\Elecciones\Http\Controllers\Guest\PostulacionPublicApiController;
+use Modules\Campanas\Http\Controllers\Guest\CampanaTrackingController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -80,4 +81,49 @@ Route::prefix('confirmar-registro')->name('registro.confirmacion.')->controller(
     Route::get('/actualizar-datos', 'showUpdateForm')->name('update-form');
     Route::post('/actualizar-datos', 'submitUpdate')->name('submit-update');
     Route::post('/check-timeout', 'checkTimeout')->name('check-timeout');
+});
+
+// MÓDULO CAMPAÑAS - Rutas públicas de tracking
+Route::prefix('t')->name('campanas.tracking.')->group(function () {
+    
+    // Pixel de tracking para apertura de emails
+    Route::get('/p/{trackingId}', [CampanaTrackingController::class, 'pixel'])
+        ->name('pixel');
+    
+    // Tracking de clicks en enlaces
+    Route::get('/c/{trackingId}/{url}', [CampanaTrackingController::class, 'click'])
+        ->name('click')
+        ->where('url', '.*'); // Permitir cualquier URL codificada
+    
+    // Tracking de descargas
+    Route::get('/d/{trackingId}/{fileId}', [CampanaTrackingController::class, 'download'])
+        ->name('download');
+    
+    // Desuscripción
+    Route::get('/u/{trackingId}', [CampanaTrackingController::class, 'unsubscribe'])
+        ->name('unsubscribe');
+    
+    // Vista web del email
+    Route::get('/w/{trackingId}', [CampanaTrackingController::class, 'webView'])
+        ->name('webview');
+    
+    // Tracking específico de WhatsApp (opcional)
+    Route::get('/wa/{trackingId}', [CampanaTrackingController::class, 'whatsapp'])
+        ->name('whatsapp');
+});
+
+// Webhooks de proveedores de email (sin prefijo para compatibilidad)
+Route::prefix('webhooks/email')->name('campanas.webhooks.')->group(function () {
+    
+    Route::post('/resend', [CampanaTrackingController::class, 'webhook'])
+        ->name('resend')
+        ->defaults('provider', 'resend');
+    
+    Route::post('/sendgrid', [CampanaTrackingController::class, 'webhook'])
+        ->name('sendgrid')
+        ->defaults('provider', 'sendgrid');
+    
+    Route::post('/mailgun', [CampanaTrackingController::class, 'webhook'])
+        ->name('mailgun')
+        ->defaults('provider', 'mailgun');
 });
