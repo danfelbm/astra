@@ -17,7 +17,9 @@ trait WithRateLimiting
         $jobClass = get_class($this);
         
         switch ($jobClass) {
-            case 'App\Jobs\Core\SendOTPEmailJob':
+            // Jobs de Email con rate limiting
+            case 'Modules\Core\Jobs\SendOTPEmailJob':  // Corregido namespace
+            case 'App\Jobs\Core\SendOTPEmailJob':  // Mantener por compatibilidad
             case 'App\Jobs\Asamblea\SendZoomAccessEmailJob':
             case 'App\Jobs\Elecciones\SendCandidaturaReminderEmailJob':
             case 'App\Jobs\Elecciones\SendCandidaturaPendienteEmailJob':
@@ -29,7 +31,9 @@ trait WithRateLimiting
                 $middlewares[] = RateLimited::forEmail();
                 break;
                 
-            case 'App\Jobs\Core\SendOTPWhatsAppJob':
+            // Jobs de WhatsApp con rate limiting
+            case 'Modules\Core\Jobs\SendOTPWhatsAppJob':  // Corregido namespace
+            case 'App\Jobs\Core\SendOTPWhatsAppJob':  // Mantener por compatibilidad
             case 'App\Jobs\Asamblea\SendZoomAccessWhatsAppJob':
             case 'App\Jobs\Elecciones\SendCandidaturaReminderWhatsAppJob':
             case 'App\Jobs\Elecciones\SendCandidaturaPendienteWhatsAppJob':

@@ -147,7 +147,7 @@ return [
 
     'rate_limits' => [
         'resend' => env('RESEND_RATE_LIMIT', 2),      // 2 emails por segundo
-        'whatsapp' => env('WHATSAPP_RATE_LIMIT', 5),  // 5 mensajes por segundo
+        'whatsapp' => env('WHATSAPP_RATE_LIMIT', 1),  // 1 mensaje por segundo - Límite seguro para Evolution API
     ],
 
 ];

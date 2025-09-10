@@ -4,7 +4,6 @@ namespace Modules\Campanas\Jobs;
 
 use Modules\Campanas\Models\CampanaEnvio;
 use Modules\Campanas\Mail\CampanaEmail;
-use Modules\Core\Jobs\Middleware\WithRateLimiting;
 use Modules\Core\Jobs\Middleware\RateLimited;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -16,7 +15,7 @@ use Illuminate\Support\Facades\Log;
 
 class SendCampanaEmailJob implements ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels, WithRateLimiting;
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     protected $tries = 3;
     protected $timeout = 30;
@@ -38,7 +37,7 @@ class SendCampanaEmailJob implements ShouldQueue
     public function middleware(): array
     {
         return [
-            new RateLimited('email'),
+            RateLimited::forCampanaEmail(), // Factory method específico para campañas de email
         ];
     }
 
