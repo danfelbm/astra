@@ -322,6 +322,69 @@ class WhatsAppService
     }
 
     /**
+     * Enviar mensaje (método usado por campañas)
+     * 
+     * @param string $telefono Número de teléfono
+     * @param string $mensaje Mensaje a enviar
+     * @param array $metadata Metadata adicional (campana_id, envio_id, etc)
+     * @return array Respuesta con success, message_id, status
+     */
+    public function enviarMensaje(string $telefono, string $mensaje, array $metadata = []): array
+    {
+        try {
+            // Si no está habilitado, retornar error
+            if (!$this->isEnabled() && $this->mode !== 'log') {
+                return [
+                    'success' => false,
+                    'message' => 'WhatsApp service is not enabled or properly configured',
+                    'status' => 'disabled'
+                ];
+            }
+
+            // Si está en modo LOG, registrar y retornar éxito
+            if ($this->isLogMode()) {
+                Log::info('[WHATSAPP CAMPAÑA - MODE LOG] Mensaje enviado satisfactoriamente', [
+                    'mode' => 'log',
+                    'to' => $telefono,
+                    'preview' => substr($mensaje, 0, 100) . '...',
+                    'metadata' => $metadata,
+                    'timestamp' => now()->toISOString(),
+                ]);
+
+                return [
+                    'success' => true,
+                    'message_id' => 'LOG_' . uniqid(),
+                    'status' => 'sent_log',
+                    'message' => 'Mensaje registrado en modo LOG'
+                ];
+            }
+
+            // En modo producción, usar el método sendMessage existente
+            $result = $this->sendMessage($telefono, $mensaje);
+            
+            return [
+                'success' => $result,
+                'message_id' => $result ? uniqid() : null,
+                'status' => $result ? 'sent' : 'failed',
+                'message' => $result ? 'Mensaje enviado exitosamente' : 'Error al enviar mensaje'
+            ];
+
+        } catch (\Exception $e) {
+            Log::error('Error en enviarMensaje', [
+                'telefono' => $telefono,
+                'error' => $e->getMessage(),
+                'metadata' => $metadata
+            ]);
+
+            return [
+                'success' => false,
+                'message' => $e->getMessage(),
+                'status' => 'error'
+            ];
+        }
+    }
+
+    /**
      * Obtener estadísticas del servicio
      */
     public function getStats(): array

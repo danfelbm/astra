@@ -1,0 +1,536 @@
+<script setup lang="ts">
+import { Button } from "@modules/Core/Resources/js/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@modules/Core/Resources/js/components/ui/card";
+import { Input } from "@modules/Core/Resources/js/components/ui/input";
+import { Label } from "@modules/Core/Resources/js/components/ui/label";
+import { Textarea } from "@modules/Core/Resources/js/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@modules/Core/Resources/js/components/ui/select";
+import { Switch } from "@modules/Core/Resources/js/components/ui/switch";
+import { Alert, AlertDescription } from "@modules/Core/Resources/js/components/ui/alert";
+import { RadioGroup, RadioGroupItem } from "@modules/Core/Resources/js/components/ui/radio-group";
+import { type BreadcrumbItemType } from '@/types';
+import AdminLayout from "@modules/Core/Resources/js/layouts/AdminLayout.vue";
+import SegmentSelector from "@modules/Campanas/Resources/js/Components/SegmentSelector.vue";
+import { Head, useForm, router } from '@inertiajs/vue3';
+import { ArrowLeft, Save, Send, Mail, MessageSquare, Calendar, Users, Info, AlertCircle } from 'lucide-vue-next';
+import { ref, computed, watch } from 'vue';
+import { toast } from 'vue-sonner';
+
+interface Segmento {
+    id: number;
+    nombre: string;
+    descripcion?: string;
+    tipo: string;
+    count: number;
+}
+
+interface Plantilla {
+    id: number;
+    nombre: string;
+    asunto?: string;
+    descripcion?: string;
+    variables_usadas?: string[];
+}
+
+interface Campana {
+    id?: number;
+    nombre: string;
+    descripcion?: string;
+    tipo: 'email' | 'whatsapp' | 'ambos';
+    estado?: string;
+    segment_id?: number;
+    plantilla_email_id?: number;
+    plantilla_whatsapp_id?: number;
+    fecha_programada?: string;
+    configuracion?: any;
+}
+
+interface Props {
+    campana?: Campana | null;
+    segmentos?: Segmento[];
+    plantillasEmail?: Plantilla[];
+    plantillasWhatsApp?: Plantilla[];
+    tiposOptions?: string[];
+    estadosOptions?: string[];
+    batchSizeEmailDefault?: number;
+    batchSizeWhatsAppDefault?: number;
+    whatsAppDelayDefault?: { min: number; max: number };
+}
+
+const props = withDefaults(defineProps<Props>(), {
+    segmentos: () => [],
+    plantillasEmail: () => [],
+    plantillasWhatsApp: () => [],
+    tiposOptions: () => ['email', 'whatsapp', 'ambos']
+});
+
+const isEditing = computed(() => !!props.campana?.id);
+
+const breadcrumbs: BreadcrumbItemType[] = [
+    { title: 'Admin', href: '/admin/dashboard' },
+    { title: 'Campañas', href: '/admin/campanas' },
+    { title: isEditing.value ? 'Editar Campaña' : 'Nueva Campaña', href: '#' },
+];
+
+const form = useForm({
+    nombre: props.campana?.nombre || '',
+    descripcion: props.campana?.descripcion || '',
+    tipo: props.campana?.tipo || 'email',
+    estado: props.campana?.estado || 'borrador',
+    segment_id: props.campana?.segment_id || null,
+    plantilla_email_id: props.campana?.plantilla_email_id || null,
+    plantilla_whatsapp_id: props.campana?.plantilla_whatsapp_id || null,
+    fecha_programada: props.campana?.fecha_programada || '',
+    es_programada: !!props.campana?.fecha_programada,
+    configuracion: {
+        batch_size_email: props.campana?.configuracion?.batch_size_email || props.batchSizeEmailDefault || 50,
+        batch_size_whatsapp: props.campana?.configuracion?.batch_size_whatsapp || props.batchSizeWhatsAppDefault || 100,
+        delay_between_batches: props.campana?.configuracion?.delay_between_batches || 2,
+        whatsapp_delay_min: props.campana?.configuracion?.whatsapp_delay_min || props.whatsAppDelayDefault?.min || 3,
+        whatsapp_delay_max: props.campana?.configuracion?.whatsapp_delay_max || props.whatsAppDelayDefault?.max || 10,
+        enable_tracking: props.campana?.configuracion?.enable_tracking ?? true,
+        enable_pixel_tracking: props.campana?.configuracion?.enable_pixel_tracking ?? true,
+        enable_click_tracking: props.campana?.configuracion?.enable_click_tracking ?? true,
+    }
+});
+
+const selectedSegment = computed(() => {
+    return props.segmentos.find(s => s.id === form.segment_id);
+});
+
+const requiresEmail = computed(() => form.tipo === 'email' || form.tipo === 'ambos');
+const requiresWhatsApp = computed(() => form.tipo === 'whatsapp' || form.tipo === 'ambos');
+
+watch(() => form.tipo, (newTipo) => {
+    // Limpiar plantillas no necesarias según el tipo
+    if (newTipo === 'email') {
+        form.plantilla_whatsapp_id = null;
+    } else if (newTipo === 'whatsapp') {
+        form.plantilla_email_id = null;
+    }
+});
+
+const submit = () => {
+    // Validaciones adicionales
+    if (!form.segment_id) {
+        toast.error('Debes seleccionar un segmento');
+        return;
+    }
+    
+    if (requiresEmail.value && !form.plantilla_email_id) {
+        toast.error('Debes seleccionar una plantilla de email');
+        return;
+    }
+    
+    if (requiresWhatsApp.value && !form.plantilla_whatsapp_id) {
+        toast.error('Debes seleccionar una plantilla de WhatsApp');
+        return;
+    }
+
+    if (isEditing.value) {
+        form.put(`/admin/campanas/${props.campana?.id}`, {
+            onSuccess: () => {
+                toast.success('Campaña actualizada exitosamente');
+            },
+            onError: () => {
+                toast.error('Error al actualizar la campaña');
+            }
+        });
+    } else {
+        form.post('/admin/campanas', {
+            onSuccess: () => {
+                toast.success('Campaña creada exitosamente');
+            },
+            onError: () => {
+                toast.error('Error al crear la campaña');
+            }
+        });
+    }
+};
+
+const canSubmit = computed(() => {
+    return form.nombre && 
+           form.segment_id && 
+           !form.processing &&
+           (requiresEmail.value ? form.plantilla_email_id : true) &&
+           (requiresWhatsApp.value ? form.plantilla_whatsapp_id : true);
+});
+
+// Método para toggle de programación
+const toggleProgramacion = (value) => {
+    form.es_programada = value;
+    
+    if (!value) {
+        form.fecha_programada = '';
+    }
+};
+
+// Métodos para tracking switches
+const togglePixelTracking = (value) => {
+    form.configuracion.enable_pixel_tracking = value;
+};
+
+const toggleClickTracking = (value) => {
+    form.configuracion.enable_click_tracking = value;
+};
+</script>
+
+<template>
+    <AdminLayout :breadcrumbs="breadcrumbs">
+        <Head :title="isEditing ? 'Editar Campaña' : 'Nueva Campaña'" />
+
+        <div class="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
+            <form @submit.prevent="submit" class="space-y-6">
+                <div class="flex justify-between items-center">
+                <div>
+                    <h1 class="text-3xl font-bold">
+                        {{ isEditing ? 'Editar Campaña' : 'Nueva Campaña' }}
+                    </h1>
+                    <p class="text-muted-foreground mt-1">
+                        {{ isEditing 
+                            ? 'Modifica los detalles de la campaña' 
+                            : 'Configura y programa tu campaña de comunicación' 
+                        }}
+                    </p>
+                </div>
+                <div class="flex gap-2">
+                    <Button 
+                        type="button" 
+                        variant="outline"
+                        @click="router.visit('/admin/campanas')"
+                    >
+                        <ArrowLeft class="w-4 h-4 mr-2" />
+                        Cancelar
+                    </Button>
+                    <Button
+                        type="submit"
+                        :disabled="!canSubmit"
+                    >
+                        <Save class="w-4 h-4 mr-2" />
+                        {{ isEditing ? 'Actualizar' : 'Guardar' }} Campaña
+                    </Button>
+                </div>
+            </div>
+
+            <Alert v-if="Object.keys(form.errors).length > 0" variant="destructive">
+                <AlertCircle class="h-4 w-4" />
+                <AlertDescription>
+                    <ul class="list-disc pl-4">
+                        <li v-for="(error, key) in form.errors" :key="key">
+                            {{ error }}
+                        </li>
+                    </ul>
+                </AlertDescription>
+            </Alert>
+
+            <!-- Información Básica -->
+            <Card>
+                <CardHeader>
+                    <CardTitle>Información Básica</CardTitle>
+                    <CardDescription>
+                        Define el nombre y tipo de campaña
+                    </CardDescription>
+                </CardHeader>
+                <CardContent class="space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <Label htmlFor="nombre">
+                                Nombre de la Campaña <span class="text-destructive">*</span>
+                            </Label>
+                            <Input
+                                id="nombre"
+                                v-model="form.nombre"
+                                placeholder="Ej: Recordatorio Asamblea General"
+                                :error="form.errors.nombre"
+                            />
+                        </div>
+                        <div>
+                            <Label>Tipo de Campaña <span class="text-destructive">*</span></Label>
+                            <RadioGroup v-model="form.tipo" class="flex flex-wrap gap-4 mt-2">
+                                <div class="flex items-center space-x-2">
+                                    <RadioGroupItem value="email" id="tipo-email" />
+                                    <Label htmlFor="tipo-email" class="flex items-center gap-1 cursor-pointer">
+                                        <Mail class="w-4 h-4" />
+                                        Email
+                                    </Label>
+                                </div>
+                                <div class="flex items-center space-x-2">
+                                    <RadioGroupItem value="whatsapp" id="tipo-whatsapp" />
+                                    <Label htmlFor="tipo-whatsapp" class="flex items-center gap-1 cursor-pointer">
+                                        <MessageSquare class="w-4 h-4" />
+                                        WhatsApp
+                                    </Label>
+                                </div>
+                                <div class="flex items-center space-x-2">
+                                    <RadioGroupItem value="ambos" id="tipo-ambos" />
+                                    <Label htmlFor="tipo-ambos" class="flex items-center gap-1 cursor-pointer">
+                                        <Send class="w-4 h-4" />
+                                        Ambos
+                                    </Label>
+                                </div>
+                            </RadioGroup>
+                        </div>
+                    </div>
+                    <div>
+                        <Label htmlFor="descripcion">Descripción</Label>
+                        <Textarea
+                            id="descripcion"
+                            v-model="form.descripcion"
+                            placeholder="Describe el objetivo de esta campaña..."
+                            rows="3"
+                        />
+                    </div>
+                </CardContent>
+            </Card>
+
+            <!-- Selección de Segmento -->
+            <Card>
+                <CardHeader>
+                    <CardTitle>Audiencia</CardTitle>
+                    <CardDescription>
+                        Selecciona el segmento de usuarios que recibirá esta campaña
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <SegmentSelector
+                        v-model="form.segment_id"
+                        :segments="segmentos"
+                    />
+                    <div v-if="selectedSegment" class="mt-4 p-3 bg-muted rounded-md">
+                        <div class="flex items-center gap-2 text-sm">
+                            <Users class="w-4 h-4" />
+                            <span class="font-medium">{{ selectedSegment.count }} usuarios</span>
+                            <span class="text-muted-foreground">recibirán esta campaña</span>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <!-- Selección de Plantillas -->
+            <Card v-if="requiresEmail">
+                <CardHeader>
+                    <CardTitle>Plantilla de Email</CardTitle>
+                    <CardDescription>
+                        Selecciona la plantilla de email a utilizar
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <Select v-model="form.plantilla_email_id">
+                        <SelectTrigger>
+                            <SelectValue placeholder="Selecciona una plantilla" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem 
+                                v-for="plantilla in plantillasEmail" 
+                                :key="plantilla.id"
+                                :value="plantilla.id.toString()"
+                            >
+                                <div>
+                                    <div class="font-medium">{{ plantilla.nombre }}</div>
+                                    <div v-if="plantilla.asunto" class="text-xs text-muted-foreground">
+                                        Asunto: {{ plantilla.asunto }}
+                                    </div>
+                                </div>
+                            </SelectItem>
+                        </SelectContent>
+                    </Select>
+                </CardContent>
+            </Card>
+
+            <Card v-if="requiresWhatsApp">
+                <CardHeader>
+                    <CardTitle>Plantilla de WhatsApp</CardTitle>
+                    <CardDescription>
+                        Selecciona la plantilla de WhatsApp a utilizar
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <Select v-model="form.plantilla_whatsapp_id">
+                        <SelectTrigger>
+                            <SelectValue placeholder="Selecciona una plantilla" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem 
+                                v-for="plantilla in plantillasWhatsApp" 
+                                :key="plantilla.id"
+                                :value="plantilla.id.toString()"
+                            >
+                                <div>
+                                    <div class="font-medium">{{ plantilla.nombre }}</div>
+                                    <div v-if="plantilla.descripcion" class="text-xs text-muted-foreground">
+                                        {{ plantilla.descripcion }}
+                                    </div>
+                                </div>
+                            </SelectItem>
+                        </SelectContent>
+                    </Select>
+                </CardContent>
+            </Card>
+
+            <!-- Programación -->
+            <Card>
+                <CardHeader>
+                    <CardTitle>Programación</CardTitle>
+                    <CardDescription>
+                        Define cuándo se enviará la campaña
+                    </CardDescription>
+                </CardHeader>
+                <CardContent class="space-y-4">
+                    <div class="flex items-center space-x-2">
+                        <!-- TOGGLE CUSTOM QUE FUNCIONA -->
+                        <button
+                            type="button"
+                            @click="toggleProgramacion(!form.es_programada)"
+                            :class="[
+                                'inline-flex h-[1.15rem] w-8 shrink-0 items-center rounded-full border border-transparent shadow-xs transition-all outline-none focus-visible:ring-[3px] cursor-pointer',
+                                form.es_programada 
+                                    ? 'bg-primary' 
+                                    : 'bg-input'
+                            ]"
+                            :aria-checked="form.es_programada"
+                            role="switch"
+                        >
+                            <span
+                                :class="[
+                                    'pointer-events-none block size-4 rounded-full bg-background ring-0 transition-transform',
+                                    form.es_programada 
+                                        ? 'translate-x-[calc(100%-2px)]' 
+                                        : 'translate-x-0'
+                                ]"
+                            ></span>
+                        </button>
+                        <Label @click="toggleProgramacion(!form.es_programada)" class="cursor-pointer">Programar envío</Label>
+                    </div>
+                    <div v-if="form.es_programada" class="space-y-2">
+                        <Label htmlFor="fecha_programada">
+                            Fecha y hora de envío <span class="text-destructive">*</span>
+                        </Label>
+                        <Input
+                            id="fecha_programada"
+                            type="datetime-local"
+                            v-model="form.fecha_programada"
+                            :min="new Date().toISOString().slice(0, 16)"
+                            class="w-full"
+                            required
+                        />
+                        <p class="text-xs text-muted-foreground">
+                            La campaña se enviará automáticamente en la fecha y hora seleccionada
+                        </p>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <!-- Configuración Avanzada -->
+            <Card>
+                <CardHeader>
+                    <CardTitle>Configuración Avanzada</CardTitle>
+                    <CardDescription>
+                        Ajusta los parámetros de envío y tracking
+                    </CardDescription>
+                </CardHeader>
+                <CardContent class="space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div v-if="requiresEmail">
+                            <Label htmlFor="batch_size_email">
+                                Tamaño de lote (Email)
+                            </Label>
+                            <Input
+                                id="batch_size_email"
+                                type="number"
+                                v-model.number="form.configuracion.batch_size_email"
+                                min="1"
+                                max="500"
+                            />
+                            <p class="text-xs text-muted-foreground mt-1">
+                                Emails por lote (recomendado: 50)
+                            </p>
+                        </div>
+                        <div v-if="requiresWhatsApp">
+                            <Label htmlFor="batch_size_whatsapp">
+                                Tamaño de lote (WhatsApp)
+                            </Label>
+                            <Input
+                                id="batch_size_whatsapp"
+                                type="number"
+                                v-model.number="form.configuracion.batch_size_whatsapp"
+                                min="1"
+                                max="500"
+                            />
+                            <p class="text-xs text-muted-foreground mt-1">
+                                Mensajes por lote (recomendado: 100)
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <div v-if="requiresEmail" class="space-y-2">
+                        <Label>Opciones de Tracking</Label>
+                        <div class="space-y-2">
+                            <div class="flex items-center space-x-2">
+                                <button
+                                    type="button"
+                                    @click="togglePixelTracking(!form.configuracion.enable_pixel_tracking)"
+                                    :class="[
+                                        'inline-flex h-[1.15rem] w-8 shrink-0 items-center rounded-full border border-transparent shadow-xs transition-all outline-none focus-visible:ring-[3px] cursor-pointer',
+                                        form.configuracion.enable_pixel_tracking 
+                                            ? 'bg-primary' 
+                                            : 'bg-input'
+                                    ]"
+                                    :aria-checked="form.configuracion.enable_pixel_tracking"
+                                    role="switch"
+                                >
+                                    <span
+                                        :class="[
+                                            'pointer-events-none block size-4 rounded-full bg-background ring-0 transition-transform',
+                                            form.configuracion.enable_pixel_tracking 
+                                                ? 'translate-x-[calc(100%-2px)]' 
+                                                : 'translate-x-0'
+                                        ]"
+                                    ></span>
+                                </button>
+                                <Label class="font-normal cursor-pointer" @click="togglePixelTracking(!form.configuracion.enable_pixel_tracking)">
+                                    Tracking de apertura (pixel)
+                                </Label>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <button
+                                    type="button"
+                                    @click="toggleClickTracking(!form.configuracion.enable_click_tracking)"
+                                    :class="[
+                                        'inline-flex h-[1.15rem] w-8 shrink-0 items-center rounded-full border border-transparent shadow-xs transition-all outline-none focus-visible:ring-[3px] cursor-pointer',
+                                        form.configuracion.enable_click_tracking 
+                                            ? 'bg-primary' 
+                                            : 'bg-input'
+                                    ]"
+                                    :aria-checked="form.configuracion.enable_click_tracking"
+                                    role="switch"
+                                >
+                                    <span
+                                        :class="[
+                                            'pointer-events-none block size-4 rounded-full bg-background ring-0 transition-transform',
+                                            form.configuracion.enable_click_tracking 
+                                                ? 'translate-x-[calc(100%-2px)]' 
+                                                : 'translate-x-0'
+                                        ]"
+                                    ></span>
+                                </button>
+                                <Label class="font-normal cursor-pointer" @click="toggleClickTracking(!form.configuracion.enable_click_tracking)">
+                                    Tracking de clicks
+                                </Label>
+                            </div>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <Alert>
+                <Info class="h-4 w-4" />
+                <AlertDescription>
+                    La campaña se guardará en estado <strong>borrador</strong>. 
+                    Podrás revisarla y enviarla desde el listado de campañas.
+                </AlertDescription>
+            </Alert>
+
+            </form>
+        </div>
+    </AdminLayout>
+</template>

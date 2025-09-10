@@ -5,7 +5,7 @@ import NavUser from "./NavUser.vue";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "./ui/sidebar";
 import { type NavItem, type SharedData, type User } from '@/types';
 import { usePage } from '@inertiajs/vue3';
-import { Folder, LayoutGrid, Vote, Users, BarChart3, FileText, Settings, Briefcase, Calendar, Megaphone, UserCheck, ClipboardList, Building2, Shield, Target, UserCog, Database, Lock, ExternalLink } from 'lucide-vue-next';
+import { Folder, LayoutGrid, Vote, Users, BarChart3, FileText, Settings, Briefcase, Calendar, Megaphone, UserCheck, ClipboardList, Building2, Shield, Target, UserCog, Database, Lock, ExternalLink, Mail, MessageSquare, Send } from 'lucide-vue-next';
 import { computed } from 'vue';
 import AppLogo from './AppLogo.vue';
 
@@ -239,6 +239,40 @@ const mainNavItems = computed<NavItem[]>(() => {
                 title: 'Votaciones',
                 url: '/admin/votaciones',
                 icon: Vote,
+            });
+        }
+
+        // Sección Campañas - Email y WhatsApp
+        const campanasItems: NavItem[] = [];
+        
+        if (hasPermission('campanas.plantillas.view')) {
+            campanasItems.push({
+                title: 'Plantillas Email',
+                url: '/admin/campanas/plantillas-email',
+                icon: Mail,
+            });
+            campanasItems.push({
+                title: 'Plantillas WhatsApp',
+                url: '/admin/campanas/plantillas-whatsapp',
+                icon: MessageSquare,
+            });
+        }
+        
+        if (hasPermission('campanas.view')) {
+            campanasItems.push({
+                title: 'Campañas',
+                url: '/admin/campanas',
+                icon: Send,
+            });
+        }
+        
+        // Solo agregar la sección si hay elementos
+        if (campanasItems.length > 0) {
+            items.push({
+                title: 'Campañas',
+                icon: Send,
+                isCollapsible: true,
+                items: campanasItems,
             });
         }
 
