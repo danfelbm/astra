@@ -62,7 +62,24 @@ class CampanaRepository
         $sortDirection = $request->get('sort_direction', 'desc');
         $query->orderBy($sortField, $sortDirection);
         
-        return $query->paginate($perPage)->withQueryString();
+        return $query->paginate($perPage)
+            ->withQueryString()
+            ->through(function ($campana) {
+                // Agregar conteo real del segmento
+                if ($campana->segment) {
+                    $campana->segment->users_count = $campana->segment->getCount();
+                }
+                
+                // Agregar progreso calculado
+                $campana->progreso = $campana->getProgreso();
+                
+                // Asegurar que las métricas estén actualizadas
+                if ($campana->metrica) {
+                    $campana->metricas = $campana->metrica->toArray();
+                }
+                
+                return $campana;
+            });
     }
 
     /**

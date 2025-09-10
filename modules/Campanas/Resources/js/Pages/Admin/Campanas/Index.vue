@@ -3,6 +3,7 @@ import { Badge } from "@modules/Core/Resources/js/components/ui/badge";
 import { Button } from "@modules/Core/Resources/js/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@modules/Core/Resources/js/components/ui/card";
 import { Input } from "@modules/Core/Resources/js/components/ui/input";
+import { Progress } from "@modules/Core/Resources/js/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@modules/Core/Resources/js/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@modules/Core/Resources/js/components/ui/table";
 import { type BreadcrumbItemType } from '@/types';
@@ -20,6 +21,13 @@ interface Campana {
     estado: 'borrador' | 'programada' | 'enviando' | 'completada' | 'pausada' | 'cancelada';
     segment?: { id: number; name: string; users_count: number };
     metricas?: any;
+    progreso?: {
+        porcentaje: number;
+        enviados: number;
+        pendientes: number;
+        fallidos: number;
+        total: number;
+    };
     fecha_programada?: string;
     fecha_inicio?: string;
     fecha_fin?: string;
@@ -180,10 +188,24 @@ const getTipoIcon = (tipo: string) => {
                                     </Badge>
                                 </TableCell>
                                 <TableCell>
-                                    <div v-if="campana.metricas" class="text-sm">
-                                        <div>{{ campana.metricas.total_enviados || 0 }} / {{ campana.metricas.total_destinatarios || 0 }}</div>
-                                        <div class="text-muted-foreground">
-                                            {{ ((campana.metricas.total_enviados || 0) / (campana.metricas.total_destinatarios || 1) * 100).toFixed(0) }}%
+                                    <div v-if="campana.progreso" class="space-y-1">
+                                        <Progress 
+                                            :value="campana.progreso.porcentaje || 0" 
+                                            class="w-full h-2"
+                                        />
+                                        <div class="flex justify-between text-xs text-muted-foreground">
+                                            <span>{{ campana.progreso.enviados || 0 }} / {{ campana.progreso.total || 0 }}</span>
+                                            <span>{{ campana.progreso.porcentaje || 0 }}%</span>
+                                        </div>
+                                    </div>
+                                    <div v-else-if="campana.metricas" class="space-y-1">
+                                        <Progress 
+                                            :value="((campana.metricas.total_enviados || 0) / (campana.metricas.total_destinatarios || 1) * 100)" 
+                                            class="w-full h-2"
+                                        />
+                                        <div class="flex justify-between text-xs text-muted-foreground">
+                                            <span>{{ campana.metricas.total_enviados || 0 }} / {{ campana.metricas.total_destinatarios || 0 }}</span>
+                                            <span>{{ ((campana.metricas.total_enviados || 0) / (campana.metricas.total_destinatarios || 1) * 100).toFixed(0) }}%</span>
                                         </div>
                                     </div>
                                     <span v-else class="text-sm text-muted-foreground">-</span>
