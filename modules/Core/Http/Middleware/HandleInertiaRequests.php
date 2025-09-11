@@ -53,7 +53,7 @@ class HandleInertiaRequests extends Middleware
             if (app()->bound(\Modules\Core\Services\TenantService::class)) {
                 $tenantService = app(\Modules\Core\Services\TenantService::class);
                 $currentTenant = $tenantService->getCurrentTenant();
-                $availableTenants = \App\Models\Tenant::where('active', true)
+                $availableTenants = \Modules\Tenant\Models\Tenant::where('active', true)
                     ->select(['id', 'name', 'subdomain', 'active', 'subscription_plan'])
                     ->orderBy('name')
                     ->get();

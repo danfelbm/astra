@@ -301,7 +301,7 @@ class TenantController extends AdminController
     private function createSystemRolesForTenant(Tenant $tenant): void
     {
         // Obtener roles del sistema (excluyendo super_admin)
-        $systemRoles = \App\Models\Role::systemRoles()
+        $systemRoles = \Modules\Core\Models\Role::systemRoles()
             ->where('name', '!=', 'super_admin')
             ->get();
         

@@ -3,7 +3,7 @@
 namespace Tests\Unit\RateLimit;
 
 use Tests\TestCase;
-use App\Jobs\Middleware\RateLimited;
+use Modules\Core\Jobs\Middleware\RateLimited;
 use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Config;

@@ -92,7 +92,7 @@ class VerifyLargeCsvSetup extends Command
         $this->info('⚙️ Verificando Job optimizado...');
 
         try {
-            $reflection = new ReflectionClass('App\Jobs\ProcessUsersCsvImport');
+            $reflection = new ReflectionClass('Modules\Imports\Jobs\ProcessUsersCsvImport');
             $timeoutProperty = $reflection->getProperty('timeout');
             $jobTimeout = $timeoutProperty->getDefaultValue();
             
