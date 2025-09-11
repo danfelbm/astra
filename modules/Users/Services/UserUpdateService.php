@@ -326,7 +326,7 @@ class UserUpdateService
         
         // Enviar email
         try {
-            \Mail::to($user->email)->send(new \App\Mail\Core\UpdateApprovedMail($user, $request));
+            \Mail::to($user->email)->send(new \Modules\Users\Mail\UpdateApprovedMail($user, $request));
         } catch (\Exception $e) {
             Log::error('Error enviando email de aprobación', [
                 'error' => $e->getMessage(),
@@ -350,7 +350,7 @@ class UserUpdateService
         
         // Enviar email
         try {
-            \Mail::to($user->email)->send(new \App\Mail\Core\UpdateRejectedMail($user, $request));
+            \Mail::to($user->email)->send(new \Modules\Users\Mail\UpdateRejectedMail($user, $request));
         } catch (\Exception $e) {
             Log::error('Error enviando email de rechazo', [
                 'error' => $e->getMessage(),

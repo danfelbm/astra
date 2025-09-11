@@ -263,7 +263,7 @@ trait HasAuditLog
         $properties['timestamp'] = now()->toISOString();
         
         // Agregar tenant_id si el modelo usa HasTenant
-        if (in_array('App\Traits\HasTenant', class_uses($this))) {
+        if (in_array('Modules\Core\Traits\HasTenant', class_uses($this))) {
             $properties['tenant_id'] = $this->tenant_id;
         }
         

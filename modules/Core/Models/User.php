@@ -28,7 +28,7 @@ use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
+    /** @use HasFactory<\Modules\Core\Database\Factories\UserFactory> */
     use HasFactory, Notifiable, HasApiTokens, HasTenant, HasRoles;
 
     /**

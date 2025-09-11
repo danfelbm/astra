@@ -198,7 +198,7 @@ class GlobalSettingsService
      */
     public static function getOTPStats(): array
     {
-        $otpService = new \App\Services\OTPService();
+        $otpService = new \Modules\Core\Services\OTPService();
         return $otpService->getStats();
     }
 

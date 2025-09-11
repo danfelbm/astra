@@ -763,7 +763,7 @@ class Candidatura extends Model
                     'candidatura_id' => $this->id
                 ]);
                 
-                \App\Jobs\SendCandidaturaComentarioEmailJob::dispatch(
+                \Modules\Elecciones\Jobs\SendCandidaturaComentarioEmailJob::dispatch(
                     $usuario->email,
                     $usuario->name,
                     $this->id,

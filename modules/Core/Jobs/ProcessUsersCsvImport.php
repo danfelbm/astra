@@ -648,7 +648,7 @@ class ProcessUsersCsvImport implements ShouldQueue
             $defaultRoleId = env('DEFAULT_USER_ROLE_ID', 4);
             
             // Asignar rol usando Spatie Laravel Permission
-            $role = \App\Models\Role::find($defaultRoleId);
+            $role = \Modules\Core\Models\Role::find($defaultRoleId);
             if ($role) {
                 $user->assignRole($role->name);
             } else {
@@ -677,7 +677,7 @@ class ProcessUsersCsvImport implements ShouldQueue
                 
                 if (!$existingAssignment) {
                     // Obtener el tenant_id de la votación misma
-                    $votacion = \App\Models\Votacion::find($this->csvImport->votacion_id);
+                    $votacion = \Modules\Votaciones\Models\Votacion::find($this->csvImport->votacion_id);
                     if (!$votacion) {
                         Log::error("Votación {$this->csvImport->votacion_id} no encontrada");
                         return;

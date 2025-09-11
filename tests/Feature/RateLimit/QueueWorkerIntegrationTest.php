@@ -288,12 +288,12 @@ class QueueWorkerIntegrationTest extends TestCase
         // Assert
         $this->assertNotEmpty($middleware);
         $this->assertContainsOnlyInstancesOf(
-            \App\Jobs\Middleware\RateLimited::class,
+            \Modules\Core\Jobs\Middleware\RateLimited::class,
             $middleware
         );
         
         // Verify the middleware is properly configured
         $rateLimitedMiddleware = $middleware[0];
-        $this->assertInstanceOf(\App\Jobs\Middleware\RateLimited::class, $rateLimitedMiddleware);
+        $this->assertInstanceOf(\Modules\Core\Jobs\Middleware\RateLimited::class, $rateLimitedMiddleware);
     }
 }

@@ -273,7 +273,7 @@ class UserVerificationService
             ]);
             
             // Enviar email directamente
-            \Mail::to($user->email)->send(new \App\Mail\Core\UserVerificationMail($user->name, $code, 'email'));
+            \Mail::to($user->email)->send(new \Modules\Core\Mail\UserVerificationMail($user->name, $code, 'email'));
             
             Log::info('Código de verificación enviado por email', [
                 'user_id' => $user->id,

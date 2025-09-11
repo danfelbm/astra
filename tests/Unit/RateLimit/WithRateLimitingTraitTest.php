@@ -3,11 +3,11 @@
 namespace Tests\Unit\RateLimit;
 
 use Tests\TestCase;
-use App\Jobs\Middleware\WithRateLimiting;
+use Modules\Core\Jobs\Middleware\WithRateLimiting;
 use Modules\Core\Jobs\SendOTPEmailJob;
 use Modules\Core\Jobs\SendOTPWhatsAppJob;
-use App\Jobs\Assembly\SendZoomAccessEmailJob;
-use App\Jobs\Assembly\SendZoomAccessWhatsAppJob;
+use Modules\Asamblea\Jobs\SendZoomAccessEmailJob;
+use Modules\Asamblea\Jobs\SendZoomAccessWhatsAppJob;
 use Illuminate\Support\Facades\Config;
 
 /**
@@ -123,19 +123,19 @@ class WithRateLimitingTraitTest extends TestCase
         
         // All should have RateLimited middleware
         $this->assertContainsOnlyInstancesOf(
-            \App\Jobs\Middleware\RateLimited::class,
+            \Modules\Core\Jobs\Middleware\RateLimited::class,
             $emailMiddleware
         );
         $this->assertContainsOnlyInstancesOf(
-            \App\Jobs\Middleware\RateLimited::class,
+            \Modules\Core\Jobs\Middleware\RateLimited::class,
             $whatsappMiddleware
         );
         $this->assertContainsOnlyInstancesOf(
-            \App\Jobs\Middleware\RateLimited::class,
+            \Modules\Core\Jobs\Middleware\RateLimited::class,
             $zoomEmailMiddleware
         );
         $this->assertContainsOnlyInstancesOf(
-            \App\Jobs\Middleware\RateLimited::class,
+            \Modules\Core\Jobs\Middleware\RateLimited::class,
             $zoomWhatsappMiddleware
         );
     }

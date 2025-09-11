@@ -1207,7 +1207,7 @@ class CandidaturaController extends AdminController
             try {
                 // Enviar email si está habilitado
                 if ($incluirEmail && !empty($usuario->email)) {
-                    \App\Jobs\SendCandidaturaPendienteEmailJob::dispatch(
+                    \Modules\Elecciones\Jobs\SendCandidaturaPendienteEmailJob::dispatch(
                         $usuario->email,
                         $usuario->name,
                         $candidatura->id
@@ -1217,7 +1217,7 @@ class CandidaturaController extends AdminController
 
                 // Enviar WhatsApp si está habilitado y el usuario tiene teléfono
                 if ($incluirWhatsApp && !empty($usuario->telefono)) {
-                    \App\Jobs\SendCandidaturaPendienteWhatsAppJob::dispatch(
+                    \Modules\Elecciones\Jobs\SendCandidaturaPendienteWhatsAppJob::dispatch(
                         $usuario->telefono,
                         $usuario->name,
                         $candidatura->id

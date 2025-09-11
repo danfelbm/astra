@@ -11,11 +11,16 @@ return new class extends Migration
     public function up(): void
     {
         // Usar SQL directo para establecer el valor por defecto con las barras invertidas correctas
-        DB::statement("ALTER TABLE votacion_usuario ALTER COLUMN model_type SET DEFAULT 'App\\\\Models\\\\Core\\\\User'");
+        DB::statement("ALTER TABLE votacion_usuario ALTER COLUMN model_type SET DEFAULT 'Modules\\\\Core\\\\Models\\\\User'");
         
         // También actualizar cualquier registro existente que tenga el valor incorrecto
         DB::table('votacion_usuario')
             ->where('model_type', 'AppModelsCoreUser')
+            ->update(['model_type' => 'Modules\Core\Models\User']);
+        
+        // También actualizar registros con el namespace antiguo App\
+        DB::table('votacion_usuario')
+            ->where('model_type', 'App\Models\Core\User')
             ->update(['model_type' => 'Modules\Core\Models\User']);
     }
 
