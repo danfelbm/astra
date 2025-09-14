@@ -1,1 +1,0 @@
-import{a}from"./createLucideIcon-B5EYnBBV.js";import{d as n,i as o,e as r,n as t,u as c}from"./app-BBR7iRWB.js";const i=n({__name:"Skeleton",props:{class:{}},setup(e){const s=e;return(l,m)=>(r(),o("div",{class:t(c(a)("animate-pulse rounded-md bg-muted",s.class))},null,2))}});export{i as _};

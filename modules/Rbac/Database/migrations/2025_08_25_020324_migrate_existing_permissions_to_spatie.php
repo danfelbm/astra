@@ -53,17 +53,24 @@ return new class extends Migration
         
         foreach ($roles as $role) {
             if (!empty($role->permissions)) {
-                foreach ($role->permissions as $permissionName) {
-                    // Buscar o crear el permiso
-                    $permission = Permission::firstOrCreate(
-                        ['name' => $permissionName, 'guard_name' => 'web']
-                    );
-                    
-                    // Asignar el permiso al rol usando la tabla pivot
-                    DB::table('role_has_permissions')->insertOrIgnore([
-                        'permission_id' => $permission->id,
-                        'role_id' => $role->id,
-                    ]);
+                // Decodificar JSON si es string, o usar directamente si es array
+                $permissions = is_string($role->permissions) 
+                    ? json_decode($role->permissions, true) 
+                    : $role->permissions;
+                
+                if (is_array($permissions)) {
+                    foreach ($permissions as $permissionName) {
+                        // Buscar o crear el permiso
+                        $permission = Permission::firstOrCreate(
+                            ['name' => $permissionName, 'guard_name' => 'web']
+                        );
+                        
+                        // Asignar el permiso al rol usando la tabla pivot
+                        DB::table('role_has_permissions')->insertOrIgnore([
+                            'permission_id' => $permission->id,
+                            'role_id' => $role->id,
+                        ]);
+                    }
                 }
             }
         }

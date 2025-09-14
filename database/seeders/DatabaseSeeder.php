@@ -15,14 +15,15 @@ class DatabaseSeeder extends Seeder
     {
         // Ejecutar seeders para usuarios del sistema
         $this->call([
-            DivipolSeeder::class, // Poblar territorios, departamentos, municipios y localidades
-            CategoriaSeeder::class,
-            AdminUserSeeder::class,
-            VotanteUserSeeder::class,
-            CandidaturaConfigSeeder::class, // Configuración inicial de candidaturas
-            PeriodoElectoralSeeder::class, // Periodo electoral para convocatorias
-            CargoSeeder::class, // Cargos de elección popular
-            ConvocatoriaSeeder::class, // Convocatorias para Cámara de Representantes
+            ConfiguracionesInitialSeeder::class, // Configuraciones iniciales del sistema
+            // \Modules\Geografico\Database\seeders\DivipolSeeder::class, // Requiere archivo divipol.csv
+            \Modules\Votaciones\Database\seeders\CategoriaSeeder::class,
+            \Modules\Core\Database\seeders\AdminUserSeeder::class,
+            \Modules\Core\Database\seeders\VotanteUserSeeder::class,
+            \Modules\Elecciones\Database\seeders\CandidaturaConfigSeeder::class,
+            \Modules\Elecciones\Database\seeders\PeriodoElectoralSeeder::class,
+            \Modules\Elecciones\Database\seeders\CargoSeeder::class,
+            \Modules\Elecciones\Database\seeders\ConvocatoriaSeeder::class,
         ]);
 
         // User::factory(10)->create();
