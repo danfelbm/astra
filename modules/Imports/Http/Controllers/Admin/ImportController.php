@@ -29,7 +29,7 @@ class ImportController extends AdminController
     {
         $import->load(['votacion', 'asamblea', 'createdBy']);
         
-        return Inertia::render('Modules/Imports/Admin/Imports/Show', [
+        return Inertia::render('Modules/Imports/Admin/Show', [
             'import' => $import,
         ]);
     }
@@ -70,7 +70,7 @@ class ImportController extends AdminController
             ->recent()
             ->paginate(10);
 
-        return Inertia::render('Modules/Imports/Admin/Imports/Index', [
+        return Inertia::render('Modules/Imports/Admin/Index', [
             'votacion' => $votacion,
             'imports' => $imports,
         ]);
@@ -112,7 +112,7 @@ class ImportController extends AdminController
             ->recent()
             ->paginate(10);
 
-        return Inertia::render('Modules/Imports/Admin/Imports/Index', [
+        return Inertia::render('Modules/Imports/Admin/Index', [
             'imports' => $imports,
             'isGeneral' => true,
         ]);
@@ -123,7 +123,7 @@ class ImportController extends AdminController
      */
     public function create(): Response
     {
-        return Inertia::render('Modules/Imports/Admin/Imports/Create');
+        return Inertia::render('Modules/Imports/Admin/Create');
     }
 
     /**
@@ -857,7 +857,7 @@ class ImportController extends AdminController
             ->recent()
             ->paginate(10);
 
-        return Inertia::render('Modules/Imports/Admin/Imports/Index', [
+        return Inertia::render('Modules/Imports/Admin/Index', [
             'asamblea' => $asamblea,
             'imports' => $imports,
         ]);

@@ -28,6 +28,8 @@ class PermissionSeeder extends Seeder
             'users.export' => 'Exportar usuarios',
             'users.import' => 'Importar usuarios desde CSV',
             'users.assign_roles' => 'Asignar roles a usuarios',
+            'users.update_requests' => 'Gestionar solicitudes de actualización',
+            'users.approve_updates' => 'Aprobar actualizaciones de usuarios',
             'users.impersonate' => 'Impersonar usuarios',
             
             // Votaciones Admin
@@ -36,6 +38,7 @@ class PermissionSeeder extends Seeder
             'votaciones.edit' => 'Editar votaciones',
             'votaciones.delete' => 'Eliminar votaciones',
             'votaciones.manage_voters' => 'Gestionar votantes',
+            'votaciones.view_own_vote' => 'Ver voto propio',
             
             // Asambleas Admin
             'asambleas.view' => 'Ver todas las asambleas',
@@ -43,6 +46,8 @@ class PermissionSeeder extends Seeder
             'asambleas.edit' => 'Editar asambleas',
             'asambleas.delete' => 'Eliminar asambleas',
             'asambleas.manage_participants' => 'Gestionar participantes',
+            'asambleas.sync_participants' => 'Sincronizar participantes',
+            'asambleas.join_video' => 'Unirse a videoconferencia',
             
             // Convocatorias Admin
             'convocatorias.view' => 'Ver todas las convocatorias',
@@ -55,6 +60,7 @@ class PermissionSeeder extends Seeder
             'postulaciones.review' => 'Revisar postulaciones',
             'postulaciones.approve' => 'Aprobar postulaciones',
             'postulaciones.reject' => 'Rechazar postulaciones',
+            'postulaciones.delete_own' => 'Eliminar postulaciones propias',
             
             // Candidaturas Admin
             'candidaturas.view' => 'Ver todas las candidaturas',
@@ -118,7 +124,7 @@ class PermissionSeeder extends Seeder
             'tenants.edit' => 'Editar tenants',
             'tenants.delete' => 'Eliminar tenants',
             'tenants.switch' => 'Cambiar entre tenants',
-            
+
             // Permisos Frontend (usuarios no administrativos)
             // Votaciones Frontend
             'votaciones.view_public' => 'Ver votaciones disponibles',
@@ -226,8 +232,8 @@ class PermissionSeeder extends Seeder
                 // Dashboard
                 'dashboard.admin',
                 // Formularios
-                'formularios.view', 'formularios.create', 'formularios.edit', 
-                'formularios.delete', 'formularios.view_responses', 
+                'formularios.view', 'formularios.create', 'formularios.edit',
+                'formularios.delete', 'formularios.view_responses',
                 'formularios.export', 'formularios.manage_permissions',
             ];
             $admin->syncPermissions($adminPermissions);

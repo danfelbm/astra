@@ -16,7 +16,7 @@ return new class extends Migration
     {
         // Ejecutar el seeder de permisos para sincronizar todos los permisos con Spatie
         Artisan::call('db:seed', [
-            '--class' => 'Database\\Seeders\\PermissionSeeder',
+            '--class' => 'Modules\\Core\\Database\\seeders\\PermissionSeeder',
             '--force' => true,
         ]);
     }

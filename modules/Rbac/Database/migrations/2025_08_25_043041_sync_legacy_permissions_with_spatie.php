@@ -19,7 +19,12 @@ return new class extends Migration
         foreach ($roles as $role) {
             $legacyPermissions = $role->legacy_permissions ?? [];
             
-            if (empty($legacyPermissions)) {
+            // Decodificar JSON si es string
+            if (is_string($legacyPermissions)) {
+                $legacyPermissions = json_decode($legacyPermissions, true) ?? [];
+            }
+            
+            if (empty($legacyPermissions) || !is_array($legacyPermissions)) {
                 continue;
             }
             
@@ -47,6 +52,15 @@ return new class extends Migration
         // También sincronizar los permisos especiales de los módulos
         foreach ($roles as $role) {
             $allowedModules = $role->allowed_modules ?? [];
+            
+            // Decodificar JSON si es string
+            if (is_string($allowedModules)) {
+                $allowedModules = json_decode($allowedModules, true) ?? [];
+            }
+            
+            if (!is_array($allowedModules)) {
+                continue;
+            }
             
             // Si tiene módulos permitidos, intentar mapearlos a permisos
             foreach ($allowedModules as $module) {
