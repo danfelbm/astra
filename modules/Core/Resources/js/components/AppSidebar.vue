@@ -5,7 +5,7 @@ import NavUser from "./NavUser.vue";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "./ui/sidebar";
 import { type NavItem, type SharedData, type User } from '@/types';
 import { usePage } from '@inertiajs/vue3';
-import { Folder, LayoutGrid, Vote, Users, BarChart3, FileText, Settings, Briefcase, Calendar, Megaphone, UserCheck, ClipboardList, Building2, Shield, Target, UserCog, Database, Lock, ExternalLink, Mail, MessageSquare, Send } from 'lucide-vue-next';
+import { Folder, LayoutGrid, Vote, Users, BarChart3, FileText, Settings, Briefcase, Calendar, Megaphone, UserCheck, ClipboardList, Building2, Shield, Target, UserCog, Database, Lock, ExternalLink, Mail, MessageSquare, Send, FolderOpen } from 'lucide-vue-next';
 import { computed } from 'vue';
 import AppLogo from './AppLogo.vue';
 
@@ -239,6 +239,35 @@ const mainNavItems = computed<NavItem[]>(() => {
                 title: 'Votaciones',
                 url: '/admin/votaciones',
                 icon: Vote,
+            });
+        }
+
+        // Sección Proyectos - con submenú
+        const proyectosItems: NavItem[] = [];
+
+        if (hasPermission('proyectos.view') && hasModuleAccess('proyectos')) {
+            proyectosItems.push({
+                title: 'Proyectos',
+                url: '/admin/proyectos',
+                icon: Folder,
+            });
+        }
+
+        if (hasPermission('proyectos.manage_fields') && hasModuleAccess('proyectos')) {
+            proyectosItems.push({
+                title: 'Campos Personalizados',
+                url: '/admin/campos-personalizados',
+                icon: Settings,
+            });
+        }
+
+        // Solo agregar la sección si hay elementos
+        if (proyectosItems.length > 0) {
+            items.push({
+                title: 'Proyectos',
+                icon: FolderOpen,
+                isCollapsible: true,
+                items: proyectosItems,
             });
         }
 

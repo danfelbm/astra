@@ -20,4 +20,5 @@ return [
     Modules\Votaciones\Providers\VotacionesServiceProvider::class,
     Modules\Configuration\Providers\ConfigurationServiceProvider::class,
     Modules\Campanas\Providers\CampanasServiceProvider::class,
+    Modules\Proyectos\Providers\ProyectosServiceProvider::class,
 ];

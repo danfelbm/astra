@@ -10,6 +10,7 @@ use Modules\Asamblea\Http\Controllers\User\ZoomAuthController;
 use Modules\Asamblea\Http\Controllers\User\ZoomRegistrantController;
 use Modules\Geografico\Http\Controllers\Admin\GeographicController;
 use Modules\Users\Http\Controllers\User\DashboardController;
+use Modules\Proyectos\Http\Controllers\User\MisProyectosController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -162,6 +163,47 @@ Route::middleware(['auth', 'verified', 'user'])->prefix('miembro')->name('user.'
         Route::get('otp/estimate', [\Modules\Core\Http\Controllers\Api\QueueStatusController::class, 'estimate'])->name('otp.estimate');
         Route::get('otp/position/{identifier}', [\Modules\Core\Http\Controllers\Api\QueueStatusController::class, 'position'])->name('otp.position');
         Route::get('metrics', [\Modules\Core\Http\Controllers\Api\QueueStatusController::class, 'metrics'])->name('metrics');
+    });
+
+    // MÓDULO PROYECTOS - Rutas para usuarios
+    Route::prefix('mis-proyectos')->name('mis-proyectos.')->group(function () {
+        Route::get('/', [MisProyectosController::class, 'index'])
+            ->name('index')
+            ->middleware('can:proyectos.view_own');
+
+        Route::get('/create', [MisProyectosController::class, 'create'])
+            ->name('create')
+            ->middleware('can:proyectos.create_own');
+
+        Route::post('/', [MisProyectosController::class, 'store'])
+            ->name('store')
+            ->middleware('can:proyectos.create_own');
+
+        Route::get('/{proyecto}', [MisProyectosController::class, 'show'])
+            ->name('show')
+            ->middleware('can:proyectos.view_own');
+
+        Route::get('/{proyecto}/edit', [MisProyectosController::class, 'edit'])
+            ->name('edit')
+            ->middleware('can:proyectos.edit_own');
+
+        Route::put('/{proyecto}', [MisProyectosController::class, 'update'])
+            ->name('update')
+            ->middleware('can:proyectos.edit_own');
+
+        // Actualizar estado del proyecto
+        Route::post('/{proyecto}/cambiar-estado', [MisProyectosController::class, 'cambiarEstado'])
+            ->name('cambiar-estado')
+            ->middleware('can:proyectos.edit_own');
+
+        // Ver/editar campos personalizados
+        Route::get('/{proyecto}/campos-personalizados', [MisProyectosController::class, 'camposPersonalizados'])
+            ->name('campos-personalizados')
+            ->middleware('can:proyectos.view_own');
+
+        Route::post('/{proyecto}/campos-personalizados', [MisProyectosController::class, 'guardarCamposPersonalizados'])
+            ->name('guardar-campos-personalizados')
+            ->middleware('can:proyectos.edit_own');
     });
 });
 
