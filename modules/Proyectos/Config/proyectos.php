@@ -74,4 +74,32 @@ return [
         'proximo_vencimiento' => true,
         'dias_antes_vencimiento' => 3,
     ],
+
+    /*
+    | Configuración de etiquetas
+    */
+    'etiquetas' => [
+        'max_por_proyecto' => 10,
+        'max_categorias' => 20,
+        'colores_disponibles' => [
+            'gray', 'red', 'orange', 'amber', 'yellow', 'lime', 'green',
+            'emerald', 'teal', 'cyan', 'sky', 'blue', 'indigo', 'violet',
+            'purple', 'fuchsia', 'pink', 'rose'
+        ],
+        'iconos_sugeridos' => [
+            'Tag', 'Hash', 'Bookmark', 'Flag', 'Star', 'Heart',
+            'Zap', 'Target', 'Award', 'TrendingUp', 'Folder',
+            'Package', 'Box', 'Layers', 'Grid'
+        ],
+        'cache_ttl' => 300, // 5 minutos
+        'sugerencias_limite' => 15,
+    ],
+
+    /*
+    | Configuración de paginación para etiquetas
+    */
+    'paginacion_etiquetas' => [
+        'etiquetas_por_pagina' => 20,
+        'categorias_por_pagina' => 15,
+    ],
 ];

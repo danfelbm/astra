@@ -16,7 +16,9 @@ import {
     SelectValue
 } from "@modules/Core/Resources/js/components/ui/select";
 import CamposPersonalizadosForm from "@modules/Proyectos/Resources/js/components/CamposPersonalizadosForm.vue";
-import { Save, X } from 'lucide-vue-next';
+import EtiquetaSelector from "@modules/Proyectos/Resources/js/components/EtiquetaSelector.vue";
+import { Save, X, Tag } from 'lucide-vue-next';
+import type { CategoriaEtiqueta } from "@modules/Proyectos/Resources/js/types/etiquetas";
 import { ref } from 'vue';
 import { toast } from 'vue-sonner';
 
@@ -40,6 +42,7 @@ interface CampoPersonalizado {
 interface Props {
     usuarios: User[];
     camposPersonalizados: CampoPersonalizado[];
+    categorias?: CategoriaEtiqueta[];
 }
 
 const props = defineProps<Props>();
@@ -60,6 +63,7 @@ const form = useForm({
     estado: 'planificacion',
     prioridad: 'media',
     responsable_id: null as number | null,
+    etiquetas: [] as number[],
     campos_personalizados: {} as Record<number, any>
 });
 
@@ -238,6 +242,24 @@ const updateCamposPersonalizados = (valores: Record<number, any>) => {
                             </Select>
                             <p v-if="form.errors.responsable_id" class="mt-1 text-sm text-red-600">
                                 {{ form.errors.responsable_id }}
+                            </p>
+                        </div>
+
+                        <!-- Etiquetas -->
+                        <div v-if="categorias && categorias.length > 0">
+                            <Label class="flex items-center gap-2 mb-2">
+                                <Tag class="h-4 w-4" />
+                                Etiquetas
+                            </Label>
+                            <EtiquetaSelector
+                                v-model="form.etiquetas"
+                                :categorias="categorias"
+                                :max-etiquetas="10"
+                                placeholder="Seleccionar etiquetas para el proyecto..."
+                                description="Puedes asignar hasta 10 etiquetas para categorizar este proyecto"
+                            />
+                            <p v-if="form.errors.etiquetas" class="mt-1 text-sm text-red-600">
+                                {{ form.errors.etiquetas }}
                             </p>
                         </div>
                     </CardContent>

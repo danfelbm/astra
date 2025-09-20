@@ -15,7 +15,9 @@ import {
     SelectValue
 } from "@modules/Core/Resources/js/components/ui/select";
 import CamposPersonalizadosForm from "@modules/Proyectos/Resources/js/components/CamposPersonalizadosForm.vue";
-import { Save, X, ArrowLeft, AlertCircle } from 'lucide-vue-next';
+import EtiquetaSelector from "@modules/Proyectos/Resources/js/components/EtiquetaSelector.vue";
+import { Save, X, ArrowLeft, AlertCircle, Tag } from 'lucide-vue-next';
+import type { CategoriaEtiqueta, Etiqueta } from "@modules/Proyectos/Resources/js/types/etiquetas";
 import { ref } from 'vue';
 import { toast } from 'vue-sonner';
 
@@ -40,6 +42,7 @@ interface Proyecto {
     estado: string;
     prioridad: string;
     responsable_id?: number;
+    etiquetas?: Etiqueta[];
     created_at: string;
     updated_at: string;
 }
@@ -50,6 +53,7 @@ interface Props {
     valoresCampos: Record<string, any>;
     estados: Record<string, string>;
     prioridades: Record<string, string>;
+    categorias?: CategoriaEtiqueta[];
 }
 
 const props = defineProps<Props>();
@@ -60,14 +64,22 @@ props.camposPersonalizados.forEach(campo => {
     valoresInicialesCampos[campo.id] = props.valoresCampos[campo.slug] || '';
 });
 
+// Formatear fechas para inputs HTML de tipo date
+const formatDateForInput = (dateString: string | undefined): string => {
+    if (!dateString) return '';
+    // Si la fecha viene con hora, tomar solo la parte de fecha
+    return dateString.split(' ')[0];
+};
+
 // Formulario
 const form = useForm({
     nombre: props.proyecto.nombre,
     descripcion: props.proyecto.descripcion || '',
-    fecha_inicio: props.proyecto.fecha_inicio,
-    fecha_fin: props.proyecto.fecha_fin || '',
+    fecha_inicio: formatDateForInput(props.proyecto.fecha_inicio),
+    fecha_fin: formatDateForInput(props.proyecto.fecha_fin),
     estado: props.proyecto.estado,
     prioridad: props.proyecto.prioridad,
+    etiquetas: props.proyecto.etiquetas?.map(e => e.id) || [],
     campos_personalizados: valoresInicialesCampos
 });
 
@@ -267,6 +279,24 @@ const formatDate = (date: string) => {
                                     {{ form.errors.prioridad }}
                                 </p>
                             </div>
+                        </div>
+
+                        <!-- Etiquetas -->
+                        <div v-if="categorias && categorias.length > 0">
+                            <Label class="flex items-center gap-2 mb-2">
+                                <Tag class="h-4 w-4" />
+                                Etiquetas
+                            </Label>
+                            <EtiquetaSelector
+                                v-model="form.etiquetas"
+                                :categorias="categorias"
+                                :max-etiquetas="10"
+                                placeholder="Seleccionar etiquetas para el proyecto..."
+                                description="Puedes asignar hasta 10 etiquetas para categorizar este proyecto"
+                            />
+                            <p v-if="form.errors.etiquetas" class="mt-1 text-sm text-red-600">
+                                {{ form.errors.etiquetas }}
+                            </p>
                         </div>
                     </CardContent>
                 </Card>

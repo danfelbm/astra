@@ -21,6 +21,9 @@ use Modules\Campanas\Http\Controllers\Admin\PlantillaWhatsAppController;
 use Modules\Campanas\Http\Controllers\Admin\CampanaController;
 use Modules\Proyectos\Http\Controllers\Admin\ProyectoController;
 use Modules\Proyectos\Http\Controllers\Admin\CampoPersonalizadoController;
+use Modules\Proyectos\Http\Controllers\Admin\CategoriaEtiquetaController;
+use Modules\Proyectos\Http\Controllers\Admin\EtiquetaController;
+use Modules\Proyectos\Http\Controllers\Admin\ProyectoEtiquetaController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -783,6 +786,103 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
             ->name('reordenar')
             ->middleware('can:proyectos.manage_fields');
     });
+
+    // Rutas para gestión de categorías de etiquetas
+    Route::prefix('categorias-etiquetas')->name('categorias-etiquetas.')->group(function () {
+        Route::get('/', [CategoriaEtiquetaController::class, 'index'])
+            ->name('index')
+            ->middleware('can:categorias_etiquetas.view');
+
+        Route::get('/create', [CategoriaEtiquetaController::class, 'create'])
+            ->name('create')
+            ->middleware('can:categorias_etiquetas.create');
+
+        Route::post('/', [CategoriaEtiquetaController::class, 'store'])
+            ->name('store')
+            ->middleware('can:categorias_etiquetas.create');
+
+        Route::get('/{categoriaEtiqueta}', [CategoriaEtiquetaController::class, 'show'])
+            ->name('show')
+            ->middleware('can:categorias_etiquetas.view');
+
+        Route::get('/{categoriaEtiqueta}/edit', [CategoriaEtiquetaController::class, 'edit'])
+            ->name('edit')
+            ->middleware('can:categorias_etiquetas.edit');
+
+        Route::put('/{categoriaEtiqueta}', [CategoriaEtiquetaController::class, 'update'])
+            ->name('update')
+            ->middleware('can:categorias_etiquetas.edit');
+
+        Route::delete('/{categoriaEtiqueta}', [CategoriaEtiquetaController::class, 'destroy'])
+            ->name('destroy')
+            ->middleware('can:categorias_etiquetas.delete');
+
+        Route::patch('/{categoriaEtiqueta}/toggle-active', [CategoriaEtiquetaController::class, 'toggleActive'])
+            ->name('toggle-active')
+            ->middleware('can:categorias_etiquetas.edit');
+
+        Route::post('/reorder', [CategoriaEtiquetaController::class, 'reorder'])
+            ->name('reorder')
+            ->middleware('can:categorias_etiquetas.edit');
+
+        Route::post('/{categoriaEtiqueta}/merge', [CategoriaEtiquetaController::class, 'merge'])
+            ->name('merge')
+            ->middleware('can:categorias_etiquetas.delete');
+    });
+
+    // Rutas para gestión de etiquetas
+    Route::prefix('etiquetas')->name('etiquetas.')->group(function () {
+        Route::post('/', [EtiquetaController::class, 'store'])
+            ->name('store')
+            ->middleware('can:etiquetas.create');
+        Route::put('/{etiqueta}', [EtiquetaController::class, 'update'])
+            ->name('update')
+            ->middleware('can:etiquetas.edit');
+        Route::delete('/{etiqueta}', [EtiquetaController::class, 'destroy'])
+            ->name('destroy')
+            ->middleware('can:etiquetas.delete');
+        Route::get('/search', [EtiquetaController::class, 'search'])
+            ->name('search')
+            ->middleware('can:etiquetas.view');
+        Route::post('/{etiqueta}/increment-uso', [EtiquetaController::class, 'incrementUso'])
+            ->name('increment-uso')
+            ->middleware('can:etiquetas.view');
+        Route::post('/reorder', [EtiquetaController::class, 'reorder'])
+            ->name('reorder')
+            ->middleware('can:etiquetas.edit');
+    });
+
+    // Rutas para gestión de etiquetas en proyectos
+    Route::prefix('proyectos/{proyecto}/etiquetas')->name('proyectos.etiquetas.')->group(function () {
+        Route::get('/', [ProyectoEtiquetaController::class, 'index'])
+            ->name('index')
+            ->middleware('can:proyectos.manage_tags');
+
+        Route::post('/', [ProyectoEtiquetaController::class, 'store'])
+            ->name('store')
+            ->middleware('can:proyectos.manage_tags');
+
+        Route::delete('/{etiqueta}', [ProyectoEtiquetaController::class, 'destroy'])
+            ->name('destroy')
+            ->middleware('can:proyectos.manage_tags');
+
+        Route::put('/sync', [ProyectoEtiquetaController::class, 'sync'])
+            ->name('sync')
+            ->middleware('can:proyectos.manage_tags');
+
+        Route::get('/suggest', [ProyectoEtiquetaController::class, 'suggest'])
+            ->name('suggest')
+            ->middleware('can:proyectos.view');
+
+        Route::post('/reorder', [ProyectoEtiquetaController::class, 'reorder'])
+            ->name('reorder')
+            ->middleware('can:proyectos.manage_tags');
+    });
+
+    // Búsqueda global de etiquetas
+    Route::get('etiquetas/search', [ProyectoEtiquetaController::class, 'search'])
+        ->name('etiquetas.search')
+        ->middleware('can:proyectos.view');
 });
 
 // Ruta pública para redirección de enlaces Zoom enmascarados

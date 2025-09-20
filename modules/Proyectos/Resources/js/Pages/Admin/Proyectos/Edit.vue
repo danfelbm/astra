@@ -15,7 +15,9 @@ import {
     SelectValue
 } from "@modules/Core/Resources/js/components/ui/select";
 import CamposPersonalizadosForm from "@modules/Proyectos/Resources/js/components/CamposPersonalizadosForm.vue";
-import { Save, X, AlertCircle } from 'lucide-vue-next';
+import EtiquetaSelector from "@modules/Proyectos/Resources/js/components/EtiquetaSelector.vue";
+import { Save, X, AlertCircle, Tag } from 'lucide-vue-next';
+import type { CategoriaEtiqueta, Etiqueta } from "@modules/Proyectos/Resources/js/types/etiquetas";
 import { ref } from 'vue';
 import { toast } from 'vue-sonner';
 
@@ -51,6 +53,7 @@ interface Proyecto {
     prioridad: string;
     responsable_id?: number;
     responsable?: User;
+    etiquetas?: Etiqueta[];
     campos_personalizados?: ValorCampoPersonalizado[];
     created_at: string;
     updated_at: string;
@@ -61,6 +64,7 @@ interface Props {
     usuarios: User[];
     camposPersonalizados: CampoPersonalizado[];
     valoresCampos: Record<number, any>;
+    categorias?: CategoriaEtiqueta[];
 }
 
 const props = defineProps<Props>();
@@ -80,11 +84,12 @@ const valoresIniciales = props.valoresCampos || {};
 const form = useForm({
     nombre: props.proyecto.nombre,
     descripcion: props.proyecto.descripcion || '',
-    fecha_inicio: props.proyecto.fecha_inicio,
+    fecha_inicio: props.proyecto.fecha_inicio || '',
     fecha_fin: props.proyecto.fecha_fin || '',
     estado: props.proyecto.estado,
     prioridad: props.proyecto.prioridad,
     responsable_id: props.proyecto.responsable_id || null,
+    etiquetas: props.proyecto.etiquetas?.map(e => e.id) || [],
     campos_personalizados: valoresIniciales
 });
 
@@ -277,6 +282,24 @@ const updateCamposPersonalizados = (valores: Record<number, any>) => {
                             </Select>
                             <p v-if="form.errors.responsable_id" class="mt-1 text-sm text-red-600">
                                 {{ form.errors.responsable_id }}
+                            </p>
+                        </div>
+
+                        <!-- Etiquetas -->
+                        <div v-if="categorias && categorias.length > 0">
+                            <Label class="flex items-center gap-2 mb-2">
+                                <Tag class="h-4 w-4" />
+                                Etiquetas
+                            </Label>
+                            <EtiquetaSelector
+                                v-model="form.etiquetas"
+                                :categorias="categorias"
+                                :max-etiquetas="10"
+                                placeholder="Seleccionar etiquetas para el proyecto..."
+                                description="Puedes asignar hasta 10 etiquetas para categorizar este proyecto"
+                            />
+                            <p v-if="form.errors.etiquetas" class="mt-1 text-sm text-red-600">
+                                {{ form.errors.etiquetas }}
                             </p>
                         </div>
                     </CardContent>

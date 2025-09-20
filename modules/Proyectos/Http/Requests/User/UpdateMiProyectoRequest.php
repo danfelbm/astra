@@ -36,6 +36,8 @@ class UpdateMiProyectoRequest extends FormRequest
             'fecha_fin' => 'nullable|date|after:fecha_inicio',
             'estado' => 'required|in:planificacion,en_progreso,pausado,completado,cancelado',
             'prioridad' => 'required|in:baja,media,alta,critica',
+            'etiquetas' => 'nullable|array|max:10',
+            'etiquetas.*' => 'exists:etiquetas,id',
             'campos_personalizados' => 'nullable|array',
         ];
 
@@ -68,6 +70,9 @@ class UpdateMiProyectoRequest extends FormRequest
             'estado.in' => 'El estado seleccionado no es válido.',
             'prioridad.required' => 'La prioridad del proyecto es requerida.',
             'prioridad.in' => 'La prioridad seleccionada no es válida.',
+            'etiquetas.array' => 'Las etiquetas deben ser un arreglo válido.',
+            'etiquetas.max' => 'No puedes asignar más de 10 etiquetas a un proyecto.',
+            'etiquetas.*.exists' => 'Una o más etiquetas seleccionadas no son válidas.',
         ];
     }
 

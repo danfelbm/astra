@@ -14,6 +14,7 @@ import {
 import ProyectoCard from "@modules/Proyectos/Resources/js/components/ProyectoCard.vue";
 import { Plus, Search, Filter, FolderOpen } from 'lucide-vue-next';
 import { ref, watch } from 'vue';
+import type { Etiqueta } from '@modules/Proyectos/Resources/js/types/etiquetas';
 
 interface Proyecto {
     id: number;
@@ -29,6 +30,7 @@ interface Proyecto {
         id: number;
         name: string;
     };
+    etiquetas?: Etiqueta[];
     porcentaje_completado: number;
     duracion_dias?: number;
 }
