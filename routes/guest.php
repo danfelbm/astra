@@ -7,6 +7,7 @@ use Modules\Asamblea\Http\Controllers\Guest\AsambleaPublicParticipantsController
 use Modules\Geografico\Http\Controllers\Admin\GeographicController;
 use Modules\Elecciones\Http\Controllers\Guest\PostulacionPublicApiController;
 use Modules\Campanas\Http\Controllers\Guest\CampanaTrackingController;
+use Modules\Proyectos\Http\Controllers\Guest\ProyectoPublicoController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -126,4 +127,15 @@ Route::prefix('webhooks/email')->name('campanas.webhooks.')->group(function () {
     Route::post('/mailgun', [CampanaTrackingController::class, 'webhook'])
         ->name('mailgun')
         ->defaults('provider', 'mailgun');
+});
+
+// MÓDULO PROYECTOS - Rutas públicas
+Route::prefix('proyectos-publicos')->name('proyectos-publicos.')->group(function () {
+    // Lista de proyectos públicos
+    Route::get('/', [ProyectoPublicoController::class, 'index'])
+        ->name('index');
+
+    // Detalle de proyecto público
+    Route::get('/{proyecto}', [ProyectoPublicoController::class, 'show'])
+        ->name('show');
 });

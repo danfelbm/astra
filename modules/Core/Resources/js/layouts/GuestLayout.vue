@@ -45,13 +45,19 @@ withDefaults(defineProps<Props>(), {
                         >
                             Verificar Token
                         </Link>
-                        <Link 
+                        <Link
                             :href="route('postulaciones.publicas')"
                             class="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
                         >
                             Postulaciones
                         </Link>
-                        <Link 
+                        <Link
+                            :href="route('proyectos-publicos.index')"
+                            class="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                            Proyectos
+                        </Link>
+                        <Link
                             :href="route('frontend.asambleas.consulta-participantes')"
                             class="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
                         >

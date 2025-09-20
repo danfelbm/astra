@@ -1,0 +1,253 @@
+<?php
+
+namespace Modules\Proyectos\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Modules\Core\Traits\HasTenant;
+use Modules\Core\Traits\HasAuditLog;
+use Modules\Core\Models\User;
+
+class Proyecto extends Model
+{
+    use HasTenant, HasAuditLog;
+
+    /**
+     * La tabla asociada con el modelo.
+     *
+     * @var string
+     */
+    protected $table = 'proyectos';
+
+    /**
+     * Los atributos que son asignables en masa.
+     *
+     * @var array
+     */
+    protected $fillable = [
+        'nombre',
+        'descripcion',
+        'fecha_inicio',
+        'fecha_fin',
+        'estado',
+        'prioridad',
+        'responsable_id',
+        'tenant_id',
+        'created_by',
+        'updated_by',
+        'activo'
+    ];
+
+    /**
+     * Los atributos que deben ser convertidos a tipos nativos.
+     *
+     * @var array
+     */
+    protected $casts = [
+        'fecha_inicio' => 'date',
+        'fecha_fin' => 'date',
+        'activo' => 'boolean',
+    ];
+
+    /**
+     * Los atributos que deben ser anexados al array/JSON del modelo.
+     *
+     * @var array
+     */
+    protected $appends = [
+        'estado_label',
+        'prioridad_label',
+        'duracion_dias',
+        'porcentaje_completado'
+    ];
+
+    /**
+     * Obtiene el responsable del proyecto.
+     */
+    public function responsable(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'responsable_id');
+    }
+
+    /**
+     * Obtiene el usuario que creó el proyecto.
+     */
+    public function creador(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /**
+     * Obtiene el usuario que actualizó el proyecto.
+     */
+    public function actualizador(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'updated_by');
+    }
+
+    /**
+     * Obtiene los valores de campos personalizados del proyecto.
+     */
+    public function camposPersonalizados(): HasMany
+    {
+        return $this->hasMany(ValorCampoPersonalizado::class);
+    }
+
+    /**
+     * Obtiene la etiqueta del estado.
+     */
+    public function getEstadoLabelAttribute(): string
+    {
+        $labels = [
+            'planificacion' => 'Planificación',
+            'en_progreso' => 'En Progreso',
+            'pausado' => 'Pausado',
+            'completado' => 'Completado',
+            'cancelado' => 'Cancelado'
+        ];
+
+        return $labels[$this->estado] ?? $this->estado;
+    }
+
+    /**
+     * Obtiene la etiqueta de prioridad.
+     */
+    public function getPrioridadLabelAttribute(): string
+    {
+        $labels = [
+            'baja' => 'Baja',
+            'media' => 'Media',
+            'alta' => 'Alta',
+            'critica' => 'Crítica'
+        ];
+
+        return $labels[$this->prioridad] ?? $this->prioridad;
+    }
+
+    /**
+     * Obtiene el color asociado al estado.
+     */
+    public function getEstadoColorAttribute(): string
+    {
+        $colors = [
+            'planificacion' => 'blue',
+            'en_progreso' => 'yellow',
+            'pausado' => 'orange',
+            'completado' => 'green',
+            'cancelado' => 'red'
+        ];
+
+        return $colors[$this->estado] ?? 'gray';
+    }
+
+    /**
+     * Obtiene el color asociado a la prioridad.
+     */
+    public function getPrioridadColorAttribute(): string
+    {
+        $colors = [
+            'baja' => 'gray',
+            'media' => 'blue',
+            'alta' => 'orange',
+            'critica' => 'red'
+        ];
+
+        return $colors[$this->prioridad] ?? 'gray';
+    }
+
+    /**
+     * Calcula la duración del proyecto en días.
+     */
+    public function getDuracionDiasAttribute(): ?int
+    {
+        if (!$this->fecha_inicio || !$this->fecha_fin) {
+            return null;
+        }
+
+        return $this->fecha_inicio->diffInDays($this->fecha_fin);
+    }
+
+    /**
+     * Calcula el porcentaje completado basado en las fechas.
+     */
+    public function getPorcentajeCompletadoAttribute(): int
+    {
+        if ($this->estado === 'completado') {
+            return 100;
+        }
+
+        if ($this->estado === 'cancelado') {
+            return 0;
+        }
+
+        if (!$this->fecha_inicio || !$this->fecha_fin) {
+            return 0;
+        }
+
+        $totalDias = $this->fecha_inicio->diffInDays($this->fecha_fin);
+        if ($totalDias === 0) {
+            return 0;
+        }
+
+        $diasTranscurridos = $this->fecha_inicio->diffInDays(now());
+        if ($diasTranscurridos <= 0) {
+            return 0;
+        }
+
+        $porcentaje = min(100, max(0, ($diasTranscurridos / $totalDias) * 100));
+        return round($porcentaje);
+    }
+
+    /**
+     * Scope para proyectos activos.
+     */
+    public function scopeActivos($query)
+    {
+        return $query->where('activo', true);
+    }
+
+    /**
+     * Scope para proyectos por estado.
+     */
+    public function scopeEstado($query, $estado)
+    {
+        return $query->where('estado', $estado);
+    }
+
+    /**
+     * Scope para proyectos por prioridad.
+     */
+    public function scopePrioridad($query, $prioridad)
+    {
+        return $query->where('prioridad', $prioridad);
+    }
+
+    /**
+     * Scope para proyectos del responsable actual.
+     */
+    public function scopeMisProyectos($query)
+    {
+        if (auth()->check()) {
+            return $query->where('responsable_id', auth()->id());
+        }
+        return $query;
+    }
+
+    /**
+     * Scope para proyectos en progreso.
+     */
+    public function scopeEnProgreso($query)
+    {
+        return $query->where('estado', 'en_progreso');
+    }
+
+    /**
+     * Scope para proyectos vencidos.
+     */
+    public function scopeVencidos($query)
+    {
+        return $query->where('fecha_fin', '<', now())
+                    ->whereNotIn('estado', ['completado', 'cancelado']);
+    }
+}

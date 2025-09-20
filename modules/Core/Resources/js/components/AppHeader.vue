@@ -17,7 +17,7 @@ import UserMenuContent from "./UserMenuContent.vue";
 import { getInitials } from "@modules/Core/Resources/js/composables/useInitials";
 import type { BreadcrumbItemType, NavItem } from '@/types';
 import { Link, usePage } from '@inertiajs/vue3';
-import { CheckSquare, FileText, LayoutGrid, Menu, User, Users } from 'lucide-vue-next';
+import { CheckSquare, FileText, FolderOpen, LayoutGrid, Menu, User, Users } from 'lucide-vue-next';
 import { computed } from 'vue';
 
 interface Props {
@@ -60,6 +60,11 @@ const mainNavItems: NavItem[] = [
         title: 'Asambleas',
         href: '/miembro/asambleas',
         icon: Users,
+    },
+    {
+        title: 'Mis Proyectos',
+        href: '/miembro/mis-proyectos',
+        icon: FolderOpen,
     },
     {
         title: 'Formularios',
