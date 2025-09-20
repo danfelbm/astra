@@ -99,19 +99,19 @@ const handleCheckboxChange = (checked: boolean) => {
         <Textarea
             v-else-if="campo.tipo === 'textarea'"
             :id="`campo-${campo.id}`"
-            :value="value"
+            :model-value="value"
             :placeholder="campo.placeholder"
             :required="campo.es_requerido"
             :class="{ 'border-red-500': error }"
             rows="4"
-            @input="handleChange($event.target.value)"
+            @update:model-value="handleChange"
         />
 
         <!-- Select -->
-        <Select 
+        <Select
             v-else-if="campo.tipo === 'select'"
-            :value="value"
-            @update:modelValue="handleChange"
+            :model-value="value"
+            @update:model-value="handleChange"
         >
             <SelectTrigger :class="{ 'border-red-500': error }">
                 <SelectValue :placeholder="campo.placeholder || 'Seleccione una opción'" />
@@ -143,10 +143,10 @@ const handleCheckboxChange = (checked: boolean) => {
         </div>
 
         <!-- Radio buttons -->
-        <RadioGroup 
+        <RadioGroup
             v-else-if="campo.tipo === 'radio'"
-            :value="value"
-            @update:modelValue="handleChange"
+            :model-value="value"
+            @update:model-value="handleChange"
         >
             <div class="space-y-2">
                 <div 

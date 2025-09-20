@@ -3,8 +3,10 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from "@modules/Core/Resources/js/components/ui/badge";
 import { Button } from "@modules/Core/Resources/js/components/ui/button";
 import { Progress } from "@modules/Core/Resources/js/components/ui/progress";
-import { Calendar, User, Flag, Clock, ArrowRight } from 'lucide-vue-next';
+import { Calendar, User, Flag, Clock, ArrowRight, Tag } from 'lucide-vue-next';
 import { Link } from '@inertiajs/vue3';
+import EtiquetaDisplay from "@modules/Proyectos/Resources/js/components/EtiquetaDisplay.vue";
+import type { Etiqueta } from '@modules/Proyectos/Resources/js/types/etiquetas';
 
 interface Proyecto {
     id: number;
@@ -20,6 +22,7 @@ interface Proyecto {
         id: number;
         name: string;
     };
+    etiquetas?: Etiqueta[];
     porcentaje_completado: number;
     duracion_dias?: number;
 }
@@ -133,6 +136,18 @@ const getDiasRestantes = (fechaFin: string) => {
                 <div v-if="proyecto.fecha_fin" class="flex items-center gap-2 text-gray-600 dark:text-gray-400">
                     <Clock class="h-4 w-4" />
                     <span class="text-xs">{{ getDiasRestantes(proyecto.fecha_fin) }}</span>
+                </div>
+            </div>
+
+            <!-- Etiquetas -->
+            <div v-if="proyecto.etiquetas && proyecto.etiquetas.length > 0" class="pt-3 border-t">
+                <div class="flex items-center gap-2">
+                    <Tag class="h-3 w-3 text-gray-500" />
+                    <EtiquetaDisplay
+                        :etiquetas="proyecto.etiquetas"
+                        :max-visible="3"
+                        size="sm"
+                    />
                 </div>
             </div>
 

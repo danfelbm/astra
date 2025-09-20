@@ -5,7 +5,7 @@ import NavUser from "./NavUser.vue";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "./ui/sidebar";
 import { type NavItem, type SharedData, type User } from '@/types';
 import { usePage } from '@inertiajs/vue3';
-import { Folder, LayoutGrid, Vote, Users, BarChart3, FileText, Settings, Briefcase, Calendar, Megaphone, UserCheck, ClipboardList, Building2, Shield, Target, UserCog, Database, Lock, ExternalLink, Mail, MessageSquare, Send, FolderOpen } from 'lucide-vue-next';
+import { Folder, LayoutGrid, Vote, Users, BarChart3, FileText, Settings, Briefcase, Calendar, Megaphone, UserCheck, ClipboardList, Building2, Shield, Target, UserCog, Database, Lock, ExternalLink, Mail, MessageSquare, Send, FolderOpen, Tag } from 'lucide-vue-next';
 import { computed } from 'vue';
 import AppLogo from './AppLogo.vue';
 
@@ -258,6 +258,14 @@ const mainNavItems = computed<NavItem[]>(() => {
                 title: 'Campos Personalizados',
                 url: '/admin/campos-personalizados',
                 icon: Settings,
+            });
+        }
+
+        if (hasPermission('categorias_etiquetas.view') && hasModuleAccess('proyectos')) {
+            proyectosItems.push({
+                title: 'Categorías de Etiquetas',
+                url: '/admin/categorias-etiquetas',
+                icon: Tag,
             });
         }
 

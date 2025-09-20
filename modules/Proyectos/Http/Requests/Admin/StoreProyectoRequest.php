@@ -30,6 +30,8 @@ class StoreProyectoRequest extends FormRequest
             'responsable_id' => 'nullable|exists:users,id',
             'activo' => 'boolean',
             'campos_personalizados' => 'nullable|array',
+            'etiquetas' => 'nullable|array|max:' . config('proyectos.etiquetas.max_por_proyecto', 10),
+            'etiquetas.*' => 'exists:etiquetas,id',
         ];
 
         // Agregar reglas dinámicas para campos personalizados
@@ -62,6 +64,8 @@ class StoreProyectoRequest extends FormRequest
             'prioridad.required' => 'La prioridad del proyecto es requerida.',
             'prioridad.in' => 'La prioridad seleccionada no es válida.',
             'responsable_id.exists' => 'El responsable seleccionado no existe.',
+            'etiquetas.array' => 'Las etiquetas deben ser un arreglo válido.',
+            'etiquetas.*.exists' => 'Una o más etiquetas seleccionadas no son válidas.',
         ];
     }
 

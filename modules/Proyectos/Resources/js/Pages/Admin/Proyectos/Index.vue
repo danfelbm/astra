@@ -21,8 +21,10 @@ import {
     SelectTrigger,
     SelectValue
 } from "@modules/Core/Resources/js/components/ui/select";
-import { Plus, Edit, Trash2, Search, Calendar, User } from 'lucide-vue-next';
+import { Plus, Edit, Trash2, Search, Calendar, User, Tag } from 'lucide-vue-next';
 import { ref, watch } from 'vue';
+import EtiquetaDisplay from '@modules/Proyectos/Resources/js/components/EtiquetaDisplay.vue';
+import type { Etiqueta } from '@modules/Proyectos/Resources/js/types/etiquetas';
 
 // Tipos de datos
 interface Proyecto {
@@ -37,6 +39,7 @@ interface Proyecto {
         id: number;
         name: string;
     };
+    etiquetas?: Etiqueta[];
     activo: boolean;
     estado_label: string;
     prioridad_label: string;
@@ -224,6 +227,7 @@ const getPrioridadColor = (prioridad: string) => {
                             <TableRow>
                                 <TableHead>Nombre</TableHead>
                                 <TableHead>Responsable</TableHead>
+                                <TableHead>Etiquetas</TableHead>
                                 <TableHead>Estado</TableHead>
                                 <TableHead>Prioridad</TableHead>
                                 <TableHead>Fecha Inicio</TableHead>
@@ -242,6 +246,15 @@ const getPrioridadColor = (prioridad: string) => {
                                         {{ proyecto.responsable.name }}
                                     </div>
                                     <span v-else class="text-gray-400">Sin asignar</span>
+                                </TableCell>
+                                <TableCell>
+                                    <EtiquetaDisplay
+                                        v-if="proyecto.etiquetas && proyecto.etiquetas.length > 0"
+                                        :etiquetas="proyecto.etiquetas"
+                                        :max-visible="3"
+                                        size="sm"
+                                    />
+                                    <span v-else class="text-gray-400 text-xs">Sin etiquetas</span>
                                 </TableCell>
                                 <TableCell>
                                     <Badge :class="getEstadoColor(proyecto.estado)">

@@ -6,12 +6,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@modu
 import { Button } from "@modules/Core/Resources/js/components/ui/button";
 import { Badge } from "@modules/Core/Resources/js/components/ui/badge";
 import { Progress } from "@modules/Core/Resources/js/components/ui/progress";
-import { 
-    Edit, 
-    Trash2, 
-    Calendar, 
-    User, 
-    AlertCircle, 
+import {
+    Edit,
+    Trash2,
+    Calendar,
+    User,
+    AlertCircle,
     Clock,
     Target,
     Flag,
@@ -19,9 +19,16 @@ import {
     XCircle,
     PauseCircle,
     PlayCircle,
-    Ban
+    Ban,
+    Tag,
+    Plus
 } from 'lucide-vue-next';
 import { toast } from 'vue-sonner';
+import EtiquetaDisplay from '@modules/Proyectos/Resources/js/components/EtiquetaDisplay.vue';
+import EtiquetaSelector from '@modules/Proyectos/Resources/js/components/EtiquetaSelector.vue';
+import { useEtiquetas } from '@modules/Proyectos/Resources/js/composables/useEtiquetas';
+import { ref, computed } from 'vue';
+import type { Etiqueta, CategoriaEtiqueta } from '@modules/Proyectos/Resources/js/types/etiquetas';
 
 // Interfaces
 interface User {
@@ -64,6 +71,7 @@ interface Proyecto {
     porcentaje_completado: number;
     duracion_dias?: number;
     campos_personalizados?: CampoPersonalizado[];
+    etiquetas?: Etiqueta[];
     activities?: Activity[];
     created_at: string;
     updated_at: string;
@@ -72,11 +80,23 @@ interface Proyecto {
 
 interface Props {
     proyecto: Proyecto;
+    categorias?: CategoriaEtiqueta[];
     canEdit?: boolean;
     canDelete?: boolean;
+    canManageTags?: boolean;
 }
 
 const props = defineProps<Props>();
+
+// Estado para gestión de etiquetas
+const editingTags = ref(false);
+const selectedTagIds = ref<number[]>([]);
+const { syncEtiquetasProyecto, isLoading } = useEtiquetas();
+
+// Inicializar etiquetas seleccionadas
+if (props.proyecto.etiquetas) {
+    selectedTagIds.value = props.proyecto.etiquetas.map(e => e.id);
+}
 
 // Breadcrumbs
 const breadcrumbs: BreadcrumbItem[] = [
@@ -151,6 +171,25 @@ const formatRelativeDate = (date: string) => {
     if (days === -1) return 'Ayer';
     if (days > 0) return `En ${days} días`;
     return `Hace ${Math.abs(days)} días`;
+};
+
+// Funciones para gestión de etiquetas
+const saveEtiquetas = async () => {
+    try {
+        await syncEtiquetasProyecto(props.proyecto.id, selectedTagIds.value);
+        editingTags.value = false;
+        toast.success('Etiquetas actualizadas exitosamente');
+        // Recargar la página para actualizar las etiquetas
+        router.reload({ only: ['proyecto'] });
+    } catch (error) {
+        toast.error('Error al actualizar las etiquetas');
+    }
+};
+
+const cancelEditingTags = () => {
+    // Restaurar las etiquetas originales
+    selectedTagIds.value = props.proyecto.etiquetas?.map(e => e.id) || [];
+    editingTags.value = false;
 };
 </script>
 
@@ -255,6 +294,68 @@ const formatRelativeDate = (date: string) => {
                                 <div>
                                     <span class="text-sm text-gray-600 dark:text-gray-400">Duración total:</span>
                                     <span class="font-medium ml-2">{{ proyecto.duracion_dias }} días</span>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <!-- Etiquetas del Proyecto -->
+                    <Card>
+                        <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle class="flex items-center gap-2">
+                                <Tag class="h-5 w-5" />
+                                Etiquetas
+                            </CardTitle>
+                            <Button
+                                v-if="canManageTags && !editingTags"
+                                variant="ghost"
+                                size="sm"
+                                @click="editingTags = true"
+                            >
+                                <Edit class="h-4 w-4" />
+                            </Button>
+                        </CardHeader>
+                        <CardContent>
+                            <!-- Modo lectura -->
+                            <div v-if="!editingTags">
+                                <EtiquetaDisplay
+                                    v-if="proyecto.etiquetas && proyecto.etiquetas.length > 0"
+                                    :etiquetas="proyecto.etiquetas"
+                                    :show-categoria="true"
+                                    :interactive="true"
+                                    size="md"
+                                />
+                                <p v-else class="text-sm text-muted-foreground">
+                                    No hay etiquetas asignadas
+                                </p>
+                            </div>
+
+                            <!-- Modo edición -->
+                            <div v-else class="space-y-4">
+                                <EtiquetaSelector
+                                    v-if="categorias"
+                                    v-model="selectedTagIds"
+                                    :categorias="categorias"
+                                    :max-etiquetas="10"
+                                    placeholder="Seleccionar etiquetas..."
+                                    description="Selecciona hasta 10 etiquetas para este proyecto"
+                                />
+                                <div class="flex gap-2">
+                                    <Button
+                                        size="sm"
+                                        @click="saveEtiquetas"
+                                        :disabled="isLoading"
+                                    >
+                                        Guardar
+                                    </Button>
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        @click="cancelEditingTags"
+                                        :disabled="isLoading"
+                                    >
+                                        Cancelar
+                                    </Button>
                                 </div>
                             </div>
                         </CardContent>

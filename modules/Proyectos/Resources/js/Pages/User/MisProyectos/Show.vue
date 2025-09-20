@@ -17,8 +17,11 @@ import {
     PauseCircle,
     PlayCircle,
     Ban,
-    AlertCircle
+    AlertCircle,
+    Tag
 } from 'lucide-vue-next';
+import EtiquetaDisplay from "@modules/Proyectos/Resources/js/components/EtiquetaDisplay.vue";
+import type { Etiqueta } from '@modules/Proyectos/Resources/js/types/etiquetas';
 
 // Interfaces
 interface User {
@@ -52,6 +55,7 @@ interface Proyecto {
     prioridad_color: string;
     responsable?: User;
     creador?: User;
+    etiquetas?: Etiqueta[];
     porcentaje_completado: number;
     duracion_dias?: number;
     campos_personalizados?: CampoPersonalizado[];
@@ -198,6 +202,17 @@ const formatCampoValor = (campo: CampoPersonalizado) => {
                                         {{ proyecto.prioridad_label }}
                                     </Badge>
                                 </div>
+                            </div>
+
+                            <!-- Etiquetas -->
+                            <div v-if="proyecto.etiquetas && proyecto.etiquetas.length > 0" class="flex items-center gap-3">
+                                <Tag class="h-5 w-5 text-gray-500" />
+                                <span class="font-medium">Etiquetas:</span>
+                                <EtiquetaDisplay
+                                    :etiquetas="proyecto.etiquetas"
+                                    :max-visible="5"
+                                    size="sm"
+                                />
                             </div>
 
                             <!-- Barra de progreso -->

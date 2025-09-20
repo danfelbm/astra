@@ -17,7 +17,7 @@ class ProyectoRepository
         $perPage = $perPage ?? config('proyectos.paginacion.proyectos_por_pagina', 15);
 
         return Proyecto::query()
-            ->with(['responsable', 'creador'])
+            ->with(['responsable', 'creador', 'etiquetas.categoria'])
             ->when($request->search, function (Builder $query, $search) {
                 $query->where(function ($q) use ($search) {
                     $q->where('nombre', 'like', "%{$search}%")
@@ -42,6 +42,16 @@ class ProyectoRepository
             ->when($request->fecha_hasta, function (Builder $query, $fecha) {
                 $query->where('fecha_inicio', '<=', $fecha);
             })
+            ->when($request->etiquetas, function (Builder $query, $etiquetas) {
+                // Filtro por etiquetas (puede ser array o string separado por comas)
+                $etiquetaIds = is_array($etiquetas) ? $etiquetas : explode(',', $etiquetas);
+                $query->conCualquierEtiqueta($etiquetaIds);
+            })
+            ->when($request->todas_etiquetas, function (Builder $query, $etiquetas) {
+                // Filtro para proyectos que tengan TODAS las etiquetas especificadas
+                $etiquetaIds = is_array($etiquetas) ? $etiquetas : explode(',', $etiquetas);
+                $query->conTodasLasEtiquetas($etiquetaIds);
+            })
             ->when($request->sort_by, function (Builder $query, $sortBy) use ($request) {
                 $direction = $request->sort_direction ?? 'asc';
                 $query->orderBy($sortBy, $direction);
@@ -64,7 +74,8 @@ class ProyectoRepository
             'responsable',
             'creador',
             'actualizador',
-            'camposPersonalizados.campoPersonalizado'
+            'camposPersonalizados.campoPersonalizado',
+            'etiquetas.categoria'
         ])->find($id);
     }
 
@@ -165,5 +176,87 @@ class ProyectoRepository
                       ->orWhere('descripcion', 'like', "%{$term}%")
                       ->limit($limit)
                       ->get();
+    }
+
+    /**
+     * Obtiene proyectos por etiqueta.
+     */
+    public function getByEtiqueta(int $etiquetaId, int $limit = null)
+    {
+        $query = Proyecto::whereHas('etiquetas', function ($q) use ($etiquetaId) {
+            $q->where('etiqueta_id', $etiquetaId);
+        })
+        ->with(['responsable', 'etiquetas'])
+        ->where('activo', true);
+
+        if ($limit) {
+            return $query->limit($limit)->get();
+        }
+
+        return $query->get();
+    }
+
+    /**
+     * Obtiene proyectos por categoría de etiqueta.
+     */
+    public function getByCategoriaEtiqueta(int $categoriaId, int $limit = null)
+    {
+        $query = Proyecto::whereHas('etiquetas', function ($q) use ($categoriaId) {
+            $q->where('categoria_etiqueta_id', $categoriaId);
+        })
+        ->with(['responsable', 'etiquetas'])
+        ->where('activo', true);
+
+        if ($limit) {
+            return $query->limit($limit)->get();
+        }
+
+        return $query->get();
+    }
+
+    /**
+     * Obtiene proyectos relacionados por etiquetas similares.
+     */
+    public function getRelacionados(Proyecto $proyecto, int $limit = 5)
+    {
+        $etiquetaIds = $proyecto->etiquetas->pluck('id')->toArray();
+
+        if (empty($etiquetaIds)) {
+            return collect();
+        }
+
+        return Proyecto::where('id', '!=', $proyecto->id)
+            ->where('activo', true)
+            ->whereHas('etiquetas', function ($q) use ($etiquetaIds) {
+                $q->whereIn('etiqueta_id', $etiquetaIds);
+            })
+            ->withCount(['etiquetas' => function ($q) use ($etiquetaIds) {
+                $q->whereIn('etiqueta_id', $etiquetaIds);
+            }])
+            ->orderByDesc('etiquetas_count')
+            ->limit($limit)
+            ->get();
+    }
+
+    /**
+     * Obtiene estadísticas de etiquetas en proyectos.
+     */
+    public function getEstadisticasEtiquetas(): array
+    {
+        $proyectosConEtiquetas = Proyecto::has('etiquetas')->count();
+        $proyectosSinEtiquetas = Proyecto::doesntHave('etiquetas')->count();
+        $totalProyectos = Proyecto::count();
+
+        return [
+            'proyectos_con_etiquetas' => $proyectosConEtiquetas,
+            'proyectos_sin_etiquetas' => $proyectosSinEtiquetas,
+            'porcentaje_con_etiquetas' => $totalProyectos > 0
+                ? round(($proyectosConEtiquetas / $totalProyectos) * 100, 2)
+                : 0,
+            'promedio_etiquetas_por_proyecto' => Proyecto::has('etiquetas')
+                ->withCount('etiquetas')
+                ->get()
+                ->avg('etiquetas_count') ?? 0,
+        ];
     }
 }

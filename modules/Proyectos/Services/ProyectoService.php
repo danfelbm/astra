@@ -13,7 +13,8 @@ class ProyectoService
 {
     public function __construct(
         private ProyectoRepository $repository,
-        private ProyectoNotificationService $notificationService
+        private ProyectoNotificationService $notificationService,
+        private EtiquetaService $etiquetaService
     ) {}
 
     /**
@@ -23,9 +24,11 @@ class ProyectoService
     {
         DB::beginTransaction();
         try {
-            // Separar campos personalizados del resto de datos
+            // Separar campos personalizados y etiquetas del resto de datos
             $camposPersonalizados = $data['campos_personalizados'] ?? [];
+            $etiquetas = $data['etiquetas'] ?? [];
             unset($data['campos_personalizados']);
+            unset($data['etiquetas']);
 
             // Crear el proyecto
             $proyecto = $this->repository->create($data);
@@ -33,6 +36,11 @@ class ProyectoService
             // Guardar campos personalizados si existen
             if (!empty($camposPersonalizados)) {
                 $this->guardarCamposPersonalizados($proyecto, $camposPersonalizados);
+            }
+
+            // Sincronizar etiquetas si existen
+            if (!empty($etiquetas)) {
+                $proyecto->sincronizarEtiquetas($etiquetas);
             }
 
             // Notificar si hay un responsable asignado
@@ -68,9 +76,11 @@ class ProyectoService
             // Guardar el responsable anterior para notificación
             $responsableAnterior = $proyecto->responsable_id;
 
-            // Separar campos personalizados del resto de datos
+            // Separar campos personalizados y etiquetas del resto de datos
             $camposPersonalizados = $data['campos_personalizados'] ?? [];
+            $etiquetas = $data['etiquetas'] ?? null;
             unset($data['campos_personalizados']);
+            unset($data['etiquetas']);
 
             // Actualizar el proyecto
             $this->repository->update($proyecto, $data);
@@ -78,6 +88,11 @@ class ProyectoService
             // Actualizar campos personalizados si existen
             if (!empty($camposPersonalizados)) {
                 $this->guardarCamposPersonalizados($proyecto, $camposPersonalizados);
+            }
+
+            // Sincronizar etiquetas si se proporcionaron
+            if ($etiquetas !== null) {
+                $proyecto->sincronizarEtiquetas($etiquetas);
             }
 
             // Notificar cambio de responsable si aplica
@@ -193,9 +208,15 @@ class ProyectoService
      */
     private function guardarCamposPersonalizados(Proyecto $proyecto, array $valores): void
     {
-        foreach ($valores as $slug => $valor) {
-            // Buscar el campo personalizado por slug
-            $campo = CampoPersonalizado::where('slug', $slug)->first();
+        foreach ($valores as $key => $valor) {
+            // El campo puede venir por ID o por slug
+            if (is_numeric($key)) {
+                // Si es numérico, es un ID
+                $campo = CampoPersonalizado::find($key);
+            } else {
+                // Si no es numérico, es un slug
+                $campo = CampoPersonalizado::where('slug', $key)->first();
+            }
 
             if (!$campo) {
                 continue;
@@ -292,6 +313,12 @@ class ProyectoService
                     'campo_personalizado_id' => $valor->campo_personalizado_id,
                     'valor' => $valor->valor
                 ]);
+            }
+
+            // Copiar etiquetas
+            $etiquetaIds = $proyecto->etiquetas->pluck('id')->toArray();
+            if (!empty($etiquetaIds)) {
+                $nuevoProyecto->sincronizarEtiquetas($etiquetaIds);
             }
 
             DB::commit();

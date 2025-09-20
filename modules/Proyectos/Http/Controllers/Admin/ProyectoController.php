@@ -6,6 +6,8 @@ use Modules\Core\Http\Controllers\Base\AdminController;
 use Modules\Core\Traits\HasAdvancedFilters;
 use Modules\Proyectos\Models\Proyecto;
 use Modules\Proyectos\Models\CampoPersonalizado;
+use Modules\Proyectos\Models\Etiqueta;
+use Modules\Proyectos\Models\CategoriaEtiqueta;
 use Modules\Proyectos\Http\Requests\Admin\StoreProyectoRequest;
 use Modules\Proyectos\Http\Requests\Admin\UpdateProyectoRequest;
 use Modules\Proyectos\Services\ProyectoService;
@@ -51,9 +53,16 @@ class ProyectoController extends AdminController
         $usuarios = User::select('id', 'name', 'email')->orderBy('name')->get();
         $camposPersonalizados = CampoPersonalizado::activos()->ordenado()->get();
 
+        // Cargar etiquetas y categorías para el selector
+        $categorias = CategoriaEtiqueta::with('etiquetas')
+            ->where('activo', true)
+            ->orderBy('orden')
+            ->get();
+
         return Inertia::render('Modules/Proyectos/Admin/Proyectos/Create', [
             'usuarios' => $usuarios,
             'camposPersonalizados' => $camposPersonalizados,
+            'categorias' => $categorias,
             'estados' => config('proyectos.estados'),
             'prioridades' => config('proyectos.prioridades'),
         ]);
@@ -76,12 +85,27 @@ class ProyectoController extends AdminController
      */
     public function show(Proyecto $proyecto): Response
     {
-        $proyecto->load(['responsable', 'creador', 'camposPersonalizados.campoPersonalizado']);
+        $proyecto->load([
+            'responsable',
+            'creador',
+            'camposPersonalizados.campoPersonalizado',
+            'etiquetas.categoria' // Cargar etiquetas con sus categorías
+        ]);
+
+        // Cargar categorías disponibles si el usuario puede gestionar etiquetas
+        $categorias = auth()->user()->can('proyectos.manage_tags')
+            ? CategoriaEtiqueta::with('etiquetas')
+                ->where('activo', true)
+                ->orderBy('orden')
+                ->get()
+            : null;
 
         return Inertia::render('Modules/Proyectos/Admin/Proyectos/Show', [
             'proyecto' => $proyecto,
+            'categorias' => $categorias,
             'canEdit' => auth()->user()->can('proyectos.edit'),
             'canDelete' => auth()->user()->can('proyectos.delete'),
+            'canManageTags' => auth()->user()->can('proyectos.manage_tags'),
         ]);
     }
 
@@ -92,19 +116,27 @@ class ProyectoController extends AdminController
     {
         $usuarios = User::select('id', 'name', 'email')->orderBy('name')->get();
         $camposPersonalizados = CampoPersonalizado::activos()->ordenado()->get();
-        $proyecto->load('camposPersonalizados');
+        $proyecto->load(['camposPersonalizados', 'etiquetas.categoria']);
 
         // Preparar valores de campos personalizados
         $valoresCampos = [];
         foreach ($camposPersonalizados as $campo) {
-            $valoresCampos[$campo->slug] = $campo->getValorParaProyecto($proyecto->id);
+            // Usar el ID como clave en lugar del slug
+            $valoresCampos[$campo->id] = $campo->getValorParaProyecto($proyecto->id);
         }
+
+        // Cargar etiquetas y categorías para el selector
+        $categorias = CategoriaEtiqueta::with('etiquetas')
+            ->where('activo', true)
+            ->orderBy('orden')
+            ->get();
 
         return Inertia::render('Modules/Proyectos/Admin/Proyectos/Edit', [
             'proyecto' => $proyecto,
             'usuarios' => $usuarios,
             'camposPersonalizados' => $camposPersonalizados,
             'valoresCampos' => $valoresCampos,
+            'categorias' => $categorias,
             'estados' => config('proyectos.estados'),
             'prioridades' => config('proyectos.prioridades'),
         ]);

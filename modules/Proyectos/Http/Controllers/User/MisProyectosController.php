@@ -42,7 +42,7 @@ class MisProyectosController extends UserController
             ->when($request->prioridad, function ($query, $prioridad) {
                 $query->where('prioridad', $prioridad);
             })
-            ->with(['responsable'])
+            ->with(['responsable', 'etiquetas.categoria'])
             ->orderBy('prioridad', 'desc')
             ->orderBy('fecha_inicio', 'asc')
             ->paginate(12);
@@ -68,8 +68,15 @@ class MisProyectosController extends UserController
 
         $camposPersonalizados = CampoPersonalizado::activos()->ordenado()->get();
 
+        // Cargar etiquetas y categorías para el selector
+        $categorias = \Modules\Proyectos\Models\CategoriaEtiqueta::with('etiquetas')
+            ->where('activo', true)
+            ->orderBy('orden')
+            ->get();
+
         return Inertia::render('Modules/Proyectos/User/MisProyectos/Create', [
             'camposPersonalizados' => $camposPersonalizados,
+            'categorias' => $categorias,
             'estados' => ['planificacion' => 'Planificación', 'en_progreso' => 'En Progreso'],
             'prioridades' => config('proyectos.prioridades'),
         ]);
@@ -90,6 +97,8 @@ class MisProyectosController extends UserController
             'fecha_inicio' => 'required|date',
             'fecha_fin' => 'nullable|date|after:fecha_inicio',
             'prioridad' => 'required|in:baja,media,alta,critica',
+            'etiquetas' => 'nullable|array|max:10',
+            'etiquetas.*' => 'exists:etiquetas,id',
             'campos_personalizados' => 'nullable|array',
         ]);
 
@@ -115,7 +124,7 @@ class MisProyectosController extends UserController
             abort(403, 'No tienes acceso a este proyecto');
         }
 
-        $proyecto->load(['responsable', 'creador', 'camposPersonalizados.campoPersonalizado']);
+        $proyecto->load(['responsable', 'creador', 'camposPersonalizados.campoPersonalizado', 'etiquetas.categoria']);
 
         return Inertia::render('Modules/Proyectos/User/MisProyectos/Show', [
             'proyecto' => $proyecto,
@@ -134,7 +143,7 @@ class MisProyectosController extends UserController
         }
 
         $camposPersonalizados = CampoPersonalizado::activos()->ordenado()->get();
-        $proyecto->load('camposPersonalizados');
+        $proyecto->load(['camposPersonalizados', 'etiquetas.categoria']);
 
         // Preparar valores de campos personalizados
         $valoresCampos = [];
@@ -142,10 +151,17 @@ class MisProyectosController extends UserController
             $valoresCampos[$campo->slug] = $campo->getValorParaProyecto($proyecto->id);
         }
 
+        // Cargar etiquetas y categorías para el selector
+        $categorias = \Modules\Proyectos\Models\CategoriaEtiqueta::with('etiquetas')
+            ->where('activo', true)
+            ->orderBy('orden')
+            ->get();
+
         return Inertia::render('Modules/Proyectos/User/MisProyectos/Edit', [
             'proyecto' => $proyecto,
             'camposPersonalizados' => $camposPersonalizados,
             'valoresCampos' => $valoresCampos,
+            'categorias' => $categorias,
             'estados' => config('proyectos.estados'),
             'prioridades' => config('proyectos.prioridades'),
         ]);

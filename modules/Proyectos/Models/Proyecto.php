@@ -5,6 +5,7 @@ namespace Modules\Proyectos\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Modules\Core\Traits\HasTenant;
 use Modules\Core\Traits\HasAuditLog;
 use Modules\Core\Models\User;
@@ -45,8 +46,8 @@ class Proyecto extends Model
      * @var array
      */
     protected $casts = [
-        'fecha_inicio' => 'date',
-        'fecha_fin' => 'date',
+        'fecha_inicio' => 'date:Y-m-d',
+        'fecha_fin' => 'date:Y-m-d',
         'activo' => 'boolean',
     ];
 
@@ -92,6 +93,16 @@ class Proyecto extends Model
     public function camposPersonalizados(): HasMany
     {
         return $this->hasMany(ValorCampoPersonalizado::class);
+    }
+
+    /**
+     * Obtiene las etiquetas del proyecto.
+     */
+    public function etiquetas(): BelongsToMany
+    {
+        return $this->belongsToMany(Etiqueta::class, 'proyecto_etiqueta')
+            ->withPivot(['orden', 'created_at'])
+            ->orderBy('proyecto_etiqueta.orden');
     }
 
     /**
@@ -249,5 +260,79 @@ class Proyecto extends Model
     {
         return $query->where('fecha_fin', '<', now())
                     ->whereNotIn('estado', ['completado', 'cancelado']);
+    }
+
+    /**
+     * Scope para proyectos con etiquetas específicas.
+     */
+    public function scopeConEtiquetas($query, array $etiquetaIds)
+    {
+        return $query->whereHas('etiquetas', function ($q) use ($etiquetaIds) {
+            $q->whereIn('etiqueta_id', $etiquetaIds);
+        });
+    }
+
+    /**
+     * Scope para proyectos con cualquiera de las etiquetas.
+     */
+    public function scopeConCualquierEtiqueta($query, array $etiquetaIds)
+    {
+        return $query->whereHas('etiquetas', function ($q) use ($etiquetaIds) {
+            $q->whereIn('etiqueta_id', $etiquetaIds);
+        });
+    }
+
+    /**
+     * Scope para proyectos con todas las etiquetas especificadas.
+     */
+    public function scopeConTodasLasEtiquetas($query, array $etiquetaIds)
+    {
+        foreach ($etiquetaIds as $etiquetaId) {
+            $query->whereHas('etiquetas', function ($q) use ($etiquetaId) {
+                $q->where('etiqueta_id', $etiquetaId);
+            });
+        }
+        return $query;
+    }
+
+    /**
+     * Sincroniza las etiquetas del proyecto.
+     */
+    public function sincronizarEtiquetas(array $etiquetaIds): void
+    {
+        $etiquetasConOrden = [];
+        foreach ($etiquetaIds as $index => $etiquetaId) {
+            $etiquetasConOrden[$etiquetaId] = ['orden' => $index + 1];
+        }
+
+        $this->etiquetas()->sync($etiquetasConOrden);
+
+        // Actualizar contador de usos en las etiquetas
+        Etiqueta::whereIn('id', $etiquetaIds)->each(function ($etiqueta) {
+            $etiqueta->recalcularUsos();
+        });
+    }
+
+    /**
+     * Agrega una etiqueta al proyecto.
+     */
+    public function agregarEtiqueta(int $etiquetaId, int $orden = null): void
+    {
+        if (!$this->etiquetas()->where('etiqueta_id', $etiquetaId)->exists()) {
+            $orden = $orden ?? $this->etiquetas()->count() + 1;
+            $this->etiquetas()->attach($etiquetaId, ['orden' => $orden]);
+
+            Etiqueta::find($etiquetaId)?->incrementarUsos();
+        }
+    }
+
+    /**
+     * Quita una etiqueta del proyecto.
+     */
+    public function quitarEtiqueta(int $etiquetaId): void
+    {
+        $this->etiquetas()->detach($etiquetaId);
+
+        Etiqueta::find($etiquetaId)?->decrementarUsos();
     }
 }
