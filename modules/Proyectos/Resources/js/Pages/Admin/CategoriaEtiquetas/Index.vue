@@ -22,10 +22,13 @@ import {
     SelectTrigger,
     SelectValue
 } from "@modules/Core/Resources/js/components/ui/select";
-import { Plus, Edit, Trash2, Save, X, Tag, Palette, ChevronDown, ChevronRight } from 'lucide-vue-next';
+import { Plus, Edit, Trash2, Save, X, Tag, Palette, ChevronDown, ChevronRight, TreePine, List } from 'lucide-vue-next';
 import { ref } from 'vue';
 import { toast } from 'vue-sonner';
 import type { CategoriaEtiqueta, Etiqueta } from '@modules/Proyectos/Resources/js/types/etiquetas';
+import EtiquetaHierarchySelector from '@modules/Proyectos/Resources/js/components/EtiquetaHierarchySelector.vue';
+import EtiquetaTreeView from '@modules/Proyectos/Resources/js/components/EtiquetaTreeView.vue';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@modules/Core/Resources/js/components/ui/tabs";
 
 // Props
 interface Props {
@@ -62,6 +65,9 @@ const expandedRows = ref<Set<number>>(new Set());
 const creatingEtiqueta = ref<number | null>(null);
 const editingEtiqueta = ref<number | null>(null);
 
+// Estado para controlar la vista (tabla o árbol)
+const viewMode = ref<'table' | 'tree'>('table');
+
 // Formulario para categorías
 const form = useForm({
     nombre: '',
@@ -75,7 +81,8 @@ const form = useForm({
 const etiquetaForm = useForm({
     nombre: '',
     descripcion: '',
-    categoria_etiqueta_id: 0
+    categoria_etiqueta_id: 0,
+    parent_id: null as number | null
 });
 
 // Iniciar creación de nueva categoría
@@ -177,6 +184,7 @@ const startEditingEtiqueta = (etiqueta: Etiqueta) => {
     etiquetaForm.nombre = etiqueta.nombre;
     etiquetaForm.descripcion = etiqueta.descripcion || '';
     etiquetaForm.categoria_etiqueta_id = etiqueta.categoria_etiqueta_id;
+    etiquetaForm.parent_id = etiqueta.parent_id || null;
 };
 
 const cancelEtiquetaEditing = () => {
@@ -248,6 +256,49 @@ const getColorClass = (color: string): string => {
         rose: 'bg-rose-500'
     };
     return colorMap[color] || 'bg-gray-500';
+};
+
+// Helper para obtener todas las etiquetas en formato plano para el TreeView
+const getAllEtiquetas = (): Etiqueta[] => {
+    const etiquetas: Etiqueta[] = [];
+    props.categorias.data.forEach(categoria => {
+        if (categoria.etiquetas) {
+            categoria.etiquetas.forEach(etiqueta => {
+                etiquetas.push({
+                    ...etiqueta,
+                    categoria: {
+                        id: categoria.id,
+                        nombre: categoria.nombre,
+                        color: categoria.color,
+                        icono: categoria.icono,
+                        descripcion: categoria.descripcion,
+                        orden: categoria.orden,
+                        activo: categoria.activo
+                    }
+                } as Etiqueta);
+            });
+        }
+    });
+    return etiquetas;
+};
+
+// Manejar edición de etiqueta desde el árbol
+const handleEditEtiqueta = (etiqueta: Etiqueta) => {
+    // Encontrar la categoría de la etiqueta
+    const categoria = props.categorias.data.find(c => c.id === etiqueta.categoria_etiqueta_id);
+    if (categoria) {
+        // Expandir la categoría si no lo está
+        expandedRows.value.add(categoria.id);
+        // Cambiar a vista de tabla
+        viewMode.value = 'table';
+        // Iniciar edición de la etiqueta
+        startEditingEtiqueta(etiqueta);
+    }
+};
+
+// Manejar eliminación de etiqueta desde el árbol
+const handleDeleteEtiqueta = (etiqueta: Etiqueta) => {
+    deleteEtiqueta(etiqueta.id);
 };
 </script>
 
@@ -376,10 +427,28 @@ const getColorClass = (color: string): string => {
                 </CardContent>
             </Card>
 
-            <!-- Tabla de categorías -->
-            <Card>
-                <CardContent class="p-0">
-                    <Table>
+            <!-- Vistas de categorías y etiquetas -->
+            <Tabs v-model="viewMode">
+                <Card>
+                    <CardHeader>
+                        <div class="flex items-center justify-between">
+                            <CardTitle>Gestión de Etiquetas</CardTitle>
+                            <TabsList>
+                                <TabsTrigger value="table">
+                                    <List class="h-4 w-4 mr-2" />
+                                    Vista de Tabla
+                                </TabsTrigger>
+                                <TabsTrigger value="tree">
+                                    <TreePine class="h-4 w-4 mr-2" />
+                                    Vista de Árbol
+                                </TabsTrigger>
+                            </TabsList>
+                        </div>
+                    </CardHeader>
+
+                    <TabsContent value="table" class="mt-0">
+                        <CardContent class="p-0">
+                            <Table>
                         <TableHeader>
                             <TableRow>
                                 <TableHead>Nombre</TableHead>
@@ -538,20 +607,30 @@ const getColorClass = (color: string): string => {
                                             <!-- Formulario para nueva etiqueta -->
                                             <Card v-if="creatingEtiqueta === categoria.id" class="border-dashed">
                                                 <CardContent class="pt-4">
-                                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                        <div>
-                                                            <Label>Nombre *</Label>
-                                                            <Input
-                                                                v-model="etiquetaForm.nombre"
-                                                                placeholder="Nombre de la etiqueta"
-                                                                :class="{ 'border-red-500': etiquetaForm.errors.nombre }"
-                                                            />
+                                                    <div class="grid grid-cols-1 gap-4">
+                                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                            <div>
+                                                                <Label>Nombre *</Label>
+                                                                <Input
+                                                                    v-model="etiquetaForm.nombre"
+                                                                    placeholder="Nombre de la etiqueta"
+                                                                    :class="{ 'border-red-500': etiquetaForm.errors.nombre }"
+                                                                />
+                                                            </div>
+                                                            <div>
+                                                                <Label>Descripción</Label>
+                                                                <Input
+                                                                    v-model="etiquetaForm.descripcion"
+                                                                    placeholder="Descripción opcional"
+                                                                />
+                                                            </div>
                                                         </div>
                                                         <div>
-                                                            <Label>Descripción</Label>
-                                                            <Input
-                                                                v-model="etiquetaForm.descripcion"
-                                                                placeholder="Descripción opcional"
+                                                            <EtiquetaHierarchySelector
+                                                                v-model="etiquetaForm.parent_id"
+                                                                :categorias="[categoria]"
+                                                                label="Etiqueta Padre (Opcional)"
+                                                                placeholder="Seleccionar etiqueta padre..."
                                                             />
                                                         </div>
                                                     </div>
@@ -576,17 +655,27 @@ const getColorClass = (color: string): string => {
                                                     class="flex items-center justify-between p-3 border rounded-lg bg-white dark:bg-gray-800"
                                                 >
                                                     <!-- Formulario de edición -->
-                                                    <div v-if="editingEtiqueta === etiqueta.id" class="flex-1 grid grid-cols-2 gap-4">
-                                                        <Input
-                                                            v-model="etiquetaForm.nombre"
-                                                            placeholder="Nombre"
-                                                        />
-                                                        <div class="flex gap-2">
+                                                    <div v-if="editingEtiqueta === etiqueta.id" class="flex-1">
+                                                        <div class="grid grid-cols-2 gap-4 mb-2">
+                                                            <Input
+                                                                v-model="etiquetaForm.nombre"
+                                                                placeholder="Nombre"
+                                                            />
                                                             <Input
                                                                 v-model="etiquetaForm.descripcion"
                                                                 placeholder="Descripción"
-                                                                class="flex-1"
                                                             />
+                                                        </div>
+                                                        <div class="flex gap-2 items-end">
+                                                            <div class="flex-1">
+                                                                <EtiquetaHierarchySelector
+                                                                    v-model="etiquetaForm.parent_id"
+                                                                    :categorias="[categoria]"
+                                                                    :excluded-id="etiqueta.id"
+                                                                    label=""
+                                                                    placeholder="Etiqueta padre..."
+                                                                />
+                                                            </div>
                                                             <Button
                                                                 size="sm"
                                                                 @click="updateEtiqueta(etiqueta.id)"
@@ -607,9 +696,20 @@ const getColorClass = (color: string): string => {
                                                     <!-- Vista normal -->
                                                     <div v-else class="flex-1 flex items-center justify-between">
                                                         <div>
-                                                            <span class="font-medium">{{ etiqueta.nombre }}</span>
+                                                            <div class="flex items-center gap-2">
+                                                                <span class="font-medium">{{ etiqueta.nombre }}</span>
+                                                                <Badge v-if="etiqueta.parent" variant="outline" class="text-xs">
+                                                                    {{ etiqueta.parent.nombre }}
+                                                                </Badge>
+                                                                <Badge v-if="etiqueta.tiene_hijos" variant="secondary" class="text-xs">
+                                                                    Tiene hijos
+                                                                </Badge>
+                                                            </div>
                                                             <p v-if="etiqueta.descripcion" class="text-sm text-gray-500">
                                                                 {{ etiqueta.descripcion }}
+                                                            </p>
+                                                            <p v-if="etiqueta.ruta_completa && etiqueta.parent" class="text-xs text-muted-foreground mt-1">
+                                                                Ruta: {{ etiqueta.ruta_completa }}
                                                             </p>
                                                         </div>
                                                         <div class="flex gap-2">
@@ -658,9 +758,23 @@ const getColorClass = (color: string): string => {
                                 </TableCell>
                             </TableRow>
                         </TableBody>
-                    </Table>
-                </CardContent>
-            </Card>
+                            </Table>
+                        </CardContent>
+                    </TabsContent>
+
+                    <!-- Vista de Árbol -->
+                    <TabsContent value="tree" class="mt-0">
+                        <CardContent>
+                            <EtiquetaTreeView
+                                :etiquetas="getAllEtiquetas()"
+                                :show-stats="true"
+                                @edit="handleEditEtiqueta"
+                                @delete="handleDeleteEtiqueta"
+                            />
+                        </CardContent>
+                    </TabsContent>
+                </Card>
+            </Tabs>
         </div>
     </AdminLayout>
 </template>

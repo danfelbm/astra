@@ -56,6 +56,12 @@ class StoreEtiquetaRequest extends FormRequest
                 'string',
                 'max:500',
             ],
+            'parent_id' => [
+                'nullable',
+                'integer',
+                'exists:etiquetas,id',
+                // Validación personalizada para evitar ciclos se hace en el servicio
+            ],
         ];
     }
 
@@ -73,6 +79,7 @@ class StoreEtiquetaRequest extends FormRequest
             'categoria_etiqueta_id.exists' => 'La categoría seleccionada no existe',
             'color.in' => 'El color seleccionado no es válido',
             'descripcion.max' => 'La descripción no puede exceder los 500 caracteres',
+            'parent_id.exists' => 'La etiqueta padre seleccionada no existe',
         ];
     }
 

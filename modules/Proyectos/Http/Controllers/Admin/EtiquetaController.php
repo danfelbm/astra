@@ -151,4 +151,114 @@ class EtiquetaController extends AdminController
             ], 500);
         }
     }
+
+    /**
+     * Obtiene el árbol jerárquico de etiquetas.
+     */
+    public function obtenerArbol(Request $request): JsonResponse
+    {
+        $categoriaId = $request->get('categoria_id');
+        $arbol = $this->repository->getArbol($categoriaId);
+
+        return response()->json([
+            'success' => true,
+            'arbol' => $arbol
+        ]);
+    }
+
+    /**
+     * Establece la jerarquía de una etiqueta.
+     */
+    public function establecerJerarquia(Request $request, Etiqueta $etiqueta): JsonResponse
+    {
+        $this->authorize('etiquetas.edit');
+
+        $request->validate([
+            'parent_id' => 'nullable|exists:etiquetas,id'
+        ]);
+
+        try {
+            $etiquetaActualizada = $this->service->establecerPadre($etiqueta, $request->parent_id);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Jerarquía actualizada exitosamente',
+                'etiqueta' => $etiquetaActualizada->load(['parent', 'categoria'])
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 400);
+        }
+    }
+
+    /**
+     * Mueve una etiqueta en la jerarquía.
+     */
+    public function mover(Request $request, Etiqueta $etiqueta): JsonResponse
+    {
+        $this->authorize('etiquetas.edit');
+
+        $request->validate([
+            'nuevo_padre_id' => 'nullable|exists:etiquetas,id'
+        ]);
+
+        try {
+            $etiquetaMovida = $this->service->moverEnJerarquia($etiqueta, $request->nuevo_padre_id);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Etiqueta movida exitosamente',
+                'etiqueta' => $etiquetaMovida->load(['parent', 'categoria', 'children'])
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 400);
+        }
+    }
+
+    /**
+     * Obtiene etiquetas para selector con jerarquía.
+     */
+    public function paraSelector(Request $request): JsonResponse
+    {
+        $excluirId = $request->get('excluir_id');
+        $etiquetas = $this->repository->getParaSelector($excluirId);
+
+        return response()->json([
+            'success' => true,
+            'etiquetas' => $etiquetas
+        ]);
+    }
+
+    /**
+     * Obtiene el camino jerárquico de una etiqueta.
+     */
+    public function camino(Etiqueta $etiqueta): JsonResponse
+    {
+        $camino = $this->repository->getCamino($etiqueta->id);
+
+        return response()->json([
+            'success' => true,
+            'camino' => $camino
+        ]);
+    }
+
+    /**
+     * Obtiene estadísticas de jerarquía.
+     */
+    public function estadisticasJerarquia(): JsonResponse
+    {
+        $this->authorize('etiquetas.view');
+
+        $estadisticas = $this->repository->getEstadisticasJerarquia();
+
+        return response()->json([
+            'success' => true,
+            'estadisticas' => $estadisticas
+        ]);
+    }
 }
