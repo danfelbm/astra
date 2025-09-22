@@ -5,6 +5,8 @@ namespace Modules\Proyectos\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Collection;
 use Modules\Core\Traits\HasTenant;
 use Modules\Core\Traits\HasAuditLog;
 
@@ -28,6 +30,9 @@ class Etiqueta extends Model
         'nombre',
         'slug',
         'categoria_etiqueta_id',
+        'parent_id',
+        'nivel',
+        'ruta',
         'color',
         'descripcion',
         'usos_count',
@@ -42,6 +47,8 @@ class Etiqueta extends Model
     protected $casts = [
         'usos_count' => 'integer',
         'categoria_etiqueta_id' => 'integer',
+        'parent_id' => 'integer',
+        'nivel' => 'integer',
     ];
 
     /**
@@ -53,6 +60,8 @@ class Etiqueta extends Model
         'color_efectivo',
         'color_class',
         'nombre_completo',
+        'tiene_hijos',
+        'ruta_completa',
     ];
 
     /**
@@ -70,6 +79,38 @@ class Etiqueta extends Model
     {
         return $this->belongsToMany(Proyecto::class, 'proyecto_etiqueta')
             ->withPivot(['orden', 'created_at']);
+    }
+
+    /**
+     * Relación con la etiqueta padre.
+     */
+    public function parent(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'parent_id');
+    }
+
+    /**
+     * Relación con las etiquetas hijas.
+     */
+    public function children(): HasMany
+    {
+        return $this->hasMany(self::class, 'parent_id');
+    }
+
+    /**
+     * Obtiene todos los ancestros de la etiqueta.
+     */
+    public function ancestors()
+    {
+        return $this->parent()->with('ancestors');
+    }
+
+    /**
+     * Obtiene todos los descendientes de la etiqueta.
+     */
+    public function descendants()
+    {
+        return $this->children()->with('descendants');
     }
 
     /**
@@ -120,6 +161,34 @@ class Etiqueta extends Model
     }
 
     /**
+     * Verifica si la etiqueta tiene hijos.
+     */
+    public function getTieneHijosAttribute(): bool
+    {
+        return $this->children()->exists();
+    }
+
+    /**
+     * Obtiene la ruta completa de la jerarquía.
+     */
+    public function getRutaCompletaAttribute(): string
+    {
+        if (!$this->parent_id) {
+            return $this->nombre;
+        }
+
+        $ruta = [];
+        $etiqueta = $this;
+
+        while ($etiqueta) {
+            array_unshift($ruta, $etiqueta->nombre);
+            $etiqueta = $etiqueta->parent;
+        }
+
+        return implode(' / ', $ruta);
+    }
+
+    /**
      * Scope para buscar por nombre o slug.
      */
     public function scopeBuscar($query, $termino)
@@ -153,6 +222,30 @@ class Etiqueta extends Model
     public function scopeNoUtilizadas($query)
     {
         return $query->where('usos_count', 0);
+    }
+
+    /**
+     * Scope para etiquetas raíz (sin padre).
+     */
+    public function scopeRaices($query)
+    {
+        return $query->whereNull('parent_id');
+    }
+
+    /**
+     * Scope para etiquetas por nivel de jerarquía.
+     */
+    public function scopePorNivel($query, $nivel)
+    {
+        return $query->where('nivel', $nivel);
+    }
+
+    /**
+     * Scope para incluir jerarquía completa.
+     */
+    public function scopeConJerarquia($query)
+    {
+        return $query->with(['parent', 'children', 'categoria']);
     }
 
     /**
@@ -196,6 +289,116 @@ class Etiqueta extends Model
     }
 
     /**
+     * Obtiene todos los ancestros de la etiqueta.
+     */
+    public function getAncestros(): Collection
+    {
+        $ancestros = collect();
+        $padre = $this->parent;
+
+        while ($padre) {
+            $ancestros->push($padre);
+            $padre = $padre->parent;
+        }
+
+        return $ancestros;
+    }
+
+    /**
+     * Obtiene todos los descendientes de la etiqueta.
+     */
+    public function getDescendientes(): Collection
+    {
+        $descendientes = collect();
+        $queue = collect([$this]);
+
+        while ($queue->isNotEmpty()) {
+            $etiqueta = $queue->shift();
+            $hijos = $etiqueta->children;
+
+            foreach ($hijos as $hijo) {
+                $descendientes->push($hijo);
+                $queue->push($hijo);
+            }
+        }
+
+        return $descendientes;
+    }
+
+    /**
+     * Verifica si la etiqueta es hija de otra.
+     */
+    public function esHijoDe($etiqueta): bool
+    {
+        if (!$etiqueta) return false;
+
+        $etiquetaId = $etiqueta instanceof self ? $etiqueta->id : $etiqueta;
+        return $this->parent_id == $etiquetaId;
+    }
+
+    /**
+     * Verifica si la etiqueta es ancestro de otra.
+     */
+    public function esAncestroDe($etiqueta): bool
+    {
+        if (!$etiqueta) return false;
+
+        $etiquetaObj = $etiqueta instanceof self ? $etiqueta : self::find($etiqueta);
+        if (!$etiquetaObj) return false;
+
+        return $etiquetaObj->getAncestros()->contains('id', $this->id);
+    }
+
+    /**
+     * Calcula y actualiza el nivel de la etiqueta.
+     */
+    public function recalcularNivel(): void
+    {
+        $nivel = 0;
+        $padre = $this->parent;
+
+        while ($padre) {
+            $nivel++;
+            $padre = $padre->parent;
+        }
+
+        $this->nivel = $nivel;
+        // Usar saveQuietly para evitar disparar eventos y evitar loops infinitos
+        $this->saveQuietly();
+    }
+
+    /**
+     * Calcula y actualiza la ruta completa.
+     */
+    public function recalcularRuta(): void
+    {
+        $ruta = [];
+        $etiqueta = $this;
+
+        while ($etiqueta) {
+            array_unshift($ruta, $etiqueta->slug);
+            $etiqueta = $etiqueta->parent;
+        }
+
+        $this->ruta = implode('/', $ruta);
+        // Usar saveQuietly para evitar disparar eventos y evitar loops infinitos
+        $this->saveQuietly();
+    }
+
+    /**
+     * Valida que no se creen ciclos en la jerarquía.
+     */
+    public function puedeSerHijoDe($padreId): bool
+    {
+        if (!$padreId) return true;
+        if ($padreId == $this->id) return false;
+
+        // Verificar que el padre propuesto no sea descendiente de esta etiqueta
+        $descendientes = $this->getDescendientes();
+        return !$descendientes->contains('id', $padreId);
+    }
+
+    /**
      * Boot del modelo.
      */
     protected static function boot()
@@ -206,11 +409,57 @@ class Etiqueta extends Model
             if (empty($model->slug)) {
                 $model->slug = static::generarSlug($model->nombre);
             }
+
+            // Calcular nivel y ruta antes de crear
+            if ($model->parent_id) {
+                $padre = static::find($model->parent_id);
+                if ($padre) {
+                    $model->nivel = $padre->nivel + 1;
+                    $model->ruta = $padre->ruta . '/' . $model->slug;
+                } else {
+                    $model->nivel = 0;
+                    $model->ruta = $model->slug;
+                }
+            } else {
+                $model->nivel = 0;
+                $model->ruta = $model->slug;
+            }
         });
 
         static::updating(function ($model) {
             if ($model->isDirty('nombre') && !$model->isDirty('slug')) {
                 $model->slug = static::generarSlug($model->nombre);
+            }
+
+            // Validar que no se creen ciclos en la jerarquía
+            if ($model->isDirty('parent_id')) {
+                if (!$model->puedeSerHijoDe($model->parent_id)) {
+                    throw new \Exception('No se puede crear un ciclo en la jerarquía de etiquetas');
+                }
+
+                // Calcular nuevo nivel y ruta antes de actualizar
+                if ($model->parent_id) {
+                    $padre = static::find($model->parent_id);
+                    if ($padre) {
+                        $model->nivel = $padre->nivel + 1;
+                        $model->ruta = $padre->ruta . '/' . $model->slug;
+                    }
+                } else {
+                    $model->nivel = 0;
+                    $model->ruta = $model->slug;
+                }
+            }
+        });
+
+        static::updated(function ($model) {
+            // Solo recalcular descendientes cuando cambie el padre
+            // No recalcular el modelo actual para evitar loops
+            if ($model->wasChanged('parent_id')) {
+                // Recalcular niveles y rutas de todos los descendientes
+                foreach ($model->getDescendientes() as $descendiente) {
+                    $descendiente->recalcularNivel();
+                    $descendiente->recalcularRuta();
+                }
             }
         });
 

@@ -2,30 +2,87 @@
     <div class="flex flex-wrap gap-1.5">
         <!-- Etiquetas visibles -->
         <template v-for="(etiqueta, index) in etiquetasVisibles" :key="etiqueta.id">
-            <Badge
-                :variant="getBadgeVariant(etiqueta)"
-                :class="[
-                    sizeClasses,
-                    interactive ? 'cursor-pointer hover:opacity-80 transition-opacity' : '',
-                    'inline-flex items-center gap-1'
-                ]"
-                @click="interactive && handleClick(etiqueta)"
-            >
-                <!-- Icono de la categoría si existe -->
-                <component
-                    v-if="etiqueta.categoria?.icono && showCategoria"
-                    :is="getIcon(etiqueta.categoria.icono)"
-                    :class="iconSizeClasses"
-                />
+            <HoverCard :open-delay="200" :close-delay="100">
+                <HoverCardTrigger asChild>
+                    <Badge
+                        :variant="getBadgeVariant(etiqueta)"
+                        :class="[
+                            sizeClasses,
+                            interactive ? 'cursor-pointer hover:opacity-80 transition-opacity' : '',
+                            'inline-flex items-center gap-1'
+                        ]"
+                        @click="interactive && handleClick(etiqueta)"
+                    >
+                        <!-- Indicador de jerarquía si tiene padre -->
+                        <ChevronRight
+                            v-if="etiqueta.parent_id"
+                            :class="[iconSizeClasses, 'opacity-50']"
+                        />
 
-                <!-- Nombre de la etiqueta -->
-                <span>{{ etiqueta.nombre }}</span>
+                        <!-- Icono de la categoría si existe -->
+                        <component
+                            v-if="etiqueta.categoria?.icono && showCategoria"
+                            :is="getIcon(etiqueta.categoria.icono)"
+                            :class="iconSizeClasses"
+                        />
 
-                <!-- Mostrar categoría si está habilitado -->
-                <span v-if="showCategoria && etiqueta.categoria" class="opacity-60 text-xs">
-                    ({{ etiqueta.categoria.nombre }})
-                </span>
-            </Badge>
+                        <!-- Nombre de la etiqueta -->
+                        <span>{{ etiqueta.nombre }}</span>
+
+                        <!-- Indicador si tiene hijos -->
+                        <span v-if="etiqueta.tiene_hijos" class="ml-1">
+                            <Layers :class="[iconSizeClasses, 'opacity-50']" />
+                        </span>
+
+                        <!-- Mostrar categoría si está habilitado -->
+                        <span v-if="showCategoria && etiqueta.categoria" class="opacity-60 text-xs">
+                            ({{ etiqueta.categoria.nombre }})
+                        </span>
+                    </Badge>
+                </HoverCardTrigger>
+
+                <!-- Contenido del HoverCard con breadcrumb -->
+                <HoverCardContent
+                    v-if="etiqueta.parent || etiqueta.children || etiqueta.descripcion"
+                    class="w-80 p-3"
+                    side="top"
+                >
+                    <!-- Breadcrumb de jerarquía -->
+                    <div v-if="etiqueta.ruta_completa || etiqueta.parent" class="mb-2">
+                        <div class="text-xs text-muted-foreground mb-1">Jerarquía:</div>
+                        <div class="flex items-center gap-1 text-sm">
+                            <!-- Ruta completa si está disponible -->
+                            <template v-if="etiqueta.ruta_completa">
+                                <span class="font-medium">{{ etiqueta.ruta_completa }}</span>
+                            </template>
+                            <!-- O construir desde parent -->
+                            <template v-else-if="etiqueta.parent">
+                                <span class="text-muted-foreground">{{ etiqueta.parent.nombre }}</span>
+                                <ChevronRight class="h-3 w-3" />
+                                <span class="font-medium">{{ etiqueta.nombre }}</span>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- Descripción -->
+                    <div v-if="etiqueta.descripcion" class="text-sm text-muted-foreground">
+                        {{ etiqueta.descripcion }}
+                    </div>
+
+                    <!-- Información adicional -->
+                    <div class="flex gap-4 mt-2 text-xs text-muted-foreground">
+                        <div v-if="etiqueta.categoria">
+                            <span class="font-medium">Categoría:</span> {{ etiqueta.categoria.nombre }}
+                        </div>
+                        <div v-if="etiqueta.usos_count > 0">
+                            <span class="font-medium">Usos:</span> {{ etiqueta.usos_count }}
+                        </div>
+                        <div v-if="etiqueta.children && etiqueta.children.length > 0">
+                            <span class="font-medium">Hijos:</span> {{ etiqueta.children.length }}
+                        </div>
+                    </div>
+                </HoverCardContent>
+            </HoverCard>
         </template>
 
         <!-- Indicador de más etiquetas -->
@@ -42,12 +99,17 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { Badge } from '@modules/Core/Resources/js/components/ui/badge';
+import {
+    Popover as HoverCard,
+    PopoverContent as HoverCardContent,
+    PopoverTrigger as HoverCardTrigger
+} from '@modules/Core/Resources/js/components/ui/popover';
 import { router } from '@inertiajs/vue3';
 import type { Etiqueta } from '../types/etiquetas';
 import {
     Tag, Hash, Bookmark, Flag, Star, Heart,
     Zap, Target, Award, TrendingUp, Folder,
-    Package, Box, Layers, Grid
+    Package, Box, Layers, Grid, ChevronRight
 } from 'lucide-vue-next';
 
 // Props del componente

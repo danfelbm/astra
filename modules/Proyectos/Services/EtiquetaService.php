@@ -17,10 +17,16 @@ class EtiquetaService
     public function create(array $data): Etiqueta
     {
         return DB::transaction(function () use ($data) {
+            // Validar jerarquía si se proporciona parent_id
+            if (!empty($data['parent_id'])) {
+                $this->validarJerarquia(null, $data['parent_id']);
+            }
+
             $etiqueta = Etiqueta::create([
                 'nombre' => $data['nombre'],
                 'slug' => Etiqueta::generarSlug($data['nombre']),
                 'categoria_etiqueta_id' => $data['categoria_etiqueta_id'],
+                'parent_id' => $data['parent_id'] ?? null,
                 'color' => $data['color'] ?? null,
                 'descripcion' => $data['descripcion'] ?? null,
             ]);
@@ -47,6 +53,12 @@ class EtiquetaService
                 $cambios[] = "nombre de '{$etiqueta->nombre}' a '{$data['nombre']}'";
             }
 
+            // Validar jerarquía si cambia el parent_id
+            if (isset($data['parent_id']) && $data['parent_id'] !== $etiqueta->parent_id) {
+                $this->validarJerarquia($etiqueta->id, $data['parent_id']);
+                $cambios[] = "padre cambiado";
+            }
+
             $etiqueta->update($data);
 
             if (!empty($cambios)) {
@@ -71,6 +83,19 @@ class EtiquetaService
             // Verificar si tiene proyectos asociados
             if ($etiqueta->proyectos()->exists()) {
                 throw new \Exception("No se puede eliminar la etiqueta porque está siendo usada en proyectos.");
+            }
+
+            // Si tiene hijos, promoverlos al nivel del padre actual
+            if ($etiqueta->children()->exists()) {
+                $etiqueta->children()->update([
+                    'parent_id' => $etiqueta->parent_id
+                ]);
+
+                // Recalcular niveles y rutas de los hijos
+                foreach ($etiqueta->children as $hijo) {
+                    $hijo->recalcularNivel();
+                    $hijo->recalcularRuta();
+                }
             }
 
             $nombre = $etiqueta->nombre;
@@ -288,6 +313,135 @@ class EtiquetaService
             ->with('categoria')
             ->limit($limite)
             ->get();
+    }
+
+    /**
+     * Establece el padre de una etiqueta.
+     */
+    public function establecerPadre(Etiqueta $etiqueta, ?int $padreId): Etiqueta
+    {
+        return DB::transaction(function () use ($etiqueta, $padreId) {
+            // Validar que no se cree un ciclo
+            if ($padreId) {
+                $this->validarJerarquia($etiqueta->id, $padreId);
+            }
+
+            $etiqueta->parent_id = $padreId;
+            $etiqueta->save();
+
+            // Recalcular nivel y ruta
+            $etiqueta->recalcularNivel();
+            $etiqueta->recalcularRuta();
+
+            // Recalcular descendientes
+            foreach ($etiqueta->getDescendientes() as $descendiente) {
+                $descendiente->recalcularNivel();
+                $descendiente->recalcularRuta();
+            }
+
+            activity()
+                ->performedOn($etiqueta)
+                ->withProperties(['nuevo_padre_id' => $padreId])
+                ->log('Jerarquía de etiqueta actualizada');
+
+            $this->limpiarCache();
+
+            return $etiqueta->fresh();
+        });
+    }
+
+    /**
+     * Mueve una etiqueta en la jerarquía.
+     */
+    public function moverEnJerarquia(Etiqueta $etiqueta, ?int $nuevoPadreId): Etiqueta
+    {
+        return $this->establecerPadre($etiqueta, $nuevoPadreId);
+    }
+
+    /**
+     * Obtiene el árbol jerárquico de etiquetas.
+     */
+    public function obtenerArbolJerarquico(?int $categoriaId = null): Collection
+    {
+        $query = Etiqueta::raices()->with('descendants', 'categoria');
+
+        if ($categoriaId) {
+            $query->where('categoria_etiqueta_id', $categoriaId);
+        }
+
+        return $query->orderBy('nombre')->get();
+    }
+
+    /**
+     * Valida que no se creen ciclos en la jerarquía.
+     */
+    public function validarJerarquia(?int $etiquetaId, ?int $padreId): bool
+    {
+        if (!$padreId) return true;
+
+        // No puede ser su propio padre
+        if ($etiquetaId && $etiquetaId == $padreId) {
+            throw new \Exception('Una etiqueta no puede ser su propio padre');
+        }
+
+        // El padre debe existir
+        $padre = Etiqueta::find($padreId);
+        if (!$padre) {
+            throw new \Exception('La etiqueta padre no existe');
+        }
+
+        // Si estamos actualizando, verificar que el padre no sea descendiente
+        if ($etiquetaId) {
+            $etiqueta = Etiqueta::find($etiquetaId);
+            if ($etiqueta && !$etiqueta->puedeSerHijoDe($padreId)) {
+                throw new \Exception('No se puede crear un ciclo en la jerarquía');
+            }
+        }
+
+        // Verificar límite de profundidad (máximo 5 niveles)
+        $nivel = 0;
+        $padreActual = $padre;
+        while ($padreActual && $nivel < 5) {
+            $nivel++;
+            $padreActual = $padreActual->parent;
+        }
+
+        if ($nivel >= 5) {
+            throw new \Exception('Se ha alcanzado el límite máximo de profundidad en la jerarquía (5 niveles)');
+        }
+
+        return true;
+    }
+
+    /**
+     * Recalcula niveles y rutas de toda la jerarquía.
+     */
+    public function recalcularJerarquia(): void
+    {
+        DB::transaction(function () {
+            // Obtener todas las raíces
+            $raices = Etiqueta::raices()->get();
+
+            foreach ($raices as $raiz) {
+                $this->recalcularNivelesRecursivo($raiz, 0, '');
+            }
+
+            $this->limpiarCache();
+        });
+    }
+
+    /**
+     * Recalcula niveles y rutas recursivamente.
+     */
+    private function recalcularNivelesRecursivo(Etiqueta $etiqueta, int $nivel, string $rutaPadre): void
+    {
+        $etiqueta->nivel = $nivel;
+        $etiqueta->ruta = $rutaPadre ? $rutaPadre . '/' . $etiqueta->slug : $etiqueta->slug;
+        $etiqueta->save();
+
+        foreach ($etiqueta->children as $hijo) {
+            $this->recalcularNivelesRecursivo($hijo, $nivel + 1, $etiqueta->ruta);
+        }
     }
 
     /**

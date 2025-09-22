@@ -202,4 +202,151 @@ class EtiquetaRepository
             ->get()
             ->groupBy('categoria.nombre');
     }
+
+    /**
+     * Obtiene el árbol jerárquico de etiquetas.
+     */
+    public function getArbol(?int $categoriaId = null): Collection
+    {
+        $query = Etiqueta::raices()
+            ->with(['children' => function ($q) {
+                $q->with('children.children.children.children'); // Hasta 5 niveles
+            }, 'categoria']);
+
+        if ($categoriaId) {
+            $query->where('categoria_etiqueta_id', $categoriaId);
+        }
+
+        return $query->orderBy('nombre')->get();
+    }
+
+    /**
+     * Obtiene las etiquetas hijas de una etiqueta.
+     */
+    public function getHijos(int $etiquetaId): Collection
+    {
+        return Etiqueta::where('parent_id', $etiquetaId)
+            ->with(['categoria', 'children'])
+            ->orderBy('nombre')
+            ->get();
+    }
+
+    /**
+     * Obtiene las etiquetas raíz.
+     */
+    public function getRaices(?int $categoriaId = null): Collection
+    {
+        $query = Etiqueta::raices()->with(['categoria', 'children']);
+
+        if ($categoriaId) {
+            $query->where('categoria_etiqueta_id', $categoriaId);
+        }
+
+        return $query->orderBy('nombre')->get();
+    }
+
+    /**
+     * Busca una etiqueta por su ruta jerárquica.
+     */
+    public function buscarPorRuta(string $ruta): ?Etiqueta
+    {
+        return Etiqueta::where('ruta', $ruta)
+            ->where('tenant_id', auth()->user()->tenant_id ?? null)
+            ->first();
+    }
+
+    /**
+     * Obtiene etiquetas con jerarquía completa para un dropdown.
+     */
+    public function getParaSelector(?int $excluirId = null): Collection
+    {
+        $query = Etiqueta::query()
+            ->with(['parent', 'categoria'])
+            ->orderBy('ruta');
+
+        if ($excluirId) {
+            // Excluir la etiqueta y sus descendientes
+            $etiqueta = Etiqueta::find($excluirId);
+            if ($etiqueta) {
+                $descendientesIds = $etiqueta->getDescendientes()->pluck('id')->toArray();
+                $descendientesIds[] = $excluirId;
+                $query->whereNotIn('id', $descendientesIds);
+            }
+        }
+
+        return $query->get()->map(function ($etiqueta) {
+            // Agregar indentación visual basada en el nivel
+            $prefijo = str_repeat('— ', $etiqueta->nivel);
+            $etiqueta->nombre_jerarquico = $prefijo . $etiqueta->nombre;
+            return $etiqueta;
+        });
+    }
+
+    /**
+     * Busca etiquetas incluyendo búsqueda en rutas.
+     */
+    public function search(string $termino, ?int $categoriaId = null): Collection
+    {
+        $query = Etiqueta::query()
+            ->where(function ($q) use ($termino) {
+                $q->where('nombre', 'like', "%{$termino}%")
+                  ->orWhere('slug', 'like', "%{$termino}%")
+                  ->orWhere('ruta', 'like', "%{$termino}%")
+                  ->orWhere('descripcion', 'like', "%{$termino}%");
+            })
+            ->with(['categoria', 'parent']);
+
+        if ($categoriaId) {
+            $query->where('categoria_etiqueta_id', $categoriaId);
+        }
+
+        return $query->orderBy('ruta')->limit(20)->get();
+    }
+
+    /**
+     * Obtiene el camino jerárquico completo de una etiqueta.
+     */
+    public function getCamino(int $etiquetaId): Collection
+    {
+        $etiqueta = Etiqueta::find($etiquetaId);
+        if (!$etiqueta) {
+            return new Collection();
+        }
+
+        $camino = collect([$etiqueta]);
+        $actual = $etiqueta;
+
+        while ($actual->parent) {
+            $camino->prepend($actual->parent);
+            $actual = $actual->parent;
+        }
+
+        return $camino;
+    }
+
+    /**
+     * Obtiene estadísticas de jerarquía.
+     */
+    public function getEstadisticasJerarquia(): array
+    {
+        $totalRaices = Etiqueta::raices()->count();
+        $totalConHijos = Etiqueta::has('children')->count();
+        $nivelMaximo = Etiqueta::max('nivel') ?? 0;
+
+        // Contar etiquetas por nivel
+        $etiquetasPorNivel = [];
+        for ($i = 0; $i <= $nivelMaximo; $i++) {
+            $etiquetasPorNivel[$i] = Etiqueta::where('nivel', $i)->count();
+        }
+
+        return [
+            'total_raices' => $totalRaices,
+            'total_con_hijos' => $totalConHijos,
+            'nivel_maximo' => $nivelMaximo,
+            'etiquetas_por_nivel' => $etiquetasPorNivel,
+            'promedio_hijos' => $totalConHijos > 0
+                ? Etiqueta::has('children')->withCount('children')->avg('children_count')
+                : 0,
+        ];
+    }
 }

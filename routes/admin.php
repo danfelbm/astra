@@ -850,6 +850,26 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
         Route::post('/reorder', [EtiquetaController::class, 'reorder'])
             ->name('reorder')
             ->middleware('can:etiquetas.edit');
+
+        // Rutas para jerarquía de etiquetas
+        Route::get('/arbol', [EtiquetaController::class, 'obtenerArbol'])
+            ->name('arbol')
+            ->middleware('can:etiquetas.view');
+        Route::post('/{etiqueta}/establecer-padre', [EtiquetaController::class, 'establecerJerarquia'])
+            ->name('establecer-padre')
+            ->middleware('can:etiquetas.edit');
+        Route::post('/{etiqueta}/mover', [EtiquetaController::class, 'mover'])
+            ->name('mover')
+            ->middleware('can:etiquetas.edit');
+        Route::get('/para-selector', [EtiquetaController::class, 'paraSelector'])
+            ->name('para-selector')
+            ->middleware('can:etiquetas.view');
+        Route::get('/{etiqueta}/camino', [EtiquetaController::class, 'camino'])
+            ->name('camino')
+            ->middleware('can:etiquetas.view');
+        Route::get('/estadisticas-jerarquia', [EtiquetaController::class, 'estadisticasJerarquia'])
+            ->name('estadisticas-jerarquia')
+            ->middleware('can:etiquetas.view');
     });
 
     // Rutas para gestión de etiquetas en proyectos

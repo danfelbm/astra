@@ -57,6 +57,17 @@ class UpdateEtiquetaRequest extends FormRequest
                 'string',
                 'max:500',
             ],
+            'parent_id' => [
+                'nullable',
+                'integer',
+                'exists:etiquetas,id',
+                function ($attribute, $value, $fail) use ($etiqueta_id) {
+                    // No puede ser su propio padre
+                    if ($value && $value == $etiqueta_id) {
+                        $fail('Una etiqueta no puede ser su propio padre.');
+                    }
+                },
+            ],
         ];
     }
 
@@ -74,6 +85,7 @@ class UpdateEtiquetaRequest extends FormRequest
             'categoria_etiqueta_id.exists' => 'La categoría seleccionada no existe',
             'color.in' => 'El color seleccionado no es válido',
             'descripcion.max' => 'La descripción no puede exceder los 500 caracteres',
+            'parent_id.exists' => 'La etiqueta padre seleccionada no existe',
         ];
     }
 
