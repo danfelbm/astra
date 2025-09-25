@@ -42,7 +42,11 @@ class CampoPersonalizadoController extends AdminController
         return Inertia::render('Modules/Proyectos/Admin/CamposPersonalizados/Index', [
             'campos' => $campos,
             'filters' => $request->only(['search', 'tipo', 'activo']),
-            'tipos' => config('proyectos.tipos_campos'),
+            'tiposCampo' => CampoPersonalizado::TIPOS_DISPONIBLES,
+            'entidadesDisponibles' => [
+                'proyectos' => 'Proyectos',
+                'contratos' => 'Contratos'
+            ],
         ]);
     }
 
@@ -52,7 +56,11 @@ class CampoPersonalizadoController extends AdminController
     public function create(): Response
     {
         return Inertia::render('Modules/Proyectos/Admin/CamposPersonalizados/Form', [
-            'tipos' => config('proyectos.tipos_campos'),
+            'tiposCampo' => CampoPersonalizado::TIPOS_DISPONIBLES,
+            'entidadesDisponibles' => [
+                'proyectos' => 'Proyectos',
+                'contratos' => 'Contratos'
+            ],
         ]);
     }
 
@@ -88,7 +96,11 @@ class CampoPersonalizadoController extends AdminController
     {
         return Inertia::render('Modules/Proyectos/Admin/CamposPersonalizados/Form', [
             'campo' => $campo,
-            'tipos' => config('proyectos.tipos_campos'),
+            'tiposCampo' => CampoPersonalizado::TIPOS_DISPONIBLES,
+            'entidadesDisponibles' => [
+                'proyectos' => 'Proyectos',
+                'contratos' => 'Contratos'
+            ],
         ]);
     }
 

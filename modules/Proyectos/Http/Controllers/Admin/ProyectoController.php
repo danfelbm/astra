@@ -51,7 +51,7 @@ class ProyectoController extends AdminController
     public function create(): Response
     {
         $usuarios = User::select('id', 'name', 'email')->orderBy('name')->get();
-        $camposPersonalizados = CampoPersonalizado::activos()->ordenado()->get();
+        $camposPersonalizados = CampoPersonalizado::paraProyectos()->activos()->ordenado()->get();
 
         // Cargar etiquetas y categorías para el selector
         $categorias = CategoriaEtiqueta::with('etiquetas')
@@ -89,7 +89,10 @@ class ProyectoController extends AdminController
             'responsable',
             'creador',
             'camposPersonalizados.campoPersonalizado',
-            'etiquetas.categoria' // Cargar etiquetas con sus categorías
+            'etiquetas.categoria', // Cargar etiquetas con sus categorías
+            'contratos' => function ($query) {
+                $query->orderBy('fecha_inicio', 'desc');
+            }
         ]);
 
         // Cargar categorías disponibles si el usuario puede gestionar etiquetas
@@ -106,6 +109,8 @@ class ProyectoController extends AdminController
             'canEdit' => auth()->user()->can('proyectos.edit'),
             'canDelete' => auth()->user()->can('proyectos.delete'),
             'canManageTags' => auth()->user()->can('proyectos.manage_tags'),
+            'canViewContracts' => auth()->user()->can('contratos.view'),
+            'canCreateContracts' => auth()->user()->can('contratos.create'),
         ]);
     }
 
@@ -115,7 +120,7 @@ class ProyectoController extends AdminController
     public function edit(Proyecto $proyecto): Response
     {
         $usuarios = User::select('id', 'name', 'email')->orderBy('name')->get();
-        $camposPersonalizados = CampoPersonalizado::activos()->ordenado()->get();
+        $camposPersonalizados = CampoPersonalizado::paraProyectos()->activos()->ordenado()->get();
         $proyecto->load(['camposPersonalizados', 'etiquetas.categoria']);
 
         // Preparar valores de campos personalizados

@@ -33,11 +33,14 @@ interface CampoPersonalizado {
     descripcion?: string;
     placeholder?: string;
     validacion?: string;
+    aplicar_para?: string[];
 }
 
 interface Props {
     campo?: CampoPersonalizado;
-    tipos: Record<string, string>;
+    tiposCampo?: Record<string, string>;
+    tipos?: Record<string, string>; // Para compatibilidad
+    entidadesDisponibles?: Record<string, string>;
 }
 
 const props = defineProps<Props>();
@@ -64,7 +67,12 @@ const form = useForm({
     descripcion: props.campo?.descripcion || '',
     placeholder: props.campo?.placeholder || '',
     validacion: props.campo?.validacion || '',
+    aplicar_para: props.campo?.aplicar_para || ['proyectos'],
 });
+
+// Compatibilidad con props antiguos
+const tiposDisponibles = computed(() => props.tiposCampo || props.tipos || {});
+const entidades = computed(() => props.entidadesDisponibles || { proyectos: 'Proyectos', contratos: 'Contratos' });
 
 // Estado de procesamiento
 const processing = ref(false);
@@ -103,6 +111,23 @@ watch(() => form.tipo, (newTipo, oldTipo) => {
         addOption();
     }
 });
+
+// Función para manejar cambios en checkboxes de aplicar_para
+const toggleAplicarPara = (entidad: string) => {
+    const index = form.aplicar_para.indexOf(entidad);
+    if (index === -1) {
+        form.aplicar_para.push(entidad);
+    } else {
+        form.aplicar_para.splice(index, 1);
+    }
+
+    // Asegurar que siempre haya al menos una entidad seleccionada
+    // Por defecto, si no hay ninguna seleccionada, aplicará a proyectos
+    if (form.aplicar_para.length === 0) {
+        form.aplicar_para = ['proyectos'];
+        toast.warning('Debe seleccionar al menos una entidad. Se ha seleccionado "Proyectos" por defecto.');
+    }
+};
 
 // Función para guardar
 const submit = () => {
@@ -258,7 +283,7 @@ const getValidacionEjemplo = (tipo: string) => {
                                     <SelectValue placeholder="Seleccione el tipo" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem v-for="(label, key) in tipos" :key="key" :value="key">
+                                    <SelectItem v-for="(label, key) in tiposDisponibles" :key="key" :value="key">
                                         {{ label }}
                                     </SelectItem>
                                 </SelectContent>
@@ -314,6 +339,32 @@ const getValidacionEjemplo = (tipo: string) => {
                             </div>
                             <p v-if="form.errors.opciones" class="mt-1 text-sm text-red-600">
                                 {{ form.errors.opciones }}
+                            </p>
+                        </div>
+
+                        <!-- Aplicar para (Proyectos/Contratos) -->
+                        <div>
+                            <Label>Aplicar a:</Label>
+                            <div class="space-y-2">
+                                <div v-for="(label, key) in entidades" :key="key" class="flex items-center space-x-2">
+                                    <input
+                                        type="checkbox"
+                                        :id="`aplicar_${key}`"
+                                        :value="key"
+                                        :checked="form.aplicar_para.includes(key)"
+                                        @change="toggleAplicarPara(key)"
+                                        class="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                                    />
+                                    <Label :for="`aplicar_${key}`" class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                                        {{ label }}
+                                    </Label>
+                                </div>
+                            </div>
+                            <p class="mt-1 text-xs text-gray-500">
+                                Seleccione dónde estará disponible este campo personalizado.
+                            </p>
+                            <p v-if="form.errors.aplicar_para" class="mt-1 text-sm text-red-600">
+                                {{ form.errors.aplicar_para }}
                             </p>
                         </div>
 

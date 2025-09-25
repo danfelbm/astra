@@ -54,6 +54,7 @@ interface CampoPersonalizado {
     activo: boolean;
     descripcion?: string;
     placeholder?: string;
+    aplicar_para?: string[];
     created_at: string;
     updated_at: string;
 }
@@ -79,10 +80,17 @@ interface Props {
         tipo?: string;
         activo?: boolean;
     };
-    tipos: Record<string, string>;
+    tiposCampo?: Record<string, string>;
+    tipos?: Record<string, string>; // Para compatibilidad
+    entidadesDisponibles?: Record<string, string>;
 }
 
 const props = defineProps<Props>();
+
+// Variables computed para compatibilidad con props antiguos
+import { computed } from 'vue';
+const tiposCampo = computed(() => props.tiposCampo || props.tipos || {});
+const tipos = tiposCampo; // Para retrocompatibilidad
 
 // Breadcrumbs
 const breadcrumbs: BreadcrumbItem[] = [
@@ -293,6 +301,7 @@ const getTipoColor = (tipo: string) => {
                                 <TableHead>Campo</TableHead>
                                 <TableHead>Slug</TableHead>
                                 <TableHead>Tipo</TableHead>
+                                <TableHead>Aplicar a</TableHead>
                                 <TableHead class="text-center">Requerido</TableHead>
                                 <TableHead class="text-center">Estado</TableHead>
                                 <TableHead class="text-right">Acciones</TableHead>
@@ -344,8 +353,28 @@ const getTipoColor = (tipo: string) => {
                                 <TableCell>
                                     <Badge :class="getTipoColor(campo.tipo)" class="flex items-center gap-1 w-fit">
                                         <component :is="getTipoIcon(campo.tipo)" class="h-3 w-3" />
-                                        {{ tipos[campo.tipo] || campo.tipo }}
+                                        {{ (tiposCampo || tipos)?.[campo.tipo] || campo.tipo }}
                                     </Badge>
+                                </TableCell>
+
+                                <!-- Aplicar a -->
+                                <TableCell>
+                                    <div class="flex flex-wrap gap-1">
+                                        <Badge
+                                            v-if="!campo.aplicar_para || campo.aplicar_para.length === 0 || campo.aplicar_para.includes('proyectos')"
+                                            variant="secondary"
+                                            class="text-xs"
+                                        >
+                                            Proyectos
+                                        </Badge>
+                                        <Badge
+                                            v-if="campo.aplicar_para?.includes('contratos')"
+                                            variant="secondary"
+                                            class="text-xs"
+                                        >
+                                            Contratos
+                                        </Badge>
+                                    </div>
                                 </TableCell>
 
                                 <!-- Requerido -->

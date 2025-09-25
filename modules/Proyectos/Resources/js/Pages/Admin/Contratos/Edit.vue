@@ -1,0 +1,884 @@
+<script setup lang="ts">
+import { ref, reactive, computed, onMounted } from 'vue';
+import { router, useForm, usePage } from '@inertiajs/vue3';
+import { type BreadcrumbItem } from '@/types';
+import AdminLayout from '@modules/Core/Resources/js/layouts/AdminLayout.vue';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@modules/Core/Resources/js/components/ui/card';
+import { Button } from '@modules/Core/Resources/js/components/ui/button';
+import { Input } from '@modules/Core/Resources/js/components/ui/input';
+import { Label } from '@modules/Core/Resources/js/components/ui/label';
+import { Textarea } from '@modules/Core/Resources/js/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@modules/Core/Resources/js/components/ui/select';
+import { Switch } from '@modules/Core/Resources/js/components/ui/switch';
+import { Alert, AlertDescription } from '@modules/Core/Resources/js/components/ui/alert';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@modules/Core/Resources/js/components/ui/tabs';
+import { AlertCircle, ArrowLeft, Save, Upload, Trash2 } from 'lucide-vue-next';
+import { Link } from '@inertiajs/vue3';
+import { useToast } from '@modules/Core/Resources/js/composables/useToast';
+import CampoPersonalizadoInput from '@modules/Proyectos/Resources/js/components/CampoPersonalizadoInput.vue';
+import ContratoUserSelect from '@modules/Proyectos/Resources/js/components/ContratoUserSelect.vue';
+import ParticipantesManager from '@modules/Proyectos/Resources/js/components/ParticipantesManager.vue';
+import { Separator } from '@modules/Core/Resources/js/components/ui/separator';
+
+// Tipos
+interface Contrato {
+    id: number;
+    proyecto_id: number;
+    nombre: string;
+    descripcion?: string;
+    fecha_inicio: string;
+    fecha_fin?: string;
+    estado: 'borrador' | 'activo' | 'finalizado' | 'cancelado';
+    tipo: string;
+    monto_total?: number;
+    moneda: string;
+    responsable_id?: number;
+    contraparte_user_id?: number;
+    contraparte_nombre?: string;
+    contraparte_identificacion?: string;
+    contraparte_email?: string;
+    contraparte_telefono?: string;
+    archivo_pdf?: string;
+    observaciones?: string;
+    proyecto?: {
+        id: number;
+        nombre: string;
+    };
+    responsable?: {
+        id: number;
+        name: string;
+    };
+    contraparteUser?: {
+        id: number;
+        name: string;
+        email: string;
+    };
+    participantes?: Participante[];
+}
+
+interface Proyecto {
+    id: number;
+    nombre: string;
+}
+
+interface CampoPersonalizado {
+    id: number;
+    nombre: string;
+    slug: string;
+    tipo: string;
+    es_requerido: boolean;
+    opciones?: string[];
+    descripcion?: string;
+    placeholder?: string;
+}
+
+interface User {
+    id: number;
+    name: string;
+    email: string;
+}
+
+interface Participante {
+    user_id: number;
+    rol: string;
+    notas?: string;
+    pivot?: {
+        rol: string;
+        notas?: string;
+    };
+}
+
+// Props
+const props = withDefaults(defineProps<{
+    contrato: Contrato;
+    proyectos: Proyecto[];
+    camposPersonalizados: CampoPersonalizado[];
+    valoresCampos: Record<number, any>;
+    usuarios?: User[];
+}>(), {
+    usuarios: () => []
+});
+
+const toast = useToast();
+
+// Breadcrumbs para navegación
+const breadcrumbs: BreadcrumbItem[] = [
+    { title: 'Admin', href: '/admin/dashboard' },
+    { title: 'Contratos', href: '/admin/contratos' },
+    { title: props.contrato.nombre, href: `/admin/contratos/${props.contrato.id}` },
+    { title: 'Editar', href: `/admin/contratos/${props.contrato.id}/edit` },
+];
+
+// Preparar participantes desde el formato de Laravel
+const prepararParticipantes = (): Participante[] => {
+    if (!props.contrato.participantes || props.contrato.participantes.length === 0) {
+        return [];
+    }
+
+    return props.contrato.participantes.map(p => ({
+        user_id: p.pivot?.user_id || p.user_id || p.id,
+        rol: p.pivot?.rol || p.rol || 'participante',
+        notas: p.pivot?.notas || p.notas || ''
+    }));
+};
+
+// Form data - inicializar con los valores del contrato
+const form = useForm({
+    proyecto_id: props.contrato.proyecto_id.toString(),
+    nombre: props.contrato.nombre,
+    descripcion: props.contrato.descripcion || '',
+    fecha_inicio: props.contrato.fecha_inicio,
+    fecha_fin: props.contrato.fecha_fin || '',
+    estado: props.contrato.estado,
+    tipo: props.contrato.tipo,
+    monto_total: props.contrato.monto_total?.toString() || '',
+    moneda: props.contrato.moneda,
+    responsable_id: props.contrato.responsable_id?.toString() || 'none',
+    contraparte_user_id: props.contrato.contraparte_user_id || null,
+    contraparte_nombre: props.contrato.contraparte_nombre || '',
+    contraparte_identificacion: props.contrato.contraparte_identificacion || '',
+    contraparte_email: props.contrato.contraparte_email || '',
+    contraparte_telefono: props.contrato.contraparte_telefono || '',
+    participantes: prepararParticipantes(),
+    archivo_pdf: null as File | null,
+    observaciones: props.contrato.observaciones || '',
+    campos_personalizados: props.valoresCampos || {},
+    _method: 'PUT' // Para el update
+});
+
+// Estado local
+const archivoNombre = ref(props.contrato.archivo_pdf ? 'Archivo actual: ' + props.contrato.archivo_pdf.split('/').pop() : '');
+const activeTab = ref('informacion');
+const mostrarConfirmacionEliminar = ref(false);
+
+// Computed
+const monedas = [
+    { value: 'USD', label: 'USD - Dólar Estadounidense' },
+    { value: 'EUR', label: 'EUR - Euro' },
+    { value: 'MXN', label: 'MXN - Peso Mexicano' },
+    { value: 'COP', label: 'COP - Peso Colombiano' },
+    { value: 'ARS', label: 'ARS - Peso Argentino' },
+    { value: 'CLP', label: 'CLP - Peso Chileno' },
+    { value: 'PEN', label: 'PEN - Sol Peruano' },
+];
+
+const camposAgrupados = computed(() => {
+    const grupos = {
+        informacion: [] as CampoPersonalizado[],
+        financiero: [] as CampoPersonalizado[],
+        otros: [] as CampoPersonalizado[],
+    };
+
+    props.camposPersonalizados.forEach(campo => {
+        if (campo.slug.includes('financ') || campo.slug.includes('monto') || campo.slug.includes('precio')) {
+            grupos.financiero.push(campo);
+        } else if (campo.slug.includes('info') || campo.slug.includes('descrip')) {
+            grupos.informacion.push(campo);
+        } else {
+            grupos.otros.push(campo);
+        }
+    });
+
+    return grupos;
+});
+
+const puedeEditar = computed(() => {
+    // Lógica para determinar si se puede editar según el estado
+    return props.contrato.estado !== 'finalizado' && props.contrato.estado !== 'cancelado';
+});
+
+// Métodos
+const handleFileChange = (event: Event) => {
+    const target = event.target as HTMLInputElement;
+    if (target.files && target.files[0]) {
+        form.archivo_pdf = target.files[0];
+        archivoNombre.value = 'Nuevo archivo: ' + target.files[0].name;
+    }
+};
+
+const validateForm = () => {
+    const errors = [];
+
+    if (!form.proyecto_id) {
+        errors.push('Debe seleccionar un proyecto');
+    }
+
+    if (!form.nombre.trim()) {
+        errors.push('El nombre del contrato es obligatorio');
+    }
+
+    if (!form.fecha_inicio) {
+        errors.push('La fecha de inicio es obligatoria');
+    }
+
+    if (form.fecha_fin && form.fecha_fin < form.fecha_inicio) {
+        errors.push('La fecha de fin debe ser posterior a la fecha de inicio');
+    }
+
+    // Validar campos personalizados requeridos
+    props.camposPersonalizados.forEach(campo => {
+        if (campo.es_requerido && !form.campos_personalizados[campo.id]) {
+            errors.push(`El campo "${campo.nombre}" es obligatorio`);
+        }
+    });
+
+    return errors;
+};
+
+const submitForm = () => {
+    const errors = validateForm();
+
+    if (errors.length > 0) {
+        errors.forEach(error => toast.error(error));
+        return;
+    }
+
+    const formData = new FormData();
+
+    // Agregar campos básicos
+    Object.keys(form.data()).forEach(key => {
+        if (key === 'campos_personalizados') {
+            // Manejar campos personalizados
+            Object.keys(form.campos_personalizados).forEach(campoId => {
+                const valor = form.campos_personalizados[campoId];
+                if (valor !== null && valor !== undefined && valor !== '') {
+                    formData.append(`campos_personalizados[${campoId}]`, valor);
+                }
+            });
+        } else if (key === 'participantes') {
+            // Manejar array de participantes
+            form.participantes.forEach((participante: any, index: number) => {
+                formData.append(`participantes[${index}][user_id]`, participante.user_id.toString());
+                formData.append(`participantes[${index}][rol]`, participante.rol);
+                if (participante.notas) {
+                    formData.append(`participantes[${index}][notas]`, participante.notas);
+                }
+            });
+        } else if (key === 'archivo_pdf' && form.archivo_pdf) {
+            formData.append('archivo_pdf', form.archivo_pdf);
+        } else if (key === 'responsable_id' && form[key] === 'none') {
+            // No enviar responsable_id si es 'none' (sin responsable)
+        } else if (key !== '_method' && form[key] !== null && form[key] !== '') {
+            formData.append(key, form[key]);
+        }
+    });
+
+    // Agregar método PUT para Laravel
+    formData.append('_method', 'PUT');
+
+    router.post(route('admin.contratos.update', props.contrato.id), formData, {
+        forceFormData: true,
+        preserveScroll: true,
+        onSuccess: () => {
+            toast.success('Contrato actualizado exitosamente');
+        },
+        onError: (errors) => {
+            // Manejo robusto de errores
+            if (typeof errors === 'object' && errors !== null) {
+                Object.values(errors).forEach(error => {
+                    if (Array.isArray(error)) {
+                        error.forEach(e => toast.error(String(e)));
+                    } else if (typeof error === 'string') {
+                        toast.error(error);
+                    } else {
+                        toast.error('Error al actualizar el contrato');
+                    }
+                });
+            } else {
+                toast.error('Error al actualizar el contrato');
+            }
+        }
+    });
+};
+
+const eliminarContrato = () => {
+    if (confirm('¿Está seguro de eliminar este contrato? Esta acción no se puede deshacer.')) {
+        router.delete(route('admin.contratos.destroy', props.contrato.id), {
+            onSuccess: () => {
+                toast.success('Contrato eliminado exitosamente');
+            },
+            onError: () => {
+                toast.error('Error al eliminar el contrato');
+            }
+        });
+    }
+};
+
+const duplicarContrato = () => {
+    if (confirm('¿Desea duplicar este contrato?')) {
+        router.post(route('admin.contratos.duplicar', props.contrato.id), {}, {
+            onSuccess: () => {
+                toast.success('Contrato duplicado exitosamente');
+            },
+            onError: () => {
+                toast.error('Error al duplicar el contrato');
+            }
+        });
+    }
+};
+
+const cambiarEstado = (nuevoEstado: string) => {
+    router.post(route('admin.contratos.cambiar-estado', props.contrato.id), {
+        estado: nuevoEstado
+    }, {
+        onSuccess: () => {
+            form.estado = nuevoEstado as any;
+            toast.success('Estado actualizado exitosamente');
+        },
+        onError: () => {
+            toast.error('Error al cambiar el estado');
+        }
+    });
+};
+
+const cancelar = () => {
+    if (confirm('¿Está seguro de cancelar? Los cambios no guardados se perderán.')) {
+        router.get(route('admin.contratos.show', props.contrato.id));
+    }
+};
+
+// Manejo de cambio de usuario contraparte
+const handleContraparteUserChange = (user: User | null) => {
+    if (user) {
+        // Limpiar campos de contraparte externa cuando se selecciona un usuario
+        form.contraparte_nombre = '';
+        form.contraparte_identificacion = '';
+        form.contraparte_email = '';
+        form.contraparte_telefono = '';
+    }
+};
+</script>
+
+<template>
+    <AdminLayout :breadcrumbs="breadcrumbs">
+        <div class="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
+            <!-- Header -->
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-4">
+                    <Link :href="route('admin.contratos.index')">
+                        <Button variant="ghost" size="sm">
+                            <ArrowLeft class="h-4 w-4 mr-2" />
+                            Volver
+                        </Button>
+                    </Link>
+                    <div>
+                        <h1 class="text-3xl font-bold">Editar Contrato</h1>
+                        <p class="text-gray-600 mt-1">Modificar información del contrato #{{ contrato.id }}</p>
+                    </div>
+                </div>
+
+                <div class="flex gap-2">
+                    <Button
+                        variant="outline"
+                        @click="duplicarContrato"
+                    >
+                        Duplicar
+                    </Button>
+                    <Button
+                        variant="destructive"
+                        @click="eliminarContrato"
+                    >
+                        <Trash2 class="h-4 w-4 mr-2" />
+                        Eliminar
+                    </Button>
+                </div>
+            </div>
+
+            <!-- Alert de estado -->
+            <Alert v-if="!puedeEditar" variant="warning">
+                <AlertCircle class="h-4 w-4" />
+                <AlertDescription>
+                    Este contrato está {{ contrato.estado }} y no puede ser editado.
+                    <Button
+                        v-if="contrato.estado === 'finalizado'"
+                        variant="link"
+                        size="sm"
+                        @click="cambiarEstado('activo')"
+                        class="ml-2"
+                    >
+                        Reactivar
+                    </Button>
+                </AlertDescription>
+            </Alert>
+
+            <!-- Acciones rápidas de cambio de estado -->
+            <Card v-if="puedeEditar">
+                <CardHeader>
+                    <CardTitle class="text-lg">Cambio Rápido de Estado</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div class="flex gap-2">
+                        <Button
+                            v-if="form.estado === 'borrador'"
+                            variant="outline"
+                            size="sm"
+                            @click="cambiarEstado('activo')"
+                        >
+                            Activar Contrato
+                        </Button>
+                        <Button
+                            v-if="form.estado === 'activo'"
+                            variant="outline"
+                            size="sm"
+                            @click="cambiarEstado('finalizado')"
+                        >
+                            Finalizar Contrato
+                        </Button>
+                        <Button
+                            v-if="form.estado !== 'cancelado'"
+                            variant="outline"
+                            size="sm"
+                            class="text-red-600"
+                            @click="cambiarEstado('cancelado')"
+                        >
+                            Cancelar Contrato
+                        </Button>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <!-- Formulario -->
+            <form @submit.prevent="submitForm" class="space-y-6">
+                <Tabs v-model="activeTab">
+                    <TabsList class="grid w-full grid-cols-5">
+                        <TabsTrigger value="informacion">Información General</TabsTrigger>
+                        <TabsTrigger value="fechas">Fechas y Estado</TabsTrigger>
+                        <TabsTrigger value="financiero">Información Financiera</TabsTrigger>
+                        <TabsTrigger value="contraparte">Contraparte</TabsTrigger>
+                        <TabsTrigger value="adicional">Información Adicional</TabsTrigger>
+                    </TabsList>
+
+                    <!-- Tab: Información General -->
+                    <TabsContent value="informacion">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Información General</CardTitle>
+                                <CardDescription>Datos principales del contrato</CardDescription>
+                            </CardHeader>
+                            <CardContent class="space-y-4">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <Label for="proyecto_id">Proyecto *</Label>
+                                        <Select v-model="form.proyecto_id" :disabled="!puedeEditar">
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Seleccione un proyecto" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem
+                                                    v-for="p in proyectos"
+                                                    :key="p.id"
+                                                    :value="p.id.toString()"
+                                                >
+                                                    {{ p.nombre }}
+                                                </SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                        <div v-if="form.errors.proyecto_id" class="text-red-500 text-sm mt-1">
+                                            {{ form.errors.proyecto_id }}
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <Label for="nombre">Nombre del Contrato *</Label>
+                                        <Input
+                                            id="nombre"
+                                            v-model="form.nombre"
+                                            placeholder="Ej: Contrato de servicios de consultoría"
+                                            :disabled="!puedeEditar"
+                                        />
+                                        <div v-if="form.errors.nombre" class="text-red-500 text-sm mt-1">
+                                            {{ form.errors.nombre }}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <Label for="descripcion">Descripción</Label>
+                                    <Textarea
+                                        id="descripcion"
+                                        v-model="form.descripcion"
+                                        placeholder="Descripción detallada del contrato..."
+                                        rows="4"
+                                        :disabled="!puedeEditar"
+                                    />
+                                    <div v-if="form.errors.descripcion" class="text-red-500 text-sm mt-1">
+                                        {{ form.errors.descripcion }}
+                                    </div>
+                                </div>
+
+                                <!-- Campos personalizados de información -->
+                                <div v-if="camposAgrupados.informacion.length > 0" class="space-y-4 pt-4 border-t">
+                                    <h3 class="font-medium">Información Complementaria</h3>
+                                    <div v-for="campo in camposAgrupados.informacion" :key="campo.id">
+                                        <CampoPersonalizadoInput
+                                            :campo="campo"
+                                            v-model="form.campos_personalizados[campo.id]"
+                                            :disabled="!puedeEditar"
+                                        />
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+
+                    <!-- Tab: Fechas y Estado -->
+                    <TabsContent value="fechas">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Fechas y Estado</CardTitle>
+                                <CardDescription>Configure las fechas y el estado del contrato</CardDescription>
+                            </CardHeader>
+                            <CardContent class="space-y-4">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <Label for="fecha_inicio">Fecha de Inicio *</Label>
+                                        <Input
+                                            id="fecha_inicio"
+                                            type="date"
+                                            v-model="form.fecha_inicio"
+                                            :disabled="!puedeEditar"
+                                        />
+                                        <div v-if="form.errors.fecha_inicio" class="text-red-500 text-sm mt-1">
+                                            {{ form.errors.fecha_inicio }}
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <Label for="fecha_fin">Fecha de Fin</Label>
+                                        <Input
+                                            id="fecha_fin"
+                                            type="date"
+                                            v-model="form.fecha_fin"
+                                            :disabled="!puedeEditar"
+                                        />
+                                        <div v-if="form.errors.fecha_fin" class="text-red-500 text-sm mt-1">
+                                            {{ form.errors.fecha_fin }}
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <Label for="estado">Estado</Label>
+                                        <Select v-model="form.estado" :disabled="!puedeEditar">
+                                            <SelectTrigger>
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="borrador">Borrador</SelectItem>
+                                                <SelectItem value="activo">Activo</SelectItem>
+                                                <SelectItem value="finalizado">Finalizado</SelectItem>
+                                                <SelectItem value="cancelado">Cancelado</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                        <div v-if="form.errors.estado" class="text-red-500 text-sm mt-1">
+                                            {{ form.errors.estado }}
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <Label for="tipo">Tipo de Contrato *</Label>
+                                        <Select v-model="form.tipo" :disabled="!puedeEditar">
+                                            <SelectTrigger>
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="servicio">Servicio</SelectItem>
+                                                <SelectItem value="obra">Obra</SelectItem>
+                                                <SelectItem value="suministro">Suministro</SelectItem>
+                                                <SelectItem value="consultoria">Consultoría</SelectItem>
+                                                <SelectItem value="otro">Otro</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                        <div v-if="form.errors.tipo" class="text-red-500 text-sm mt-1">
+                                            {{ form.errors.tipo }}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div v-if="usuarios">
+                                    <Label for="responsable_id">Responsable</Label>
+                                    <Select v-model="form.responsable_id" :disabled="!puedeEditar">
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Seleccione un responsable" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="none">Sin responsable</SelectItem>
+                                            <SelectItem
+                                                v-for="usuario in usuarios"
+                                                :key="usuario.id"
+                                                :value="usuario.id.toString()"
+                                            >
+                                                {{ usuario.name }}
+                                            </SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+
+                    <!-- Tab: Información Financiera -->
+                    <TabsContent value="financiero">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Información Financiera</CardTitle>
+                                <CardDescription>Montos y detalles financieros del contrato</CardDescription>
+                            </CardHeader>
+                            <CardContent class="space-y-4">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <Label for="monto_total">Monto Total</Label>
+                                        <Input
+                                            id="monto_total"
+                                            type="number"
+                                            step="0.01"
+                                            v-model="form.monto_total"
+                                            placeholder="0.00"
+                                            :disabled="!puedeEditar"
+                                        />
+                                        <div v-if="form.errors.monto_total" class="text-red-500 text-sm mt-1">
+                                            {{ form.errors.monto_total }}
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <Label for="moneda">Moneda</Label>
+                                        <Select v-model="form.moneda" :disabled="!puedeEditar">
+                                            <SelectTrigger>
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem
+                                                    v-for="moneda in monedas"
+                                                    :key="moneda.value"
+                                                    :value="moneda.value"
+                                                >
+                                                    {{ moneda.label }}
+                                                </SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                        <div v-if="form.errors.moneda" class="text-red-500 text-sm mt-1">
+                                            {{ form.errors.moneda }}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Campos personalizados financieros -->
+                                <div v-if="camposAgrupados.financiero.length > 0" class="space-y-4 pt-4 border-t">
+                                    <h3 class="font-medium">Campos Financieros Personalizados</h3>
+                                    <div v-for="campo in camposAgrupados.financiero" :key="campo.id">
+                                        <CampoPersonalizadoInput
+                                            :campo="campo"
+                                            v-model="form.campos_personalizados[campo.id]"
+                                            :disabled="!puedeEditar"
+                                        />
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+
+                    <!-- Tab: Contraparte -->
+                    <TabsContent value="contraparte">
+                        <div class="space-y-6">
+                            <!-- Sección 1: Contraparte del Sistema -->
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Contraparte - Usuario del Sistema</CardTitle>
+                                    <CardDescription>
+                                        Seleccione un usuario del sistema como contraparte del contrato
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <ContratoUserSelect
+                                        v-model="form.contraparte_user_id"
+                                        :users="usuarios"
+                                        label="Usuario Contraparte"
+                                        placeholder="Seleccionar usuario del sistema..."
+                                        description="Si la contraparte es un usuario registrado en el sistema, selecciónelo aquí"
+                                        :disabled="!puedeEditar"
+                                        @change="handleContraparteUserChange"
+                                    />
+                                </CardContent>
+                            </Card>
+
+                            <!-- Sección 2: Contraparte Externa -->
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Contraparte - Información Externa</CardTitle>
+                                    <CardDescription>
+                                        Complete estos campos si la contraparte no es un usuario del sistema
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent class="space-y-4">
+                                    <Alert v-if="form.contraparte_user_id" class="mb-4">
+                                        <AlertCircle class="h-4 w-4" />
+                                        <AlertDescription>
+                                            Los campos de contraparte externa están deshabilitados porque ya se seleccionó un usuario del sistema.
+                                        </AlertDescription>
+                                    </Alert>
+
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <Label for="contraparte_nombre">Nombre de la Contraparte</Label>
+                                            <Input
+                                                id="contraparte_nombre"
+                                                v-model="form.contraparte_nombre"
+                                                placeholder="Nombre de la empresa o persona"
+                                                :disabled="!puedeEditar || !!form.contraparte_user_id"
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <Label for="contraparte_identificacion">Identificación/RUC</Label>
+                                            <Input
+                                                id="contraparte_identificacion"
+                                                v-model="form.contraparte_identificacion"
+                                                placeholder="Número de identificación"
+                                                :disabled="!puedeEditar || !!form.contraparte_user_id"
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <Label for="contraparte_email">Email de Contacto</Label>
+                                            <Input
+                                                id="contraparte_email"
+                                                type="email"
+                                                v-model="form.contraparte_email"
+                                                placeholder="email@ejemplo.com"
+                                                :disabled="!puedeEditar || !!form.contraparte_user_id"
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <Label for="contraparte_telefono">Teléfono de Contacto</Label>
+                                            <Input
+                                                id="contraparte_telefono"
+                                                v-model="form.contraparte_telefono"
+                                                placeholder="+1234567890"
+                                                :disabled="!puedeEditar || !!form.contraparte_user_id"
+                                            />
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+
+                            <!-- Sección 3: Participantes del Contrato -->
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Participantes del Contrato</CardTitle>
+                                    <CardDescription>
+                                        Agregue usuarios del sistema que participarán en este contrato con diferentes roles
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <ParticipantesManager
+                                        v-model="form.participantes"
+                                        :users="usuarios"
+                                        entity-type="contrato"
+                                        title=""
+                                        :disabled="!puedeEditar"
+                                    />
+                                </CardContent>
+                            </Card>
+                        </div>
+                    </TabsContent>
+
+                    <!-- Tab: Información Adicional -->
+                    <TabsContent value="adicional">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Información Adicional</CardTitle>
+                                <CardDescription>Archivos y observaciones</CardDescription>
+                            </CardHeader>
+                            <CardContent class="space-y-4">
+                                <div>
+                                    <Label for="archivo_pdf">Archivo del Contrato (PDF)</Label>
+                                    <div class="flex items-center gap-4">
+                                        <Input
+                                            id="archivo_pdf"
+                                            type="file"
+                                            accept=".pdf"
+                                            @change="handleFileChange"
+                                            class="hidden"
+                                            :disabled="!puedeEditar"
+                                        />
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            @click="($refs.fileInput as HTMLInputElement).click()"
+                                            :disabled="!puedeEditar"
+                                        >
+                                            <Upload class="h-4 w-4 mr-2" />
+                                            Cambiar PDF
+                                        </Button>
+                                        <span v-if="archivoNombre" class="text-sm text-gray-600">
+                                            {{ archivoNombre }}
+                                        </span>
+                                    </div>
+                                    <p class="text-xs text-gray-500 mt-1">Máximo 10MB</p>
+                                    <div v-if="form.errors.archivo_pdf" class="text-red-500 text-sm mt-1">
+                                        {{ form.errors.archivo_pdf }}
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <Label for="observaciones">Observaciones</Label>
+                                    <Textarea
+                                        id="observaciones"
+                                        v-model="form.observaciones"
+                                        placeholder="Notas u observaciones adicionales..."
+                                        rows="4"
+                                        :disabled="!puedeEditar"
+                                    />
+                                    <div v-if="form.errors.observaciones" class="text-red-500 text-sm mt-1">
+                                        {{ form.errors.observaciones }}
+                                    </div>
+                                </div>
+
+                                <!-- Otros campos personalizados -->
+                                <div v-if="camposAgrupados.otros.length > 0" class="space-y-4 pt-4 border-t">
+                                    <h3 class="font-medium">Campos Personalizados</h3>
+                                    <div v-for="campo in camposAgrupados.otros" :key="campo.id">
+                                        <CampoPersonalizadoInput
+                                            :campo="campo"
+                                            v-model="form.campos_personalizados[campo.id]"
+                                            :disabled="!puedeEditar"
+                                        />
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+                </Tabs>
+
+                <!-- Acciones -->
+                <div v-if="puedeEditar" class="flex justify-end gap-4">
+                    <Button
+                        type="button"
+                        variant="outline"
+                        @click="cancelar"
+                        :disabled="form.processing"
+                    >
+                        Cancelar
+                    </Button>
+                    <Button
+                        type="submit"
+                        :disabled="form.processing"
+                    >
+                        <Save class="h-4 w-4 mr-2" />
+                        {{ form.processing ? 'Guardando...' : 'Guardar Cambios' }}
+                    </Button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Input file oculto -->
+        <input
+            ref="fileInput"
+            type="file"
+            accept=".pdf"
+            @change="handleFileChange"
+            class="hidden"
+        />
+    </AdminLayout>
+</template>

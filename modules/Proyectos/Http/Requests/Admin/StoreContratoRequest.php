@@ -1,0 +1,119 @@
+<?php
+
+namespace Modules\Proyectos\Http\Requests\Admin;
+
+use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
+use Modules\Proyectos\Models\CampoPersonalizado;
+
+class StoreContratoRequest extends FormRequest
+{
+    /**
+     * Determina si el usuario está autorizado para hacer esta solicitud.
+     */
+    public function authorize(): bool
+    {
+        return $this->user()->can('contratos.create');
+    }
+
+    /**
+     * Obtiene las reglas de validación que se aplican a la solicitud.
+     */
+    public function rules(): array
+    {
+        $reglas = [
+            // Campos básicos
+            'proyecto_id' => 'required|exists:proyectos,id',
+            'nombre' => 'required|string|max:255',
+            'descripcion' => 'nullable|string|max:5000',
+            'fecha_inicio' => 'required|date',
+            'fecha_fin' => 'nullable|date|after_or_equal:fecha_inicio',
+
+            // Estado y tipo
+            'estado' => 'nullable|in:borrador,activo,finalizado,cancelado',
+            'tipo' => 'required|in:servicio,obra,suministro,consultoria,otro',
+
+            // Información financiera
+            'monto_total' => 'nullable|numeric|min:0|max:999999999999.99',
+            'moneda' => 'nullable|string|size:3',
+
+            // Responsable
+            'responsable_id' => 'nullable|exists:users,id',
+
+            // Usuario contraparte del sistema
+            'contraparte_user_id' => 'nullable|exists:users,id',
+
+            // Participantes del contrato
+            'participantes' => 'nullable|array',
+            'participantes.*.user_id' => 'required_with:participantes|exists:users,id',
+            'participantes.*.rol' => 'required_with:participantes|in:participante,observador,aprobador',
+            'participantes.*.notas' => 'nullable|string|max:500',
+
+            // Información de contraparte externa (solo si no hay usuario contraparte)
+            'contraparte_nombre' => 'nullable|required_without:contraparte_user_id|string|max:255',
+            'contraparte_identificacion' => 'nullable|string|max:50',
+            'contraparte_email' => 'nullable|email|max:255',
+            'contraparte_telefono' => 'nullable|string|max:50',
+
+            // Archivos y observaciones
+            'archivo_pdf' => 'nullable|file|mimes:pdf|max:10240', // Max 10MB
+            'observaciones' => 'nullable|string|max:5000',
+        ];
+
+        // Agregar validación para campos personalizados
+        $camposPersonalizados = CampoPersonalizado::paraContratos()->activos()->get();
+
+        foreach ($camposPersonalizados as $campo) {
+            $campoKey = 'campos_personalizados.' . $campo->id;
+            $reglas[$campoKey] = $campo->reglas_validacion;
+        }
+
+        return $reglas;
+    }
+
+    /**
+     * Obtiene los mensajes de error personalizados.
+     */
+    public function messages(): array
+    {
+        return [
+            'proyecto_id.required' => 'El proyecto es obligatorio',
+            'proyecto_id.exists' => 'El proyecto seleccionado no existe',
+            'nombre.required' => 'El nombre del contrato es obligatorio',
+            'nombre.max' => 'El nombre no puede exceder 255 caracteres',
+            'fecha_inicio.required' => 'La fecha de inicio es obligatoria',
+            'fecha_inicio.date' => 'La fecha de inicio debe ser una fecha válida',
+            'fecha_fin.after_or_equal' => 'La fecha de fin debe ser igual o posterior a la fecha de inicio',
+            'tipo.required' => 'El tipo de contrato es obligatorio',
+            'tipo.in' => 'El tipo de contrato no es válido',
+            'monto_total.numeric' => 'El monto debe ser un número',
+            'monto_total.min' => 'El monto no puede ser negativo',
+            'monto_total.max' => 'El monto excede el límite permitido',
+            'moneda.size' => 'El código de moneda debe tener exactamente 3 caracteres',
+            'responsable_id.exists' => 'El responsable seleccionado no existe',
+            'contraparte_user_id.exists' => 'El usuario contraparte seleccionado no existe',
+            'participantes.*.user_id.exists' => 'Uno de los participantes seleccionados no existe',
+            'participantes.*.rol.in' => 'El rol del participante no es válido',
+            'contraparte_nombre.required_without' => 'El nombre de la contraparte es obligatorio si no se selecciona un usuario del sistema',
+            'contraparte_email.email' => 'El email de la contraparte no es válido',
+            'archivo_pdf.mimes' => 'El archivo debe ser un PDF',
+            'archivo_pdf.max' => 'El archivo no puede exceder 10MB',
+        ];
+    }
+
+    /**
+     * Prepara los datos para la validación.
+     */
+    protected function prepareForValidation(): void
+    {
+        // Si no se especifica estado, usar 'borrador' por defecto
+        if (!$this->has('estado')) {
+            $this->merge(['estado' => 'borrador']);
+        }
+
+        // Si no se especifica moneda, usar 'USD' por defecto
+        if (!$this->has('moneda')) {
+            $this->merge(['moneda' => 'USD']);
+        }
+    }
+}

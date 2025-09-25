@@ -39,6 +39,8 @@ class StoreCampoPersonalizadoRequest extends FormRequest
             'descripcion' => 'nullable|string|max:500',
             'placeholder' => 'nullable|string|max:255',
             'validacion' => 'nullable|string|max:255',
+            'aplicar_para' => 'nullable|array|min:1',
+            'aplicar_para.*' => 'in:proyectos,contratos',
         ];
     }
 

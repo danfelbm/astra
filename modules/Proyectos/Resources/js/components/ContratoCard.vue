@@ -1,0 +1,195 @@
+<script setup lang="ts">
+import { computed } from 'vue';
+import { Card, CardContent, CardHeader, CardTitle } from '@modules/Core/Resources/js/components/ui/card';
+import { Badge } from '@modules/Core/Resources/js/components/ui/badge';
+import { Button } from '@modules/Core/Resources/js/components/ui/button';
+import { Calendar, DollarSign, User, AlertCircle, FileText, Edit, Eye } from 'lucide-vue-next';
+import { Link } from '@inertiajs/vue3';
+
+interface Contrato {
+    id: number;
+    nombre: string;
+    descripcion?: string;
+    fecha_inicio: string;
+    fecha_fin?: string;
+    estado: 'borrador' | 'activo' | 'finalizado' | 'cancelado';
+    tipo: string;
+    monto_total?: number;
+    monto_formateado?: string;
+    proyecto?: {
+        id: number;
+        nombre: string;
+    };
+    responsable?: {
+        id: number;
+        name: string;
+    };
+    dias_restantes?: number;
+    porcentaje_transcurrido?: number;
+    esta_vencido?: boolean;
+    esta_proximo_vencer?: boolean;
+}
+
+interface Props {
+    contrato: Contrato;
+    showProyecto?: boolean;
+    showActions?: boolean;
+}
+
+const props = withDefaults(defineProps<Props>(), {
+    showProyecto: true,
+    showActions: true,
+});
+
+// Clases de color según el estado
+const estadoClasses = computed(() => {
+    const clases = {
+        'borrador': 'bg-gray-100 text-gray-800',
+        'activo': 'bg-green-100 text-green-800',
+        'finalizado': 'bg-blue-100 text-blue-800',
+        'cancelado': 'bg-red-100 text-red-800',
+    };
+    return clases[props.contrato.estado] || 'bg-gray-100 text-gray-800';
+});
+
+// Clase para la barra de progreso
+const progresoClass = computed(() => {
+    if (props.contrato.estado === 'cancelado') return 'bg-red-500';
+    if (props.contrato.estado === 'finalizado') return 'bg-blue-500';
+    if (props.contrato.esta_vencido) return 'bg-red-500';
+    if (props.contrato.esta_proximo_vencer) return 'bg-yellow-500';
+    return 'bg-green-500';
+});
+
+// Formatear fecha
+const formatDate = (date: string) => {
+    if (!date) return '-';
+    return new Date(date).toLocaleDateString('es-ES', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+    });
+};
+</script>
+
+<template>
+    <Card class="hover:shadow-lg transition-shadow duration-300 cursor-pointer">
+        <CardHeader>
+            <div class="flex items-start justify-between">
+                <div class="flex-1">
+                    <CardTitle class="text-lg font-semibold mb-1">
+                        {{ contrato.nombre }}
+                    </CardTitle>
+                    <div v-if="showProyecto && contrato.proyecto" class="text-sm text-gray-600 dark:text-gray-400">
+                        <Link
+                            :href="`/admin/proyectos/${contrato.proyecto.id}`"
+                            class="hover:text-primary transition-colors"
+                        >
+                            {{ contrato.proyecto.nombre }}
+                        </Link>
+                    </div>
+                </div>
+                <Badge :class="estadoClasses">
+                    {{ contrato.estado }}
+                </Badge>
+            </div>
+        </CardHeader>
+
+        <CardContent class="space-y-4">
+            <!-- Descripción -->
+            <p v-if="contrato.descripcion" class="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
+                {{ contrato.descripcion }}
+            </p>
+
+            <!-- Información principal -->
+            <div class="grid grid-cols-2 gap-3 text-sm">
+                <!-- Fechas -->
+                <div class="flex items-center gap-2">
+                    <Calendar class="h-4 w-4 text-gray-400" />
+                    <div>
+                        <span class="text-gray-600 dark:text-gray-400">Inicio:</span>
+                        <span class="ml-1 font-medium">{{ formatDate(contrato.fecha_inicio) }}</span>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <Calendar class="h-4 w-4 text-gray-400" />
+                    <div>
+                        <span class="text-gray-600 dark:text-gray-400">Fin:</span>
+                        <span class="ml-1 font-medium">{{ formatDate(contrato.fecha_fin) }}</span>
+                    </div>
+                </div>
+
+                <!-- Monto y Responsable -->
+                <div v-if="contrato.monto_formateado" class="flex items-center gap-2">
+                    <DollarSign class="h-4 w-4 text-gray-400" />
+                    <span class="font-medium">{{ contrato.monto_formateado }}</span>
+                </div>
+
+                <div v-if="contrato.responsable" class="flex items-center gap-2">
+                    <User class="h-4 w-4 text-gray-400" />
+                    <span class="truncate">{{ contrato.responsable.name }}</span>
+                </div>
+            </div>
+
+            <!-- Alertas de vencimiento -->
+            <div v-if="contrato.esta_vencido || contrato.esta_proximo_vencer" class="flex items-center gap-2">
+                <AlertCircle
+                    :class="[
+                        'h-4 w-4',
+                        contrato.esta_vencido ? 'text-red-500' : 'text-yellow-500'
+                    ]"
+                />
+                <span
+                    :class="[
+                        'text-sm font-medium',
+                        contrato.esta_vencido ? 'text-red-600' : 'text-yellow-600'
+                    ]"
+                >
+                    {{ contrato.esta_vencido ? 'Contrato vencido' : `Vence en ${contrato.dias_restantes} días` }}
+                </span>
+            </div>
+
+            <!-- Barra de progreso -->
+            <div v-if="contrato.estado === 'activo' && contrato.porcentaje_transcurrido !== undefined">
+                <div class="flex justify-between text-xs text-gray-600 mb-1">
+                    <span>Progreso</span>
+                    <span>{{ contrato.porcentaje_transcurrido }}%</span>
+                </div>
+                <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                    <div
+                        :class="progresoClass"
+                        class="h-2 rounded-full transition-all duration-300"
+                        :style="{ width: `${contrato.porcentaje_transcurrido}%` }"
+                    />
+                </div>
+            </div>
+
+            <!-- Tipo de contrato -->
+            <div class="flex items-center justify-between">
+                <Badge variant="outline" class="text-xs">
+                    <FileText class="h-3 w-3 mr-1" />
+                    {{ contrato.tipo }}
+                </Badge>
+
+                <!-- Acciones -->
+                <div v-if="showActions" class="flex gap-2">
+                    <Button
+                        size="sm"
+                        variant="ghost"
+                        @click="$inertia.get(`/admin/contratos/${contrato.id}`)"
+                    >
+                        <Eye class="h-4 w-4" />
+                    </Button>
+                    <Button
+                        size="sm"
+                        variant="ghost"
+                        @click="$inertia.get(`/admin/contratos/${contrato.id}/edit`)"
+                    >
+                        <Edit class="h-4 w-4" />
+                    </Button>
+                </div>
+            </div>
+        </CardContent>
+    </Card>
+</template>

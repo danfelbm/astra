@@ -17,6 +17,8 @@ use Modules\Geografico\Models\Municipio;
 use Modules\Geografico\Models\Territorio;
 use Modules\Votaciones\Models\Votacion;
 use Modules\Votaciones\Models\Voto;
+use Modules\Proyectos\Models\Proyecto;
+use Modules\Proyectos\Models\Contrato;
 use Modules\Core\Traits\HasTenant;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -187,6 +189,50 @@ class User extends Authenticatable
     public function municipio()
     {
         return $this->belongsTo(Municipio::class);
+    }
+
+    /**
+     * Obtiene los proyectos donde el usuario es responsable.
+     */
+    public function proyectosComoResponsable()
+    {
+        return $this->hasMany(Proyecto::class, 'responsable_id');
+    }
+
+    /**
+     * Obtiene los proyectos donde el usuario es participante.
+     */
+    public function proyectosComoParticipante()
+    {
+        return $this->belongsToMany(Proyecto::class, 'proyecto_usuario', 'user_id', 'proyecto_id')
+                    ->withPivot('rol')
+                    ->withTimestamps();
+    }
+
+    /**
+     * Obtiene los contratos donde el usuario es responsable.
+     */
+    public function contratosComoResponsable()
+    {
+        return $this->hasMany(Contrato::class, 'responsable_id');
+    }
+
+    /**
+     * Obtiene los contratos donde el usuario es contraparte.
+     */
+    public function contratosComoContraparte()
+    {
+        return $this->hasMany(Contrato::class, 'contraparte_user_id');
+    }
+
+    /**
+     * Obtiene los contratos donde el usuario es participante.
+     */
+    public function contratosComoParticipante()
+    {
+        return $this->belongsToMany(Contrato::class, 'contrato_usuario', 'user_id', 'contrato_id')
+                    ->withPivot('rol', 'notas')
+                    ->withTimestamps();
     }
 
     /**

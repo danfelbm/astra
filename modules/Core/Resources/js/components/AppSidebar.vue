@@ -269,6 +269,14 @@ const mainNavItems = computed<NavItem[]>(() => {
             });
         }
 
+        if (hasPermission('contratos.view') && hasModuleAccess('proyectos')) {
+            proyectosItems.push({
+                title: 'Contratos',
+                url: '/admin/contratos',
+                icon: FileText,
+            });
+        }
+
         // Solo agregar la sección si hay elementos
         if (proyectosItems.length > 0) {
             items.push({

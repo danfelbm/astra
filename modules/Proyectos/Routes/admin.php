@@ -3,6 +3,8 @@
 use Illuminate\Support\Facades\Route;
 use Modules\Proyectos\Http\Controllers\Admin\ProyectoController;
 use Modules\Proyectos\Http\Controllers\Admin\CampoPersonalizadoController;
+use Modules\Proyectos\Http\Controllers\Admin\ContratoController;
+// use Modules\Proyectos\Http\Controllers\Admin\CampoPersonalizadoContratoController; // Modelo unificado
 
 /*
 |--------------------------------------------------------------------------
@@ -89,4 +91,109 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
             ->name('reordenar')
             ->middleware('can:proyectos.manage_fields');
     });
+
+    // Rutas para gestión de contratos
+    Route::prefix('contratos')->name('contratos.')->group(function () {
+        Route::get('/', [ContratoController::class, 'index'])
+            ->name('index')
+            ->middleware('can:contratos.view');
+
+        Route::get('/create', [ContratoController::class, 'create'])
+            ->name('create')
+            ->middleware('can:contratos.create');
+
+        Route::post('/', [ContratoController::class, 'store'])
+            ->name('store')
+            ->middleware('can:contratos.create');
+
+        Route::get('/proximos-vencer', [ContratoController::class, 'proximosVencer'])
+            ->name('proximos-vencer')
+            ->middleware('can:contratos.view');
+
+        Route::get('/vencidos', [ContratoController::class, 'vencidos'])
+            ->name('vencidos')
+            ->middleware('can:contratos.view');
+
+        Route::get('/{contrato}', [ContratoController::class, 'show'])
+            ->name('show')
+            ->middleware('can:contratos.view');
+
+        Route::get('/{contrato}/edit', [ContratoController::class, 'edit'])
+            ->name('edit')
+            ->middleware('can:contratos.edit');
+
+        Route::put('/{contrato}', [ContratoController::class, 'update'])
+            ->name('update')
+            ->middleware('can:contratos.edit');
+
+        Route::delete('/{contrato}', [ContratoController::class, 'destroy'])
+            ->name('destroy')
+            ->middleware('can:contratos.delete');
+
+        // Acciones adicionales
+        Route::post('/{contrato}/cambiar-estado', [ContratoController::class, 'cambiarEstado'])
+            ->name('cambiar-estado')
+            ->middleware('can:contratos.change_status');
+
+        Route::post('/{contrato}/duplicar', [ContratoController::class, 'duplicar'])
+            ->name('duplicar')
+            ->middleware('can:contratos.create');
+    });
+
+    // Rutas para contratos dentro del contexto de un proyecto
+    Route::prefix('proyectos/{proyecto}/contratos')->name('proyectos.contratos.')->group(function () {
+        Route::get('/', [ContratoController::class, 'index'])
+            ->name('index')
+            ->middleware('can:contratos.view');
+
+        Route::get('/create', [ContratoController::class, 'create'])
+            ->name('create')
+            ->middleware('can:contratos.create');
+    });
+
+    // Rutas para gestión de campos personalizados de contratos
+    // COMENTADO: Ahora se usa el controlador unificado CampoPersonalizadoController
+    /*
+    Route::prefix('campos-personalizados-contrato')->name('campos-personalizados-contrato.')->group(function () {
+        Route::get('/', [CampoPersonalizadoContratoController::class, 'index'])
+            ->name('index')
+            ->middleware('can:contratos.manage_fields');
+
+        Route::get('/create', [CampoPersonalizadoContratoController::class, 'create'])
+            ->name('create')
+            ->middleware('can:contratos.manage_fields');
+
+        Route::post('/', [CampoPersonalizadoContratoController::class, 'store'])
+            ->name('store')
+            ->middleware('can:contratos.manage_fields');
+
+        Route::get('/{campo}', [CampoPersonalizadoContratoController::class, 'show'])
+            ->name('show')
+            ->middleware('can:contratos.manage_fields');
+
+        Route::get('/{campo}/edit', [CampoPersonalizadoContratoController::class, 'edit'])
+            ->name('edit')
+            ->middleware('can:contratos.manage_fields');
+
+        Route::put('/{campo}', [CampoPersonalizadoContratoController::class, 'update'])
+            ->name('update')
+            ->middleware('can:contratos.manage_fields');
+
+        Route::delete('/{campo}', [CampoPersonalizadoContratoController::class, 'destroy'])
+            ->name('destroy')
+            ->middleware('can:contratos.manage_fields');
+
+        Route::post('/reordenar', [CampoPersonalizadoContratoController::class, 'reordenar'])
+            ->name('reordenar')
+            ->middleware('can:contratos.manage_fields');
+
+        Route::post('/{campo}/toggle-activo', [CampoPersonalizadoContratoController::class, 'toggleActivo'])
+            ->name('toggle-activo')
+            ->middleware('can:contratos.manage_fields');
+
+        Route::post('/{campo}/duplicar', [CampoPersonalizadoContratoController::class, 'duplicar'])
+            ->name('duplicar')
+            ->middleware('can:contratos.manage_fields');
+    });
+    */
 });

@@ -1,0 +1,1 @@
+import{a as o}from"./createLucideIcon-DgLLtpTc.js";import{d as r,i as t,e as n,n as c,u as p,G as l}from"./app-CNcf-zdV.js";const d=r({__name:"CardDescription",props:{class:{}},setup(s){const e=s;return(a,m)=>(n(),t("p",{class:c(p(o)("text-sm text-muted-foreground",e.class))},[l(a.$slots,"default")],2))}});export{d as _};

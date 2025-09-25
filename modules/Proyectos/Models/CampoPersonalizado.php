@@ -12,6 +12,20 @@ class CampoPersonalizado extends Model
     use HasTenant;
 
     /**
+     * Tipos de campo disponibles
+     */
+    const TIPOS_DISPONIBLES = [
+        'text' => 'Texto',
+        'number' => 'Número',
+        'date' => 'Fecha',
+        'textarea' => 'Área de texto',
+        'select' => 'Lista desplegable',
+        'checkbox' => 'Casilla de verificación',
+        'radio' => 'Botón de opción',
+        'file' => 'Archivo'
+    ];
+
+    /**
      * La tabla asociada con el modelo.
      *
      * @var string
@@ -34,6 +48,7 @@ class CampoPersonalizado extends Model
         'descripcion',
         'placeholder',
         'validacion',
+        'aplicar_para', // Array de entidades donde aplica el campo
         'tenant_id'
     ];
 
@@ -44,6 +59,7 @@ class CampoPersonalizado extends Model
      */
     protected $casts = [
         'opciones' => 'array',
+        'aplicar_para' => 'array', // Array de entidades: ['proyectos', 'contratos']
         'es_requerido' => 'boolean',
         'activo' => 'boolean',
         'orden' => 'integer'
@@ -86,18 +102,7 @@ class CampoPersonalizado extends Model
      */
     public function getTipoLabelAttribute(): string
     {
-        $labels = [
-            'text' => 'Texto',
-            'number' => 'Número',
-            'date' => 'Fecha',
-            'textarea' => 'Área de texto',
-            'select' => 'Lista desplegable',
-            'checkbox' => 'Casilla de verificación',
-            'radio' => 'Botón de opción',
-            'file' => 'Archivo'
-        ];
-
-        return $labels[$this->tipo] ?? $this->tipo;
+        return self::TIPOS_DISPONIBLES[$this->tipo] ?? $this->tipo;
     }
 
     /**
@@ -208,5 +213,75 @@ class CampoPersonalizado extends Model
     public function scopeTipo($query, $tipo)
     {
         return $query->where('tipo', $tipo);
+    }
+
+    /**
+     * Scope para campos que aplican a proyectos.
+     */
+    public function scopeParaProyectos($query)
+    {
+        return $query->where(function($q) {
+            $q->whereJsonContains('aplicar_para', 'proyectos')
+              ->orWhereNull('aplicar_para'); // Para compatibilidad con campos existentes
+        });
+    }
+
+    /**
+     * Scope para campos que aplican a contratos.
+     */
+    public function scopeParaContratos($query)
+    {
+        return $query->whereJsonContains('aplicar_para', 'contratos');
+    }
+
+    /**
+     * Scope para campos que aplican a una entidad específica.
+     */
+    public function scopeParaEntidad($query, $entidad)
+    {
+        return $query->where(function($q) use ($entidad) {
+            $q->whereJsonContains('aplicar_para', $entidad);
+            // Para compatibilidad: si el campo es null, asumimos que aplica a proyectos
+            if ($entidad === 'proyectos') {
+                $q->orWhereNull('aplicar_para');
+            }
+        });
+    }
+
+    /**
+     * Verifica si el campo aplica para una entidad.
+     */
+    public function aplicaPara($entidad): bool
+    {
+        if (empty($this->aplicar_para)) {
+            // Para compatibilidad: campos sin aplicar_para aplican solo a proyectos
+            return $entidad === 'proyectos';
+        }
+
+        return in_array($entidad, $this->aplicar_para);
+    }
+
+    /**
+     * Obtiene el valor para un contrato específico.
+     */
+    public function getValorParaContrato($contratoId)
+    {
+        return $this->valores()
+                    ->where('contrato_id', $contratoId)
+                    ->first()?->valor;
+    }
+
+    /**
+     * Establece el valor para un contrato específico.
+     */
+    public function setValorParaContrato($contratoId, $valor)
+    {
+        return ValorCampoPersonalizado::updateOrCreate(
+            [
+                'contrato_id' => $contratoId,
+                'campo_personalizado_id' => $this->id
+            ],
+            ['valor' => $valor]
+        );
     }
 }
