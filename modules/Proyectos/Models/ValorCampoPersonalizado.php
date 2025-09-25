@@ -21,6 +21,7 @@ class ValorCampoPersonalizado extends Model
      */
     protected $fillable = [
         'proyecto_id',
+        'contrato_id',
         'campo_personalizado_id',
         'valor'
     ];
@@ -31,6 +32,14 @@ class ValorCampoPersonalizado extends Model
     public function proyecto(): BelongsTo
     {
         return $this->belongsTo(Proyecto::class);
+    }
+
+    /**
+     * Obtiene el contrato al que pertenece este valor.
+     */
+    public function contrato(): BelongsTo
+    {
+        return $this->belongsTo(Contrato::class);
     }
 
     /**
@@ -111,10 +120,46 @@ class ValorCampoPersonalizado extends Model
     }
 
     /**
+     * Scope para valores de un contrato específico.
+     */
+    public function scopeParaContrato($query, $contratoId)
+    {
+        return $query->where('contrato_id', $contratoId);
+    }
+
+    /**
      * Scope para valores de un campo específico.
      */
     public function scopeParaCampo($query, $campoId)
     {
         return $query->where('campo_personalizado_id', $campoId);
+    }
+
+    /**
+     * Obtiene la entidad relacionada (proyecto o contrato).
+     */
+    public function entidadRelacionada()
+    {
+        if ($this->proyecto_id) {
+            return $this->proyecto;
+        }
+        if ($this->contrato_id) {
+            return $this->contrato;
+        }
+        return null;
+    }
+
+    /**
+     * Obtiene el tipo de entidad.
+     */
+    public function getTipoEntidadAttribute(): ?string
+    {
+        if ($this->proyecto_id) {
+            return 'proyecto';
+        }
+        if ($this->contrato_id) {
+            return 'contrato';
+        }
+        return null;
     }
 }

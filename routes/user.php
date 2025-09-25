@@ -11,6 +11,7 @@ use Modules\Asamblea\Http\Controllers\User\ZoomRegistrantController;
 use Modules\Geografico\Http\Controllers\Admin\GeographicController;
 use Modules\Users\Http\Controllers\User\DashboardController;
 use Modules\Proyectos\Http\Controllers\User\MisProyectosController;
+use Modules\Proyectos\Http\Controllers\User\MisContratosController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -204,6 +205,29 @@ Route::middleware(['auth', 'verified', 'user'])->prefix('miembro')->name('user.'
         Route::post('/{proyecto}/campos-personalizados', [MisProyectosController::class, 'guardarCamposPersonalizados'])
             ->name('guardar-campos-personalizados')
             ->middleware('can:proyectos.edit_own');
+    });
+
+    // Rutas para mis contratos
+    Route::prefix('mis-contratos')->name('mis-contratos.')->group(function () {
+        Route::get('/', [MisContratosController::class, 'index'])
+            ->name('index')
+            ->middleware('can:contratos.view_own');
+
+        Route::get('/proximos-vencer', [MisContratosController::class, 'proximosVencer'])
+            ->name('proximos-vencer')
+            ->middleware('can:contratos.view_own');
+
+        Route::get('/vencidos', [MisContratosController::class, 'vencidos'])
+            ->name('vencidos')
+            ->middleware('can:contratos.view_own');
+
+        Route::get('/{contrato}', [MisContratosController::class, 'show'])
+            ->name('show')
+            ->middleware('can:contratos.view_own');
+
+        Route::get('/{contrato}/descargar-pdf', [MisContratosController::class, 'descargarPDF'])
+            ->name('descargar-pdf')
+            ->middleware('can:contratos.view_own');
     });
 });
 

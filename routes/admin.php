@@ -24,6 +24,7 @@ use Modules\Proyectos\Http\Controllers\Admin\CampoPersonalizadoController;
 use Modules\Proyectos\Http\Controllers\Admin\CategoriaEtiquetaController;
 use Modules\Proyectos\Http\Controllers\Admin\EtiquetaController;
 use Modules\Proyectos\Http\Controllers\Admin\ProyectoEtiquetaController;
+use Modules\Proyectos\Http\Controllers\Admin\ContratoController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -903,6 +904,65 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
     Route::get('etiquetas/search', [ProyectoEtiquetaController::class, 'search'])
         ->name('etiquetas.search')
         ->middleware('can:proyectos.view');
+
+    // Rutas para gestión de contratos
+    Route::prefix('contratos')->name('contratos.')->group(function () {
+        Route::get('/', [ContratoController::class, 'index'])
+            ->name('index')
+            ->middleware('can:contratos.view');
+
+        Route::get('/create', [ContratoController::class, 'create'])
+            ->name('create')
+            ->middleware('can:contratos.create');
+
+        Route::post('/', [ContratoController::class, 'store'])
+            ->name('store')
+            ->middleware('can:contratos.create');
+
+        Route::get('/proximos-vencer', [ContratoController::class, 'proximosVencer'])
+            ->name('proximos-vencer')
+            ->middleware('can:contratos.view');
+
+        Route::get('/vencidos', [ContratoController::class, 'vencidos'])
+            ->name('vencidos')
+            ->middleware('can:contratos.view');
+
+        Route::get('/{contrato}', [ContratoController::class, 'show'])
+            ->name('show')
+            ->middleware('can:contratos.view');
+
+        Route::get('/{contrato}/edit', [ContratoController::class, 'edit'])
+            ->name('edit')
+            ->middleware('can:contratos.edit');
+
+        Route::put('/{contrato}', [ContratoController::class, 'update'])
+            ->name('update')
+            ->middleware('can:contratos.edit');
+
+        Route::delete('/{contrato}', [ContratoController::class, 'destroy'])
+            ->name('destroy')
+            ->middleware('can:contratos.delete');
+
+        // Acciones adicionales
+        Route::post('/{contrato}/cambiar-estado', [ContratoController::class, 'cambiarEstado'])
+            ->name('cambiar-estado')
+            ->middleware('can:contratos.change_status');
+
+        Route::post('/{contrato}/duplicar', [ContratoController::class, 'duplicar'])
+            ->name('duplicar')
+            ->middleware('can:contratos.create');
+    });
+
+    // Rutas para contratos dentro del contexto de un proyecto
+    Route::prefix('proyectos/{proyecto}/contratos')->name('proyectos.contratos.')->group(function () {
+        Route::get('/', [ContratoController::class, 'index'])
+            ->name('index')
+            ->middleware('can:contratos.view');
+
+        Route::get('/create', [ContratoController::class, 'create'])
+            ->name('create')
+            ->middleware('can:contratos.create');
+    });
 });
 
 // Ruta pública para redirección de enlaces Zoom enmascarados

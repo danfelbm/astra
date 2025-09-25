@@ -21,14 +21,18 @@ import {
     PlayCircle,
     Ban,
     Tag,
-    Plus
+    Plus,
+    FileText
 } from 'lucide-vue-next';
 import { toast } from 'vue-sonner';
 import EtiquetaDisplay from '@modules/Proyectos/Resources/js/components/EtiquetaDisplay.vue';
 import EtiquetaSelector from '@modules/Proyectos/Resources/js/components/EtiquetaSelector.vue';
+import ContratosList from '@modules/Proyectos/Resources/js/components/ContratosList.vue';
+import ContratoTimeline from '@modules/Proyectos/Resources/js/components/ContratoTimeline.vue';
 import { useEtiquetas } from '@modules/Proyectos/Resources/js/composables/useEtiquetas';
 import { ref, computed } from 'vue';
 import type { Etiqueta, CategoriaEtiqueta } from '@modules/Proyectos/Resources/js/types/etiquetas';
+import type { Contrato } from '@modules/Proyectos/Resources/js/types/contratos';
 
 // Interfaces
 interface User {
@@ -72,6 +76,7 @@ interface Proyecto {
     duracion_dias?: number;
     campos_personalizados?: CampoPersonalizado[];
     etiquetas?: Etiqueta[];
+    contratos?: Contrato[];
     activities?: Activity[];
     created_at: string;
     updated_at: string;
@@ -84,6 +89,8 @@ interface Props {
     canEdit?: boolean;
     canDelete?: boolean;
     canManageTags?: boolean;
+    canViewContracts?: boolean;
+    canCreateContracts?: boolean;
 }
 
 const props = defineProps<Props>();
@@ -376,6 +383,93 @@ const cancelEditingTags = () => {
                                     <span class="text-sm text-gray-600 dark:text-gray-400">{{ campo.nombre }}</span>
                                     <span class="font-medium">{{ campo.valor_formateado || campo.valor || '-' }}</span>
                                 </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <!-- Contratos del Proyecto -->
+                    <Card v-if="canViewContracts">
+                        <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle class="flex items-center gap-2">
+                                <FileText class="h-5 w-5" />
+                                Contratos
+                            </CardTitle>
+                            <Link
+                                v-if="canCreateContracts"
+                                :href="`/admin/proyectos/${proyecto.id}/contratos/create`"
+                            >
+                                <Button size="sm">
+                                    <Plus class="h-4 w-4 mr-2" />
+                                    Nuevo Contrato
+                                </Button>
+                            </Link>
+                        </CardHeader>
+                        <CardContent>
+                            <div v-if="proyecto.contratos && proyecto.contratos.length > 0" class="space-y-4">
+                                <!-- Timeline de contratos -->
+                                <ContratoTimeline
+                                    :contratos="proyecto.contratos"
+                                    :mostrar-monto="true"
+                                    :compacto="true"
+                                />
+
+                                <!-- Lista de contratos -->
+                                <div class="mt-4">
+                                    <p class="text-sm text-muted-foreground mb-3">
+                                        {{ proyecto.contratos.length }} contrato(s) asociado(s)
+                                    </p>
+                                    <div class="grid gap-2">
+                                        <Link
+                                            v-for="contrato in proyecto.contratos.slice(0, 3)"
+                                            :key="contrato.id"
+                                            :href="`/admin/contratos/${contrato.id}`"
+                                            class="block p-3 rounded-lg border hover:bg-muted/50 transition-colors"
+                                        >
+                                            <div class="flex items-start justify-between">
+                                                <div>
+                                                    <p class="font-medium">{{ contrato.nombre }}</p>
+                                                    <div class="flex items-center gap-2 mt-1">
+                                                        <Badge
+                                                            :variant="contrato.estado === 'activo' ? 'default' :
+                                                                     contrato.estado === 'finalizado' ? 'secondary' :
+                                                                     contrato.estado === 'cancelado' ? 'destructive' : 'outline'"
+                                                        >
+                                                            {{ contrato.estado }}
+                                                        </Badge>
+                                                        <span class="text-xs text-muted-foreground">
+                                                            {{ new Date(contrato.fecha_inicio).toLocaleDateString() }}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <div v-if="contrato.monto_total" class="text-right">
+                                                    <p class="font-semibold">${{ contrato.monto_total.toLocaleString() }}</p>
+                                                    <p class="text-xs text-muted-foreground">{{ contrato.moneda || 'USD' }}</p>
+                                                </div>
+                                            </div>
+                                        </Link>
+                                    </div>
+
+                                    <Link
+                                        v-if="proyecto.contratos.length > 3"
+                                        :href="`/admin/contratos?proyecto_id=${proyecto.id}`"
+                                        class="block text-center mt-3 text-sm text-primary hover:underline"
+                                    >
+                                        Ver todos los contratos ({{ proyecto.contratos.length }})
+                                    </Link>
+                                </div>
+                            </div>
+                            <div v-else class="text-center py-6">
+                                <FileText class="h-10 w-10 mx-auto text-muted-foreground mb-3" />
+                                <p class="text-muted-foreground mb-3">No hay contratos asociados</p>
+                                <Link
+                                    v-if="canCreateContracts"
+                                    :href="`/admin/proyectos/${proyecto.id}/contratos/create`"
+                                >
+                                    <Button variant="outline" size="sm">
+                                        <Plus class="h-4 w-4 mr-2" />
+                                        Crear Primer Contrato
+                                    </Button>
+                                </Link>
                             </div>
                         </CardContent>
                     </Card>

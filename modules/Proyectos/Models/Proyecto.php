@@ -106,6 +106,24 @@ class Proyecto extends Model
     }
 
     /**
+     * Obtiene los contratos del proyecto.
+     */
+    public function contratos(): HasMany
+    {
+        return $this->hasMany(Contrato::class);
+    }
+
+    /**
+     * Obtiene los participantes del proyecto.
+     */
+    public function participantes(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'proyecto_usuario', 'proyecto_id', 'user_id')
+                    ->withPivot('rol')
+                    ->withTimestamps();
+    }
+
+    /**
      * Obtiene la etiqueta del estado.
      */
     public function getEstadoLabelAttribute(): string
@@ -117,6 +135,11 @@ class Proyecto extends Model
             'completado' => 'Completado',
             'cancelado' => 'Cancelado'
         ];
+
+        // Si el estado es null o no existe en los labels, retornar string vacío o valor por defecto
+        if ($this->estado === null) {
+            return 'Sin estado';
+        }
 
         return $labels[$this->estado] ?? $this->estado;
     }
@@ -132,6 +155,11 @@ class Proyecto extends Model
             'alta' => 'Alta',
             'critica' => 'Crítica'
         ];
+
+        // Si la prioridad es null, retornar valor por defecto
+        if ($this->prioridad === null) {
+            return 'Media'; // Valor por defecto
+        }
 
         return $labels[$this->prioridad] ?? $this->prioridad;
     }
@@ -334,5 +362,58 @@ class Proyecto extends Model
         $this->etiquetas()->detach($etiquetaId);
 
         Etiqueta::find($etiquetaId)?->decrementarUsos();
+    }
+
+    /**
+     * Obtiene los contratos activos del proyecto.
+     */
+    public function getContratosActivos()
+    {
+        return $this->contratos()->where('estado', 'activo')->get();
+    }
+
+    /**
+     * Obtiene el monto total de todos los contratos.
+     */
+    public function getMontoTotalContratos(): float
+    {
+        return $this->contratos()
+            ->whereIn('estado', ['activo', 'finalizado'])
+            ->sum('monto_total');
+    }
+
+    /**
+     * Obtiene el número de contratos por estado.
+     */
+    public function getContratosPorEstado(): array
+    {
+        return $this->contratos()
+            ->selectRaw('estado, count(*) as total')
+            ->groupBy('estado')
+            ->pluck('total', 'estado')
+            ->toArray();
+    }
+
+    /**
+     * Verifica si tiene contratos vencidos.
+     */
+    public function tieneContratosVencidos(): bool
+    {
+        return $this->contratos()
+            ->where('estado', 'activo')
+            ->where('fecha_fin', '<', now())
+            ->exists();
+    }
+
+    /**
+     * Obtiene contratos próximos a vencer.
+     */
+    public function getContratosProximosVencer($dias = 30)
+    {
+        return $this->contratos()
+            ->where('estado', 'activo')
+            ->where('fecha_fin', '<=', now()->addDays($dias))
+            ->where('fecha_fin', '>', now())
+            ->get();
     }
 }

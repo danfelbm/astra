@@ -67,6 +67,11 @@ const mainNavItems: NavItem[] = [
         icon: FolderOpen,
     },
     {
+        title: 'Mis Contratos',
+        href: '/miembro/mis-contratos',
+        icon: FileText,
+    },
+    {
         title: 'Formularios',
         href: '/miembro/formularios',
         icon: FileText,
