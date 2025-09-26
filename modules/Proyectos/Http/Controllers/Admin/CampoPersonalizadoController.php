@@ -25,6 +25,9 @@ class CampoPersonalizadoController extends AdminController
      */
     public function index(Request $request): Response
     {
+        // Verificar permisos
+        abort_unless(auth()->user()->can('proyectos.manage_fields'), 403, 'No tienes permisos para ver campos personalizados');
+
         $campos = CampoPersonalizado::query()
             ->when($request->search, function ($query, $search) {
                 $query->where('nombre', 'like', "%{$search}%")
@@ -55,6 +58,9 @@ class CampoPersonalizadoController extends AdminController
      */
     public function create(): Response
     {
+        // Verificar permisos
+        abort_unless(auth()->user()->can('proyectos.manage_fields'), 403, 'No tienes permisos para crear campos personalizados');
+
         return Inertia::render('Modules/Proyectos/Admin/CamposPersonalizados/Form', [
             'tiposCampo' => CampoPersonalizado::TIPOS_DISPONIBLES,
             'entidadesDisponibles' => [
@@ -69,6 +75,9 @@ class CampoPersonalizadoController extends AdminController
      */
     public function store(StoreCampoPersonalizadoRequest $request): RedirectResponse
     {
+        // Verificar permisos
+        abort_unless(auth()->user()->can('proyectos.manage_fields'), 403, 'No tienes permisos para crear campos personalizados');
+
         $this->service->create($request->validated());
 
         return redirect()
@@ -81,6 +90,9 @@ class CampoPersonalizadoController extends AdminController
      */
     public function show(CampoPersonalizado $campo): Response
     {
+        // Verificar permisos
+        abort_unless(auth()->user()->can('proyectos.manage_fields'), 403, 'No tienes permisos para ver campos personalizados');
+
         $campo->load('valores.proyecto');
 
         return Inertia::render('Modules/Proyectos/Admin/CamposPersonalizados/Show', [
@@ -94,6 +106,9 @@ class CampoPersonalizadoController extends AdminController
      */
     public function edit(CampoPersonalizado $campo): Response
     {
+        // Verificar permisos
+        abort_unless(auth()->user()->can('proyectos.manage_fields'), 403, 'No tienes permisos para editar campos personalizados');
+
         return Inertia::render('Modules/Proyectos/Admin/CamposPersonalizados/Form', [
             'campo' => $campo,
             'tiposCampo' => CampoPersonalizado::TIPOS_DISPONIBLES,
@@ -109,6 +124,9 @@ class CampoPersonalizadoController extends AdminController
      */
     public function update(UpdateCampoPersonalizadoRequest $request, CampoPersonalizado $campo): RedirectResponse
     {
+        // Verificar permisos
+        abort_unless(auth()->user()->can('proyectos.manage_fields'), 403, 'No tienes permisos para editar campos personalizados');
+
         $this->service->update($campo, $request->validated());
 
         return redirect()
@@ -121,6 +139,9 @@ class CampoPersonalizadoController extends AdminController
      */
     public function destroy(CampoPersonalizado $campo): RedirectResponse
     {
+        // Verificar permisos
+        abort_unless(auth()->user()->can('proyectos.manage_fields'), 403, 'No tienes permisos para eliminar campos personalizados');
+
         // Verificar si tiene valores asociados
         if ($campo->valores()->exists()) {
             return redirect()
@@ -140,6 +161,9 @@ class CampoPersonalizadoController extends AdminController
      */
     public function toggleActivo(CampoPersonalizado $campo, Request $request): RedirectResponse
     {
+        // Verificar permisos
+        abort_unless(auth()->user()->can('proyectos.manage_fields'), 403, 'No tienes permisos para cambiar el estado de campos');
+
         $request->validate([
             'activo' => 'required|boolean',
         ]);
@@ -158,6 +182,9 @@ class CampoPersonalizadoController extends AdminController
      */
     public function reordenar(Request $request): RedirectResponse
     {
+        // Verificar permisos
+        abort_unless(auth()->user()->can('proyectos.manage_fields'), 403, 'No tienes permisos para reordenar campos');
+
         $request->validate([
             'campos' => 'required|array',
             'campos.*.id' => 'required|exists:campos_personalizados,id',

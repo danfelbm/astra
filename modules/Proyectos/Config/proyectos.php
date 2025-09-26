@@ -102,4 +102,105 @@ return [
         'etiquetas_por_pagina' => 20,
         'categorias_por_pagina' => 15,
     ],
+
+    /*
+    | Configuración de Hitos
+    */
+    'hitos' => [
+        'estados' => [
+            'pendiente' => 'Pendiente',
+            'en_progreso' => 'En Progreso',
+            'completado' => 'Completado',
+            'cancelado' => 'Cancelado',
+        ],
+        'max_por_proyecto' => 50,
+        'dias_aviso_vencimiento' => 7,
+        'permitir_duplicacion' => true,
+    ],
+
+    /*
+    | Configuración de Entregables
+    */
+    'entregables' => [
+        'estados' => [
+            'pendiente' => 'Pendiente',
+            'en_progreso' => 'En Progreso',
+            'completado' => 'Completado',
+            'cancelado' => 'Cancelado',
+        ],
+        'prioridades' => [
+            'baja' => 'Baja',
+            'media' => 'Media',
+            'alta' => 'Alta',
+        ],
+        'max_por_hito' => 100,
+        'max_usuarios_asignados' => 10,
+        'roles_asignacion' => [
+            'responsable' => 'Responsable',
+            'colaborador' => 'Colaborador',
+            'revisor' => 'Revisor',
+        ],
+    ],
+
+    /*
+    | Plantillas predefinidas para hitos por tipo de proyecto
+    */
+    'plantillas_hitos' => [
+        'documental' => [
+            'Pre-producción' => [
+                'Investigación y documentación',
+                'Guión técnico',
+                'Plan de rodaje',
+                'Presupuesto',
+            ],
+            'Producción' => [
+                'Grabación de entrevistas',
+                'Grabación de B-Roll',
+                'Registro de audio',
+            ],
+            'Post-producción' => [
+                'Edición rough cut',
+                'Color grading',
+                'Mezcla de audio',
+                'Master final',
+            ],
+        ],
+        'software' => [
+            'Análisis y Diseño' => [
+                'Levantamiento de requerimientos',
+                'Diseño de arquitectura',
+                'Diseño de base de datos',
+                'Mockups UI/UX',
+            ],
+            'Desarrollo' => [
+                'Setup del proyecto',
+                'Desarrollo del backend',
+                'Desarrollo del frontend',
+                'Integración de APIs',
+            ],
+            'Testing y Despliegue' => [
+                'Pruebas unitarias',
+                'Pruebas de integración',
+                'Corrección de bugs',
+                'Despliegue a producción',
+            ],
+        ],
+        'generico' => [
+            'Planificación' => [
+                'Definición de objetivos',
+                'Análisis de recursos',
+                'Cronograma',
+            ],
+            'Ejecución' => [
+                'Implementación',
+                'Seguimiento',
+                'Ajustes',
+            ],
+            'Cierre' => [
+                'Entrega final',
+                'Documentación',
+                'Evaluación',
+            ],
+        ],
+    ],
 ];

@@ -27,7 +27,8 @@ class CategoriaEtiquetaController extends AdminController
      */
     public function index(Request $request): Response
     {
-        $this->authorize('categorias_etiquetas.view');
+        // Verificar permisos
+        abort_unless(auth()->user()->can('categorias_etiquetas.view'), 403, 'No tienes permisos para ver categorías de etiquetas');
 
         $categorias = $this->repository->getAllPaginated($request);
         $estadisticas = $this->repository->getEstadisticas();
@@ -46,7 +47,8 @@ class CategoriaEtiquetaController extends AdminController
      */
     public function create(): Response
     {
-        $this->authorize('categorias_etiquetas.create');
+        // Verificar permisos
+        abort_unless(auth()->user()->can('categorias_etiquetas.create'), 403, 'No tienes permisos para crear categorías de etiquetas');
 
         return Inertia::render('Modules/Proyectos/Admin/CategoriaEtiquetas/Form', [
             'colores' => $this->service->getColoresDisponibles(),
@@ -59,7 +61,8 @@ class CategoriaEtiquetaController extends AdminController
      */
     public function store(StoreCategoriaEtiquetaRequest $request): RedirectResponse
     {
-        $this->authorize('categorias_etiquetas.create');
+        // Verificar permisos
+        abort_unless(auth()->user()->can('categorias_etiquetas.create'), 403, 'No tienes permisos para crear categorías de etiquetas');
 
         $categoria = $this->service->create($request->validated());
 
@@ -73,7 +76,8 @@ class CategoriaEtiquetaController extends AdminController
      */
     public function show(CategoriaEtiqueta $categoriaEtiqueta): Response
     {
-        $this->authorize('categorias_etiquetas.view');
+        // Verificar permisos
+        abort_unless(auth()->user()->can('categorias_etiquetas.view'), 403, 'No tienes permisos para ver categorías de etiquetas');
 
         $categoriaEtiqueta->loadCount('etiquetas');
         $categoriaEtiqueta->load(['etiquetas' => function ($query) {
@@ -92,7 +96,8 @@ class CategoriaEtiquetaController extends AdminController
      */
     public function edit(CategoriaEtiqueta $categoriaEtiqueta): Response
     {
-        $this->authorize('categorias_etiquetas.edit');
+        // Verificar permisos
+        abort_unless(auth()->user()->can('categorias_etiquetas.edit'), 403, 'No tienes permisos para editar categorías de etiquetas');
 
         return Inertia::render('Modules/Proyectos/Admin/CategoriaEtiquetas/Form', [
             'categoria' => $categoriaEtiqueta,
@@ -106,7 +111,8 @@ class CategoriaEtiquetaController extends AdminController
      */
     public function update(UpdateCategoriaEtiquetaRequest $request, CategoriaEtiqueta $categoriaEtiqueta): RedirectResponse
     {
-        $this->authorize('categorias_etiquetas.edit');
+        // Verificar permisos
+        abort_unless(auth()->user()->can('categorias_etiquetas.edit'), 403, 'No tienes permisos para editar categorías de etiquetas');
 
         $categoria = $this->service->update($categoriaEtiqueta, $request->validated());
 
@@ -120,7 +126,8 @@ class CategoriaEtiquetaController extends AdminController
      */
     public function destroy(Request $request, CategoriaEtiqueta $categoriaEtiqueta): RedirectResponse
     {
-        $this->authorize('categorias_etiquetas.delete');
+        // Verificar permisos
+        abort_unless(auth()->user()->can('categorias_etiquetas.delete'), 403, 'No tienes permisos para eliminar categorías de etiquetas');
 
         $request->validate([
             'categoria_destino_id' => 'nullable|exists:categorias_etiquetas,id|different:' . $categoriaEtiqueta->id,
@@ -144,7 +151,8 @@ class CategoriaEtiquetaController extends AdminController
      */
     public function toggleActive(CategoriaEtiqueta $categoriaEtiqueta): RedirectResponse
     {
-        $this->authorize('categorias_etiquetas.edit');
+        // Verificar permisos
+        abort_unless(auth()->user()->can('categorias_etiquetas.edit'), 403, 'No tienes permisos para editar categorías de etiquetas');
 
         $categoria = $this->service->toggleActive($categoriaEtiqueta);
         $estado = $categoria->activo ? 'activada' : 'desactivada';
@@ -159,7 +167,8 @@ class CategoriaEtiquetaController extends AdminController
      */
     public function reorder(Request $request): RedirectResponse
     {
-        $this->authorize('categorias_etiquetas.edit');
+        // Verificar permisos
+        abort_unless(auth()->user()->can('categorias_etiquetas.edit'), 403, 'No tienes permisos para editar categorías de etiquetas');
 
         $request->validate([
             'categorias' => 'required|array',
@@ -179,7 +188,8 @@ class CategoriaEtiquetaController extends AdminController
      */
     public function merge(Request $request, CategoriaEtiqueta $categoriaEtiqueta): RedirectResponse
     {
-        $this->authorize('categorias_etiquetas.delete');
+        // Verificar permisos
+        abort_unless(auth()->user()->can('categorias_etiquetas.delete'), 403, 'No tienes permisos para eliminar categorías de etiquetas');
 
         $request->validate([
             'categoria_destino_id' => 'required|exists:categorias_etiquetas,id|different:' . $categoriaEtiqueta->id,

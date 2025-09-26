@@ -78,4 +78,27 @@ Route::middleware(['auth', 'verified', 'user'])->prefix('miembro')->name('miembr
             ->name('descargar-pdf')
             ->middleware('can:contratos.view_own');
     });
+
+    // Rutas para Mis Hitos
+    Route::prefix('mis-hitos')->name('mis-hitos.')->group(function () {
+        Route::get('/', [\Modules\Proyectos\Http\Controllers\User\MisHitosController::class, 'index'])
+            ->name('index')
+            ->middleware('can:hitos.view_own');
+
+        Route::get('/timeline', [\Modules\Proyectos\Http\Controllers\User\MisHitosController::class, 'timeline'])
+            ->name('timeline')
+            ->middleware('can:hitos.view_own');
+
+        Route::get('/{hito}', [\Modules\Proyectos\Http\Controllers\User\MisHitosController::class, 'show'])
+            ->name('show')
+            ->middleware('can:hitos.view_own');
+
+        Route::post('/{hito}/entregables/{entregable}/completar', [\Modules\Proyectos\Http\Controllers\User\MisHitosController::class, 'completarEntregable'])
+            ->name('completar-entregable')
+            ->middleware('can:hitos.complete_own');
+
+        Route::put('/{hito}/entregables/{entregable}/estado', [\Modules\Proyectos\Http\Controllers\User\MisHitosController::class, 'actualizarEstadoEntregable'])
+            ->name('actualizar-estado-entregable')
+            ->middleware('can:hitos.update_progress');
+    });
 });

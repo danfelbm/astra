@@ -16,9 +16,10 @@ import {
 } from "@modules/Core/Resources/js/components/ui/select";
 import CamposPersonalizadosForm from "@modules/Proyectos/Resources/js/components/CamposPersonalizadosForm.vue";
 import EtiquetaSelector from "@modules/Proyectos/Resources/js/components/EtiquetaSelector.vue";
-import { Save, X, AlertCircle, Tag } from 'lucide-vue-next';
+import AddUsersModal from "@modules/Core/Resources/js/components/modals/AddUsersModal.vue";
+import { Save, X, AlertCircle, Tag, UserPlus } from 'lucide-vue-next';
 import type { CategoriaEtiqueta, Etiqueta } from "@modules/Proyectos/Resources/js/types/etiquetas";
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { toast } from 'vue-sonner';
 
 // Interfaces
@@ -96,6 +97,18 @@ const form = useForm({
 // Estado de procesamiento
 const processing = ref(false);
 
+// Estado para el modal de selección de responsable
+const showResponsableModal = ref(false);
+
+// Helper para obtener route
+const { route } = window as any;
+
+// Computed para obtener el responsable seleccionado
+const responsableSeleccionado = computed(() => {
+    if (!form.responsable_id) return null;
+    return props.usuarios.find(u => u.id === form.responsable_id);
+});
+
 // Función para actualizar
 const submit = () => {
     processing.value = true;
@@ -123,6 +136,13 @@ const cancelar = () => {
 // Actualizar campos personalizados
 const updateCamposPersonalizados = (valores: Record<number, any>) => {
     form.campos_personalizados = valores;
+};
+
+// Manejar selección de responsable desde el modal
+const handleResponsableSelect = (data: { userIds: number[]; extraData: Record<string, any> }) => {
+    if (data.userIds.length > 0) {
+        form.responsable_id = data.userIds[0];
+    }
 };
 </script>
 
@@ -265,21 +285,33 @@ const updateCamposPersonalizados = (valores: Record<number, any>) => {
                         <!-- Responsable -->
                         <div>
                             <Label for="responsable_id">Responsable</Label>
-                            <Select v-model="form.responsable_id">
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Seleccione un responsable" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="0">Sin asignar</SelectItem>
-                                    <SelectItem
-                                        v-for="usuario in usuarios"
-                                        :key="usuario.id"
-                                        :value="usuario.id"
+                            <div class="space-y-2">
+                                <!-- Mostrar responsable seleccionado -->
+                                <div v-if="responsableSeleccionado" class="p-3 bg-muted rounded-lg flex items-center justify-between">
+                                    <div>
+                                        <p class="font-medium">{{ responsableSeleccionado.name }}</p>
+                                        <p class="text-sm text-muted-foreground">{{ responsableSeleccionado.email }}</p>
+                                    </div>
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        @click="form.responsable_id = null"
                                     >
-                                        {{ usuario.name }}
-                                    </SelectItem>
-                                </SelectContent>
-                            </Select>
+                                        <X class="h-4 w-4" />
+                                    </Button>
+                                </div>
+                                <!-- Bot\u00f3n para seleccionar responsable -->
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    @click="showResponsableModal = true"
+                                    class="w-full"
+                                >
+                                    <UserPlus class="h-4 w-4 mr-2" />
+                                    {{ responsableSeleccionado ? 'Cambiar Responsable' : 'Seleccionar Responsable' }}
+                                </Button>
+                            </div>
                             <p v-if="form.errors.responsable_id" class="mt-1 text-sm text-red-600">
                                 {{ form.errors.responsable_id }}
                             </p>
@@ -337,5 +369,18 @@ const updateCamposPersonalizados = (valores: Record<number, any>) => {
                 </Card>
             </form>
         </div>
+
+        <!-- Modal de selecci\u00f3n de responsable -->
+        <AddUsersModal
+            v-model="showResponsableModal"
+            title="Seleccionar Responsable"
+            description="Selecciona el usuario que ser\u00e1 responsable de este proyecto"
+            :search-endpoint="route('admin.proyectos.search-users')"
+            :excluded-ids="form.responsable_id ? [form.responsable_id] : []"
+            :max-selection="1"
+            submit-button-text="Seleccionar Responsable"
+            search-placeholder="Buscar por nombre, email, documento o tel\u00e9fono..."
+            @submit="handleResponsableSelect"
+        />
     </AdminLayout>
 </template>

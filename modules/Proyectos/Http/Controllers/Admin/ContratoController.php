@@ -28,6 +28,9 @@ class ContratoController extends AdminController
      */
     public function index(Request $request): Response
     {
+        // Verificar permisos
+        abort_unless(auth()->user()->can('contratos.view'), 403, 'No tienes permisos para ver contratos');
+
         $proyecto = null;
         if ($request->proyecto_id) {
             $proyecto = Proyecto::find($request->proyecto_id);
@@ -38,6 +41,12 @@ class ContratoController extends AdminController
             'filters' => $request->only(['search', 'proyecto_id', 'estado', 'tipo', 'responsable_id', 'vencidos', 'proximos_vencer']),
             'proyecto' => $proyecto,
             'estadisticas' => $this->repository->getEstadisticas($request->proyecto_id),
+            'canCreate' => auth()->user()->can('contratos.create'),
+            'canEdit' => auth()->user()->can('contratos.edit'),
+            'canDelete' => auth()->user()->can('contratos.delete'),
+            'canChangeStatus' => auth()->user()->can('contratos.change_status'),
+            'canExport' => auth()->user()->can('contratos.export'),
+            'canDownload' => auth()->user()->can('contratos.download'),
         ]);
     }
 
@@ -46,6 +55,9 @@ class ContratoController extends AdminController
      */
     public function create(Request $request): Response
     {
+        // Verificar permisos
+        abort_unless(auth()->user()->can('contratos.create'), 403, 'No tienes permisos para crear contratos');
+
         $proyectoId = $request->proyecto_id;
         $proyecto = null;
 
@@ -62,6 +74,7 @@ class ContratoController extends AdminController
             'proyectos' => $proyectos,
             'camposPersonalizados' => $camposPersonalizados,
             'usuarios' => $usuarios,
+            'canManageFields' => auth()->user()->can('proyectos.manage_fields'),
         ]);
     }
 
@@ -70,6 +83,9 @@ class ContratoController extends AdminController
      */
     public function store(StoreContratoRequest $request): RedirectResponse
     {
+        // Verificar permisos - Ya verificado en FormRequest pero agregamos por consistencia
+        abort_unless(auth()->user()->can('contratos.create'), 403, 'No tienes permisos para crear contratos');
+
         $resultado = $this->service->create($request->validated());
 
         if (!$resultado['success']) {
@@ -88,6 +104,9 @@ class ContratoController extends AdminController
      */
     public function show(Contrato $contrato): Response
     {
+        // Verificar permisos
+        abort_unless(auth()->user()->can('contratos.view'), 403, 'No tienes permisos para ver contratos');
+
         $contrato = $this->repository->findWithRelations($contrato->id);
 
         if (!$contrato) {
@@ -109,6 +128,9 @@ class ContratoController extends AdminController
      */
     public function edit(Contrato $contrato): Response
     {
+        // Verificar permisos
+        abort_unless(auth()->user()->can('contratos.edit'), 403, 'No tienes permisos para editar contratos');
+
         $contrato = $this->repository->findWithRelations($contrato->id);
 
         if (!$contrato) {
@@ -134,6 +156,10 @@ class ContratoController extends AdminController
             'camposPersonalizados' => $camposPersonalizados,
             'usuarios' => $usuarios,
             'valoresCampos' => $valoresCampos,
+            'canChangeStatus' => auth()->user()->can('contratos.change_status'),
+            'canDelete' => auth()->user()->can('contratos.delete'),
+            'canDownload' => auth()->user()->can('contratos.download'),
+            'canManageFields' => auth()->user()->can('proyectos.manage_fields'),
         ]);
     }
 
@@ -142,6 +168,9 @@ class ContratoController extends AdminController
      */
     public function update(UpdateContratoRequest $request, Contrato $contrato): RedirectResponse
     {
+        // Verificar permisos - Ya verificado en FormRequest pero agregamos por consistencia
+        abort_unless(auth()->user()->can('contratos.edit'), 403, 'No tienes permisos para editar contratos');
+
         $resultado = $this->service->update($contrato, $request->validated());
 
         if (!$resultado['success']) {
@@ -160,6 +189,9 @@ class ContratoController extends AdminController
      */
     public function destroy(Contrato $contrato): RedirectResponse
     {
+        // Verificar permisos
+        abort_unless(auth()->user()->can('contratos.delete'), 403, 'No tienes permisos para eliminar contratos');
+
         $resultado = $this->service->delete($contrato);
 
         if (!$resultado['success']) {
@@ -177,6 +209,9 @@ class ContratoController extends AdminController
      */
     public function cambiarEstado(Request $request, Contrato $contrato): RedirectResponse
     {
+        // Verificar permisos
+        abort_unless(auth()->user()->can('contratos.change_status'), 403, 'No tienes permisos para cambiar el estado de contratos');
+
         $request->validate([
             'estado' => 'required|in:borrador,activo,finalizado,cancelado'
         ]);
@@ -197,6 +232,9 @@ class ContratoController extends AdminController
      */
     public function duplicar(Contrato $contrato): RedirectResponse
     {
+        // Verificar permisos
+        abort_unless(auth()->user()->can('contratos.create'), 403, 'No tienes permisos para duplicar contratos');
+
         $resultado = $this->service->duplicarContrato($contrato);
 
         if (!$resultado['success']) {
@@ -214,10 +252,16 @@ class ContratoController extends AdminController
      */
     public function proximosVencer(): Response
     {
+        // Verificar permisos
+        abort_unless(auth()->user()->can('contratos.view'), 403, 'No tienes permisos para ver contratos');
+
         $contratos = $this->repository->getVencidosProximos(30);
 
         return Inertia::render('Modules/Proyectos/Admin/Contratos/ProximosVencer', [
             'contratos' => $contratos,
+            'canEdit' => auth()->user()->can('contratos.edit'),
+            'canChangeStatus' => auth()->user()->can('contratos.change_status'),
+            'canExport' => auth()->user()->can('contratos.export'),
         ]);
     }
 
@@ -226,10 +270,16 @@ class ContratoController extends AdminController
      */
     public function vencidos(): Response
     {
+        // Verificar permisos
+        abort_unless(auth()->user()->can('contratos.view'), 403, 'No tienes permisos para ver contratos');
+
         $contratos = $this->repository->getVencidos();
 
         return Inertia::render('Modules/Proyectos/Admin/Contratos/Vencidos', [
             'contratos' => $contratos,
+            'canEdit' => auth()->user()->can('contratos.edit'),
+            'canChangeStatus' => auth()->user()->can('contratos.change_status'),
+            'canExport' => auth()->user()->can('contratos.export'),
         ]);
     }
 }

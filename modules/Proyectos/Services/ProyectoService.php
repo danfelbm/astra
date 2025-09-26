@@ -27,8 +27,12 @@ class ProyectoService
             // Separar campos personalizados y etiquetas del resto de datos
             $camposPersonalizados = $data['campos_personalizados'] ?? [];
             $etiquetas = $data['etiquetas'] ?? [];
+            $crearHitosIniciales = $data['crear_hitos_iniciales'] ?? false;
+            $tipoProyecto = $data['tipo_proyecto'] ?? null;
             unset($data['campos_personalizados']);
             unset($data['etiquetas']);
+            unset($data['crear_hitos_iniciales']);
+            unset($data['tipo_proyecto']);
 
             // Crear el proyecto
             $proyecto = $this->repository->create($data);
@@ -41,6 +45,11 @@ class ProyectoService
             // Sincronizar etiquetas si existen
             if (!empty($etiquetas)) {
                 $proyecto->sincronizarEtiquetas($etiquetas);
+            }
+
+            // Crear hitos iniciales si se solicitó
+            if ($crearHitosIniciales && $tipoProyecto) {
+                $this->crearHitosIniciales($proyecto, $tipoProyecto);
             }
 
             // Notificar si hay un responsable asignado
@@ -336,6 +345,53 @@ class ProyectoService
                 'success' => false,
                 'message' => 'Error al duplicar el proyecto'
             ];
+        }
+    }
+
+    /**
+     * Crea hitos iniciales basados en plantillas predefinidas.
+     */
+    protected function crearHitosIniciales($proyecto, string $tipoProyecto): void
+    {
+        $plantillas = config('proyectos.plantillas_hitos');
+
+        // Si no existe plantilla para este tipo, usar la genérica
+        $plantilla = $plantillas[$tipoProyecto] ?? $plantillas['generico'] ?? [];
+
+        if (empty($plantilla)) {
+            return;
+        }
+
+        $orden = 1;
+
+        foreach ($plantilla as $nombreHito => $entregables) {
+            // Crear el hito
+            $hito = $proyecto->hitos()->create([
+                'nombre' => $nombreHito,
+                'estado' => 'pendiente',
+                'orden' => $orden,
+                'porcentaje_completado' => 0,
+                'responsable_id' => $proyecto->responsable_id,
+                'created_by' => auth()->id(),
+                'updated_by' => auth()->id(),
+            ]);
+
+            // Crear los entregables del hito
+            $ordenEntregable = 1;
+            foreach ($entregables as $nombreEntregable) {
+                $hito->entregables()->create([
+                    'nombre' => $nombreEntregable,
+                    'estado' => 'pendiente',
+                    'prioridad' => 'media',
+                    'orden' => $ordenEntregable,
+                    'responsable_id' => $proyecto->responsable_id,
+                    'created_by' => auth()->id(),
+                    'updated_by' => auth()->id(),
+                ]);
+                $ordenEntregable++;
+            }
+
+            $orden++;
         }
     }
 }

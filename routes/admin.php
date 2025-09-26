@@ -710,6 +710,12 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
     });
 
     // MÓDULO PROYECTOS - Rutas administrativas
+
+    // Ruta para búsqueda de usuarios (DEBE estar ANTES del grupo para evitar conflictos con route model binding)
+    Route::get('/proyectos-search-users', [ProyectoController::class, 'searchUsers'])
+        ->name('proyectos.search-users')
+        ->middleware('can:proyectos.view');
+
     Route::prefix('proyectos')->name('proyectos.')->group(function () {
         Route::get('/', [ProyectoController::class, 'index'])
             ->name('index')
@@ -962,6 +968,76 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
         Route::get('/create', [ContratoController::class, 'create'])
             ->name('create')
             ->middleware('can:contratos.create');
+    });
+
+    // Rutas para hitos dentro del contexto de un proyecto
+    Route::prefix('proyectos/{proyecto}/hitos')->name('proyectos.hitos.')->group(function () {
+        Route::get('/', [\Modules\Proyectos\Http\Controllers\Admin\HitoController::class, 'index'])
+            ->name('index')
+            ->middleware('can:hitos.view');
+
+        Route::get('/create', [\Modules\Proyectos\Http\Controllers\Admin\HitoController::class, 'create'])
+            ->name('create')
+            ->middleware('can:hitos.create');
+
+        Route::post('/', [\Modules\Proyectos\Http\Controllers\Admin\HitoController::class, 'store'])
+            ->name('store')
+            ->middleware('can:hitos.create');
+
+        Route::get('/{hito}', [\Modules\Proyectos\Http\Controllers\Admin\HitoController::class, 'show'])
+            ->name('show')
+            ->middleware('can:hitos.view');
+
+        Route::get('/{hito}/edit', [\Modules\Proyectos\Http\Controllers\Admin\HitoController::class, 'edit'])
+            ->name('edit')
+            ->middleware('can:hitos.edit');
+
+        Route::put('/{hito}', [\Modules\Proyectos\Http\Controllers\Admin\HitoController::class, 'update'])
+            ->name('update')
+            ->middleware('can:hitos.edit');
+
+        Route::delete('/{hito}', [\Modules\Proyectos\Http\Controllers\Admin\HitoController::class, 'destroy'])
+            ->name('destroy')
+            ->middleware('can:hitos.delete');
+
+        Route::post('/{hito}/duplicar', [\Modules\Proyectos\Http\Controllers\Admin\HitoController::class, 'duplicar'])
+            ->name('duplicar')
+            ->middleware('can:hitos.create');
+
+        // Rutas para entregables dentro del contexto de un hito
+        Route::prefix('{hito}/entregables')->name('entregables.')->group(function () {
+            Route::get('/', [\Modules\Proyectos\Http\Controllers\Admin\EntregableController::class, 'index'])
+                ->name('index')
+                ->middleware('can:entregables.view');
+
+            Route::get('/create', [\Modules\Proyectos\Http\Controllers\Admin\EntregableController::class, 'create'])
+                ->name('create')
+                ->middleware('can:entregables.create');
+
+            Route::post('/', [\Modules\Proyectos\Http\Controllers\Admin\EntregableController::class, 'store'])
+                ->name('store')
+                ->middleware('can:entregables.create');
+
+            Route::get('/{entregable}', [\Modules\Proyectos\Http\Controllers\Admin\EntregableController::class, 'show'])
+                ->name('show')
+                ->middleware('can:entregables.view');
+
+            Route::get('/{entregable}/edit', [\Modules\Proyectos\Http\Controllers\Admin\EntregableController::class, 'edit'])
+                ->name('edit')
+                ->middleware('can:entregables.edit');
+
+            Route::put('/{entregable}', [\Modules\Proyectos\Http\Controllers\Admin\EntregableController::class, 'update'])
+                ->name('update')
+                ->middleware('can:entregables.edit');
+
+            Route::delete('/{entregable}', [\Modules\Proyectos\Http\Controllers\Admin\EntregableController::class, 'destroy'])
+                ->name('destroy')
+                ->middleware('can:entregables.delete');
+
+            Route::post('/{entregable}/completar', [\Modules\Proyectos\Http\Controllers\Admin\EntregableController::class, 'completar'])
+                ->name('completar')
+                ->middleware('can:entregables.complete');
+        });
     });
 });
 

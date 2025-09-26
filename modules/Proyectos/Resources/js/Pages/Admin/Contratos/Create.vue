@@ -12,12 +12,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@modules/Core/Resources/js/components/ui/switch';
 import { Alert, AlertDescription } from '@modules/Core/Resources/js/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@modules/Core/Resources/js/components/ui/tabs';
-import { AlertCircle, ArrowLeft, Save, Upload } from 'lucide-vue-next';
+import { AlertCircle, ArrowLeft, Save, Upload, UserPlus, X, Users } from 'lucide-vue-next';
 import { Link } from '@inertiajs/vue3';
 import { useToast } from '@modules/Core/Resources/js/composables/useToast';
 import CampoPersonalizadoInput from '@modules/Proyectos/Resources/js/components/CampoPersonalizadoInput.vue';
 import ContratoUserSelect from '@modules/Proyectos/Resources/js/components/ContratoUserSelect.vue';
 import ParticipantesManager from '@modules/Proyectos/Resources/js/components/ParticipantesManager.vue';
+import AddUsersModal from '@modules/Core/Resources/js/components/modals/AddUsersModal.vue';
 import { Separator } from '@modules/Core/Resources/js/components/ui/separator';
 
 // Tipos
@@ -95,6 +96,52 @@ const form = useForm({
 const archivoNombre = ref('');
 const activeTab = ref('informacion');
 
+// Estados para los modales de selección de usuarios
+const showContraparteModal = ref(false);
+const showParticipantesModal = ref(false);
+
+// Helper para obtener route
+const { route } = window as any;
+
+// Computed para obtener la contraparte seleccionada
+const contraparteSeleccionada = computed(() => {
+    if (!form.contraparte_user_id) return null;
+    return props.usuarios?.find(u => u.id === form.contraparte_user_id);
+});
+
+// Campos extra para el modal de participantes
+const extraFieldsParticipantes = computed(() => [
+    {
+        name: 'rol',
+        label: 'Rol',
+        type: 'select' as const,
+        options: [
+            { value: 'testigo', label: 'Testigo' },
+            { value: 'revisor', label: 'Revisor' },
+            { value: 'aprobador', label: 'Aprobador' },
+            { value: 'observador', label: 'Observador' }
+        ],
+        value: 'testigo',
+        required: true
+    },
+    {
+        name: 'notas',
+        label: 'Notas (opcional)',
+        type: 'text' as const,
+        value: '',
+        required: false
+    }
+]);
+
+// IDs excluidos para el modal de participantes
+const excludedIdsParticipantes = computed(() => {
+    const ids = form.participantes.map(p => p.user_id);
+    if (form.contraparte_user_id) {
+        ids.push(form.contraparte_user_id);
+    }
+    return ids;
+});
+
 // Computed
 const monedas = [
     { value: 'USD', label: 'USD - Dólar Estadounidense' },
@@ -163,6 +210,47 @@ const validateForm = () => {
     });
 
     return errors;
+};
+
+// Manejar selección de contraparte
+const handleContraparteSelect = (data: { userIds: number[]; extraData: Record<string, any> }) => {
+    if (data.userIds.length > 0) {
+        form.contraparte_user_id = data.userIds[0];
+        // Actualizar automáticamente los datos de la contraparte
+        const usuario = props.usuarios?.find(u => u.id === data.userIds[0]);
+        if (usuario) {
+            form.contraparte_nombre = usuario.name;
+            form.contraparte_email = usuario.email || '';
+        }
+    }
+};
+
+// Manejar selección de participantes
+const handleParticipantesSelect = (data: { userIds: number[]; extraData: Record<string, any> }) => {
+    data.userIds.forEach(userId => {
+        // Verificar que no esté ya agregado
+        const yaExiste = form.participantes.some(p => p.user_id === userId);
+        if (!yaExiste) {
+            form.participantes.push({
+                user_id: userId,
+                rol: data.extraData.rol || 'testigo',
+                notas: data.extraData.notas || ''
+            });
+        }
+    });
+};
+
+// Remover participante
+const removeParticipante = (userId: number) => {
+    const index = form.participantes.findIndex(p => p.user_id === userId);
+    if (index > -1) {
+        form.participantes.splice(index, 1);
+    }
+};
+
+// Obtener info de usuario
+const getUsuarioInfo = (userId: number) => {
+    return props.usuarios?.find(u => u.id === userId);
 };
 
 const submitForm = () => {
@@ -234,16 +322,8 @@ const cancelar = () => {
     }
 };
 
-// Manejo de cambio de usuario contraparte
-const handleContraparteUserChange = (user: User | null) => {
-    if (user) {
-        // Limpiar campos de contraparte externa cuando se selecciona un usuario
-        form.contraparte_nombre = '';
-        form.contraparte_identificacion = '';
-        form.contraparte_email = '';
-        form.contraparte_telefono = '';
-    }
-};
+// El método handleContraparteUserChange ya no es necesario
+// porque lo manejamos en handleContraparteSelect
 </script>
 
 <template>
@@ -510,14 +590,41 @@ const handleContraparteUserChange = (user: User | null) => {
                                     </CardDescription>
                                 </CardHeader>
                                 <CardContent>
-                                    <ContratoUserSelect
-                                        v-model="form.contraparte_user_id"
-                                        :users="usuarios"
-                                        label="Usuario Contraparte"
-                                        placeholder="Seleccionar usuario del sistema..."
-                                        description="Si la contraparte es un usuario registrado en el sistema, selecciónelo aquí"
-                                        @change="handleContraparteUserChange"
-                                    />
+                                    <div class="space-y-4">
+                                        <div>
+                                            <Label>Usuario Contraparte</Label>
+                                            <p class="text-sm text-muted-foreground mb-2">
+                                                Si la contraparte es un usuario registrado en el sistema, selecciónelo aquí
+                                            </p>
+                                        </div>
+
+                                        <!-- Mostrar contraparte seleccionada -->
+                                        <div v-if="contraparteSeleccionada" class="p-3 bg-muted rounded-lg flex items-center justify-between">
+                                            <div>
+                                                <p class="font-medium">{{ contraparteSeleccionada.name }}</p>
+                                                <p class="text-sm text-muted-foreground">{{ contraparteSeleccionada.email }}</p>
+                                            </div>
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="sm"
+                                                @click="form.contraparte_user_id = null; form.contraparte_nombre = ''; form.contraparte_email = ''"
+                                            >
+                                                <X class="h-4 w-4" />
+                                            </Button>
+                                        </div>
+
+                                        <!-- Botón para seleccionar contraparte -->
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            @click="showContraparteModal = true"
+                                            class="w-full"
+                                        >
+                                            <UserPlus class="h-4 w-4 mr-2" />
+                                            {{ contraparteSeleccionada ? 'Cambiar Contraparte' : 'Seleccionar Contraparte' }}
+                                        </Button>
+                                    </div>
                                 </CardContent>
                             </Card>
 
@@ -591,13 +698,57 @@ const handleContraparteUserChange = (user: User | null) => {
                                     </CardDescription>
                                 </CardHeader>
                                 <CardContent>
-                                    <ParticipantesManager
-                                        v-model="form.participantes"
-                                        :users="usuarios"
-                                        entity-type="contrato"
-                                        title=""
-                                        :disabled="false"
-                                    />
+                                    <div class="space-y-4">
+                                        <!-- Botón para agregar participantes -->
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            @click="showParticipantesModal = true"
+                                            class="w-full"
+                                        >
+                                            <Users class="h-4 w-4 mr-2" />
+                                            Agregar Participantes
+                                        </Button>
+
+                                        <!-- Lista de participantes seleccionados -->
+                                        <div v-if="form.participantes.length > 0" class="space-y-2">
+                                            <p class="text-sm font-medium text-muted-foreground">Participantes agregados:</p>
+                                            <div
+                                                v-for="participante in form.participantes"
+                                                :key="participante.user_id"
+                                                class="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
+                                            >
+                                                <div class="flex items-center justify-between">
+                                                    <div>
+                                                        <p class="font-medium">{{ getUsuarioInfo(participante.user_id)?.name }}</p>
+                                                        <p class="text-sm text-muted-foreground">{{ getUsuarioInfo(participante.user_id)?.email }}</p>
+                                                        <div class="flex items-center gap-2 mt-1">
+                                                            <span class="text-xs bg-primary/10 text-primary px-2 py-1 rounded">
+                                                                {{ participante.rol }}
+                                                            </span>
+                                                            <span v-if="participante.notas" class="text-xs text-muted-foreground">
+                                                                {{ participante.notas }}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        @click="removeParticipante(participante.user_id)"
+                                                    >
+                                                        <X class="h-4 w-4" />
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Estado vacío -->
+                                        <div v-else class="text-center py-8 border-2 border-dashed rounded-lg">
+                                            <Users class="h-12 w-12 mx-auto text-muted-foreground mb-2" />
+                                            <p class="text-sm text-muted-foreground">No hay participantes agregados</p>
+                                        </div>
+                                    </div>
                                 </CardContent>
                             </Card>
                         </div>
@@ -695,6 +846,32 @@ const handleContraparteUserChange = (user: User | null) => {
             accept=".pdf"
             @change="handleFileChange"
             class="hidden"
+        />
+
+        <!-- Modal de selección de contraparte -->
+        <AddUsersModal
+            v-model="showContraparteModal"
+            title="Seleccionar Contraparte"
+            description="Selecciona el usuario que será la contraparte del contrato"
+            :search-endpoint="route('admin.proyectos.search-users')"
+            :excluded-ids="form.contraparte_user_id ? [form.contraparte_user_id] : []"
+            :max-selection="1"
+            submit-button-text="Seleccionar Contraparte"
+            search-placeholder="Buscar por nombre, email, documento o teléfono..."
+            @submit="handleContraparteSelect"
+        />
+
+        <!-- Modal de selección de participantes -->
+        <AddUsersModal
+            v-model="showParticipantesModal"
+            title="Agregar Participantes"
+            description="Selecciona los usuarios que participarán en este contrato y define su rol"
+            :search-endpoint="route('admin.proyectos.search-users')"
+            :excluded-ids="excludedIdsParticipantes"
+            :extra-fields="extraFieldsParticipantes"
+            submit-button-text="Agregar Participantes"
+            search-placeholder="Buscar por nombre, email, documento o teléfono..."
+            @submit="handleParticipantesSelect"
         />
     </AdminLayout>
 </template>

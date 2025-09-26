@@ -62,9 +62,8 @@ class MisProyectosController extends UserController
      */
     public function create(): Response
     {
-        if (!auth()->user()->can('proyectos.create_own')) {
-            abort(403, 'No tienes permiso para crear proyectos');
-        }
+        // Verificar permisos
+        abort_unless(auth()->user()->can('proyectos.create_own'), 403, 'No tienes permiso para crear proyectos');
 
         $camposPersonalizados = CampoPersonalizado::activos()->ordenado()->get();
 
@@ -87,9 +86,8 @@ class MisProyectosController extends UserController
      */
     public function store(Request $request): RedirectResponse
     {
-        if (!auth()->user()->can('proyectos.create_own')) {
-            abort(403, 'No tienes permiso para crear proyectos');
-        }
+        // Verificar permisos
+        abort_unless(auth()->user()->can('proyectos.create_own'), 403, 'No tienes permiso para crear proyectos');
 
         $validated = $request->validate([
             'nombre' => 'required|string|max:255',
@@ -119,16 +117,22 @@ class MisProyectosController extends UserController
      */
     public function show(Proyecto $proyecto): Response
     {
-        // Verificar que el usuario tenga acceso al proyecto
-        if (!$this->userCanAccessProject($proyecto)) {
-            abort(403, 'No tienes acceso a este proyecto');
-        }
+        // Verificar permisos y acceso al proyecto
+        abort_unless(auth()->user()->can('proyectos.view_own'), 403, 'No tienes permiso para ver proyectos');
+        abort_unless(
+            $proyecto->responsable_id === auth()->id() || $proyecto->created_by === auth()->id(),
+            403,
+            'No tienes acceso a este proyecto'
+        );
 
         $proyecto->load(['responsable', 'creador', 'camposPersonalizados.campoPersonalizado', 'etiquetas.categoria']);
 
         return Inertia::render('Modules/Proyectos/User/MisProyectos/Show', [
             'proyecto' => $proyecto,
-            'canEdit' => $this->userCanEditProject($proyecto),
+            'canEdit' => auth()->user()->can('proyectos.edit_own') &&
+                        ($proyecto->responsable_id === auth()->id() || $proyecto->created_by === auth()->id()),
+            'canDelete' => auth()->user()->can('proyectos.delete_own') &&
+                          ($proyecto->responsable_id === auth()->id() || $proyecto->created_by === auth()->id()),
         ]);
     }
 
@@ -137,10 +141,13 @@ class MisProyectosController extends UserController
      */
     public function edit(Proyecto $proyecto): Response
     {
-        // Verificar que el usuario pueda editar el proyecto
-        if (!$this->userCanEditProject($proyecto)) {
-            abort(403, 'No tienes permiso para editar este proyecto');
-        }
+        // Verificar permisos y acceso al proyecto
+        abort_unless(auth()->user()->can('proyectos.edit_own'), 403, 'No tienes permiso para editar proyectos');
+        abort_unless(
+            $proyecto->responsable_id === auth()->id() || $proyecto->created_by === auth()->id(),
+            403,
+            'No tienes acceso a este proyecto'
+        );
 
         $camposPersonalizados = CampoPersonalizado::activos()->ordenado()->get();
         $proyecto->load(['camposPersonalizados', 'etiquetas.categoria']);
@@ -172,10 +179,13 @@ class MisProyectosController extends UserController
      */
     public function update(UpdateMiProyectoRequest $request, Proyecto $proyecto): RedirectResponse
     {
-        // Verificar que el usuario pueda editar el proyecto
-        if (!$this->userCanEditProject($proyecto)) {
-            abort(403, 'No tienes permiso para editar este proyecto');
-        }
+        // Verificar permisos y acceso al proyecto
+        abort_unless(auth()->user()->can('proyectos.edit_own'), 403, 'No tienes permiso para editar proyectos');
+        abort_unless(
+            $proyecto->responsable_id === auth()->id() || $proyecto->created_by === auth()->id(),
+            403,
+            'No tienes acceso a este proyecto'
+        );
 
         $result = $this->service->update($proyecto, $request->validated());
 
@@ -189,10 +199,13 @@ class MisProyectosController extends UserController
      */
     public function cambiarEstado(Request $request, Proyecto $proyecto): RedirectResponse
     {
-        // Verificar que el usuario pueda editar el proyecto
-        if (!$this->userCanEditProject($proyecto)) {
-            abort(403, 'No tienes permiso para cambiar el estado de este proyecto');
-        }
+        // Verificar permisos y acceso al proyecto
+        abort_unless(auth()->user()->can('proyectos.edit_own'), 403, 'No tienes permiso para editar proyectos');
+        abort_unless(
+            $proyecto->responsable_id === auth()->id() || $proyecto->created_by === auth()->id(),
+            403,
+            'No tienes permiso para cambiar el estado de este proyecto'
+        );
 
         $request->validate([
             'estado' => 'required|in:planificacion,en_progreso,pausado,completado,cancelado'
@@ -212,10 +225,13 @@ class MisProyectosController extends UserController
      */
     public function camposPersonalizados(Proyecto $proyecto): Response
     {
-        // Verificar que el usuario tenga acceso al proyecto
-        if (!$this->userCanAccessProject($proyecto)) {
-            abort(403, 'No tienes acceso a este proyecto');
-        }
+        // Verificar permisos y acceso al proyecto
+        abort_unless(auth()->user()->can('proyectos.view_own'), 403, 'No tienes permiso para ver proyectos');
+        abort_unless(
+            $proyecto->responsable_id === auth()->id() || $proyecto->created_by === auth()->id(),
+            403,
+            'No tienes acceso a este proyecto'
+        );
 
         $camposPersonalizados = CampoPersonalizado::activos()->ordenado()->get();
         $proyecto->load('camposPersonalizados');
@@ -230,7 +246,8 @@ class MisProyectosController extends UserController
             'proyecto' => $proyecto,
             'camposPersonalizados' => $camposPersonalizados,
             'valoresCampos' => $valoresCampos,
-            'canEdit' => $this->userCanEditProject($proyecto),
+            'canEdit' => auth()->user()->can('proyectos.edit_own') &&
+                        ($proyecto->responsable_id === auth()->id() || $proyecto->created_by === auth()->id()),
         ]);
     }
 
@@ -239,10 +256,13 @@ class MisProyectosController extends UserController
      */
     public function guardarCamposPersonalizados(Request $request, Proyecto $proyecto): RedirectResponse
     {
-        // Verificar que el usuario pueda editar el proyecto
-        if (!$this->userCanEditProject($proyecto)) {
-            abort(403, 'No tienes permiso para editar este proyecto');
-        }
+        // Verificar permisos y acceso al proyecto
+        abort_unless(auth()->user()->can('proyectos.edit_own'), 403, 'No tienes permiso para editar proyectos');
+        abort_unless(
+            $proyecto->responsable_id === auth()->id() || $proyecto->created_by === auth()->id(),
+            403,
+            'No tienes permiso para editar este proyecto'
+        );
 
         $this->service->actualizarCamposPersonalizados($proyecto, $request->all());
 

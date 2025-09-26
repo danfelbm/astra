@@ -111,10 +111,9 @@ class MisContratosController extends UserController
     {
         $user = auth()->user();
 
-        // Verificar acceso al contrato
-        if (!$this->tieneAccesoAlContrato($contrato, $user)) {
-            abort(403, 'No tienes acceso a este contrato');
-        }
+        // Verificar permisos y acceso al contrato
+        abort_unless(auth()->user()->can('contratos.view_own'), 403, 'No tienes permisos para ver contratos');
+        abort_unless($this->tieneAccesoAlContrato($contrato, $user), 403, 'No tienes acceso a este contrato');
 
         // Cargar relaciones necesarias
         $contrato->load([
@@ -212,9 +211,9 @@ class MisContratosController extends UserController
     {
         $user = auth()->user();
 
-        if (!$this->tieneAccesoAlContrato($contrato, $user)) {
-            abort(403, 'No tienes acceso a este contrato');
-        }
+        // Verificar permisos y acceso al contrato
+        abort_unless(auth()->user()->can('contratos.download'), 403, 'No tienes permisos para descargar contratos');
+        abort_unless($this->tieneAccesoAlContrato($contrato, $user), 403, 'No tienes acceso a este contrato');
 
         if (!$contrato->archivo_pdf) {
             abort(404, 'Este contrato no tiene archivo PDF');

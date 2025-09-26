@@ -22,7 +22,10 @@ import {
     Ban,
     Tag,
     Plus,
-    FileText
+    FileText,
+    Target as TargetIcon,
+    ListTodo,
+    CheckSquare
 } from 'lucide-vue-next';
 import { toast } from 'vue-sonner';
 import EtiquetaDisplay from '@modules/Proyectos/Resources/js/components/EtiquetaDisplay.vue';
@@ -33,6 +36,9 @@ import { useEtiquetas } from '@modules/Proyectos/Resources/js/composables/useEti
 import { ref, computed } from 'vue';
 import type { Etiqueta, CategoriaEtiqueta } from '@modules/Proyectos/Resources/js/types/etiquetas';
 import type { Contrato } from '@modules/Proyectos/Resources/js/types/contratos';
+import type { Hito } from '@modules/Proyectos/Resources/js/types/hitos';
+import HitoCard from '@modules/Proyectos/Resources/js/components/HitoCard.vue';
+import EntregableItem from '@modules/Proyectos/Resources/js/components/EntregableItem.vue';
 
 // Interfaces
 interface User {
@@ -77,6 +83,7 @@ interface Proyecto {
     campos_personalizados?: CampoPersonalizado[];
     etiquetas?: Etiqueta[];
     contratos?: Contrato[];
+    hitos?: Hito[];
     activities?: Activity[];
     created_at: string;
     updated_at: string;
@@ -91,6 +98,19 @@ interface Props {
     canManageTags?: boolean;
     canViewContracts?: boolean;
     canCreateContracts?: boolean;
+    canViewHitos?: boolean;
+    canCreateHitos?: boolean;
+    canEditHitos?: boolean;
+    canDeleteHitos?: boolean;
+    canManageEntregables?: boolean;
+    estadisticasHitos?: {
+        total: number;
+        pendientes: number;
+        en_progreso: number;
+        completados: number;
+        vencidos: number;
+        progreso_general: number;
+    };
 }
 
 const props = defineProps<Props>();
@@ -197,6 +217,49 @@ const cancelEditingTags = () => {
     // Restaurar las etiquetas originales
     selectedTagIds.value = props.proyecto.etiquetas?.map(e => e.id) || [];
     editingTags.value = false;
+};
+
+// Funciones para gestión de hitos
+const navigateToHito = (hito: Hito) => {
+    router.visit(`/admin/proyectos/${props.proyecto.id}/hitos/${hito.id}`);
+};
+
+const navigateToEditHito = (hito: Hito) => {
+    router.visit(`/admin/proyectos/${props.proyecto.id}/hitos/${hito.id}/edit`);
+};
+
+const confirmDeleteHito = (hito: Hito) => {
+    if (confirm(`¿Estás seguro de eliminar el hito "${hito.nombre}"? Se eliminarán también todos sus entregables.`)) {
+        router.delete(`/admin/proyectos/${props.proyecto.id}/hitos/${hito.id}`, {
+            onSuccess: () => {
+                toast.success('Hito eliminado exitosamente');
+                router.reload({ only: ['proyecto'] });
+            },
+            onError: () => {
+                toast.error('Error al eliminar el hito');
+            }
+        });
+    }
+};
+
+const duplicateHito = (hito: Hito) => {
+    router.post(`/admin/proyectos/${props.proyecto.id}/hitos/${hito.id}/duplicar`, {}, {
+        onSuccess: () => {
+            toast.success('Hito duplicado exitosamente');
+            router.reload({ only: ['proyecto'] });
+        },
+        onError: () => {
+            toast.error('Error al duplicar el hito');
+        }
+    });
+};
+
+const navigateToAddEntregable = (hito: Hito) => {
+    router.visit(`/admin/proyectos/${props.proyecto.id}/hitos/${hito.id}/entregables/create`);
+};
+
+const navigateToEntregables = (hito: Hito) => {
+    router.visit(`/admin/proyectos/${props.proyecto.id}/hitos/${hito.id}/entregables`);
 };
 </script>
 
@@ -468,6 +531,112 @@ const cancelEditingTags = () => {
                                     <Button variant="outline" size="sm">
                                         <Plus class="h-4 w-4 mr-2" />
                                         Crear Primer Contrato
+                                    </Button>
+                                </Link>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <!-- Hitos del Proyecto -->
+                    <Card v-if="canViewHitos">
+                        <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle class="flex items-center gap-2">
+                                <TargetIcon class="h-5 w-5" />
+                                Hitos y Entregables
+                            </CardTitle>
+                            <div class="flex items-center gap-2">
+                                <Link
+                                    v-if="proyecto.hitos && proyecto.hitos.length > 0"
+                                    :href="`/admin/proyectos/${proyecto.id}/hitos`"
+                                >
+                                    <Button variant="outline" size="sm">
+                                        <ListTodo class="h-4 w-4 mr-2" />
+                                        Ver Todos
+                                    </Button>
+                                </Link>
+                                <Link
+                                    v-if="canCreateHitos"
+                                    :href="`/admin/proyectos/${proyecto.id}/hitos/create`"
+                                >
+                                    <Button size="sm">
+                                        <Plus class="h-4 w-4 mr-2" />
+                                        Nuevo Hito
+                                    </Button>
+                                </Link>
+                            </div>
+                        </CardHeader>
+                        <CardContent>
+                            <!-- Estadísticas de Hitos -->
+                            <div v-if="estadisticasHitos && estadisticasHitos.total > 0" class="mb-6">
+                                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                                    <div class="text-center">
+                                        <p class="text-2xl font-bold">{{ estadisticasHitos.total }}</p>
+                                        <p class="text-xs text-muted-foreground">Total Hitos</p>
+                                    </div>
+                                    <div class="text-center">
+                                        <p class="text-2xl font-bold text-blue-500">{{ estadisticasHitos.en_progreso }}</p>
+                                        <p class="text-xs text-muted-foreground">En Progreso</p>
+                                    </div>
+                                    <div class="text-center">
+                                        <p class="text-2xl font-bold text-green-500">{{ estadisticasHitos.completados }}</p>
+                                        <p class="text-xs text-muted-foreground">Completados</p>
+                                    </div>
+                                    <div class="text-center">
+                                        <p class="text-2xl font-bold" :class="{'text-red-500': estadisticasHitos.vencidos > 0}">
+                                            {{ estadisticasHitos.vencidos }}
+                                        </p>
+                                        <p class="text-xs text-muted-foreground">Vencidos</p>
+                                    </div>
+                                </div>
+
+                                <!-- Barra de progreso general -->
+                                <div class="space-y-2">
+                                    <div class="flex justify-between items-center text-sm">
+                                        <span class="text-muted-foreground">Progreso General</span>
+                                        <span class="font-medium">{{ estadisticasHitos.progreso_general }}%</span>
+                                    </div>
+                                    <Progress :value="estadisticasHitos.progreso_general" class="h-2" />
+                                </div>
+                            </div>
+
+                            <!-- Lista de Hitos -->
+                            <div v-if="proyecto.hitos && proyecto.hitos.length > 0" class="space-y-4">
+                                <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                                    <HitoCard
+                                        v-for="hito in proyecto.hitos.slice(0, 6)"
+                                        :key="hito.id"
+                                        :hito="hito"
+                                        :canEdit="canEditHitos"
+                                        :canDelete="canDeleteHitos"
+                                        :canManageDeliverables="canManageEntregables"
+                                        :showActions="true"
+                                        @view="navigateToHito"
+                                        @edit="navigateToEditHito"
+                                        @delete="confirmDeleteHito"
+                                        @duplicate="duplicateHito"
+                                        @add-entregable="navigateToAddEntregable"
+                                        @view-entregables="navigateToEntregables"
+                                    />
+                                </div>
+
+                                <Link
+                                    v-if="proyecto.hitos.length > 6"
+                                    :href="`/admin/proyectos/${proyecto.id}/hitos`"
+                                    class="block text-center mt-4 text-sm text-primary hover:underline"
+                                >
+                                    Ver todos los hitos ({{ proyecto.hitos.length }})
+                                </Link>
+                            </div>
+                            <div v-else class="text-center py-6">
+                                <TargetIcon class="h-10 w-10 mx-auto text-muted-foreground mb-3" />
+                                <p class="text-muted-foreground mb-3">No hay hitos definidos para este proyecto</p>
+                                <Link
+                                    v-if="canCreateHitos"
+                                    :href="`/admin/proyectos/${proyecto.id}/hitos/create`"
+                                >
+                                    <Button variant="outline" size="sm">
+                                        <Plus class="h-4 w-4 mr-2" />
+                                        Crear Primer Hito
                                     </Button>
                                 </Link>
                             </div>
