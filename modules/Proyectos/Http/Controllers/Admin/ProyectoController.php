@@ -17,6 +17,7 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\JsonResponse;
 
 class ProyectoController extends AdminController
 {
@@ -34,6 +35,9 @@ class ProyectoController extends AdminController
      */
     public function index(Request $request): Response
     {
+        // Verificar permisos
+        abort_unless(auth()->user()->can('proyectos.view'), 403, 'No tienes permisos para ver proyectos');
+
         $proyectos = $this->repository->getAllPaginated($request);
 
         return Inertia::render('Modules/Proyectos/Admin/Proyectos/Index', [
@@ -50,6 +54,9 @@ class ProyectoController extends AdminController
      */
     public function create(): Response
     {
+        // Verificar permisos
+        abort_unless(auth()->user()->can('proyectos.create'), 403, 'No tienes permisos para crear proyectos');
+
         $usuarios = User::select('id', 'name', 'email')->orderBy('name')->get();
         $camposPersonalizados = CampoPersonalizado::paraProyectos()->activos()->ordenado()->get();
 
@@ -85,6 +92,9 @@ class ProyectoController extends AdminController
      */
     public function show(Proyecto $proyecto): Response
     {
+        // Verificar permisos
+        abort_unless(auth()->user()->can('proyectos.view'), 403, 'No tienes permisos para ver este proyecto');
+
         $proyecto->load([
             'responsable',
             'creador',
@@ -92,6 +102,11 @@ class ProyectoController extends AdminController
             'etiquetas.categoria', // Cargar etiquetas con sus categorías
             'contratos' => function ($query) {
                 $query->orderBy('fecha_inicio', 'desc');
+            },
+            'hitos' => function ($query) {
+                $query->with(['responsable', 'entregables' => function ($q) {
+                    $q->with(['responsable', 'usuarios'])->orderBy('orden');
+                }])->orderBy('orden');
             }
         ]);
 
@@ -111,6 +126,12 @@ class ProyectoController extends AdminController
             'canManageTags' => auth()->user()->can('proyectos.manage_tags'),
             'canViewContracts' => auth()->user()->can('contratos.view'),
             'canCreateContracts' => auth()->user()->can('contratos.create'),
+            'canViewHitos' => auth()->user()->can('hitos.view'),
+            'canCreateHitos' => auth()->user()->can('hitos.create'),
+            'canEditHitos' => auth()->user()->can('hitos.edit'),
+            'canDeleteHitos' => auth()->user()->can('hitos.delete'),
+            'canManageEntregables' => auth()->user()->can('hitos.manage_deliverables'),
+            'estadisticasHitos' => $proyecto->getEstadisticasHitos(),
         ]);
     }
 
@@ -119,6 +140,9 @@ class ProyectoController extends AdminController
      */
     public function edit(Proyecto $proyecto): Response
     {
+        // Verificar permisos
+        abort_unless(auth()->user()->can('proyectos.edit'), 403, 'No tienes permisos para editar este proyecto');
+
         $usuarios = User::select('id', 'name', 'email')->orderBy('name')->get();
         $camposPersonalizados = CampoPersonalizado::paraProyectos()->activos()->ordenado()->get();
         $proyecto->load(['camposPersonalizados', 'etiquetas.categoria']);
@@ -164,6 +188,9 @@ class ProyectoController extends AdminController
      */
     public function destroy(Proyecto $proyecto): RedirectResponse
     {
+        // Verificar permisos
+        abort_unless(auth()->user()->can('proyectos.delete'), 403, 'No tienes permisos para eliminar proyectos');
+
         $this->service->delete($proyecto);
 
         return redirect()
@@ -176,6 +203,9 @@ class ProyectoController extends AdminController
      */
     public function toggleStatus(Proyecto $proyecto): RedirectResponse
     {
+        // Verificar permisos
+        abort_unless(auth()->user()->can('proyectos.edit'), 403, 'No tienes permisos para cambiar el estado del proyecto');
+
         $proyecto->activo = !$proyecto->activo;
         $proyecto->save();
 
@@ -191,6 +221,9 @@ class ProyectoController extends AdminController
      */
     public function asignarResponsable(Request $request, Proyecto $proyecto): RedirectResponse
     {
+        // Verificar permisos
+        abort_unless(auth()->user()->can('proyectos.edit'), 403, 'No tienes permisos para asignar responsables');
+
         $request->validate([
             'responsable_id' => 'required|exists:users,id'
         ]);
@@ -200,5 +233,49 @@ class ProyectoController extends AdminController
         return redirect()
             ->back()
             ->with('success', 'Responsable asignado exitosamente');
+    }
+
+    /**
+     * Busca usuarios disponibles para asignar a proyectos.
+     * Endpoint usado por el componente AddUsersModal.
+     */
+    public function searchUsers(Request $request): JsonResponse
+    {
+        // Verificar permisos
+        abort_unless(auth()->user()->can('proyectos.view'), 403, 'No tienes permisos para buscar usuarios');
+
+        $query = User::query()
+            ->select('id', 'name', 'email', 'documento_identidad', 'telefono');
+
+        // Aplicar búsqueda si existe
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%")
+                  ->orWhere('documento_identidad', 'like', "%{$search}%")
+                  ->orWhere('telefono', 'like', "%{$search}%");
+            });
+        }
+
+        // Excluir usuarios si se especifica
+        if ($request->has('excluded_ids') && is_array($request->excluded_ids)) {
+            $query->whereNotIn('id', $request->excluded_ids);
+        }
+
+        // Ordenar por nombre
+        $query->orderBy('name');
+
+        // Paginar resultados
+        $usuarios = $query->paginate($request->get('per_page', 20));
+
+        // Retornar en formato esperado por AddUsersModal
+        return response()->json([
+            'users' => $usuarios->items(),
+            'current_page' => $usuarios->currentPage(),
+            'last_page' => $usuarios->lastPage(),
+            'per_page' => $usuarios->perPage(),
+            'total' => $usuarios->total(),
+        ]);
     }
 }

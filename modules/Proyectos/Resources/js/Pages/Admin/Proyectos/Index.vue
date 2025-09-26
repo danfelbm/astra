@@ -21,7 +21,7 @@ import {
     SelectTrigger,
     SelectValue
 } from "@modules/Core/Resources/js/components/ui/select";
-import { Plus, Edit, Trash2, Search, Calendar, User, Tag } from 'lucide-vue-next';
+import { Plus, Edit, Trash2, Search, Calendar, User, Tag, Eye } from 'lucide-vue-next';
 import { ref, watch } from 'vue';
 import EtiquetaDisplay from '@modules/Proyectos/Resources/js/components/EtiquetaDisplay.vue';
 import type { Etiqueta } from '@modules/Proyectos/Resources/js/types/etiquetas';
@@ -286,10 +286,17 @@ const getPrioridadColor = (prioridad: string) => {
                                 <TableCell class="text-right">
                                     <div class="flex justify-end gap-2">
                                         <Link
+                                            :href="`/admin/proyectos/${proyecto.id}`"
+                                        >
+                                            <Button variant="outline" size="sm" title="Ver detalles">
+                                                <Eye class="h-4 w-4" />
+                                            </Button>
+                                        </Link>
+                                        <Link
                                             v-if="canEdit"
                                             :href="`/admin/proyectos/${proyecto.id}/edit`"
                                         >
-                                            <Button variant="outline" size="sm">
+                                            <Button variant="outline" size="sm" title="Editar">
                                                 <Edit class="h-4 w-4" />
                                             </Button>
                                         </Link>

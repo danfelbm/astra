@@ -124,6 +124,14 @@ class Proyecto extends Model
     }
 
     /**
+     * Obtiene los hitos del proyecto.
+     */
+    public function hitos(): HasMany
+    {
+        return $this->hasMany(Hito::class)->orderBy('orden');
+    }
+
+    /**
      * Obtiene la etiqueta del estado.
      */
     public function getEstadoLabelAttribute(): string
@@ -415,5 +423,96 @@ class Proyecto extends Model
             ->where('fecha_fin', '<=', now()->addDays($dias))
             ->where('fecha_fin', '>', now())
             ->get();
+    }
+
+    /**
+     * Obtiene los hitos pendientes del proyecto.
+     */
+    public function getHitosPendientes()
+    {
+        return $this->hitos()->where('estado', 'pendiente')->get();
+    }
+
+    /**
+     * Obtiene los hitos en progreso del proyecto.
+     */
+    public function getHitosEnProgreso()
+    {
+        return $this->hitos()->where('estado', 'en_progreso')->get();
+    }
+
+    /**
+     * Obtiene los hitos completados del proyecto.
+     */
+    public function getHitosCompletados()
+    {
+        return $this->hitos()->where('estado', 'completado')->get();
+    }
+
+    /**
+     * Obtiene el progreso total del proyecto basado en hitos.
+     */
+    public function getProgresoHitos(): int
+    {
+        $totalHitos = $this->hitos()->count();
+
+        if ($totalHitos === 0) {
+            return 0;
+        }
+
+        $hitosCompletados = $this->hitos()->where('estado', 'completado')->count();
+
+        return round(($hitosCompletados / $totalHitos) * 100);
+    }
+
+    /**
+     * Obtiene los hitos vencidos del proyecto.
+     */
+    public function getHitosVencidos()
+    {
+        return $this->hitos()
+            ->where('fecha_fin', '<', now())
+            ->whereNotIn('estado', ['completado', 'cancelado'])
+            ->get();
+    }
+
+    /**
+     * Obtiene los hitos próximos a vencer.
+     */
+    public function getHitosProximosVencer($dias = 7)
+    {
+        return $this->hitos()
+            ->where('fecha_fin', '<=', now()->addDays($dias))
+            ->where('fecha_fin', '>', now())
+            ->whereNotIn('estado', ['completado', 'cancelado'])
+            ->get();
+    }
+
+    /**
+     * Verifica si tiene hitos vencidos.
+     */
+    public function tieneHitosVencidos(): bool
+    {
+        return $this->hitos()
+            ->where('fecha_fin', '<', now())
+            ->whereNotIn('estado', ['completado', 'cancelado'])
+            ->exists();
+    }
+
+    /**
+     * Obtiene estadísticas de hitos del proyecto.
+     */
+    public function getEstadisticasHitos(): array
+    {
+        return [
+            'total' => $this->hitos()->count(),
+            'pendientes' => $this->hitos()->where('estado', 'pendiente')->count(),
+            'en_progreso' => $this->hitos()->where('estado', 'en_progreso')->count(),
+            'completados' => $this->hitos()->where('estado', 'completado')->count(),
+            'cancelados' => $this->hitos()->where('estado', 'cancelado')->count(),
+            'vencidos' => $this->getHitosVencidos()->count(),
+            'proximos_vencer' => $this->getHitosProximosVencer()->count(),
+            'progreso_general' => $this->getProgresoHitos()
+        ];
     }
 }

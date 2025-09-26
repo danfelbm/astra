@@ -26,7 +26,8 @@ class EtiquetaController extends AdminController
      */
     public function store(StoreEtiquetaRequest $request): RedirectResponse
     {
-        $this->authorize('etiquetas.create');
+        // Verificar permisos
+        abort_unless(auth()->user()->can('etiquetas.create'), 403, 'No tienes permisos para crear etiquetas');
 
         try {
             $etiqueta = $this->service->create($request->validated());
@@ -47,7 +48,8 @@ class EtiquetaController extends AdminController
      */
     public function update(UpdateEtiquetaRequest $request, Etiqueta $etiqueta): RedirectResponse
     {
-        $this->authorize('etiquetas.edit');
+        // Verificar permisos
+        abort_unless(auth()->user()->can('etiquetas.edit'), 403, 'No tienes permisos para editar etiquetas');
 
         try {
             $this->service->update($etiqueta, $request->validated());
@@ -68,7 +70,8 @@ class EtiquetaController extends AdminController
      */
     public function destroy(Etiqueta $etiqueta): RedirectResponse
     {
-        $this->authorize('etiquetas.delete');
+        // Verificar permisos
+        abort_unless(auth()->user()->can('etiquetas.delete'), 403, 'No tienes permisos para eliminar etiquetas');
 
         try {
             $this->service->delete($etiqueta);
@@ -171,7 +174,8 @@ class EtiquetaController extends AdminController
      */
     public function establecerJerarquia(Request $request, Etiqueta $etiqueta): JsonResponse
     {
-        $this->authorize('etiquetas.edit');
+        // Verificar permisos
+        abort_unless(auth()->user()->can('etiquetas.edit'), 403, 'No tienes permisos para editar etiquetas');
 
         $request->validate([
             'parent_id' => 'nullable|exists:etiquetas,id'
@@ -198,7 +202,8 @@ class EtiquetaController extends AdminController
      */
     public function mover(Request $request, Etiqueta $etiqueta): JsonResponse
     {
-        $this->authorize('etiquetas.edit');
+        // Verificar permisos
+        abort_unless(auth()->user()->can('etiquetas.edit'), 403, 'No tienes permisos para editar etiquetas');
 
         $request->validate([
             'nuevo_padre_id' => 'nullable|exists:etiquetas,id'
@@ -252,7 +257,8 @@ class EtiquetaController extends AdminController
      */
     public function estadisticasJerarquia(): JsonResponse
     {
-        $this->authorize('etiquetas.view');
+        // Verificar permisos
+        abort_unless(auth()->user()->can('etiquetas.view'), 403, 'No tienes permisos para ver etiquetas');
 
         $estadisticas = $this->repository->getEstadisticasJerarquia();
 

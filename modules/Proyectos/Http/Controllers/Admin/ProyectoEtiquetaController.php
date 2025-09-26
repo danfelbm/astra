@@ -26,7 +26,8 @@ class ProyectoEtiquetaController extends AdminController
      */
     public function index(Proyecto $proyecto): Response
     {
-        $this->authorize('proyectos.manage_tags');
+        // Verificar permisos
+        abort_unless(auth()->user()->can('proyectos.manage_tags'), 403, 'No tienes permisos para gestionar etiquetas del proyecto');
 
         $proyecto->load(['etiquetas.categoria']);
         $categoriasConEtiquetas = $this->etiquetaRepository->getGroupedByCategoria();
@@ -44,7 +45,8 @@ class ProyectoEtiquetaController extends AdminController
      */
     public function store(Request $request, Proyecto $proyecto): JsonResponse
     {
-        $this->authorize('proyectos.manage_tags');
+        // Verificar permisos
+        abort_unless(auth()->user()->can('proyectos.manage_tags'), 403, 'No tienes permisos para gestionar etiquetas del proyecto');
 
         $request->validate([
             'etiqueta_id' => 'nullable|exists:etiquetas,id',
@@ -84,7 +86,8 @@ class ProyectoEtiquetaController extends AdminController
      */
     public function destroy(Proyecto $proyecto, Etiqueta $etiqueta): JsonResponse
     {
-        $this->authorize('proyectos.manage_tags');
+        // Verificar permisos
+        abort_unless(auth()->user()->can('proyectos.manage_tags'), 403, 'No tienes permisos para gestionar etiquetas del proyecto');
 
         try {
             $proyecto->quitarEtiqueta($etiqueta->id);
@@ -106,7 +109,8 @@ class ProyectoEtiquetaController extends AdminController
      */
     public function sync(Request $request, Proyecto $proyecto): JsonResponse
     {
-        $this->authorize('proyectos.manage_tags');
+        // Verificar permisos
+        abort_unless(auth()->user()->can('proyectos.manage_tags'), 403, 'No tienes permisos para gestionar etiquetas del proyecto');
 
         $request->validate([
             'etiquetas' => 'required|array',
@@ -178,7 +182,8 @@ class ProyectoEtiquetaController extends AdminController
      */
     public function reorder(Request $request, Proyecto $proyecto): JsonResponse
     {
-        $this->authorize('proyectos.manage_tags');
+        // Verificar permisos
+        abort_unless(auth()->user()->can('proyectos.manage_tags'), 403, 'No tienes permisos para gestionar etiquetas del proyecto');
 
         $request->validate([
             'etiquetas' => 'required|array',

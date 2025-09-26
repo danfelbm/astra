@@ -151,49 +151,78 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
             ->middleware('can:contratos.create');
     });
 
-    // Rutas para gestión de campos personalizados de contratos
-    // COMENTADO: Ahora se usa el controlador unificado CampoPersonalizadoController
-    /*
-    Route::prefix('campos-personalizados-contrato')->name('campos-personalizados-contrato.')->group(function () {
-        Route::get('/', [CampoPersonalizadoContratoController::class, 'index'])
+    // Ruta para búsqueda de usuarios (DEBE estar ANTES del grupo para evitar conflictos con route model binding)
+    Route::get('/proyectos-search-users', [ProyectoController::class, 'searchUsers'])
+        ->name('proyectos.search-users')
+        ->middleware('can:proyectos.view');
+
+    // Rutas para hitos dentro del contexto de un proyecto
+    Route::prefix('proyectos/{proyecto}/hitos')->name('proyectos.hitos.')->group(function () {
+        Route::get('/', [\Modules\Proyectos\Http\Controllers\Admin\HitoController::class, 'index'])
             ->name('index')
-            ->middleware('can:contratos.manage_fields');
+            ->middleware('can:hitos.view');
 
-        Route::get('/create', [CampoPersonalizadoContratoController::class, 'create'])
+        Route::get('/create', [\Modules\Proyectos\Http\Controllers\Admin\HitoController::class, 'create'])
             ->name('create')
-            ->middleware('can:contratos.manage_fields');
+            ->middleware('can:hitos.create');
 
-        Route::post('/', [CampoPersonalizadoContratoController::class, 'store'])
+        Route::post('/', [\Modules\Proyectos\Http\Controllers\Admin\HitoController::class, 'store'])
             ->name('store')
-            ->middleware('can:contratos.manage_fields');
+            ->middleware('can:hitos.create');
 
-        Route::get('/{campo}', [CampoPersonalizadoContratoController::class, 'show'])
+        Route::get('/{hito}', [\Modules\Proyectos\Http\Controllers\Admin\HitoController::class, 'show'])
             ->name('show')
-            ->middleware('can:contratos.manage_fields');
+            ->middleware('can:hitos.view');
 
-        Route::get('/{campo}/edit', [CampoPersonalizadoContratoController::class, 'edit'])
+        Route::get('/{hito}/edit', [\Modules\Proyectos\Http\Controllers\Admin\HitoController::class, 'edit'])
             ->name('edit')
-            ->middleware('can:contratos.manage_fields');
+            ->middleware('can:hitos.edit');
 
-        Route::put('/{campo}', [CampoPersonalizadoContratoController::class, 'update'])
+        Route::put('/{hito}', [\Modules\Proyectos\Http\Controllers\Admin\HitoController::class, 'update'])
             ->name('update')
-            ->middleware('can:contratos.manage_fields');
+            ->middleware('can:hitos.edit');
 
-        Route::delete('/{campo}', [CampoPersonalizadoContratoController::class, 'destroy'])
+        Route::delete('/{hito}', [\Modules\Proyectos\Http\Controllers\Admin\HitoController::class, 'destroy'])
             ->name('destroy')
-            ->middleware('can:contratos.manage_fields');
+            ->middleware('can:hitos.delete');
 
-        Route::post('/reordenar', [CampoPersonalizadoContratoController::class, 'reordenar'])
-            ->name('reordenar')
-            ->middleware('can:contratos.manage_fields');
-
-        Route::post('/{campo}/toggle-activo', [CampoPersonalizadoContratoController::class, 'toggleActivo'])
-            ->name('toggle-activo')
-            ->middleware('can:contratos.manage_fields');
-
-        Route::post('/{campo}/duplicar', [CampoPersonalizadoContratoController::class, 'duplicar'])
+        Route::post('/{hito}/duplicar', [\Modules\Proyectos\Http\Controllers\Admin\HitoController::class, 'duplicar'])
             ->name('duplicar')
-            ->middleware('can:contratos.manage_fields');
+            ->middleware('can:hitos.create');
+
+        // Rutas para entregables dentro del contexto de un hito
+        Route::prefix('{hito}/entregables')->name('entregables.')->group(function () {
+            Route::get('/', [\Modules\Proyectos\Http\Controllers\Admin\EntregableController::class, 'index'])
+                ->name('index')
+                ->middleware('can:entregables.view');
+
+            Route::get('/create', [\Modules\Proyectos\Http\Controllers\Admin\EntregableController::class, 'create'])
+                ->name('create')
+                ->middleware('can:entregables.create');
+
+            Route::post('/', [\Modules\Proyectos\Http\Controllers\Admin\EntregableController::class, 'store'])
+                ->name('store')
+                ->middleware('can:entregables.create');
+
+            Route::get('/{entregable}', [\Modules\Proyectos\Http\Controllers\Admin\EntregableController::class, 'show'])
+                ->name('show')
+                ->middleware('can:entregables.view');
+
+            Route::get('/{entregable}/edit', [\Modules\Proyectos\Http\Controllers\Admin\EntregableController::class, 'edit'])
+                ->name('edit')
+                ->middleware('can:entregables.edit');
+
+            Route::put('/{entregable}', [\Modules\Proyectos\Http\Controllers\Admin\EntregableController::class, 'update'])
+                ->name('update')
+                ->middleware('can:entregables.edit');
+
+            Route::delete('/{entregable}', [\Modules\Proyectos\Http\Controllers\Admin\EntregableController::class, 'destroy'])
+                ->name('destroy')
+                ->middleware('can:entregables.delete');
+
+            Route::post('/{entregable}/completar', [\Modules\Proyectos\Http\Controllers\Admin\EntregableController::class, 'completar'])
+                ->name('completar')
+                ->middleware('can:entregables.complete');
+        });
     });
-    */
 });
