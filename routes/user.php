@@ -12,6 +12,7 @@ use Modules\Geografico\Http\Controllers\Admin\GeographicController;
 use Modules\Users\Http\Controllers\User\DashboardController;
 use Modules\Proyectos\Http\Controllers\User\MisProyectosController;
 use Modules\Proyectos\Http\Controllers\User\MisContratosController;
+use Modules\Proyectos\Http\Controllers\User\MisObligacionesController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -251,6 +252,29 @@ Route::middleware(['auth', 'verified', 'user'])->prefix('miembro')->name('user.'
         Route::get('/{contrato}/descargar-pdf', [MisContratosController::class, 'descargarPDF'])
             ->name('descargar-pdf')
             ->middleware('can:contratos.view_own');
+    });
+
+    // Rutas para Mis Obligaciones
+    Route::prefix('mis-obligaciones')->name('mis-obligaciones.')->group(function () {
+        Route::get('/', [MisObligacionesController::class, 'index'])
+            ->name('index')
+            ->middleware('can:obligaciones.view_own');
+
+        Route::get('/calendario', [MisObligacionesController::class, 'calendario'])
+            ->name('calendario')
+            ->middleware('can:obligaciones.view_own');
+
+        Route::get('/{obligacion}', [MisObligacionesController::class, 'show'])
+            ->name('show')
+            ->middleware('can:obligaciones.view_own');
+
+        Route::post('/{obligacion}/completar', [MisObligacionesController::class, 'completar'])
+            ->name('completar')
+            ->middleware('can:obligaciones.complete_own');
+
+        Route::put('/{obligacion}/progreso', [MisObligacionesController::class, 'actualizarProgreso'])
+            ->name('actualizar-progreso')
+            ->middleware('can:obligaciones.view_own');
     });
 });
 

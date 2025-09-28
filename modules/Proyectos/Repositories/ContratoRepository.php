@@ -77,6 +77,10 @@ class ContratoRepository
             'participantes',
             'creador',
             'actualizador',
+            'obligaciones' => function ($query) {
+                $query->whereNull('parent_id')->orderBy('orden');
+            },
+            'todasLasObligaciones',
             'camposPersonalizados' => function ($query) {
                 $query->with('campoPersonalizado');
             }

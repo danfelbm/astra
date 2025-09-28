@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use Modules\Proyectos\Http\Controllers\User\MisProyectosController;
 use Modules\Proyectos\Http\Controllers\User\MisContratosController;
+use Modules\Proyectos\Http\Controllers\User\MisObligacionesController;
 
 /*
 |--------------------------------------------------------------------------
@@ -100,5 +101,28 @@ Route::middleware(['auth', 'verified', 'user'])->prefix('miembro')->name('miembr
         Route::put('/{hito}/entregables/{entregable}/estado', [\Modules\Proyectos\Http\Controllers\User\MisHitosController::class, 'actualizarEstadoEntregable'])
             ->name('actualizar-estado-entregable')
             ->middleware('can:hitos.update_progress');
+    });
+
+    // Rutas para Mis Obligaciones
+    Route::prefix('mis-obligaciones')->name('mis-obligaciones.')->group(function () {
+        Route::get('/', [MisObligacionesController::class, 'index'])
+            ->name('index')
+            ->middleware('can:obligaciones.view_own');
+
+        Route::get('/calendario', [MisObligacionesController::class, 'calendario'])
+            ->name('calendario')
+            ->middleware('can:obligaciones.view_own');
+
+        Route::get('/{obligacion}', [MisObligacionesController::class, 'show'])
+            ->name('show')
+            ->middleware('can:obligaciones.view_own');
+
+        Route::post('/{obligacion}/completar', [MisObligacionesController::class, 'completar'])
+            ->name('completar')
+            ->middleware('can:obligaciones.complete_own');
+
+        Route::put('/{obligacion}/progreso', [MisObligacionesController::class, 'actualizarProgreso'])
+            ->name('actualizar-progreso')
+            ->middleware('can:obligaciones.view_own');
     });
 });

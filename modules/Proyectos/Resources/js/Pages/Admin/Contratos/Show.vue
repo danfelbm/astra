@@ -11,7 +11,7 @@ import { Alert, AlertDescription } from '@modules/Core/Resources/js/components/u
 import {
     Calendar, DollarSign, User, FileText, Edit, Trash2, Copy, Download,
     Building2, Phone, Mail, Hash, AlertCircle, Clock, CheckCircle,
-    XCircle, ArrowLeft, ExternalLink
+    XCircle, ArrowLeft, ExternalLink, Plus, TreePine, ChevronRight, List
 } from 'lucide-vue-next';
 import { useToast } from '@modules/Core/Resources/js/composables/useToast';
 
@@ -212,6 +212,28 @@ const descargarPDF = () => {
         window.open(props.contrato.archivo_pdf, '_blank');
     }
 };
+
+// Función para verificar permisos
+const hasPermission = (permission: string): boolean => {
+    const page = usePage();
+    const permissions = page.props.auth?.permissions || [];
+    const isSuperAdmin = page.props.auth?.roles?.some((role: any) => role.name === 'super_admin');
+
+    if (isSuperAdmin) return true;
+    return permissions.includes(permission);
+};
+
+// Función para obtener el variant del badge según el estado de la obligación
+const getObligacionEstadoVariant = (estado: string): string => {
+    const variants: Record<string, string> = {
+        'pendiente': 'secondary',
+        'en_progreso': 'warning',
+        'cumplida': 'success',
+        'vencida': 'destructive',
+        'cancelada': 'outline'
+    };
+    return variants[estado] || 'secondary';
+};
 </script>
 
 <template>
@@ -352,6 +374,12 @@ const descargarPDF = () => {
                             </TabsTrigger>
                             <TabsTrigger value="campos" v-if="contrato.campos_personalizados?.length">
                                 Campos Adicionales
+                            </TabsTrigger>
+                            <TabsTrigger value="obligaciones">
+                                Obligaciones
+                                <Badge v-if="contrato.total_obligaciones > 0" variant="outline" class="ml-1">
+                                    {{ contrato.total_obligaciones }}
+                                </Badge>
                             </TabsTrigger>
                         </TabsList>
 
@@ -570,6 +598,137 @@ const descargarPDF = () => {
                                             <h4 class="text-sm font-medium text-gray-600">{{ campo.campo.nombre }}</h4>
                                             <p class="mt-1">{{ campo.valor_formateado || campo.valor || '-' }}</p>
                                         </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </TabsContent>
+
+                        <!-- Tab de Obligaciones -->
+                        <TabsContent value="obligaciones" class="space-y-6 mt-6">
+                            <Card>
+                                <CardHeader>
+                                    <div class="flex justify-between items-center">
+                                        <CardTitle>Obligaciones del Contrato</CardTitle>
+                                        <div class="flex gap-2">
+                                            <Link
+                                                v-if="hasPermission('obligaciones.create')"
+                                                :href="route('admin.obligaciones.create', { contrato_id: contrato.id })"
+                                            >
+                                                <Button size="sm" variant="default">
+                                                    <Plus class="h-4 w-4 mr-1" />
+                                                    Nueva Obligación
+                                                </Button>
+                                            </Link>
+                                            <Link
+                                                v-if="hasPermission('obligaciones.view')"
+                                                :href="route('admin.obligaciones.index', { contrato_id: contrato.id })"
+                                            >
+                                                <Button size="sm" variant="outline">
+                                                    <List class="h-4 w-4 mr-1" />
+                                                    Ver Lista
+                                                </Button>
+                                            </Link>
+                                            <Link
+                                                v-if="hasPermission('obligaciones.view')"
+                                                :href="route('admin.contratos.obligaciones.arbol', contrato.id)"
+                                            >
+                                                <Button size="sm" variant="outline">
+                                                    <TreePine class="h-4 w-4 mr-1" />
+                                                    Vista Árbol
+                                                </Button>
+                                            </Link>
+                                            <Link
+                                                v-if="hasPermission('obligaciones.view')"
+                                                :href="route('admin.contratos.obligaciones.timeline', contrato.id)"
+                                            >
+                                                <Button size="sm" variant="outline">
+                                                    <Clock class="h-4 w-4 mr-1" />
+                                                    Timeline
+                                                </Button>
+                                            </Link>
+                                        </div>
+                                    </div>
+                                </CardHeader>
+                                <CardContent>
+                                    <div v-if="contrato.total_obligaciones && contrato.total_obligaciones > 0">
+                                        <!-- Estadísticas de obligaciones -->
+                                        <div class="grid grid-cols-4 gap-4 mb-6">
+                                            <div class="text-center">
+                                                <div class="text-2xl font-bold">{{ contrato.total_obligaciones }}</div>
+                                                <p class="text-xs text-gray-600">Total</p>
+                                            </div>
+                                            <div class="text-center">
+                                                <div class="text-2xl font-bold text-yellow-600">{{ contrato.obligaciones_pendientes }}</div>
+                                                <p class="text-xs text-gray-600">Pendientes</p>
+                                            </div>
+                                            <div class="text-center">
+                                                <div class="text-2xl font-bold text-green-600">{{ contrato.obligaciones_cumplidas }}</div>
+                                                <p class="text-xs text-gray-600">Cumplidas</p>
+                                            </div>
+                                            <div class="text-center">
+                                                <div class="text-2xl font-bold">
+                                                    {{ contrato.total_obligaciones > 0 ? Math.round((contrato.obligaciones_cumplidas / contrato.total_obligaciones) * 100) : 0 }}%
+                                                </div>
+                                                <p class="text-xs text-gray-600">Progreso</p>
+                                            </div>
+                                        </div>
+
+                                        <!-- Lista de obligaciones principales -->
+                                        <div v-if="contrato.obligaciones && contrato.obligaciones.length > 0" class="mt-6 space-y-2">
+                                            <h4 class="text-sm font-medium text-gray-700 mb-2">Obligaciones principales:</h4>
+                                            <div v-for="obligacion in contrato.obligaciones" :key="obligacion.id" class="border rounded-lg p-3 hover:bg-gray-50">
+                                                <div class="flex items-center justify-between">
+                                                    <div class="flex-1">
+                                                        <h5 class="font-medium">{{ obligacion.titulo }}</h5>
+                                                        <p v-if="obligacion.descripcion" class="text-sm text-gray-600 mt-1">{{ obligacion.descripcion }}</p>
+                                                        <div class="flex items-center gap-4 mt-2">
+                                                            <Badge :variant="getObligacionEstadoVariant(obligacion.estado)" size="sm">
+                                                                {{ obligacion.estado }}
+                                                            </Badge>
+                                                            <span v-if="obligacion.fecha_vencimiento" class="text-xs text-gray-500">
+                                                                Vence: {{ new Date(obligacion.fecha_vencimiento).toLocaleDateString() }}
+                                                            </span>
+                                                            <span v-if="obligacion.responsable" class="text-xs text-gray-500">
+                                                                Responsable: {{ obligacion.responsable.name }}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                    <div class="flex gap-2">
+                                                        <Link :href="route('admin.obligaciones.show', obligacion.id)">
+                                                            <Button size="sm" variant="ghost">Ver</Button>
+                                                        </Link>
+                                                        <Link v-if="hasPermission('obligaciones.edit')" :href="route('admin.obligaciones.edit', obligacion.id)">
+                                                            <Button size="sm" variant="ghost">Editar</Button>
+                                                        </Link>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="text-center mt-4">
+                                            <Link
+                                                :href="route('admin.contratos.obligaciones.arbol', contrato.id)"
+                                                class="inline-flex items-center text-sm text-blue-600 hover:text-blue-800"
+                                            >
+                                                Ver árbol completo de obligaciones
+                                                <ChevronRight class="h-4 w-4 ml-1" />
+                                            </Link>
+                                        </div>
+                                    </div>
+                                    <div v-else class="text-center py-6 text-gray-500">
+                                        <FileText class="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                                        <p>No hay obligaciones registradas para este contrato</p>
+                                        <p class="text-sm text-gray-400 mt-1">Las obligaciones te ayudan a hacer seguimiento de tareas y compromisos del contrato</p>
+                                        <Link
+                                            v-if="hasPermission('obligaciones.create')"
+                                            :href="route('admin.obligaciones.create', { contrato_id: contrato.id })"
+                                            class="mt-3 inline-block"
+                                        >
+                                            <Button size="sm" variant="default">
+                                                <Plus class="h-4 w-4 mr-1" />
+                                                Crear Primera Obligación
+                                            </Button>
+                                        </Link>
                                     </div>
                                 </CardContent>
                             </Card>

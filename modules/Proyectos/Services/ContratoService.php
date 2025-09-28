@@ -460,4 +460,42 @@ class ContratoService
         // Sincronizar relación many-to-many
         $contrato->participantes()->sync($participantesSync);
     }
+
+    /**
+     * Obtiene las obligaciones de un contrato con estadísticas.
+     */
+    public function obtenerObligacionesConEstadisticas(Contrato $contrato): array
+    {
+        try {
+            $obligaciones = $contrato->obligaciones()
+                ->with(['responsable', 'hijos'])
+                ->orderBy('orden')
+                ->get();
+
+            $todasObligaciones = $contrato->todasLasObligaciones()->get();
+
+            $estadisticas = [
+                'total' => $todasObligaciones->count(),
+                'cumplidas' => $todasObligaciones->where('estado', 'cumplida')->count(),
+                'pendientes' => $todasObligaciones->whereIn('estado', ['pendiente', 'en_progreso'])->count(),
+                'vencidas' => $todasObligaciones->where('estado', 'vencida')->count(),
+                'porcentaje_cumplimiento' => $todasObligaciones->count() > 0
+                    ? round(($todasObligaciones->where('estado', 'cumplida')->count() / $todasObligaciones->count()) * 100)
+                    : 0
+            ];
+
+            return [
+                'success' => true,
+                'obligaciones' => $obligaciones,
+                'estadisticas' => $estadisticas
+            ];
+        } catch (\Exception $e) {
+            Log::error('Error al obtener obligaciones del contrato: ' . $e->getMessage());
+
+            return [
+                'success' => false,
+                'message' => 'Error al obtener las obligaciones: ' . $e->getMessage()
+            ];
+        }
+    }
 }

@@ -75,7 +75,10 @@ class Contrato extends Model
         'dias_restantes',
         'porcentaje_transcurrido',
         'esta_vencido',
-        'esta_proximo_vencer'
+        'esta_proximo_vencer',
+        'total_obligaciones',
+        'obligaciones_cumplidas',
+        'obligaciones_pendientes'
     ];
 
     /**
@@ -134,6 +137,22 @@ class Contrato extends Model
     public function camposPersonalizados(): HasMany
     {
         return $this->hasMany(ValorCampoPersonalizado::class, 'contrato_id');
+    }
+
+    /**
+     * Obtiene las obligaciones del contrato.
+     */
+    public function obligaciones(): HasMany
+    {
+        return $this->hasMany(ObligacionContrato::class, 'contrato_id')->whereNull('parent_id')->orderBy('orden');
+    }
+
+    /**
+     * Obtiene todas las obligaciones del contrato (incluyendo hijos).
+     */
+    public function todasLasObligaciones(): HasMany
+    {
+        return $this->hasMany(ObligacionContrato::class, 'contrato_id')->orderBy('orden');
     }
 
     /**
@@ -420,5 +439,29 @@ class Contrato extends Model
         }
 
         return $nuevoContrato;
+    }
+
+    /**
+     * Obtiene el total de obligaciones del contrato.
+     */
+    public function getTotalObligacionesAttribute(): int
+    {
+        return $this->todasLasObligaciones()->count();
+    }
+
+    /**
+     * Obtiene el número de obligaciones cumplidas.
+     */
+    public function getObligacionesCumplidasAttribute(): int
+    {
+        return $this->todasLasObligaciones()->where('estado', 'cumplida')->count();
+    }
+
+    /**
+     * Obtiene el número de obligaciones pendientes.
+     */
+    public function getObligacionesPendientesAttribute(): int
+    {
+        return $this->todasLasObligaciones()->whereNotIn('estado', ['cumplida', 'cancelada'])->count();
     }
 }

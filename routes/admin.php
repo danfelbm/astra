@@ -25,6 +25,7 @@ use Modules\Proyectos\Http\Controllers\Admin\CategoriaEtiquetaController;
 use Modules\Proyectos\Http\Controllers\Admin\EtiquetaController;
 use Modules\Proyectos\Http\Controllers\Admin\ProyectoEtiquetaController;
 use Modules\Proyectos\Http\Controllers\Admin\ContratoController;
+use Modules\Proyectos\Http\Controllers\Admin\ObligacionContratoController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -1038,6 +1039,77 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
                 ->name('completar')
                 ->middleware('can:entregables.complete');
         });
+    });
+
+    // Rutas para gestión de obligaciones de contratos
+    Route::prefix('obligaciones')->name('obligaciones.')->group(function () {
+        Route::get('/', [ObligacionContratoController::class, 'index'])
+            ->name('index')
+            ->middleware('can:obligaciones.view');
+
+        Route::get('/create', [ObligacionContratoController::class, 'create'])
+            ->name('create')
+            ->middleware('can:obligaciones.create');
+
+        Route::post('/', [ObligacionContratoController::class, 'store'])
+            ->name('store')
+            ->middleware('can:obligaciones.create');
+
+        Route::get('/{obligacion}', [ObligacionContratoController::class, 'show'])
+            ->name('show')
+            ->middleware('can:obligaciones.view');
+
+        Route::get('/{obligacion}/edit', [ObligacionContratoController::class, 'edit'])
+            ->name('edit')
+            ->middleware('can:obligaciones.edit');
+
+        Route::put('/{obligacion}', [ObligacionContratoController::class, 'update'])
+            ->name('update')
+            ->middleware('can:obligaciones.edit');
+
+        Route::delete('/{obligacion}', [ObligacionContratoController::class, 'destroy'])
+            ->name('destroy')
+            ->middleware('can:obligaciones.delete');
+
+        // Acciones adicionales
+        Route::post('/{obligacion}/completar', [ObligacionContratoController::class, 'completar'])
+            ->name('completar')
+            ->middleware('can:obligaciones.complete');
+
+        Route::post('/{obligacion}/duplicar', [ObligacionContratoController::class, 'duplicar'])
+            ->name('duplicar')
+            ->middleware('can:obligaciones.create');
+
+        Route::post('/{obligacion}/mover', [ObligacionContratoController::class, 'mover'])
+            ->name('mover')
+            ->middleware('can:obligaciones.edit');
+
+        Route::post('/reordenar', [ObligacionContratoController::class, 'reordenar'])
+            ->name('reordenar')
+            ->middleware('can:obligaciones.edit');
+
+        Route::post('/actualizar-estado-masivo', [ObligacionContratoController::class, 'actualizarEstadoMasivo'])
+            ->name('actualizar-estado-masivo')
+            ->middleware('can:obligaciones.edit');
+
+        Route::get('/buscar/autocompletar', [ObligacionContratoController::class, 'buscar'])
+            ->name('buscar')
+            ->middleware('can:obligaciones.view');
+
+        Route::get('/exportar', [ObligacionContratoController::class, 'exportar'])
+            ->name('exportar')
+            ->middleware('can:obligaciones.export');
+    });
+
+    // Rutas para obligaciones dentro del contexto de un contrato
+    Route::prefix('contratos/{contrato}/obligaciones')->name('contratos.obligaciones.')->group(function () {
+        Route::get('/arbol', [ObligacionContratoController::class, 'arbol'])
+            ->name('arbol')
+            ->middleware('can:obligaciones.view');
+
+        Route::get('/timeline', [ObligacionContratoController::class, 'timeline'])
+            ->name('timeline')
+            ->middleware('can:obligaciones.view');
     });
 });
 
