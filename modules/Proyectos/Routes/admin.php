@@ -151,6 +151,77 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
             ->middleware('can:contratos.create');
     });
 
+    // Rutas para gestión de obligaciones de contratos
+    Route::prefix('obligaciones')->name('obligaciones.')->group(function () {
+        Route::get('/', [\Modules\Proyectos\Http\Controllers\Admin\ObligacionContratoController::class, 'index'])
+            ->name('index')
+            ->middleware('can:obligaciones.view');
+
+        Route::get('/create', [\Modules\Proyectos\Http\Controllers\Admin\ObligacionContratoController::class, 'create'])
+            ->name('create')
+            ->middleware('can:obligaciones.create');
+
+        Route::post('/', [\Modules\Proyectos\Http\Controllers\Admin\ObligacionContratoController::class, 'store'])
+            ->name('store')
+            ->middleware('can:obligaciones.create');
+
+        Route::get('/{obligacion}', [\Modules\Proyectos\Http\Controllers\Admin\ObligacionContratoController::class, 'show'])
+            ->name('show')
+            ->middleware('can:obligaciones.view');
+
+        Route::get('/{obligacion}/edit', [\Modules\Proyectos\Http\Controllers\Admin\ObligacionContratoController::class, 'edit'])
+            ->name('edit')
+            ->middleware('can:obligaciones.edit');
+
+        Route::put('/{obligacion}', [\Modules\Proyectos\Http\Controllers\Admin\ObligacionContratoController::class, 'update'])
+            ->name('update')
+            ->middleware('can:obligaciones.edit');
+
+        Route::delete('/{obligacion}', [\Modules\Proyectos\Http\Controllers\Admin\ObligacionContratoController::class, 'destroy'])
+            ->name('destroy')
+            ->middleware('can:obligaciones.delete');
+
+        // Acciones adicionales
+        Route::post('/{obligacion}/completar', [\Modules\Proyectos\Http\Controllers\Admin\ObligacionContratoController::class, 'completar'])
+            ->name('completar')
+            ->middleware('can:obligaciones.complete');
+
+        Route::post('/{obligacion}/duplicar', [\Modules\Proyectos\Http\Controllers\Admin\ObligacionContratoController::class, 'duplicar'])
+            ->name('duplicar')
+            ->middleware('can:obligaciones.create');
+
+        Route::post('/{obligacion}/mover', [\Modules\Proyectos\Http\Controllers\Admin\ObligacionContratoController::class, 'mover'])
+            ->name('mover')
+            ->middleware('can:obligaciones.edit');
+
+        Route::post('/reordenar', [\Modules\Proyectos\Http\Controllers\Admin\ObligacionContratoController::class, 'reordenar'])
+            ->name('reordenar')
+            ->middleware('can:obligaciones.edit');
+
+        Route::post('/actualizar-estado-masivo', [\Modules\Proyectos\Http\Controllers\Admin\ObligacionContratoController::class, 'actualizarEstadoMasivo'])
+            ->name('actualizar-estado-masivo')
+            ->middleware('can:obligaciones.edit');
+
+        Route::get('/buscar/autocompletar', [\Modules\Proyectos\Http\Controllers\Admin\ObligacionContratoController::class, 'buscar'])
+            ->name('buscar')
+            ->middleware('can:obligaciones.view');
+
+        Route::get('/exportar', [\Modules\Proyectos\Http\Controllers\Admin\ObligacionContratoController::class, 'exportar'])
+            ->name('exportar')
+            ->middleware('can:obligaciones.export');
+    });
+
+    // Rutas para obligaciones dentro del contexto de un contrato
+    Route::prefix('contratos/{contrato}/obligaciones')->name('contratos.obligaciones.')->group(function () {
+        Route::get('/arbol', [\Modules\Proyectos\Http\Controllers\Admin\ObligacionContratoController::class, 'arbol'])
+            ->name('arbol')
+            ->middleware('can:obligaciones.view');
+
+        Route::get('/timeline', [\Modules\Proyectos\Http\Controllers\Admin\ObligacionContratoController::class, 'timeline'])
+            ->name('timeline')
+            ->middleware('can:obligaciones.view');
+    });
+
     // Ruta para búsqueda de usuarios (DEBE estar ANTES del grupo para evitar conflictos con route model binding)
     Route::get('/proyectos-search-users', [ProyectoController::class, 'searchUsers'])
         ->name('proyectos.search-users')
