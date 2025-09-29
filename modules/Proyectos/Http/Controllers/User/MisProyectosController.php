@@ -125,10 +125,62 @@ class MisProyectosController extends UserController
             'No tienes acceso a este proyecto'
         );
 
-        $proyecto->load(['responsable', 'creador', 'camposPersonalizados.campoPersonalizado', 'etiquetas.categoria']);
+        // Cargar todas las relaciones necesarias para los tabs
+        $proyecto->load([
+            'responsable',
+            'creador',
+            'camposPersonalizados.campoPersonalizado',
+            'etiquetas.categoria',
+            // Usuarios/Participantes del proyecto
+            'participantes' => function ($query) {
+                $query->select('users.id', 'users.name', 'users.email', 'proyecto_usuario.rol')
+                      ->orderBy('users.name');
+            },
+            // Contratos del proyecto
+            'contratos' => function ($query) {
+                $query->with([
+                    'contraparteUser:id,name,email',
+                    'responsable:id,name,email',
+                    'obligaciones' => function ($q) {
+                        $q->with([
+                            'evidencias' => function ($eq) {
+                                $eq->with('usuario:id,name,email')
+                                   ->latest();
+                            }
+                        ])->withCount('evidencias');
+                    }
+                ])->orderBy('fecha_inicio', 'desc');
+            },
+            // Hitos y entregables
+            'hitos' => function ($query) {
+                $query->with([
+                    'responsable:id,name,email',
+                    'entregables' => function ($q) {
+                        $q->with(['responsable:id,name,email', 'usuarios:id,name,email'])
+                          ->orderBy('orden');
+                    }
+                ])->orderBy('orden');
+            }
+        ]);
+
+        // Contar totales para mostrar badges en los tabs
+        $totalUsuarios = $proyecto->participantes->count() + 1; // +1 por el responsable
+        $totalContratos = $proyecto->contratos->count();
+        $totalHitos = $proyecto->hitos->count();
+
+        // Contar evidencias totales a través de contratos->obligaciones->evidencias
+        $totalEvidencias = $proyecto->contratos->sum(function ($contrato) {
+            return $contrato->obligaciones->sum('evidencias_count');
+        });
 
         return Inertia::render('Modules/Proyectos/User/MisProyectos/Show', [
             'proyecto' => $proyecto,
+            'totales' => [
+                'usuarios' => $totalUsuarios,
+                'contratos' => $totalContratos,
+                'evidencias' => $totalEvidencias,
+                'hitos' => $totalHitos,
+            ],
             'canEdit' => auth()->user()->can('proyectos.edit_own') &&
                         ($proyecto->responsable_id === auth()->id() || $proyecto->created_by === auth()->id()),
             'canDelete' => auth()->user()->can('proyectos.delete_own') &&

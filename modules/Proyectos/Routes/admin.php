@@ -138,6 +138,13 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
         Route::post('/{contrato}/duplicar', [ContratoController::class, 'duplicar'])
             ->name('duplicar')
             ->middleware('can:contratos.create');
+
+        // Rutas anidadas para evidencias (solo lectura)
+        Route::prefix('{contrato}/evidencias')->name('evidencias.')->group(function () {
+            Route::get('/{evidencia}', [\Modules\Proyectos\Http\Controllers\Admin\EvidenciaController::class, 'show'])
+                ->name('show')
+                ->middleware('can:evidencias.view');
+        });
     });
 
     // Rutas para contratos dentro del contexto de un proyecto
