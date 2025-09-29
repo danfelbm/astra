@@ -16,7 +16,7 @@ interface UploadProgress {
 }
 
 interface UploadOptions {
-    module: 'votaciones' | 'convocatorias' | 'postulaciones' | 'candidaturas' | 'user-updates';
+    module: 'votaciones' | 'convocatorias' | 'postulaciones' | 'candidaturas' | 'user-updates' | 'evidencias';
     fieldId: string;
     onProgress?: (fileName: string, progress: number) => void;
     onSuccess?: (files: UploadedFile[]) => void;
@@ -45,18 +45,18 @@ export function useFileUpload() {
     const uploadFiles = async (files: File[], options: UploadOptions): Promise<UploadedFile[]> => {
         isUploading.value = true;
         uploadErrors.value.clear();
-        
+
         const formData = new FormData();
-        
+
         // Agregar archivos al FormData
         files.forEach(file => {
             formData.append('files[]', file);
         });
-        
+
         // Agregar metadata
         formData.append('module', options.module);
         formData.append('field_id', options.fieldId);
-        
+
         try {
             const response = await axios.post(`${getApiPrefix()}/api/files/upload`, formData, {
                 headers: {
@@ -65,7 +65,7 @@ export function useFileUpload() {
                 onUploadProgress: (progressEvent) => {
                     if (progressEvent.total) {
                         const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-                        
+
                         // Actualizar progreso para cada archivo
                         files.forEach(file => {
                             uploadProgress.value[file.name] = percentCompleted;
@@ -76,7 +76,7 @@ export function useFileUpload() {
                     }
                 },
             });
-            
+
             if (response.data.success) {
                 if (options.onSuccess) {
                     options.onSuccess(response.data.files);
@@ -87,15 +87,15 @@ export function useFileUpload() {
             }
         } catch (error: any) {
             const errorMessage = error.response?.data?.message || error.message || 'Error desconocido al subir archivos';
-            
+
             files.forEach(file => {
                 uploadErrors.value.set(file.name, errorMessage);
             });
-            
+
             if (options.onError) {
                 options.onError(error);
             }
-            
+
             throw error;
         } finally {
             isUploading.value = false;

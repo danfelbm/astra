@@ -21,7 +21,11 @@ import {
     CheckCircle,
     XCircle,
     Info,
-    Briefcase
+    Briefcase,
+    Upload,
+    Camera,
+    ClipboardList,
+    Eye
 } from 'lucide-vue-next';
 import type { Contrato, ValorCampoPersonalizadoContrato } from '@modules/Proyectos/Resources/js/types/contratos';
 
@@ -32,15 +36,37 @@ const props = defineProps<{
             id: number;
             nombre: string;
             estado: string;
+            hitos?: any[];
         };
         responsable?: {
             id: number;
             name: string;
             email: string;
         };
+        obligaciones?: Array<{
+            id: number;
+            nombre: string;
+            descripcion?: string;
+            fecha_vencimiento?: string;
+            estado: string;
+            evidencias?: Array<{
+                id: number;
+                tipo_evidencia: string;
+                descripcion?: string;
+                estado: string;
+                created_at: string;
+            }>;
+        }>;
         campos_personalizados?: ValorCampoPersonalizadoContrato[];
     };
     authPermissions: string[];
+    puedeSubirEvidencias?: boolean;
+    entregablesDisponibles?: Array<{
+        id: number;
+        nombre: string;
+        hito: string;
+        estado: string;
+    }>;
 }>();
 
 // Breadcrumbs para navegación
@@ -175,6 +201,10 @@ const formatCurrency = (amount: number) => {
                 <TabsTrigger value="general">Información General</TabsTrigger>
                 <TabsTrigger value="partes">Partes Involucradas</TabsTrigger>
                 <TabsTrigger value="financiera">Información Financiera</TabsTrigger>
+                <TabsTrigger value="obligaciones" v-if="contrato.obligaciones?.length > 0">
+                    <ClipboardList class="w-4 h-4 mr-2" />
+                    Obligaciones y Evidencias
+                </TabsTrigger>
                 <TabsTrigger value="campos" v-if="contrato.campos_personalizados?.length > 0">
                     Campos Adicionales
                 </TabsTrigger>
@@ -408,6 +438,115 @@ const formatCurrency = (amount: number) => {
                                     {{ campo.valor || '-' }}
                                 </p>
                             </div>
+                        </div>
+                    </CardContent>
+                </Card>
+            </TabsContent>
+
+            <!-- Tab: Obligaciones y Evidencias -->
+            <TabsContent value="obligaciones" v-if="contrato.obligaciones?.length > 0">
+                <Card>
+                    <CardHeader>
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <CardTitle>Obligaciones y Evidencias</CardTitle>
+                                <CardDescription>
+                                    Gestione las evidencias de cumplimiento de sus obligaciones contractuales
+                                </CardDescription>
+                            </div>
+                            <Button
+                                v-if="puedeSubirEvidencias"
+                                :href="route('user.mis-contratos.evidencias.create', contrato.id)"
+                                :as="Link"
+                                class="gap-2"
+                            >
+                                <Upload class="w-4 h-4" />
+                                Subir Evidencias
+                            </Button>
+                        </div>
+                    </CardHeader>
+                    <CardContent class="space-y-4">
+                        <div
+                            v-for="obligacion in contrato.obligaciones"
+                            :key="obligacion.id"
+                            class="border rounded-lg p-4"
+                        >
+                            <div class="flex items-start justify-between mb-3">
+                                <div class="flex-1">
+                                    <h4 class="font-semibold">{{ obligacion.nombre }}</h4>
+                                    <p v-if="obligacion.descripcion" class="text-sm text-muted-foreground mt-1">
+                                        {{ obligacion.descripcion }}
+                                    </p>
+                                    <div v-if="obligacion.fecha_vencimiento" class="flex items-center gap-2 mt-2">
+                                        <Calendar class="w-4 h-4 text-muted-foreground" />
+                                        <span class="text-sm text-muted-foreground">
+                                            Vence: {{ formatDate(obligacion.fecha_vencimiento) }}
+                                        </span>
+                                    </div>
+                                </div>
+                                <Badge
+                                    :variant="obligacion.estado === 'cumplida' ? 'success' :
+                                            obligacion.estado === 'pendiente' ? 'warning' : 'secondary'"
+                                >
+                                    {{ obligacion.estado }}
+                                </Badge>
+                            </div>
+
+                            <!-- Evidencias de la obligación -->
+                            <div v-if="obligacion.evidencias?.length > 0" class="mt-3 pt-3 border-t">
+                                <p class="text-sm font-medium mb-2">Evidencias enviadas:</p>
+                                <div class="space-y-2">
+                                    <div
+                                        v-for="evidencia in obligacion.evidencias"
+                                        :key="evidencia.id"
+                                        class="flex items-center justify-between bg-muted/30 rounded px-3 py-2"
+                                    >
+                                        <div class="flex items-center gap-2">
+                                            <Camera v-if="evidencia.tipo_evidencia === 'imagen'" class="w-4 h-4 text-muted-foreground" />
+                                            <FileText v-else class="w-4 h-4 text-muted-foreground" />
+                                            <div>
+                                                <p class="text-sm">{{ evidencia.descripcion || 'Sin descripción' }}</p>
+                                                <p class="text-xs text-muted-foreground">
+                                                    {{ new Date(evidencia.created_at).toLocaleDateString('es-ES') }}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <Badge
+                                            :variant="evidencia.estado === 'aprobada' ? 'success' :
+                                                    evidencia.estado === 'rechazada' ? 'destructive' : 'secondary'"
+                                            class="text-xs"
+                                        >
+                                            {{ evidencia.estado }}
+                                        </Badge>
+                                    </div>
+                                </div>
+                            </div>
+                            <div v-else class="mt-3 pt-3 border-t">
+                                <p class="text-sm text-muted-foreground italic">
+                                    No hay evidencias registradas para esta obligación
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Si no hay obligaciones -->
+                        <div v-if="!contrato.obligaciones?.length" class="text-center py-8">
+                            <ClipboardList class="w-12 h-12 mx-auto text-muted-foreground mb-3" />
+                            <p class="text-muted-foreground">
+                                No hay obligaciones registradas para este contrato
+                            </p>
+                        </div>
+
+                        <!-- Botón adicional al final -->
+                        <div v-if="contrato.obligaciones?.length > 0 && puedeSubirEvidencias" class="pt-4 border-t flex justify-center">
+                            <Button
+                                :href="route('user.mis-contratos.evidencias.index', contrato.id)"
+                                :as="Link"
+                                variant="outline"
+                                class="gap-2"
+                            >
+                                <Eye class="w-4 h-4" />
+                                Ver Todas las Evidencias
+                            </Button>
                         </div>
                     </CardContent>
                 </Card>

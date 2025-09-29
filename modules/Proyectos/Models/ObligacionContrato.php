@@ -193,6 +193,22 @@ class ObligacionContrato extends Model
         return $this->belongsTo(User::class, 'updated_by');
     }
 
+    /**
+     * Obtiene las evidencias asociadas a la obligación.
+     */
+    public function evidencias(): HasMany
+    {
+        return $this->hasMany(Evidencia::class, 'obligacion_id');
+    }
+
+    /**
+     * Obtiene las evidencias aprobadas de la obligación.
+     */
+    public function evidenciasAprobadas(): HasMany
+    {
+        return $this->hasMany(Evidencia::class, 'obligacion_id')->where('estado', 'aprobada');
+    }
+
     // Métodos de estado y prioridad eliminados - campos deprecados
 
     /**

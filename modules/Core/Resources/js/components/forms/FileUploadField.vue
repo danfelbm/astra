@@ -106,8 +106,25 @@ const triggerFileInput = () => {
 
 
 const isValidFileType = (file: File): boolean => {
+    // Si accept incluye un tipo MIME genérico (ej: image/*, video/*, audio/*)
+    if (props.accept.includes('/*')) {
+        const acceptedTypes = props.accept.split(',').map(type => type.trim());
+
+        for (const acceptType of acceptedTypes) {
+            if (acceptType.includes('/*')) {
+                const baseType = acceptType.replace('/*', '');
+                if (file.type.startsWith(baseType + '/')) {
+                    return true;
+                }
+            }
+        }
+    }
+
+    // Validación por extensión (comportamiento original)
     const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
-    return acceptedExtensions.value.some(ext => ext === fileExtension);
+    const isValid = acceptedExtensions.value.some(ext => ext === fileExtension);
+
+    return isValid;
 };
 
 const isValidFileSize = (file: File): boolean => {
@@ -118,35 +135,35 @@ const isValidFileSize = (file: File): boolean => {
 const handleFileSelect = async (event: Event) => {
     const target = event.target as HTMLInputElement;
     const files = Array.from(target.files || []);
-    
+
     // Resetear errores
     uploadErrors.value.clear();
-    
+
     // Validar y filtrar archivos
     const validFiles: File[] = [];
-    
+
     files.forEach(file => {
         // Validar tipo de archivo
         if (!isValidFileType(file)) {
             uploadErrors.value.set(file.name, `Tipo de archivo no permitido. Solo se permiten: ${props.accept}`);
             return;
         }
-        
+
         // Validar tamaño
         if (!isValidFileSize(file)) {
             uploadErrors.value.set(file.name, `El archivo excede el tamaño máximo de ${props.maxFileSize}MB`);
             return;
         }
-        
+
         // Validar cantidad de archivos
         const totalFiles = existingFiles.value.length + validFiles.length;
         if (props.multiple && totalFiles >= props.maxFiles) {
             uploadErrors.value.set(file.name, `Se ha alcanzado el límite de ${props.maxFiles} archivos`);
             return;
         }
-        
+
         validFiles.push(file);
-        
+
         // Crear preview para imágenes
         if (file.type.startsWith('image/') && props.showPreview) {
             const reader = new FileReader();
@@ -156,17 +173,17 @@ const handleFileSelect = async (event: Event) => {
             reader.readAsDataURL(file);
         }
     });
-    
+
     if (props.multiple) {
         selectedFiles.value = [...selectedFiles.value, ...validFiles];
     } else {
         selectedFiles.value = validFiles.slice(0, 1);
     }
-    
+
     // Emitir evento con los archivos seleccionados
     if (validFiles.length > 0) {
         emit('filesSelected', validFiles);
-        
+
         // Si está habilitada la carga automática, subir los archivos
         if (props.autoUpload && props.module && props.fieldId) {
             try {
