@@ -95,20 +95,49 @@ class ProyectoController extends AdminController
         // Verificar permisos
         abort_unless(auth()->user()->can('proyectos.view'), 403, 'No tienes permisos para ver este proyecto');
 
+        // Cargar todas las relaciones necesarias para los tabs
         $proyecto->load([
             'responsable',
             'creador',
             'camposPersonalizados.campoPersonalizado',
             'etiquetas.categoria', // Cargar etiquetas con sus categorías
-            'contratos' => function ($query) {
-                $query->orderBy('fecha_inicio', 'desc');
+            // Usuarios/Participantes del proyecto
+            'participantes' => function ($query) {
+                $query->select('users.id', 'users.name', 'users.email', 'proyecto_usuario.rol')
+                      ->orderBy('users.name');
             },
+            // Contratos del proyecto con obligaciones y evidencias
+            'contratos' => function ($query) {
+                $query->with([
+                    'contraparteUser:id,name,email',
+                    'responsable:id,name,email',
+                    'obligaciones' => function ($q) {
+                        $q->with([
+                            'evidencias' => function ($eq) {
+                                $eq->with('usuario:id,name,email')
+                                   ->latest();
+                            }
+                        ])->withCount('evidencias');
+                    }
+                ])->orderBy('fecha_inicio', 'desc');
+            },
+            // Hitos y entregables
             'hitos' => function ($query) {
                 $query->with(['responsable', 'entregables' => function ($q) {
                     $q->with(['responsable', 'usuarios'])->orderBy('orden');
                 }])->orderBy('orden');
             }
         ]);
+
+        // Contar totales para mostrar badges en los tabs
+        $totalUsuarios = $proyecto->participantes->count() + 1; // +1 por el responsable
+        $totalContratos = $proyecto->contratos->count();
+        $totalHitos = $proyecto->hitos->count();
+
+        // Contar evidencias totales a través de contratos->obligaciones->evidencias
+        $totalEvidencias = $proyecto->contratos->sum(function ($contrato) {
+            return $contrato->obligaciones->sum('evidencias_count');
+        });
 
         // Cargar categorías disponibles si el usuario puede gestionar etiquetas
         $categorias = auth()->user()->can('proyectos.manage_tags')
@@ -121,6 +150,12 @@ class ProyectoController extends AdminController
         return Inertia::render('Modules/Proyectos/Admin/Proyectos/Show', [
             'proyecto' => $proyecto,
             'categorias' => $categorias,
+            'totales' => [
+                'usuarios' => $totalUsuarios,
+                'contratos' => $totalContratos,
+                'evidencias' => $totalEvidencias,
+                'hitos' => $totalHitos,
+            ],
             'canEdit' => auth()->user()->can('proyectos.edit'),
             'canDelete' => auth()->user()->can('proyectos.delete'),
             'canManageTags' => auth()->user()->can('proyectos.manage_tags'),

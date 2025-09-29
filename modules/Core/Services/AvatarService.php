@@ -133,29 +133,36 @@ class AvatarService
      */
     protected function generateUIAvatarUrl(User $user): string
     {
-        $name = urlencode($user->name);
-        $backgroundColor = $this->hashStringToColor($user->email);
-        
+        $name = urlencode($user->name ?? 'Usuario');
+        // Usar email si existe, sino usar el name, y si tampoco existe usar un string por defecto
+        $stringForColor = $user->email ?? $user->name ?? 'default-user-' . ($user->id ?? '0');
+        $backgroundColor = $this->hashStringToColor($stringForColor);
+
         return "https://ui-avatars.com/api/?name={$name}&background={$backgroundColor}&color=fff&size=256&bold=true&format=svg";
     }
     
     /**
      * Generar color determinístico desde string
      *
-     * @param string $str
+     * @param string|null $str
      * @return string Color hexadecimal sin #
      */
-    protected function hashStringToColor(string $str): string
+    protected function hashStringToColor(?string $str): string
     {
+        // Si el string es null o vacío, usar un valor por defecto
+        if (empty($str)) {
+            $str = 'default-color';
+        }
+
         $hash = 0;
         for ($i = 0; $i < strlen($str); $i++) {
             $hash = ord($str[$i]) + (($hash << 5) - $hash);
         }
-        
+
         $hue = abs($hash % 360);
         $saturation = 70;
         $lightness = 45;
-        
+
         return $this->hslToHex($hue, $saturation, $lightness);
     }
     
