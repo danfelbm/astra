@@ -80,8 +80,74 @@ const cancelConfig = () => {
     showConfigForm.value = false;
 };
 
+// Función helper para limpiar configuraciones no necesarias según el tipo de campo
+const cleanFieldConfig = (field: FormField): FormField => {
+    const cleanedField: FormField = {
+        id: field.id,
+        type: field.type,
+        title: field.title,
+        description: field.description,
+        required: field.required,
+        editable: field.editable,
+    };
+
+    // Solo incluir las opciones si el campo las necesita
+    if (['select', 'radio', 'checkbox'].includes(field.type) && field.options) {
+        cleanedField.options = field.options;
+    }
+
+    // Solo incluir configuraciones específicas según el tipo
+    switch(field.type) {
+        case 'disclaimer':
+            if (field.disclaimerConfig) {
+                cleanedField.disclaimerConfig = field.disclaimerConfig;
+            }
+            break;
+        case 'file':
+            if (field.fileConfig) {
+                cleanedField.fileConfig = field.fileConfig;
+            }
+            break;
+        case 'datepicker':
+            if (field.datepickerConfig) {
+                cleanedField.datepickerConfig = field.datepickerConfig;
+            }
+            break;
+        case 'number':
+            if (field.numberConfig) {
+                cleanedField.numberConfig = field.numberConfig;
+            }
+            break;
+        case 'repeater':
+            if (field.repeaterConfig) {
+                cleanedField.repeaterConfig = field.repeaterConfig;
+            }
+            break;
+        case 'convocatoria':
+            if (field.convocatoriaConfig) {
+                cleanedField.convocatoriaConfig = field.convocatoriaConfig;
+            }
+            break;
+    }
+
+    // Incluir configuración condicional si está habilitada
+    if (field.conditionalConfig?.enabled) {
+        cleanedField.conditionalConfig = field.conditionalConfig;
+    }
+
+    return cleanedField;
+};
+
 const saveConfig = () => {
-    form.post('/admin/candidaturas/configuracion', {
+    // Limpiar los campos antes de enviarlos
+    const cleanedCampos = form.campos.map(cleanFieldConfig);
+
+    // Crear un formulario temporal con los campos limpios
+    const cleanForm = useForm({
+        campos: cleanedCampos
+    });
+
+    cleanForm.post('/admin/candidaturas/configuracion', {
         onSuccess: () => {
             showConfigForm.value = false;
         },
