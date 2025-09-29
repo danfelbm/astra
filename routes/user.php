@@ -252,6 +252,41 @@ Route::middleware(['auth', 'verified', 'user'])->prefix('miembro')->name('user.'
         Route::get('/{contrato}/descargar-pdf', [MisContratosController::class, 'descargarPDF'])
             ->name('descargar-pdf')
             ->middleware('can:contratos.view_own');
+
+        // Rutas para evidencias
+        Route::prefix('{contrato}/evidencias')->name('evidencias.')->group(function () {
+            Route::get('/', [\Modules\Proyectos\Http\Controllers\User\EvidenciaController::class, 'index'])
+                ->name('index')
+                ->middleware('can:evidencias.view_own');
+
+            Route::get('/create', [\Modules\Proyectos\Http\Controllers\User\EvidenciaController::class, 'create'])
+                ->name('create')
+                ->middleware('can:evidencias.create_own');
+
+            Route::post('/', [\Modules\Proyectos\Http\Controllers\User\EvidenciaController::class, 'store'])
+                ->name('store')
+                ->middleware('can:evidencias.create_own');
+
+            Route::get('/{evidencia}', [\Modules\Proyectos\Http\Controllers\User\EvidenciaController::class, 'show'])
+                ->name('show')
+                ->middleware('can:evidencias.view_own');
+
+            Route::get('/{evidencia}/edit', [\Modules\Proyectos\Http\Controllers\User\EvidenciaController::class, 'edit'])
+                ->name('edit')
+                ->middleware('can:evidencias.edit_own');
+
+            Route::put('/{evidencia}', [\Modules\Proyectos\Http\Controllers\User\EvidenciaController::class, 'update'])
+                ->name('update')
+                ->middleware('can:evidencias.edit_own');
+
+            Route::delete('/{evidencia}', [\Modules\Proyectos\Http\Controllers\User\EvidenciaController::class, 'destroy'])
+                ->name('destroy')
+                ->middleware('can:evidencias.delete_own');
+
+            // Autoguardado
+            Route::post('/autosave', [\Modules\Proyectos\Http\Controllers\User\EvidenciaController::class, 'autosave'])
+                ->name('autosave');
+        });
     });
 
     // Rutas para Mis Obligaciones

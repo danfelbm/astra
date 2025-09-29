@@ -47,6 +47,12 @@ class ProyectosServiceProvider extends ServiceProvider
         $this->app->singleton('campos-personalizados.service', function ($app) {
             return new \Modules\Proyectos\Services\CampoPersonalizadoService();
         });
+
+        $this->app->singleton('evidencias.service', function ($app) {
+            return new \Modules\Proyectos\Services\EvidenciaService(
+                new \Modules\Proyectos\Repositories\EvidenciaRepository()
+            );
+        });
     }
 
     /**
@@ -58,7 +64,8 @@ class ProyectosServiceProvider extends ServiceProvider
     {
         return [
             'proyectos.service',
-            'campos-personalizados.service'
+            'campos-personalizados.service',
+            'evidencias.service'
         ];
     }
 }

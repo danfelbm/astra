@@ -152,6 +152,25 @@ class Entregable extends Model
     }
 
     /**
+     * Obtiene las evidencias asociadas al entregable.
+     */
+    public function evidencias(): BelongsToMany
+    {
+        return $this->belongsToMany(Evidencia::class, 'evidencia_entregable')
+                    ->withTimestamps();
+    }
+
+    /**
+     * Obtiene las evidencias aprobadas del entregable.
+     */
+    public function evidenciasAprobadas(): BelongsToMany
+    {
+        return $this->belongsToMany(Evidencia::class, 'evidencia_entregable')
+                    ->wherePivot('estado', 'aprobada')
+                    ->withTimestamps();
+    }
+
+    /**
      * Obtiene la etiqueta del estado.
      */
     public function getEstadoLabelAttribute(): string

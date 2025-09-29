@@ -118,8 +118,15 @@ class MisContratosController extends UserController
         // Cargar relaciones necesarias
         $contrato->load([
             'proyecto',
+            'proyecto.hitos.entregables',
             'responsable',
             'contraparteUser',
+            'obligaciones' => function($query) use ($user) {
+                $query->with(['evidencias' => function($q) use ($user) {
+                    $q->where('user_id', $user->id)
+                      ->latest();
+                }]);
+            },
             'camposPersonalizados.campoPersonalizado'
         ]);
 
@@ -138,9 +145,26 @@ class MisContratosController extends UserController
 
         $contrato->campos_personalizados = $camposPersonalizados;
 
+        // Preparar entregables del proyecto para el formulario de evidencias
+        $entregablesDisponibles = [];
+        if ($contrato->proyecto && $contrato->proyecto->hitos) {
+            foreach ($contrato->proyecto->hitos as $hito) {
+                foreach ($hito->entregables as $entregable) {
+                    $entregablesDisponibles[] = [
+                        'id' => $entregable->id,
+                        'nombre' => $entregable->nombre,
+                        'hito' => $hito->nombre,
+                        'estado' => $entregable->estado
+                    ];
+                }
+            }
+        }
+
         return Inertia::render('Modules/Proyectos/User/MisContratos/Show', [
             'contrato' => $contrato,
             'puedeEditar' => $this->puedeEditarContrato($contrato, $user),
+            'entregablesDisponibles' => $entregablesDisponibles,
+            'puedeSubirEvidencias' => auth()->user()->can('evidencias.create_own'),
             'authPermissions' => auth()->user()->getAllPermissions()->pluck('name')->toArray(),
         ]);
     }
