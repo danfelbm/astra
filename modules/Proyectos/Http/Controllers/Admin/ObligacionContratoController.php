@@ -148,6 +148,16 @@ class ObligacionContratoController extends AdminController
 
         $obligacion = $this->repository->findWithRelations($obligacion->id);
 
+        // Cargar evidencias con sus relaciones
+        $obligacion->load([
+            'evidencias' => function ($query) {
+                $query->with([
+                    'usuario:id,name,email',
+                    'entregables'
+                ]);
+            }
+        ]);
+
         return Inertia::render('Modules/Proyectos/Admin/Obligaciones/Show', [
             'obligacion' => $obligacion,
             'contrato' => $obligacion->contrato->load('proyecto'),

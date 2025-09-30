@@ -155,7 +155,14 @@ class EntregableController extends AdminController
                 $query->select('users.id', 'users.name', 'users.email')
                       ->withPivot('rol');
             },
-            'completadoPor:id,name,email'
+            'completadoPor:id,name,email',
+            'evidencias' => function ($query) {
+                $query->with([
+                    'usuario:id,name,email',
+                    'obligacion:id,titulo,contrato_id',
+                    'obligacion.contrato'
+                ]);
+            }
         ]);
 
         // Preparar usuarios asignados para el frontend

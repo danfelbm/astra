@@ -9,6 +9,9 @@ import { Progress } from '@modules/Core/Resources/js/components/ui/progress';
 import { Avatar, AvatarFallback, AvatarImage } from '@modules/Core/Resources/js/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@modules/Core/Resources/js/components/ui/tabs';
 import { Alert, AlertDescription, AlertTitle } from '@modules/Core/Resources/js/components/ui/alert';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@modules/Core/Resources/js/components/ui/table';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@modules/Core/Resources/js/components/ui/accordion';
+import EvidenciaFilters from '@modules/Proyectos/Resources/js/components/EvidenciaFilters.vue';
 import {
   ArrowLeft,
   Edit,
@@ -22,7 +25,10 @@ import {
   FileText,
   Users,
   Target,
-  Activity
+  Activity,
+  Image,
+  ExternalLink,
+  Download
 } from 'lucide-vue-next';
 import { format, parseISO, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -53,6 +59,25 @@ interface UsuarioAsignado {
   created_at: string;
 }
 
+interface Evidencia {
+  id: number;
+  tipo_evidencia: string;
+  descripcion?: string;
+  archivo_url?: string;
+  estado: string;
+  created_at: string;
+  usuario?: Usuario;
+  obligacion?: {
+    id: number;
+    titulo: string;
+    contrato_id: number;
+    contrato?: {
+      id: number;
+      nombre: string;
+    };
+  };
+}
+
 interface Props {
   proyecto: {
     id: number;
@@ -80,6 +105,7 @@ interface Props {
     notas?: string;
     created_at: string;
     updated_at: string;
+    evidencias?: Evidencia[];
   };
   usuariosAsignados?: UsuarioAsignado[];
   actividades?: Actividad[];
@@ -95,6 +121,16 @@ const actividades = computed(() => props.actividades || []);
 
 // Estado para el tab activo
 const activeTab = ref('detalles');
+
+// Estado para filtros de evidencias
+const filtrosEvidencias = ref({
+  contrato_id: null as number | null,
+  fecha_inicio: null as string | null,
+  fecha_fin: null as string | null,
+  tipo: null as string | null,
+  estado: null as string | null,
+  usuario_id: null as number | null
+});
 
 // Breadcrumbs
 const breadcrumbs: BreadcrumbItem[] = [
@@ -162,6 +198,95 @@ const formatDate = (date: string | null | undefined) => {
 const formatDateTime = (date: string) => {
   return format(parseISO(date), "d MMM yyyy 'a las' HH:mm", { locale: es });
 };
+
+// Computed para evidencias
+const evidenciasDelEntregable = computed(() => {
+  return props.entregable.evidencias || [];
+});
+
+// Extraer contratos únicos de las evidencias
+const contratosRelacionados = computed(() => {
+  const contratosMap = new Map();
+  evidenciasDelEntregable.value.forEach(evidencia => {
+    if (evidencia.obligacion?.contrato) {
+      const contrato = evidencia.obligacion.contrato;
+      if (!contratosMap.has(contrato.id)) {
+        contratosMap.set(contrato.id, {
+          id: contrato.id,
+          nombre: contrato.nombre
+        });
+      }
+    }
+  });
+  return Array.from(contratosMap.values());
+});
+
+// Evidencias filtradas
+const evidenciasFiltradas = computed(() => {
+  let result = evidenciasDelEntregable.value;
+
+  // Filtrar por contrato
+  if (filtrosEvidencias.value.contrato_id) {
+    result = result.filter(e => e.obligacion?.contrato_id === filtrosEvidencias.value.contrato_id);
+  }
+
+  // Filtrar por tipo
+  if (filtrosEvidencias.value.tipo) {
+    result = result.filter(e => e.tipo_evidencia === filtrosEvidencias.value.tipo);
+  }
+
+  // Filtrar por estado
+  if (filtrosEvidencias.value.estado) {
+    result = result.filter(e => e.estado === filtrosEvidencias.value.estado);
+  }
+
+  // Filtrar por usuario
+  if (filtrosEvidencias.value.usuario_id) {
+    result = result.filter(e => e.usuario?.id === filtrosEvidencias.value.usuario_id);
+  }
+
+  // Filtrar por rango de fechas
+  if (filtrosEvidencias.value.fecha_inicio || filtrosEvidencias.value.fecha_fin) {
+    result = result.filter(e => {
+      const fecha = new Date(e.created_at);
+      if (filtrosEvidencias.value.fecha_inicio) {
+        const fechaInicio = new Date(filtrosEvidencias.value.fecha_inicio);
+        if (fecha < fechaInicio) return false;
+      }
+      if (filtrosEvidencias.value.fecha_fin) {
+        const fechaFin = new Date(filtrosEvidencias.value.fecha_fin);
+        fechaFin.setHours(23, 59, 59, 999);
+        if (fecha > fechaFin) return false;
+      }
+      return true;
+    });
+  }
+
+  return result;
+});
+
+// Evidencias agrupadas por contrato (para el Accordion)
+const evidenciasAgrupadasPorContrato = computed(() => {
+  const grupos: Record<number, any> = {};
+
+  evidenciasFiltradas.value.forEach(evidencia => {
+    if (evidencia.obligacion?.contrato) {
+      const contratoId = evidencia.obligacion.contrato.id;
+      if (!grupos[contratoId]) {
+        grupos[contratoId] = {
+          contrato: evidencia.obligacion.contrato,
+          evidencias: []
+        };
+      }
+      grupos[contratoId].evidencias.push({
+        ...evidencia,
+        obligacion_titulo: evidencia.obligacion.titulo
+      });
+    }
+  });
+
+  return Object.values(grupos);
+});
 
 // Helper para obtener route
 const { route } = window as any;
@@ -271,6 +396,13 @@ const { route } = window as any;
           <TabsTrigger value="equipo">
             <Users class="h-4 w-4 mr-2" />
             Equipo
+          </TabsTrigger>
+          <TabsTrigger value="evidencias">
+            <Image class="h-4 w-4 mr-2" />
+            Evidencias
+            <Badge v-if="evidenciasDelEntregable.length > 0" class="ml-2 h-5 px-1.5" variant="secondary">
+              {{ evidenciasDelEntregable.length }}
+            </Badge>
           </TabsTrigger>
           <TabsTrigger value="actividad">
             <Activity class="h-4 w-4 mr-2" />
@@ -391,6 +523,141 @@ const { route } = window as any;
                 </div>
               </div>
               <p v-else class="text-muted-foreground">No hay colaboradores asignados</p>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <!-- Tab Evidencias -->
+        <TabsContent value="evidencias" class="space-y-4 mt-6">
+          <!-- Filtros de evidencias -->
+          <EvidenciaFilters
+            v-if="evidenciasDelEntregable.length > 0"
+            v-model="filtrosEvidencias"
+            :contratos="contratosRelacionados"
+            :evidencias="evidenciasDelEntregable"
+          />
+
+          <!-- Evidencias agrupadas por contrato -->
+          <div v-if="evidenciasAgrupadasPorContrato.length > 0">
+            <Accordion type="multiple" class="space-y-4" collapsible>
+              <AccordionItem
+                v-for="grupo in evidenciasAgrupadasPorContrato"
+                :key="grupo.contrato.id"
+                :value="`contrato-${grupo.contrato.id}`"
+                class="border rounded-lg bg-card"
+              >
+                <AccordionTrigger class="px-4 py-3 hover:no-underline hover:bg-gray-50 dark:hover:bg-gray-800 rounded-t-lg">
+                  <div class="flex items-center justify-between w-full pr-4">
+                    <div class="flex items-center gap-3">
+                      <FileText class="h-5 w-5 text-gray-500" />
+                      <div class="text-left">
+                        <div class="font-semibold">
+                          {{ grupo.contrato.nombre }}
+                        </div>
+                        <div class="text-sm text-gray-500">
+                          Contrato #{{ grupo.contrato.id }}
+                        </div>
+                      </div>
+                    </div>
+                    <div class="flex items-center gap-3">
+                      <Badge variant="secondary">
+                        {{ grupo.evidencias.length }} evidencia(s)
+                      </Badge>
+                      <Link
+                        :href="`/admin/contratos/${grupo.contrato.id}`"
+                        @click.stop
+                        class="text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                      >
+                        Ver contrato
+                        <ExternalLink class="h-3 w-3" />
+                      </Link>
+                    </div>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent class="px-4 pb-4">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Tipo</TableHead>
+                        <TableHead>Obligación</TableHead>
+                        <TableHead>Descripción</TableHead>
+                        <TableHead>Usuario</TableHead>
+                        <TableHead>Estado</TableHead>
+                        <TableHead>Fecha</TableHead>
+                        <TableHead class="text-right">Acciones</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      <TableRow
+                        v-for="evidencia in grupo.evidencias"
+                        :key="evidencia.id"
+                        class="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
+                      >
+                        <Link
+                          :href="`/admin/contratos/${grupo.contrato.id}/evidencias/${evidencia.id}`"
+                          class="contents"
+                        >
+                          <TableCell>
+                            <Badge variant="outline">{{ evidencia.tipo_evidencia }}</Badge>
+                          </TableCell>
+                          <TableCell>{{ evidencia.obligacion_titulo }}</TableCell>
+                          <TableCell>
+                            <span class="text-sm text-gray-600">{{ evidencia.descripcion || '-' }}</span>
+                          </TableCell>
+                          <TableCell>
+                            <span class="text-sm">{{ evidencia.usuario?.name || '-' }}</span>
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              :class="{
+                                'bg-yellow-100 text-yellow-800': evidencia.estado === 'pendiente',
+                                'bg-green-100 text-green-800': evidencia.estado === 'aprobada',
+                                'bg-red-100 text-red-800': evidencia.estado === 'rechazada'
+                              }"
+                            >
+                              {{ evidencia.estado }}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>{{ formatDate(evidencia.created_at) }}</TableCell>
+                          <TableCell class="text-right">
+                            <a
+                              v-if="evidencia.archivo_url"
+                              :href="evidencia.archivo_url"
+                              target="_blank"
+                              class="inline-flex items-center text-blue-600 hover:text-blue-800"
+                              @click.stop
+                            >
+                              <Download class="h-4 w-4" />
+                            </a>
+                          </TableCell>
+                        </Link>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          </div>
+
+          <!-- Estado vacío -->
+          <Card v-else-if="evidenciasDelEntregable.length === 0">
+            <CardContent class="py-8">
+              <div class="text-center">
+                <Image class="mx-auto h-12 w-12 text-gray-400" />
+                <p class="mt-2 text-sm text-gray-600">No hay evidencias asociadas</p>
+                <p class="text-xs text-gray-500 mt-1">Las evidencias se asocian desde los contratos</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <!-- Sin resultados después de filtrar -->
+          <Card v-else>
+            <CardContent class="py-8">
+              <div class="text-center">
+                <Image class="mx-auto h-12 w-12 text-gray-400" />
+                <p class="mt-2 text-sm text-gray-600">No hay evidencias que coincidan con los filtros</p>
+                <p class="text-xs text-gray-500 mt-1">Intenta ajustar los criterios de búsqueda</p>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

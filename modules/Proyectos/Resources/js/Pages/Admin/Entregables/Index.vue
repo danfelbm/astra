@@ -446,64 +446,73 @@ const estadisticasGenerales = computed(() => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            <TableRow v-for="entregable in entregablesConInfo" :key="entregable.id">
-              <TableCell>
+            <TableRow
+              v-for="entregable in entregablesConInfo"
+              :key="entregable.id"
+              class="cursor-pointer hover:bg-muted/50"
+            >
+              <TableCell @click.stop>
                 <Checkbox
                   :checked="isSelected(entregable.id)"
                   @update:checked="() => toggleSelection(entregable.id)"
                 />
               </TableCell>
-              <TableCell>
-                <div>
-                  <p class="font-medium">{{ entregable.nombre }}</p>
-                  <p v-if="entregable.descripcion" class="text-sm text-muted-foreground">
-                    {{ entregable.descripcion }}
-                  </p>
-                  <div v-if="entregable.estaVencido" class="flex items-center gap-1 mt-1">
-                    <AlertCircle class="h-3 w-3 text-red-600" />
-                    <span class="text-xs text-red-600">Vencido hace {{ Math.abs(entregable.diasRestantes) }} días</span>
+              <Link
+                :href="`/admin/proyectos/${proyecto.id}/hitos/${hito.id}/entregables/${entregable.id}`"
+                class="contents"
+              >
+                <TableCell>
+                  <div>
+                    <p class="font-medium">{{ entregable.nombre }}</p>
+                    <p v-if="entregable.descripcion" class="text-sm text-muted-foreground">
+                      {{ entregable.descripcion }}
+                    </p>
+                    <div v-if="entregable.estaVencido" class="flex items-center gap-1 mt-1">
+                      <AlertCircle class="h-3 w-3 text-red-600" />
+                      <span class="text-xs text-red-600">Vencido hace {{ Math.abs(entregable.diasRestantes) }} días</span>
+                    </div>
+                    <div v-else-if="entregable.estaProximoVencer" class="flex items-center gap-1 mt-1">
+                      <AlertCircle class="h-3 w-3 text-orange-600" />
+                      <span class="text-xs text-orange-600">Vence en {{ entregable.diasRestantes }} días</span>
+                    </div>
                   </div>
-                  <div v-else-if="entregable.estaProximoVencer" class="flex items-center gap-1 mt-1">
-                    <AlertCircle class="h-3 w-3 text-orange-600" />
-                    <span class="text-xs text-orange-600">Vence en {{ entregable.diasRestantes }} días</span>
+                </TableCell>
+                <TableCell>
+                  <div v-if="entregable.responsable" class="flex items-center gap-2">
+                    <Avatar class="h-8 w-8">
+                      <AvatarImage v-if="entregable.responsable.avatar" :src="entregable.responsable.avatar" />
+                      <AvatarFallback>{{ entregable.responsable.name.substring(0, 2).toUpperCase() }}</AvatarFallback>
+                    </Avatar>
+                    <span class="text-sm">{{ entregable.responsable.name }}</span>
                   </div>
-                </div>
-              </TableCell>
-              <TableCell>
-                <div v-if="entregable.responsable" class="flex items-center gap-2">
-                  <Avatar class="h-8 w-8">
-                    <AvatarImage v-if="entregable.responsable.avatar" :src="entregable.responsable.avatar" />
-                    <AvatarFallback>{{ entregable.responsable.name.substring(0, 2).toUpperCase() }}</AvatarFallback>
-                  </Avatar>
-                  <span class="text-sm">{{ entregable.responsable.name }}</span>
-                </div>
-                <span v-else class="text-sm text-muted-foreground">Sin asignar</span>
-              </TableCell>
-              <TableCell>
-                <Badge :variant="getEstadoBadgeVariant(entregable.estado)">
-                  {{ entregable.estado_label }}
-                </Badge>
-              </TableCell>
-              <TableCell>
-                <Badge :variant="getPrioridadBadgeVariant(entregable.prioridad)">
-                  <component :is="getPrioridadIcon(entregable.prioridad)" class="mr-1 h-3 w-3" />
-                  {{ entregable.prioridad_label }}
-                </Badge>
-              </TableCell>
-              <TableCell>
-                <div class="flex items-center gap-1">
-                  <Calendar class="h-4 w-4 text-muted-foreground" />
-                  <span class="text-sm">{{ formatDate(entregable.fecha_fin) }}</span>
-                </div>
-              </TableCell>
-              <TableCell>
-                <div v-if="entregable.usuarios && entregable.usuarios.length > 0" class="flex items-center gap-1">
-                  <Users class="h-4 w-4 text-muted-foreground" />
-                  <span class="text-sm">{{ entregable.usuarios.length }}</span>
-                </div>
-                <span v-else class="text-sm text-muted-foreground">-</span>
-              </TableCell>
-              <TableCell class="text-right">
+                  <span v-else class="text-sm text-muted-foreground">Sin asignar</span>
+                </TableCell>
+                <TableCell>
+                  <Badge :variant="getEstadoBadgeVariant(entregable.estado)">
+                    {{ entregable.estado_label }}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  <Badge :variant="getPrioridadBadgeVariant(entregable.prioridad)">
+                    <component :is="getPrioridadIcon(entregable.prioridad)" class="mr-1 h-3 w-3" />
+                    {{ entregable.prioridad_label }}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  <div class="flex items-center gap-1">
+                    <Calendar class="h-4 w-4 text-muted-foreground" />
+                    <span class="text-sm">{{ formatDate(entregable.fecha_fin) }}</span>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div v-if="entregable.usuarios && entregable.usuarios.length > 0" class="flex items-center gap-1">
+                    <Users class="h-4 w-4 text-muted-foreground" />
+                    <span class="text-sm">{{ entregable.usuarios.length }}</span>
+                  </div>
+                  <span v-else class="text-sm text-muted-foreground">-</span>
+                </TableCell>
+              </Link>
+              <TableCell class="text-right" @click.stop>
                 <DropdownMenu>
                   <DropdownMenuTrigger as-child>
                     <Button variant="ghost" class="h-8 w-8 p-0">

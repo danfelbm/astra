@@ -11,6 +11,7 @@ import { X } from 'lucide-vue-next';
 interface Props {
     contratos: any[];
     evidencias: any[];
+    entregables?: any[];
 }
 
 const props = defineProps<Props>();
@@ -23,6 +24,7 @@ const filtros = defineModel<{
     tipo: string | null;
     estado: string | null;
     usuario_id: number | null;
+    entregable_id: number | null;
 }>({ required: true });
 
 // Opciones únicas extraídas de las evidencias
@@ -52,6 +54,30 @@ const usuariosUnicos = computed(() => {
     }));
 });
 
+const entregablesUnicos = computed(() => {
+    if (!props.entregables || props.entregables.length === 0) {
+        // Extraer entregables de las evidencias si no se pasaron como prop
+        const entregablesMap = new Map();
+        props.evidencias.forEach(e => {
+            if (e.entregables && e.entregables.length > 0) {
+                e.entregables.forEach(ent => {
+                    if (ent?.id) {
+                        entregablesMap.set(ent.id, ent);
+                    }
+                });
+            }
+        });
+        return Array.from(entregablesMap.values()).map(entregable => ({
+            value: entregable.id,
+            label: entregable.nombre
+        }));
+    }
+    return props.entregables.map(entregable => ({
+        value: entregable.id,
+        label: entregable.nombre
+    }));
+});
+
 // Función para limpiar todos los filtros
 const limpiarFiltros = () => {
     filtros.value = {
@@ -60,7 +86,8 @@ const limpiarFiltros = () => {
         fecha_fin: null,
         tipo: null,
         estado: null,
-        usuario_id: null
+        usuario_id: null,
+        entregable_id: null
     };
 };
 
@@ -90,7 +117,7 @@ const hayFiltrosActivos = computed(() => {
                                     :key="contrato.id"
                                     :value="contrato.id"
                                 >
-                                    {{ contrato.numero_contrato || contrato.nombre }}
+                                    {{ contrato.nombre }}
                                 </SelectItem>
                             </SelectContent>
                         </Select>
@@ -159,7 +186,7 @@ const hayFiltrosActivos = computed(() => {
                     </div>
                 </div>
 
-                <!-- Filtro por Usuario (ocupa ancho completo) -->
+                <!-- Filtro por Usuario y Entregable -->
                 <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
                     <div class="space-y-2 md:col-span-2">
                         <Label for="filter-usuario" class="text-xs">Usuario</Label>
@@ -180,8 +207,27 @@ const hayFiltrosActivos = computed(() => {
                         </Select>
                     </div>
 
+                    <div v-if="entregablesUnicos.length > 0" class="space-y-2 md:col-span-2">
+                        <Label for="filter-entregable" class="text-xs">Entregable</Label>
+                        <Select v-model="filtros.entregable_id" id="filter-entregable">
+                            <SelectTrigger>
+                                <SelectValue placeholder="Todos los entregables" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem :value="null">Todos los entregables</SelectItem>
+                                <SelectItem
+                                    v-for="entregable in entregablesUnicos"
+                                    :key="entregable.value"
+                                    :value="entregable.value"
+                                >
+                                    {{ entregable.label }}
+                                </SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+
                     <!-- Botón de limpiar -->
-                    <div class="flex items-end md:col-span-3">
+                    <div class="flex items-end" :class="entregablesUnicos.length > 0 ? 'md:col-span-1' : 'md:col-span-3'">
                         <Button
                             v-if="hayFiltrosActivos"
                             variant="outline"
