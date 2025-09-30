@@ -44,6 +44,10 @@ class Contrato extends Model
         'contraparte_email',
         'contraparte_telefono',
         'archivo_pdf',
+        'archivos_paths',
+        'archivos_nombres',
+        'tipos_archivos',
+        'total_archivos',
         'observaciones',
         'tenant_id',
         'created_by',
@@ -59,6 +63,9 @@ class Contrato extends Model
         'fecha_inicio' => 'date:Y-m-d',
         'fecha_fin' => 'date:Y-m-d',
         'monto_total' => 'decimal:2',
+        'archivos_paths' => 'array',
+        'archivos_nombres' => 'array',
+        'tipos_archivos' => 'array',
     ];
 
     /**
@@ -78,7 +85,10 @@ class Contrato extends Model
         'esta_proximo_vencer',
         'total_obligaciones',
         'obligaciones_cumplidas',
-        'obligaciones_pendientes'
+        'obligaciones_pendientes',
+        'archivos_urls',
+        'archivos_info',
+        'tiene_multiples_archivos'
     ];
 
     /**
@@ -463,5 +473,149 @@ class Contrato extends Model
     public function getObligacionesPendientesAttribute(): int
     {
         return $this->todasLasObligaciones()->whereNotIn('estado', ['cumplida', 'cancelada'])->count();
+    }
+
+    /**
+     * Obtiene las URLs de todos los archivos.
+     */
+    public function getArchivosUrlsAttribute(): array
+    {
+        $urls = [];
+
+        if ($this->archivos_paths && is_array($this->archivos_paths)) {
+            foreach ($this->archivos_paths as $path) {
+                if (filter_var($path, FILTER_VALIDATE_URL)) {
+                    $urls[] = $path;
+                } else {
+                    $urls[] = \Storage::disk('public')->url($path);
+                }
+            }
+        } elseif ($this->archivo_pdf) {
+            // Retrocompatibilidad con archivo_pdf único
+            if (filter_var($this->archivo_pdf, FILTER_VALIDATE_URL)) {
+                $urls[] = $this->archivo_pdf;
+            } else {
+                $urls[] = \Storage::disk('public')->url($this->archivo_pdf);
+            }
+        }
+
+        return $urls;
+    }
+
+    /**
+     * Obtiene información completa de todos los archivos.
+     */
+    public function getArchivosInfoAttribute(): array
+    {
+        $archivos = [];
+
+        if ($this->archivos_paths && is_array($this->archivos_paths)) {
+            $nombres = $this->archivos_nombres ?? [];
+            foreach ($this->archivos_paths as $index => $path) {
+                $nombre = $nombres[$index] ?? basename($path);
+                $archivos[] = [
+                    'path' => $path,
+                    'nombre' => $nombre,
+                    'url' => filter_var($path, FILTER_VALIDATE_URL) ? $path : \Storage::disk('public')->url($path),
+                    'indice' => $index
+                ];
+            }
+        } elseif ($this->archivo_pdf) {
+            // Retrocompatibilidad
+            $archivos[] = [
+                'path' => $this->archivo_pdf,
+                'nombre' => basename($this->archivo_pdf),
+                'url' => filter_var($this->archivo_pdf, FILTER_VALIDATE_URL) ? $this->archivo_pdf : \Storage::disk('public')->url($this->archivo_pdf),
+                'indice' => 0
+            ];
+        }
+
+        return $archivos;
+    }
+
+    /**
+     * Verifica si tiene múltiples archivos.
+     */
+    public function getTieneMultiplesArchivosAttribute(): bool
+    {
+        return ($this->total_archivos ?? 0) > 1;
+    }
+
+    /**
+     * Agrega archivos al contrato.
+     */
+    public function agregarArchivos(array $archivos): void
+    {
+        $paths = $this->archivos_paths ?? [];
+        $nombres = $this->archivos_nombres ?? [];
+
+        foreach ($archivos as $archivo) {
+            $paths[] = $archivo['path'];
+            $nombres[] = $archivo['nombre'];
+        }
+
+        $this->archivos_paths = $paths;
+        $this->archivos_nombres = $nombres;
+        $this->total_archivos = count($paths);
+        $this->save();
+    }
+
+    /**
+     * Reemplaza todos los archivos del contrato.
+     */
+    public function reemplazarArchivos(array $archivos): void
+    {
+        $paths = [];
+        $nombres = [];
+
+        foreach ($archivos as $archivo) {
+            $paths[] = $archivo['path'];
+            $nombres[] = $archivo['nombre'];
+        }
+
+        $this->archivos_paths = $paths;
+        $this->archivos_nombres = $nombres;
+        $this->total_archivos = count($paths);
+        $this->save();
+    }
+
+    /**
+     * Elimina un archivo específico por índice.
+     */
+    public function eliminarArchivoPorIndice(int $indice): bool
+    {
+        $paths = $this->archivos_paths ?? [];
+        $nombres = $this->archivos_nombres ?? [];
+
+        if (!isset($paths[$indice])) {
+            return false;
+        }
+
+        // Eliminar el archivo del storage
+        $path = $paths[$indice];
+        if (\Storage::disk('public')->exists($path)) {
+            \Storage::disk('public')->delete($path);
+        }
+
+        // Remover de los arrays
+        unset($paths[$indice]);
+        unset($nombres[$indice]);
+
+        // Reindexar arrays
+        $this->archivos_paths = array_values($paths);
+        $this->archivos_nombres = array_values($nombres);
+        $this->total_archivos = count($this->archivos_paths);
+        $this->save();
+
+        return true;
+    }
+
+    /**
+     * Valida el límite máximo de archivos.
+     */
+    public function puedeAgregarMasArchivos(int $cantidad = 1): bool
+    {
+        $totalActual = $this->total_archivos ?? 0;
+        return ($totalActual + $cantidad) <= 10; // Máximo 10 archivos
     }
 }

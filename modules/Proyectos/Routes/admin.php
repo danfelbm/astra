@@ -106,6 +106,20 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
             ->name('store')
             ->middleware('can:contratos.create');
 
+        // Rutas de autoguardado
+        Route::post('/autosave', [ContratoController::class, 'autosave'])
+            ->name('autosave')
+            ->middleware('can:contratos.create');
+
+        Route::post('/{contrato}/autosave', [ContratoController::class, 'autosaveExisting'])
+            ->name('autosave.existing')
+            ->middleware('can:contratos.edit');
+
+        // Ruta para eliminar borrador
+        Route::delete('/borrador', [ContratoController::class, 'eliminarBorrador'])
+            ->name('borrador')
+            ->middleware('can:contratos.create');
+
         Route::get('/proximos-vencer', [ContratoController::class, 'proximosVencer'])
             ->name('proximos-vencer')
             ->middleware('can:contratos.view');
@@ -138,6 +152,10 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
         Route::post('/{contrato}/duplicar', [ContratoController::class, 'duplicar'])
             ->name('duplicar')
             ->middleware('can:contratos.create');
+
+        Route::delete('/{contrato}/archivos/{indice}', [ContratoController::class, 'eliminarArchivo'])
+            ->name('eliminar-archivo')
+            ->middleware('can:contratos.edit');
 
         // Rutas anidadas para evidencias (solo lectura)
         Route::prefix('{contrato}/evidencias')->name('evidencias.')->group(function () {

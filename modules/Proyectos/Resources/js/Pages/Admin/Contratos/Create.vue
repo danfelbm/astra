@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue';
+import { ref, reactive, computed, onMounted, onUnmounted, nextTick, watch } from 'vue';
 import { router, useForm, usePage } from '@inertiajs/vue3';
 import { type BreadcrumbItem } from '@/types';
 import AdminLayout from '@modules/Core/Resources/js/layouts/AdminLayout.vue';
@@ -12,13 +12,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@modules/Core/Resources/js/components/ui/switch';
 import { Alert, AlertDescription } from '@modules/Core/Resources/js/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@modules/Core/Resources/js/components/ui/tabs';
-import { AlertCircle, ArrowLeft, Save, Upload, UserPlus, X, Users } from 'lucide-vue-next';
+import { AlertCircle, ArrowLeft, Save, Upload, UserPlus, X, Users, Clock, CheckCircle, Trash2 } from 'lucide-vue-next';
 import { Link } from '@inertiajs/vue3';
 import { useToast } from '@modules/Core/Resources/js/composables/useToast';
+import { useFileUpload } from '@modules/Core/Resources/js/composables/useFileUpload';
+import { useAutoSave } from '@modules/Core/Resources/js/composables/useAutoSave';
 import CampoPersonalizadoInput from '@modules/Proyectos/Resources/js/components/CampoPersonalizadoInput.vue';
 import ContratoUserSelect from '@modules/Proyectos/Resources/js/components/ContratoUserSelect.vue';
 import ParticipantesManager from '@modules/Proyectos/Resources/js/components/ParticipantesManager.vue';
 import AddUsersModal from '@modules/Core/Resources/js/components/modals/AddUsersModal.vue';
+import FileUploadField from '@modules/Core/Resources/js/components/forms/FileUploadField.vue';
 import { Separator } from '@modules/Core/Resources/js/components/ui/separator';
 
 // Tipos
@@ -56,11 +59,14 @@ const props = withDefaults(defineProps<{
     proyectos: Proyecto[];
     camposPersonalizados: CampoPersonalizado[];
     usuarios?: User[];
+    borrador?: any; // Borrador existente del servidor
 }>(), {
-    usuarios: () => []
+    usuarios: () => [],
+    borrador: undefined
 });
 
 const toast = useToast();
+const { uploadFiles } = useFileUpload();
 
 // Breadcrumbs para navegación
 const breadcrumbs: BreadcrumbItem[] = [
@@ -88,13 +94,18 @@ const form = useForm({
     contraparte_telefono: '',
     participantes: [] as Participante[],
     archivo_pdf: null as File | null,
+    archivos_paths: [] as string[],
+    archivos_nombres: [] as string[],
+    tipos_archivos: {} as Record<string, string>,
     observaciones: '',
     campos_personalizados: {} as Record<number, any>,
 });
 
 // Estado local
 const archivoNombre = ref('');
+const archivosSubidos = ref<any[]>([]);
 const activeTab = ref('informacion');
+const archivosPendientesCarga = ref<any[]>([]); // Archivos del borrador pendientes de cargar
 
 // Estados para los modales de selección de usuarios
 const showContraparteModal = ref(false);
@@ -142,6 +153,28 @@ const excludedIdsParticipantes = computed(() => {
     return ids;
 });
 
+// Computed para autosave
+const formDataRef = computed(() => form.data());
+
+// Configurar autosave para Create (como borrador)
+const {
+    state: autoSaveState,
+    isSaving,
+    hasSaved,
+    hasError,
+    startWatching,
+    stopAutoSave,
+    restoreDraft,
+    clearLocalStorage
+} = useAutoSave(formDataRef, {
+    url: '/admin/contratos/autosave',
+    resourceIdField: 'contrato_id',
+    debounceTime: 3000,
+    showNotifications: true,
+    useLocalStorage: true,
+    localStorageKey: 'contrato_draft_create'
+});
+
 // Computed
 const monedas = [
     { value: 'USD', label: 'USD - Dólar Estadounidense' },
@@ -180,6 +213,38 @@ const handleFileChange = (event: Event) => {
     if (target.files && target.files[0]) {
         form.archivo_pdf = target.files[0];
         archivoNombre.value = target.files[0].name;
+    }
+};
+
+// Handler para múltiples archivos (recibe File[] directamente del componente)
+const handleFilesSelected = async (files: File[]) => {
+    try {
+        // Subir todos los archivos
+        const uploadedFiles = await uploadFiles(files, {
+            module: 'contratos',
+            fieldId: 'archivos',
+            folder: 'contratos',
+            maxSize: 10 * 1024 * 1024, // 10MB
+        });
+
+        // Extraer paths y nombres de los archivos subidos
+        const paths = uploadedFiles.map(f => f.path);
+        const nombres = uploadedFiles.map(f => f.name);
+        const tiposArchivos: Record<string, string> = {};
+
+        uploadedFiles.forEach(f => {
+            tiposArchivos[f.path] = f.mime_type;
+        });
+
+        // CRÍTICO: AGREGAR a los existentes, NO reemplazar
+        form.archivos_paths = [...form.archivos_paths, ...paths];
+        form.archivos_nombres = [...form.archivos_nombres, ...nombres];
+        form.tipos_archivos = { ...form.tipos_archivos, ...tiposArchivos };
+        archivosSubidos.value = [...archivosSubidos.value, ...uploadedFiles];
+
+        toast.success(`${uploadedFiles.length} archivo(s) subido(s) exitosamente`);
+    } catch (error: any) {
+        toast.error(error.message || 'Error al subir archivos');
     }
 };
 
@@ -282,6 +347,15 @@ const submitForm = () => {
                     formData.append(`participantes[${index}][notas]`, participante.notas);
                 }
             });
+        } else if (key === 'archivos_paths' || key === 'archivos_nombres' || key === 'tipos_archivos') {
+            // Manejar arrays de archivos múltiples como JSON
+            if (key === 'archivos_paths' && Array.isArray(form.archivos_paths) && form.archivos_paths.length > 0) {
+                formData.append('archivos_paths', JSON.stringify(form.archivos_paths));
+            } else if (key === 'archivos_nombres' && Array.isArray(form.archivos_nombres) && form.archivos_nombres.length > 0) {
+                formData.append('archivos_nombres', JSON.stringify(form.archivos_nombres));
+            } else if (key === 'tipos_archivos' && form.tipos_archivos && Object.keys(form.tipos_archivos).length > 0) {
+                formData.append('tipos_archivos', JSON.stringify(form.tipos_archivos));
+            }
         } else if (key === 'archivo_pdf' && form.archivo_pdf) {
             formData.append('archivo_pdf', form.archivo_pdf);
         } else if (key === 'responsable_id' && form[key] === 'none') {
@@ -295,6 +369,10 @@ const submitForm = () => {
         forceFormData: true,
         preserveScroll: true,
         onSuccess: () => {
+            // Detener autosave y limpiar borrador
+            stopAutoSave();
+            clearLocalStorage();
+
             toast.success('Contrato creado exitosamente');
         },
         onError: (errors) => {
@@ -322,6 +400,121 @@ const cancelar = () => {
     }
 };
 
+const descartarBorrador = () => {
+    if (!confirm('¿Está seguro de descartar el borrador? Esta acción no se puede deshacer.')) {
+        return;
+    }
+
+    router.delete(route('admin.contratos.borrador'), {
+        preserveScroll: false,
+        onFinish: () => {
+            // Limpiar estado local después de que Inertia maneje el redirect
+            clearLocalStorage();
+        }
+    });
+};
+
+// Watch: Cargar archivos cuando el usuario cambie manualmente al tab de archivos
+watch(activeTab, (newTab) => {
+    if (newTab === 'archivos' && archivosPendientesCarga.value.length > 0) {
+        nextTick(() => {
+            archivosSubidos.value = archivosPendientesCarga.value;
+            archivosPendientesCarga.value = []; // Limpiar pendientes
+        });
+    }
+});
+
+// Watch: Sincronizar archivosSubidos con form cuando se eliminan archivos
+watch(archivosSubidos, (newFiles) => {
+    // Reconstruir arrays desde archivosSubidos
+    form.archivos_paths = newFiles.map(f => f.path).filter(Boolean);
+    form.archivos_nombres = newFiles.map(f => f.name).filter(Boolean);
+
+    const tiposArchivos: Record<string, string> = {};
+    newFiles.forEach(f => {
+        if (f.path && f.mime_type) {
+            tiposArchivos[f.path] = f.mime_type;
+        }
+    });
+    form.tipos_archivos = tiposArchivos;
+}, { deep: true });
+
+// Lifecycle hooks
+onMounted(() => {
+    // Manejar flash messages del servidor
+    const page = usePage();
+    if (page.props.flash?.success) {
+        toast.success(page.props.flash.success as string);
+    }
+    if (page.props.flash?.error) {
+        toast.error(page.props.flash.error as string);
+    }
+
+    // Prioridad 1: Recuperar borrador del servidor (más reciente y confiable)
+    if (props.borrador) {
+        // Restaurar datos del borrador del servidor
+        form.proyecto_id = props.borrador.proyecto_id || '';
+        form.nombre = props.borrador.nombre || '';
+        form.descripcion = props.borrador.descripcion || '';
+        form.fecha_inicio = props.borrador.fecha_inicio || '';
+        form.fecha_fin = props.borrador.fecha_fin || '';
+        form.tipo = props.borrador.tipo || 'servicio';
+        form.monto_total = props.borrador.monto_total || '';
+        form.moneda = props.borrador.moneda || 'USD';
+        form.responsable_id = props.borrador.responsable_id || 'none';
+        form.contraparte_user_id = props.borrador.contraparte_user_id || null;
+        form.contraparte_nombre = props.borrador.contraparte_nombre || '';
+        form.contraparte_identificacion = props.borrador.contraparte_identificacion || '';
+        form.contraparte_email = props.borrador.contraparte_email || '';
+        form.contraparte_telefono = props.borrador.contraparte_telefono || '';
+        form.observaciones = props.borrador.observaciones || '';
+
+        // CRÍTICO: Restaurar archivos
+        form.archivos_paths = props.borrador.archivos_paths || [];
+        form.archivos_nombres = props.borrador.archivos_nombres || [];
+        form.tipos_archivos = props.borrador.tipos_archivos || {};
+
+        // Reconstruir archivosSubidos para el FileUploadField
+        if (form.archivos_paths.length > 0) {
+            const archivosReconstruidos = form.archivos_paths.map((path: string, index: number) => ({
+                id: `borrador_${index}`,
+                name: form.archivos_nombres[index] || path.split('/').pop() || 'archivo',
+                size: 0,
+                path: path,
+                url: `/storage/${path}`,
+                mime_type: form.tipos_archivos[path] || 'application/octet-stream',
+            }));
+
+            // Guardar archivos en pendientes en lugar de forzar cambio de tab
+            archivosPendientesCarga.value = archivosReconstruidos;
+
+            // NO forzar cambio de tab automáticamente
+            // Los archivos se cargarán cuando el usuario cambie al tab manualmente
+        }
+
+        toast.success('Borrador recuperado', {
+            description: `Borrador del servidor cargado (${form.archivos_paths.length} archivo(s))`
+        });
+    } else {
+        // Prioridad 2: Intentar recuperar del localStorage (fallback)
+        const draft = restoreDraft();
+        if (draft && draft.data) {
+            Object.assign(form, draft.data);
+            toast.info('Borrador recuperado', {
+                description: 'Se recuperaron tus cambios del navegador'
+            });
+        }
+    }
+
+    // Iniciar autoguardado
+    startWatching();
+});
+
+onUnmounted(() => {
+    // Detener autoguardado al salir
+    stopAutoSave();
+});
+
 // El método handleContraparteUserChange ya no es necesario
 // porque lo manejamos en handleContraparteSelect
 </script>
@@ -343,16 +536,31 @@ const cancelar = () => {
                         <p class="text-gray-600 mt-1">Complete la información para crear un nuevo contrato</p>
                     </div>
                 </div>
+                <!-- Indicador de autosave -->
+                <div class="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Clock v-if="isSaving" class="h-4 w-4 animate-spin" />
+                    <CheckCircle v-else-if="hasSaved && !hasError" class="h-4 w-4 text-green-600" />
+                    <AlertCircle v-else-if="hasError" class="h-4 w-4 text-amber-600" />
+                    <span v-if="isSaving">Guardando borrador...</span>
+                    <span v-else-if="hasSaved && !hasError">Borrador guardado a las {{ autoSaveState.lastSaved?.toLocaleTimeString() }}</span>
+                    <span v-else-if="hasError">Guardado localmente</span>
+                </div>
             </div>
 
             <!-- Formulario -->
             <form @submit.prevent="submitForm" class="space-y-6">
                 <Tabs v-model="activeTab">
-                    <TabsList class="grid w-full grid-cols-5">
+                    <TabsList class="grid w-full grid-cols-6">
                         <TabsTrigger value="informacion">Información General</TabsTrigger>
                         <TabsTrigger value="fechas">Fechas y Estado</TabsTrigger>
                         <TabsTrigger value="financiero">Información Financiera</TabsTrigger>
                         <TabsTrigger value="contraparte">Contraparte</TabsTrigger>
+                        <TabsTrigger value="archivos">
+                            Archivos
+                            <span v-if="archivosPendientesCarga.length > 0" class="ml-2 inline-flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-blue-600 rounded-full">
+                                {{ archivosPendientesCarga.length }}
+                            </span>
+                        </TabsTrigger>
                         <TabsTrigger value="adicional">Información Adicional</TabsTrigger>
                     </TabsList>
 
@@ -754,42 +962,39 @@ const cancelar = () => {
                         </div>
                     </TabsContent>
 
+                    <!-- Tab: Archivos -->
+                    <TabsContent value="archivos">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Archivos del Contrato</CardTitle>
+                                <CardDescription>Sube múltiples archivos relacionados con el contrato (máximo 10)</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <FileUploadField
+                                    v-model="archivosSubidos"
+                                    label="Archivos"
+                                    description="Sube archivos del contrato (PDF, imágenes, documentos)"
+                                    @filesSelected="handleFilesSelected"
+                                    :multiple="true"
+                                    :maxFiles="10"
+                                    :maxFileSize="10"
+                                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif,.xls,.xlsx"
+                                    :autoUpload="false"
+                                    module="contratos"
+                                    fieldId="archivos"
+                                />
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+
                     <!-- Tab: Información Adicional -->
                     <TabsContent value="adicional">
                         <Card>
                             <CardHeader>
                                 <CardTitle>Información Adicional</CardTitle>
-                                <CardDescription>Archivos y observaciones</CardDescription>
+                                <CardDescription>Observaciones y campos personalizados</CardDescription>
                             </CardHeader>
                             <CardContent class="space-y-4">
-                                <div>
-                                    <Label for="archivo_pdf">Archivo del Contrato (PDF)</Label>
-                                    <div class="flex items-center gap-4">
-                                        <Input
-                                            id="archivo_pdf"
-                                            type="file"
-                                            accept=".pdf"
-                                            @change="handleFileChange"
-                                            class="hidden"
-                                        />
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            @click="($refs.fileInput as HTMLInputElement).click()"
-                                        >
-                                            <Upload class="h-4 w-4 mr-2" />
-                                            Seleccionar PDF
-                                        </Button>
-                                        <span v-if="archivoNombre" class="text-sm text-gray-600">
-                                            {{ archivoNombre }}
-                                        </span>
-                                    </div>
-                                    <p class="text-xs text-gray-500 mt-1">Máximo 10MB</p>
-                                    <div v-if="form.errors.archivo_pdf" class="text-red-500 text-sm mt-1">
-                                        {{ form.errors.archivo_pdf }}
-                                    </div>
-                                </div>
-
                                 <div>
                                     <Label for="observaciones">Observaciones</Label>
                                     <Textarea
@@ -819,22 +1024,38 @@ const cancelar = () => {
                 </Tabs>
 
                 <!-- Acciones -->
-                <div class="flex justify-end gap-4">
+                <div class="flex justify-between items-center gap-4">
+                    <!-- Botón Descartar Borrador (izquierda, solo si hay borrador) -->
                     <Button
+                        v-if="props.borrador"
+                        variant="destructive"
                         type="button"
-                        variant="outline"
-                        @click="cancelar"
+                        @click="descartarBorrador"
                         :disabled="form.processing"
                     >
-                        Cancelar
+                        <Trash2 class="h-4 w-4 mr-2" />
+                        Descartar Borrador
                     </Button>
-                    <Button
-                        type="submit"
-                        :disabled="form.processing"
-                    >
-                        <Save class="h-4 w-4 mr-2" />
-                        {{ form.processing ? 'Guardando...' : 'Guardar Contrato' }}
-                    </Button>
+                    <div v-else></div>
+
+                    <!-- Botones principales (derecha) -->
+                    <div class="flex gap-4">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            @click="cancelar"
+                            :disabled="form.processing"
+                        >
+                            Cancelar
+                        </Button>
+                        <Button
+                            type="submit"
+                            :disabled="form.processing"
+                        >
+                            <Save class="h-4 w-4 mr-2" />
+                            {{ form.processing ? 'Guardando...' : 'Guardar Contrato' }}
+                        </Button>
+                    </div>
                 </div>
             </form>
         </div>

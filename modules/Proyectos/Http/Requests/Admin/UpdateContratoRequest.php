@@ -58,7 +58,15 @@ class UpdateContratoRequest extends FormRequest
             'contraparte_telefono' => 'nullable|string|max:50',
 
             // Archivos y observaciones
-            'archivo_pdf' => 'nullable|file|mimes:pdf|max:10240', // Max 10MB
+            'archivo_pdf' => 'nullable|file|mimes:pdf|max:10240', // Max 10MB (retrocompatibilidad)
+
+            // Múltiples archivos
+            'archivos_paths' => 'nullable|array|max:10',
+            'archivos_paths.*' => 'nullable|string',
+            'archivos_nombres' => 'nullable|array',
+            'archivos_nombres.*' => 'nullable|string|max:255',
+            'tipos_archivos' => 'nullable|array',
+
             'observaciones' => 'nullable|string|max:5000',
         ];
 
@@ -103,6 +111,33 @@ class UpdateContratoRequest extends FormRequest
             'contraparte_email.email' => 'El email de la contraparte no es válido',
             'archivo_pdf.mimes' => 'El archivo debe ser un PDF',
             'archivo_pdf.max' => 'El archivo no puede exceder 10MB',
+            'archivos_paths.max' => 'No se pueden subir más de 10 archivos',
+            'archivos_nombres.*.max' => 'El nombre del archivo no puede exceder 255 caracteres',
         ];
+    }
+
+    /**
+     * Prepara los datos para la validación.
+     */
+    protected function prepareForValidation(): void
+    {
+        // Decodificar arrays de archivos si vienen como JSON strings desde FormData
+        $data = [];
+
+        if ($this->has('archivos_paths') && is_string($this->input('archivos_paths'))) {
+            $data['archivos_paths'] = json_decode($this->input('archivos_paths'), true) ?: [];
+        }
+
+        if ($this->has('archivos_nombres') && is_string($this->input('archivos_nombres'))) {
+            $data['archivos_nombres'] = json_decode($this->input('archivos_nombres'), true) ?: [];
+        }
+
+        if ($this->has('tipos_archivos') && is_string($this->input('tipos_archivos'))) {
+            $data['tipos_archivos'] = json_decode($this->input('tipos_archivos'), true) ?: [];
+        }
+
+        if (!empty($data)) {
+            $this->merge($data);
+        }
     }
 }

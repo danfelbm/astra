@@ -16,8 +16,10 @@ interface UploadProgress {
 }
 
 interface UploadOptions {
-    module: 'votaciones' | 'convocatorias' | 'postulaciones' | 'candidaturas' | 'user-updates' | 'evidencias';
+    module: 'votaciones' | 'convocatorias' | 'postulaciones' | 'candidaturas' | 'user-updates' | 'evidencias' | 'contratos';
     fieldId: string;
+    folder?: string;
+    maxSize?: number;
     onProgress?: (fileName: string, progress: number) => void;
     onSuccess?: (files: UploadedFile[]) => void;
     onError?: (error: any) => void;
@@ -56,6 +58,14 @@ export function useFileUpload() {
         // Agregar metadata
         formData.append('module', options.module);
         formData.append('field_id', options.fieldId);
+
+        if (options.folder) {
+            formData.append('folder', options.folder);
+        }
+
+        if (options.maxSize) {
+            formData.append('max_size', options.maxSize.toString());
+        }
 
         try {
             const response = await axios.post(`${getApiPrefix()}/api/files/upload`, formData, {
