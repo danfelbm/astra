@@ -21,7 +21,9 @@ class FileUploadController extends Controller
             'files' => 'required',
             'files.*' => 'required|file|max:102400', // Máximo 100MB por archivo
             'field_id' => 'required|string',
-            'module' => 'required|string|in:votaciones,convocatorias,postulaciones,candidaturas,user-updates,evidencias',
+            'module' => 'required|string|in:votaciones,convocatorias,postulaciones,candidaturas,user-updates,evidencias,contratos',
+            'folder' => 'nullable|string', // Folder personalizado opcional
+            'max_size' => 'nullable|integer', // Tamaño máximo en bytes
         ]);
 
         if ($validator->fails()) {
@@ -41,16 +43,20 @@ class FileUploadController extends Controller
 
         $module = $request->input('module');
         $fieldId = $request->input('field_id');
-        
+        $customFolder = $request->input('folder'); // Folder personalizado
+
         foreach ($files as $file) {
             try {
                 // Generar nombre único para el archivo
                 $originalName = $file->getClientOriginalName();
                 $extension = $file->getClientOriginalExtension();
                 $fileName = Str::slug(pathinfo($originalName, PATHINFO_FILENAME)) . '_' . uniqid() . '.' . $extension;
-                
+
                 // Determinar la ruta de almacenamiento
-                $path = "uploads/{$module}/{$fieldId}/" . date('Y/m');
+                // Si se proporciona folder personalizado, usarlo; sino usar la estructura por defecto
+                $path = $customFolder
+                    ? "{$customFolder}/" . date('Y/m')
+                    : "uploads/{$module}/{$fieldId}/" . date('Y/m');
                 
                 // Almacenar el archivo
                 $storedPath = $file->storeAs($path, $fileName, 'public');

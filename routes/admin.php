@@ -26,6 +26,7 @@ use Modules\Proyectos\Http\Controllers\Admin\EtiquetaController;
 use Modules\Proyectos\Http\Controllers\Admin\ProyectoEtiquetaController;
 use Modules\Proyectos\Http\Controllers\Admin\ContratoController;
 use Modules\Proyectos\Http\Controllers\Admin\ObligacionContratoController;
+use Modules\Core\Http\Controllers\FileUploadController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -43,6 +44,14 @@ use Inertia\Inertia;
 
 // Admin routes
 Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.')->group(function () {
+    // API Routes para subida de archivos
+    Route::prefix('api/files')->name('api.files.')->group(function () {
+        Route::post('upload', [FileUploadController::class, 'upload'])->name('upload');
+        Route::delete('delete', [FileUploadController::class, 'delete'])->name('delete');
+        Route::get('download', [FileUploadController::class, 'download'])->name('download');
+        Route::get('info', [FileUploadController::class, 'info'])->name('info');
+    });
+
     // Tenants routes (solo super admin) - Expandido para usar Spatie
     Route::get('tenants', [TenantController::class, 'index'])
         ->middleware('can:tenants.view')
@@ -924,6 +933,20 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
 
         Route::post('/', [ContratoController::class, 'store'])
             ->name('store')
+            ->middleware('can:contratos.create');
+
+        // Rutas de autoguardado
+        Route::post('/autosave', [ContratoController::class, 'autosave'])
+            ->name('autosave')
+            ->middleware('can:contratos.create');
+
+        Route::post('/{contrato}/autosave', [ContratoController::class, 'autosaveExisting'])
+            ->name('autosave.existing')
+            ->middleware('can:contratos.edit');
+
+        // Ruta para eliminar borrador
+        Route::delete('/borrador', [ContratoController::class, 'eliminarBorrador'])
+            ->name('borrador')
             ->middleware('can:contratos.create');
 
         Route::get('/proximos-vencer', [ContratoController::class, 'proximosVencer'])

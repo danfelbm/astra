@@ -229,19 +229,23 @@ const removeSelectedFile = (index: number) => {
 
 const removeExistingFile = async (index: number) => {
     const fileToRemove = existingFiles.value[index];
-    
+
     // Si tiene path, intentar eliminar del servidor
     if (fileToRemove.path) {
         try {
             await deleteFileFromServer(fileToRemove.path);
-        } catch (error) {
-            console.error('Error al eliminar archivo del servidor:', error);
+        } catch (error: any) {
+            // Ignorar error 404 (archivo ya fue eliminado o no existe en servidor)
+            // Esto es normal en borradores donde el watch + autosave ya manejó la eliminación
+            if (error?.response?.status !== 404 && error?.status !== 404) {
+                console.error('Error al eliminar archivo del servidor:', error);
+            }
         }
     }
-    
+
     const newFiles = [...existingFiles.value];
     newFiles.splice(index, 1);
-    
+
     // Actualizar modelValue
     if (typeof props.modelValue[0] === 'string') {
         const paths = newFiles.map(f => f.path).filter(Boolean) as string[];

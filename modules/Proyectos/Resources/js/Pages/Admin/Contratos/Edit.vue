@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue';
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
 import { router, useForm, usePage } from '@inertiajs/vue3';
 import { type BreadcrumbItem } from '@/types';
 import AdminLayout from '@modules/Core/Resources/js/layouts/AdminLayout.vue';
@@ -12,13 +12,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@modules/Core/Resources/js/components/ui/switch';
 import { Alert, AlertDescription } from '@modules/Core/Resources/js/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@modules/Core/Resources/js/components/ui/tabs';
-import { AlertCircle, ArrowLeft, Save, Upload, Trash2, UserPlus, X, Users } from 'lucide-vue-next';
+import { AlertCircle, ArrowLeft, Save, Upload, Trash2, UserPlus, X, Users, Clock, CheckCircle } from 'lucide-vue-next';
 import { Link } from '@inertiajs/vue3';
 import { useToast } from '@modules/Core/Resources/js/composables/useToast';
+import { useFileUpload } from '@modules/Core/Resources/js/composables/useFileUpload';
+import { useAutoSave } from '@modules/Core/Resources/js/composables/useAutoSave';
 import CampoPersonalizadoInput from '@modules/Proyectos/Resources/js/components/CampoPersonalizadoInput.vue';
 import ContratoUserSelect from '@modules/Proyectos/Resources/js/components/ContratoUserSelect.vue';
 import ParticipantesManager from '@modules/Proyectos/Resources/js/components/ParticipantesManager.vue';
 import AddUsersModal from '@modules/Core/Resources/js/components/modals/AddUsersModal.vue';
+import FileUploadField from '@modules/Core/Resources/js/components/forms/FileUploadField.vue';
 import { Separator } from '@modules/Core/Resources/js/components/ui/separator';
 
 // Tipos
@@ -101,6 +104,7 @@ const props = withDefaults(defineProps<{
 });
 
 const toast = useToast();
+const { uploadFiles } = useFileUpload();
 
 // Breadcrumbs para navegación
 const breadcrumbs: BreadcrumbItem[] = [
@@ -142,6 +146,9 @@ const form = useForm({
     contraparte_telefono: props.contrato.contraparte_telefono || '',
     participantes: prepararParticipantes(),
     archivo_pdf: null as File | null,
+    archivos_paths: props.contrato.archivos_paths || [],
+    archivos_nombres: props.contrato.archivos_nombres || [],
+    tipos_archivos: props.contrato.tipos_archivos || {},
     observaciones: props.contrato.observaciones || '',
     campos_personalizados: props.valoresCampos || {},
     _method: 'PUT' // Para el update
@@ -149,6 +156,17 @@ const form = useForm({
 
 // Estado local
 const archivoNombre = ref(props.contrato.archivo_pdf ? 'Archivo actual: ' + props.contrato.archivo_pdf.split('/').pop() : '');
+const archivosSubidos = ref<any[]>(
+    (props.contrato.archivos_paths || []).map((path: string, index: number) => ({
+        id: `existing_${index}`,
+        name: props.contrato.archivos_nombres?.[index] || path.split('/').pop() || 'archivo',
+        size: 0,
+        path: path,
+        url: `/storage/${path}`,
+        mime_type: props.contrato.tipos_archivos?.[path] || 'application/octet-stream',
+        uploaded_at: props.contrato.updated_at
+    }))
+);
 const activeTab = ref('informacion');
 const mostrarConfirmacionEliminar = ref(false);
 
@@ -275,12 +293,65 @@ const puedeEditar = computed(() => {
     return props.contrato.estado !== 'finalizado' && props.contrato.estado !== 'cancelado';
 });
 
+// Computed para autosave
+const formDataRef = computed(() => form.data());
+
+// Configurar autosave para Edit (guardado directo)
+const {
+    state: autoSaveState,
+    isSaving,
+    hasSaved,
+    hasError,
+    startWatching,
+    stopAutoSave
+} = useAutoSave(formDataRef, {
+    url: `/admin/contratos/${props.contrato.id}/autosave`,
+    resourceId: props.contrato.id,
+    debounceTime: 3000,
+    showNotifications: true,
+    useLocalStorage: false // No usar localStorage en Edit
+});
+
 // Métodos
 const handleFileChange = (event: Event) => {
     const target = event.target as HTMLInputElement;
     if (target.files && target.files[0]) {
         form.archivo_pdf = target.files[0];
         archivoNombre.value = 'Nuevo archivo: ' + target.files[0].name;
+    }
+};
+
+// Handler para múltiples archivos (recibe File[] directamente del componente)
+const handleFilesSelected = async (files: File[]) => {
+    try {
+        // Subir todos los archivos
+        const uploadedFiles = await uploadFiles(files, {
+            module: 'contratos',
+            fieldId: 'archivos',
+            folder: 'contratos',
+            maxSize: 10 * 1024 * 1024, // 10MB
+        });
+
+        // Extraer paths y nombres de los archivos subidos
+        const newPaths = uploadedFiles.map(f => f.path);
+        const newNombres = uploadedFiles.map(f => f.name);
+        const newTiposArchivos: Record<string, string> = {};
+
+        uploadedFiles.forEach(f => {
+            newTiposArchivos[f.path] = f.mime_type;
+        });
+
+        // Actualizar form agregando a los existentes
+        form.archivos_paths = [...form.archivos_paths, ...newPaths];
+        form.archivos_nombres = [...form.archivos_nombres, ...newNombres];
+        form.tipos_archivos = { ...form.tipos_archivos, ...newTiposArchivos };
+
+        // Actualizar archivos subidos agregando los nuevos
+        archivosSubidos.value = [...archivosSubidos.value, ...uploadedFiles];
+
+        toast.success(`${uploadedFiles.length} archivo(s) agregado(s) exitosamente`);
+    } catch (error: any) {
+        toast.error(error.message || 'Error al subir archivos');
     }
 };
 
@@ -342,6 +413,15 @@ const submitForm = () => {
                     formData.append(`participantes[${index}][notas]`, participante.notas);
                 }
             });
+        } else if (key === 'archivos_paths' || key === 'archivos_nombres' || key === 'tipos_archivos') {
+            // Manejar arrays de archivos múltiples como JSON
+            if (key === 'archivos_paths' && Array.isArray(form.archivos_paths) && form.archivos_paths.length > 0) {
+                formData.append('archivos_paths', JSON.stringify(form.archivos_paths));
+            } else if (key === 'archivos_nombres' && Array.isArray(form.archivos_nombres) && form.archivos_nombres.length > 0) {
+                formData.append('archivos_nombres', JSON.stringify(form.archivos_nombres));
+            } else if (key === 'tipos_archivos' && form.tipos_archivos && Object.keys(form.tipos_archivos).length > 0) {
+                formData.append('tipos_archivos', JSON.stringify(form.tipos_archivos));
+            }
         } else if (key === 'archivo_pdf' && form.archivo_pdf) {
             formData.append('archivo_pdf', form.archivo_pdf);
         } else if (key === 'responsable_id' && form[key] === 'none') {
@@ -425,6 +505,19 @@ const cancelar = () => {
     }
 };
 
+// Lifecycle hooks
+onMounted(() => {
+    // Iniciar autoguardado (solo si puede editar)
+    if (puedeEditar.value) {
+        startWatching();
+    }
+});
+
+onUnmounted(() => {
+    // Detener autoguardado al salir
+    stopAutoSave();
+});
+
 // El método handleContraparteUserChange fue reemplazado por handleContraparteSelect
 </script>
 
@@ -461,6 +554,16 @@ const cancelar = () => {
                         Eliminar
                     </Button>
                 </div>
+            </div>
+
+            <!-- Indicador de autosave -->
+            <div v-if="puedeEditar" class="flex items-center justify-end gap-2 text-sm text-muted-foreground">
+                <Clock v-if="isSaving" class="h-4 w-4 animate-spin" />
+                <CheckCircle v-else-if="hasSaved && !hasError" class="h-4 w-4 text-green-600" />
+                <AlertCircle v-else-if="hasError" class="h-4 w-4 text-amber-600" />
+                <span v-if="isSaving">Guardando cambios...</span>
+                <span v-else-if="hasSaved && !hasError">Guardado a las {{ autoSaveState.lastSaved?.toLocaleTimeString() }}</span>
+                <span v-else-if="hasError">Error al guardar</span>
             </div>
 
             <!-- Alert de estado -->
@@ -519,11 +622,12 @@ const cancelar = () => {
             <!-- Formulario -->
             <form @submit.prevent="submitForm" class="space-y-6">
                 <Tabs v-model="activeTab">
-                    <TabsList class="grid w-full grid-cols-5">
+                    <TabsList class="grid w-full grid-cols-6">
                         <TabsTrigger value="informacion">Información General</TabsTrigger>
                         <TabsTrigger value="fechas">Fechas y Estado</TabsTrigger>
                         <TabsTrigger value="financiero">Información Financiera</TabsTrigger>
                         <TabsTrigger value="contraparte">Contraparte</TabsTrigger>
+                        <TabsTrigger value="archivos">Archivos</TabsTrigger>
                         <TabsTrigger value="adicional">Información Adicional</TabsTrigger>
                     </TabsList>
 
@@ -936,44 +1040,40 @@ const cancelar = () => {
                         </div>
                     </TabsContent>
 
+                    <!-- Tab: Archivos -->
+                    <TabsContent value="archivos">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Archivos del Contrato</CardTitle>
+                                <CardDescription>Sube múltiples archivos relacionados con el contrato (máximo 10)</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <FileUploadField
+                                    v-model="archivosSubidos"
+                                    label="Archivos"
+                                    description="Agrega archivos adicionales al contrato (PDF, imágenes, documentos)"
+                                    @filesSelected="handleFilesSelected"
+                                    :multiple="true"
+                                    :maxFiles="10"
+                                    :maxFileSize="10"
+                                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif,.xls,.xlsx"
+                                    :autoUpload="false"
+                                    :disabled="!puedeEditar"
+                                    module="contratos"
+                                    fieldId="archivos"
+                                />
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+
                     <!-- Tab: Información Adicional -->
                     <TabsContent value="adicional">
                         <Card>
                             <CardHeader>
                                 <CardTitle>Información Adicional</CardTitle>
-                                <CardDescription>Archivos y observaciones</CardDescription>
+                                <CardDescription>Observaciones y campos personalizados</CardDescription>
                             </CardHeader>
                             <CardContent class="space-y-4">
-                                <div>
-                                    <Label for="archivo_pdf">Archivo del Contrato (PDF)</Label>
-                                    <div class="flex items-center gap-4">
-                                        <Input
-                                            id="archivo_pdf"
-                                            type="file"
-                                            accept=".pdf"
-                                            @change="handleFileChange"
-                                            class="hidden"
-                                            :disabled="!puedeEditar"
-                                        />
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            @click="($refs.fileInput as HTMLInputElement).click()"
-                                            :disabled="!puedeEditar"
-                                        >
-                                            <Upload class="h-4 w-4 mr-2" />
-                                            Cambiar PDF
-                                        </Button>
-                                        <span v-if="archivoNombre" class="text-sm text-gray-600">
-                                            {{ archivoNombre }}
-                                        </span>
-                                    </div>
-                                    <p class="text-xs text-gray-500 mt-1">Máximo 10MB</p>
-                                    <div v-if="form.errors.archivo_pdf" class="text-red-500 text-sm mt-1">
-                                        {{ form.errors.archivo_pdf }}
-                                    </div>
-                                </div>
-
                                 <div>
                                     <Label for="observaciones">Observaciones</Label>
                                     <Textarea

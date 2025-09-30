@@ -106,6 +106,12 @@ class HandleInertiaRequests extends Middleware
                 'available' => $availableTenants,
             ],
             'config' => ConfiguracionService::obtenerConfiguracionesPublicas(),
+            'flash' => [
+                'success' => fn () => $request->session()->get('success'),
+                'error' => fn () => $request->session()->get('error'),
+                'warning' => fn () => $request->session()->get('warning'),
+                'info' => fn () => $request->session()->get('info'),
+            ],
         ]);
     }
 }

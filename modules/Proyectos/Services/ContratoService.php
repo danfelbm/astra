@@ -31,9 +31,20 @@ class ContratoService
             unset($data['campos_personalizados']);
             unset($data['participantes']);
 
-            // Manejar archivo PDF si existe
+            // Manejar archivo PDF si existe (retrocompatibilidad)
             if (isset($data['archivo_pdf']) && $data['archivo_pdf'] instanceof UploadedFile) {
                 $data['archivo_pdf'] = $this->guardarArchivoPdf($data['archivo_pdf']);
+            }
+
+            // Manejar múltiples archivos si existen
+            if (!empty($data['archivos_paths']) && is_array($data['archivos_paths'])) {
+                // Los archivos ya vienen como paths porque fueron subidos por FileUploadField
+                $data['total_archivos'] = count($data['archivos_paths']);
+
+                // Establecer archivo_pdf con el primero para retrocompatibilidad
+                if (!isset($data['archivo_pdf']) && !empty($data['archivos_paths'])) {
+                    $data['archivo_pdf'] = $data['archivos_paths'][0];
+                }
             }
 
             // Si se asignó un usuario del sistema como contraparte, limpiar campos de texto
@@ -98,13 +109,24 @@ class ContratoService
             unset($data['campos_personalizados']);
             unset($data['participantes']);
 
-            // Manejar archivo PDF si existe
+            // Manejar archivo PDF si existe (retrocompatibilidad)
             if (isset($data['archivo_pdf']) && $data['archivo_pdf'] instanceof UploadedFile) {
                 // Eliminar archivo anterior si existe
                 if ($contrato->archivo_pdf) {
-                    Storage::delete($contrato->archivo_pdf);
+                    Storage::disk('public')->delete($contrato->archivo_pdf);
                 }
                 $data['archivo_pdf'] = $this->guardarArchivoPdf($data['archivo_pdf']);
+            }
+
+            // Manejar múltiples archivos si existen
+            if (!empty($data['archivos_paths']) && is_array($data['archivos_paths'])) {
+                // Los archivos ya vienen como paths porque fueron subidos por FileUploadField
+                $data['total_archivos'] = count($data['archivos_paths']);
+
+                // Establecer archivo_pdf con el primero para retrocompatibilidad
+                if (!isset($data['archivo_pdf']) && !empty($data['archivos_paths'])) {
+                    $data['archivo_pdf'] = $data['archivos_paths'][0];
+                }
             }
 
             // Si se asignó un usuario del sistema como contraparte, limpiar campos de texto
@@ -168,9 +190,18 @@ class ContratoService
                 ];
             }
 
-            // Eliminar archivo PDF si existe
-            if ($contrato->archivo_pdf) {
-                Storage::delete($contrato->archivo_pdf);
+            // Eliminar archivos físicos si existen
+            if ($contrato->archivos_paths && is_array($contrato->archivos_paths)) {
+                foreach ($contrato->archivos_paths as $path) {
+                    if (Storage::disk('public')->exists($path)) {
+                        Storage::disk('public')->delete($path);
+                    }
+                }
+            } elseif ($contrato->archivo_pdf) {
+                // Retrocompatibilidad
+                if (Storage::disk('public')->exists($contrato->archivo_pdf)) {
+                    Storage::disk('public')->delete($contrato->archivo_pdf);
+                }
             }
 
             $nombreContrato = $contrato->nombre;
@@ -495,6 +526,54 @@ class ContratoService
             return [
                 'success' => false,
                 'message' => 'Error al obtener las obligaciones: ' . $e->getMessage()
+            ];
+        }
+    }
+
+    /**
+     * Elimina un archivo específico de un contrato.
+     */
+    public function eliminarArchivo(Contrato $contrato, int $indice): array
+    {
+        DB::beginTransaction();
+        try {
+            // Verificar que el índice es válido
+            if (!isset($contrato->archivos_paths[$indice])) {
+                return [
+                    'success' => false,
+                    'message' => 'El archivo especificado no existe'
+                ];
+            }
+
+            // Usar el método del modelo para eliminar
+            $resultado = $contrato->eliminarArchivoPorIndice($indice);
+
+            if (!$resultado) {
+                return [
+                    'success' => false,
+                    'message' => 'No se pudo eliminar el archivo'
+                ];
+            }
+
+            DB::commit();
+
+            // Registrar en el log de actividad
+            activity()
+                ->performedOn($contrato)
+                ->causedBy(auth()->user())
+                ->log("Archivo eliminado del contrato '{$contrato->nombre}'");
+
+            return [
+                'success' => true,
+                'message' => 'Archivo eliminado exitosamente'
+            ];
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error al eliminar archivo del contrato: ' . $e->getMessage());
+
+            return [
+                'success' => false,
+                'message' => 'Error al eliminar el archivo: ' . $e->getMessage()
             ];
         }
     }

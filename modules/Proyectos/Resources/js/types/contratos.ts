@@ -18,6 +18,13 @@ export interface User {
     email: string;
 }
 
+export interface ArchivoContrato {
+    path: string;
+    nombre: string;
+    url: string;
+    indice: number;
+}
+
 export interface Contrato {
     id: number;
     proyecto_id: number;
@@ -37,6 +44,14 @@ export interface Contrato {
     contraparte_email?: string;
     contraparte_telefono?: string;
     archivo_pdf?: string;
+    // Múltiples archivos
+    archivos_paths?: string[];
+    archivos_nombres?: string[];
+    tipos_archivos?: Record<string, string>;
+    total_archivos?: number;
+    archivos_urls?: string[];
+    archivos_info?: ArchivoContrato[];
+    tiene_multiples_archivos?: boolean;
     observaciones?: string;
     dias_restantes?: number;
     porcentaje_transcurrido?: number;
@@ -105,6 +120,10 @@ export interface ContratoFormData {
     contraparte_email?: string;
     contraparte_telefono?: string;
     archivo_pdf?: File | null;
+    // Múltiples archivos
+    archivos_paths?: string[];
+    archivos_nombres?: string[];
+    tipos_archivos?: Record<string, string>;
     observaciones?: string;
     campos_personalizados: Record<number, any>;
 }

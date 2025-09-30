@@ -69,11 +69,19 @@ class ContratoController extends AdminController
         $camposPersonalizados = CampoPersonalizado::paraContratos()->activos()->ordenado()->get();
         $usuarios = User::select('id', 'name', 'email')->orderBy('name')->get();
 
+        // Buscar borrador existente del usuario para recuperarlo
+        $borrador = Contrato::where('created_by', auth()->id())
+            ->where('estado', 'borrador')
+            ->where('tenant_id', auth()->user()->tenant_id)
+            ->latest()
+            ->first();
+
         return Inertia::render('Modules/Proyectos/Admin/Contratos/Create', [
             'proyecto' => $proyecto,
             'proyectos' => $proyectos,
             'camposPersonalizados' => $camposPersonalizados,
             'usuarios' => $usuarios,
+            'borrador' => $borrador, // Pasar borrador para recuperación
             'canManageFields' => auth()->user()->can('proyectos.manage_fields'),
         ]);
     }
@@ -281,5 +289,261 @@ class ContratoController extends AdminController
             'canChangeStatus' => auth()->user()->can('contratos.change_status'),
             'canExport' => auth()->user()->can('contratos.export'),
         ]);
+    }
+
+    /**
+     * Elimina un archivo específico del contrato.
+     */
+    public function eliminarArchivo(Contrato $contrato, int $indice): RedirectResponse
+    {
+        // Verificar permisos
+        abort_unless(auth()->user()->can('contratos.edit'), 403, 'No tienes permisos para editar contratos');
+
+        $resultado = $this->service->eliminarArchivo($contrato, $indice);
+
+        if (!$resultado['success']) {
+            return redirect()->back()
+                ->withErrors(['error' => $resultado['message']]);
+        }
+
+        return redirect()->back()
+            ->with('success', $resultado['message']);
+    }
+
+    /**
+     * Autoguardado de borrador de contrato (para Create).
+     * Los datos vienen en formato: { formulario_data: {...}, respuestas: {...} }
+     */
+    public function autosave(Request $request)
+    {
+        // Verificar permisos
+        abort_unless(auth()->user()->can('contratos.create'), 403,
+            'No tienes permisos para crear contratos');
+
+        try {
+            // Extraer datos del formato del composable useAutoSave
+            $formData = $request->input('formulario_data', []);
+
+            // Si no hay datos, retornar error
+            if (empty($formData)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No hay datos para guardar'
+                ], 400);
+            }
+
+            // Buscar borrador existente del usuario
+            $contrato = Contrato::where('created_by', auth()->id())
+                ->where('estado', 'borrador')
+                ->where('tenant_id', auth()->user()->tenant_id)
+                ->latest()
+                ->first();
+
+            // Si no existe borrador, crear uno nuevo
+            if (!$contrato) {
+                $contrato = new Contrato();
+                $contrato->estado = 'borrador';
+                $contrato->tenant_id = auth()->user()->tenant_id;
+                $contrato->created_by = auth()->id();
+            }
+
+            // Actualizar con los datos recibidos (solo valores NO vacíos)
+            $camposPermitidos = [
+                'proyecto_id', 'nombre', 'descripcion', 'fecha_inicio', 'fecha_fin',
+                'tipo', 'monto_total', 'moneda', 'responsable_id',
+                'contraparte_user_id', 'contraparte_nombre', 'contraparte_identificacion',
+                'contraparte_email', 'contraparte_telefono', 'observaciones',
+                'archivos_paths', 'archivos_nombres', 'tipos_archivos'
+            ];
+
+            foreach ($camposPermitidos as $campo) {
+                if (array_key_exists($campo, $formData) && $formData[$campo] !== null && $formData[$campo] !== '') {
+                    // Caso especial: responsable_id 'none' debe ser null
+                    if ($campo === 'responsable_id' && $formData[$campo] === 'none') {
+                        $contrato->$campo = null;
+                    } else {
+                        $contrato->$campo = $formData[$campo];
+                    }
+                }
+            }
+
+            // Setear valores por defecto para campos requeridos si están vacíos
+            if (empty($contrato->nombre)) {
+                $contrato->nombre = 'Borrador sin nombre';
+            }
+            if (empty($contrato->fecha_inicio)) {
+                $contrato->fecha_inicio = now()->format('Y-m-d');
+            }
+            if (empty($contrato->tipo)) {
+                $contrato->tipo = 'servicio';
+            }
+
+            // Guardar sin disparar eventos ni validación estricta
+            $contrato->saveQuietly();
+
+            return response()->json([
+                'success' => true,
+                'contrato_id' => $contrato->id,
+                'message' => 'Borrador guardado',
+                'timestamp' => now()->toTimeString(),
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Error en autosave de contrato: ' . $e->getMessage(), [
+                'user_id' => auth()->id(),
+                'exception' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al guardar borrador: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Autoguardado de contrato existente (para Edit).
+     * Los datos vienen en formato: { formulario_data: {...}, respuestas: {...} }
+     */
+    public function autosaveExisting(Request $request, Contrato $contrato)
+    {
+        // Verificar permisos
+        abort_unless(auth()->user()->can('contratos.edit'), 403,
+            'No tienes permisos para editar contratos');
+
+        try {
+            // Extraer datos del formato del composable useAutoSave
+            $formData = $request->input('formulario_data', []);
+
+            // Si no hay datos, retornar error
+            if (empty($formData)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No hay datos para guardar'
+                ], 400);
+            }
+
+            // Verificar tenant (seguridad)
+            if ($contrato->tenant_id !== auth()->user()->tenant_id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No autorizado'
+                ], 403);
+            }
+
+            // Solo permitir autoguardado en estados editables
+            if (!in_array($contrato->estado, ['borrador', 'activo'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'El contrato no se puede editar en su estado actual'
+                ], 400);
+            }
+
+            // Actualizar con los datos recibidos (solo valores NO vacíos)
+            $camposPermitidos = [
+                'proyecto_id', 'nombre', 'descripcion', 'fecha_inicio', 'fecha_fin',
+                'tipo', 'monto_total', 'moneda', 'responsable_id',
+                'contraparte_user_id', 'contraparte_nombre', 'contraparte_identificacion',
+                'contraparte_email', 'contraparte_telefono', 'observaciones',
+                'archivos_paths', 'archivos_nombres', 'tipos_archivos'
+            ];
+
+            foreach ($camposPermitidos as $campo) {
+                // Solo actualizar si el valor NO es null ni string vacío
+                if (array_key_exists($campo, $formData) && $formData[$campo] !== null && $formData[$campo] !== '') {
+                    // Caso especial: responsable_id 'none' debe ser null
+                    if ($campo === 'responsable_id' && $formData[$campo] === 'none') {
+                        $contrato->$campo = null;
+                    } else {
+                        $contrato->$campo = $formData[$campo];
+                    }
+                }
+            }
+
+            // Actualizar campos de auditoría
+            $contrato->updated_by = auth()->id();
+
+            // Guardar sin disparar eventos
+            $contrato->saveQuietly();
+
+            // Sincronizar participantes si se enviaron
+            if (isset($formData['participantes']) && is_array($formData['participantes'])) {
+                $participantes = collect($formData['participantes'])
+                    ->mapWithKeys(function ($p) {
+                        return [$p['user_id'] => [
+                            'rol' => $p['rol'] ?? 'testigo',
+                            'notas' => $p['notas'] ?? null
+                        ]];
+                    });
+
+                $contrato->participantes()->sync($participantes);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Cambios guardados',
+                'timestamp' => now()->toTimeString(),
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Error en autosave existing de contrato: ' . $e->getMessage(), [
+                'contrato_id' => $contrato->id,
+                'user_id' => auth()->id(),
+                'exception' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al guardar cambios: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Elimina el borrador del usuario autenticado.
+     */
+    public function eliminarBorrador()
+    {
+        // Verificar permisos
+        abort_unless(auth()->user()->can('contratos.create'), 403,
+            'No tienes permisos para gestionar borradores');
+
+        try {
+            // Buscar y eliminar borrador del usuario
+            $borrador = Contrato::where('created_by', auth()->id())
+                ->where('estado', 'borrador')
+                ->where('tenant_id', auth()->user()->tenant_id)
+                ->latest()
+                ->first();
+
+            if (!$borrador) {
+                return redirect()->back()->with('error', 'No hay borrador para eliminar');
+            }
+
+            // Eliminar archivos físicos si existen
+            if ($borrador->archivos_paths && is_array($borrador->archivos_paths)) {
+                foreach ($borrador->archivos_paths as $path) {
+                    if (\Storage::disk('public')->exists($path)) {
+                        \Storage::disk('public')->delete($path);
+                    }
+                }
+            }
+
+            // Eliminar borrador
+            $borrador->delete();
+
+            activity()
+                ->causedBy(auth()->user())
+                ->log("Borrador de contrato eliminado (ID: {$borrador->id})");
+
+            return redirect()->route('admin.contratos.create')
+                ->with('success', 'Borrador eliminado exitosamente');
+        } catch (\Exception $e) {
+            \Log::error('Error al eliminar borrador: ' . $e->getMessage(), [
+                'user_id' => auth()->id(),
+                'exception' => $e->getTraceAsString()
+            ]);
+
+            return redirect()->back()
+                ->with('error', 'Error al eliminar borrador');
+        }
     }
 }
