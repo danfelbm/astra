@@ -51,6 +51,10 @@ const props = defineProps<{
             hito: {
                 id: number;
                 nombre: string;
+                proyecto: {
+                    id: number;
+                    nombre: string;
+                };
             };
         }>;
         revisor?: {
@@ -432,14 +436,15 @@ const descargarTodosArchivos = () => {
                         </CardHeader>
                         <CardContent>
                             <div class="space-y-2">
-                                <div
+                                <Link
                                     v-for="entregable in evidencia.entregables"
                                     :key="entregable.id"
-                                    class="p-3 bg-muted/30 rounded-lg"
+                                    :href="`/admin/proyectos/${entregable.hito.proyecto.id}/hitos/${entregable.hito.id}/entregables/${entregable.id}`"
+                                    class="block p-3 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
                                 >
                                     <p class="font-medium text-sm">{{ entregable.nombre }}</p>
                                     <p class="text-xs text-muted-foreground">{{ entregable.hito.nombre }}</p>
-                                </div>
+                                </Link>
                             </div>
                         </CardContent>
                     </Card>
