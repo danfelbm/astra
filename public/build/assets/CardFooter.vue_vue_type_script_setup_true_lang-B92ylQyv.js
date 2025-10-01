@@ -1,0 +1,1 @@
+import{a as o}from"./createLucideIcon-zA0T3Uav.js";import{d as r,i as t,e as n,n as c,u as l,V as p}from"./app-Cuh3Sov_.js";const d=r({__name:"CardFooter",props:{class:{}},setup(e){const s=e;return(a,m)=>(n(),t("div",{class:c(l(o)("flex items-center p-6 pt-0",s.class))},[p(a.$slots,"default")],2))}});export{d as _};

@@ -31,7 +31,7 @@ class EvidenciaController extends AdminController
         $evidencia->load([
             'usuario',
             'obligacion',
-            'entregables.hito',
+            'entregables.hito.proyecto',
             'revisor'
         ]);
 
