@@ -490,6 +490,126 @@ class RoleController extends AdminController
                         'formularios.manage_permissions' => 'Gestionar permisos de formularios',
                     ],
                 ],
+                'campanas_plantillas' => [
+                    'label' => 'Plantillas de Campañas',
+                    'permissions' => [
+                        'campanas.plantillas.view' => 'Ver plantillas',
+                        'campanas.plantillas.create' => 'Crear plantillas',
+                        'campanas.plantillas.edit' => 'Editar plantillas',
+                        'campanas.plantillas.delete' => 'Eliminar plantillas',
+                    ],
+                ],
+                'campanas' => [
+                    'label' => 'Campañas (Admin)',
+                    'permissions' => [
+                        'campanas.view' => 'Ver campañas',
+                        'campanas.create' => 'Crear campañas',
+                        'campanas.edit' => 'Editar campañas',
+                        'campanas.delete' => 'Eliminar campañas',
+                        'campanas.send' => 'Enviar campañas',
+                        'campanas.pause' => 'Pausar campañas',
+                        'campanas.resume' => 'Reanudar campañas',
+                        'campanas.cancel' => 'Cancelar campañas',
+                        'campanas.export' => 'Exportar reportes',
+                    ],
+                ],
+                'proyectos' => [
+                    'label' => 'Proyectos (Admin)',
+                    'permissions' => [
+                        'proyectos.view' => 'Ver proyectos',
+                        'proyectos.create' => 'Crear proyectos',
+                        'proyectos.edit' => 'Editar proyectos',
+                        'proyectos.delete' => 'Eliminar proyectos',
+                        'proyectos.manage_fields' => 'Gestionar campos personalizados',
+                        'proyectos.manage_tags' => 'Gestionar etiquetas',
+                        'proyectos.manage_contracts' => 'Gestionar contratos',
+                        'proyectos.manage_milestones' => 'Gestionar hitos',
+                        'proyectos.manage_users' => 'Gestionar usuarios',
+                        'proyectos.view_assigned' => 'Ver proyectos asignados',
+                        'proyectos.view_contracts' => 'Ver contratos',
+                        'proyectos.view_milestones' => 'Ver hitos',
+                        'proyectos.export' => 'Exportar proyectos',
+                        'proyectos.import' => 'Importar proyectos',
+                        'proyectos.view_reports' => 'Ver reportes',
+                    ],
+                ],
+                'contratos' => [
+                    'label' => 'Contratos (Admin)',
+                    'permissions' => [
+                        'contratos.view' => 'Ver contratos',
+                        'contratos.create' => 'Crear contratos',
+                        'contratos.edit' => 'Editar contratos',
+                        'contratos.delete' => 'Eliminar contratos',
+                        'contratos.approve' => 'Aprobar contratos',
+                        'contratos.reject' => 'Rechazar contratos',
+                        'contratos.change_status' => 'Cambiar estado',
+                        'contratos.manage_fields' => 'Gestionar campos',
+                        'contratos.export' => 'Exportar contratos',
+                        'contratos.import' => 'Importar contratos',
+                        'contratos.download' => 'Descargar archivos',
+                    ],
+                ],
+                'etiquetas' => [
+                    'label' => 'Etiquetas',
+                    'permissions' => [
+                        'etiquetas.view' => 'Ver etiquetas',
+                        'etiquetas.create' => 'Crear etiquetas',
+                        'etiquetas.edit' => 'Editar etiquetas',
+                        'etiquetas.delete' => 'Eliminar etiquetas',
+                    ],
+                ],
+                'categorias_etiquetas' => [
+                    'label' => 'Categorías de Etiquetas',
+                    'permissions' => [
+                        'categorias_etiquetas.view' => 'Ver categorías',
+                        'categorias_etiquetas.create' => 'Crear categorías',
+                        'categorias_etiquetas.edit' => 'Editar categorías',
+                        'categorias_etiquetas.delete' => 'Eliminar categorías',
+                    ],
+                ],
+                'campos_personalizados' => [
+                    'label' => 'Campos Personalizados',
+                    'permissions' => [
+                        'campos_personalizados.view' => 'Ver campos personalizados',
+                        'campos_personalizados.create' => 'Crear campos personalizados',
+                        'campos_personalizados.edit' => 'Editar campos personalizados',
+                        'campos_personalizados.delete' => 'Eliminar campos personalizados',
+                    ],
+                ],
+                'hitos' => [
+                    'label' => 'Hitos',
+                    'permissions' => [
+                        'hitos.view' => 'Ver hitos',
+                        'hitos.create' => 'Crear hitos',
+                        'hitos.edit' => 'Editar hitos',
+                        'hitos.delete' => 'Eliminar hitos',
+                        'hitos.complete' => 'Completar hitos',
+                        'hitos.update_progress' => 'Actualizar progreso',
+                        'hitos.manage_deliverables' => 'Gestionar entregables',
+                    ],
+                ],
+                'entregables' => [
+                    'label' => 'Entregables',
+                    'permissions' => [
+                        'entregables.view' => 'Ver entregables',
+                        'entregables.create' => 'Crear entregables',
+                        'entregables.edit' => 'Editar entregables',
+                        'entregables.delete' => 'Eliminar entregables',
+                        'entregables.assign' => 'Asignar entregables',
+                        'entregables.complete' => 'Completar entregables',
+                    ],
+                ],
+                'obligaciones' => [
+                    'label' => 'Obligaciones de Contratos',
+                    'permissions' => [
+                        'obligaciones.view' => 'Ver obligaciones',
+                        'obligaciones.create' => 'Crear obligaciones',
+                        'obligaciones.edit' => 'Editar obligaciones',
+                        'obligaciones.delete' => 'Eliminar obligaciones',
+                        'obligaciones.complete' => 'Completar obligaciones',
+                        'obligaciones.export' => 'Exportar obligaciones',
+                    ],
+                ],
             ],
             'frontend' => [
                 'votaciones' => [
@@ -553,6 +673,37 @@ class RoleController extends AdminController
                     'permissions' => [
                         'formularios.view_public' => 'Ver formularios públicos',
                         'formularios.fill_public' => 'Llenar formularios públicos',
+                    ],
+                ],
+                'proyectos_usuarios' => [
+                    'label' => 'Mis Proyectos',
+                    'permissions' => [
+                        'proyectos.view_own' => 'Ver proyectos propios',
+                        'proyectos.create_own' => 'Crear proyectos propios',
+                        'proyectos.edit_own' => 'Editar proyectos propios',
+                        'proyectos.delete_own' => 'Eliminar proyectos propios',
+                    ],
+                ],
+                'contratos_usuarios' => [
+                    'label' => 'Mis Contratos',
+                    'permissions' => [
+                        'contratos.view_own' => 'Ver contratos propios',
+                        'contratos.edit_own' => 'Editar contratos propios',
+                        'contratos.view_public' => 'Ver contratos públicos',
+                    ],
+                ],
+                'hitos_usuarios' => [
+                    'label' => 'Mis Hitos',
+                    'permissions' => [
+                        'hitos.view_own' => 'Ver hitos propios',
+                        'hitos.complete_own' => 'Completar hitos propios',
+                    ],
+                ],
+                'obligaciones_usuarios' => [
+                    'label' => 'Mis Obligaciones',
+                    'permissions' => [
+                        'obligaciones.view_own' => 'Ver obligaciones propias',
+                        'obligaciones.complete_own' => 'Completar obligaciones propias',
                     ],
                 ],
             ],
