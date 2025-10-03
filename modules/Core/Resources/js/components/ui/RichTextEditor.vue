@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { useEditor, EditorContent } from '@tiptap/vue-3';
 import StarterKit from '@tiptap/starter-kit';
+import Heading from '@tiptap/extension-heading';
 import { watch, onBeforeUnmount } from 'vue';
-import { Bold, Italic, List, ListOrdered } from 'lucide-vue-next';
+import { Bold, Italic, List, ListOrdered, Heading1, Heading2, Heading3 } from 'lucide-vue-next';
 import { Button } from '@modules/Core/Resources/js/components/ui/button';
 
 interface Props {
@@ -32,9 +33,28 @@ const editor = useEditor({
             code: false,
             dropcursor: false,
             gapcursor: false,
-            heading: false,
+            heading: false, // Desactivar el heading del StarterKit
             horizontalRule: false,
             strike: false,
+        }),
+        // Agregar Heading personalizado con clases Tailwind
+        Heading.extend({
+            renderHTML({ node, HTMLAttributes }) {
+                const level = node.attrs.level;
+                const classes: Record<number, string> = {
+                    1: 'font-bold uppercase text-[72px] lg:text-[144px] leading-[0.8] mb-10 text-white',
+                    2: 'text-lg sm:text-xl md:text-2xl font-bold mb-2 sm:mb-3 text-gray-900 dark:text-white',
+                    3: 'text-base sm:text-lg md:text-xl font-bold mb-2 text-gray-900 dark:text-white'
+                };
+
+                return [
+                    `h${level}`,
+                    { ...HTMLAttributes, class: classes[level] || '' },
+                    0
+                ];
+            }
+        }).configure({
+            levels: [1, 2, 3]
         }),
     ],
     editorProps: {
@@ -115,6 +135,44 @@ onBeforeUnmount(() => {
             >
                 <ListOrdered class="h-4 w-4" />
             </Button>
+
+            <div class="mx-1 h-6 w-px bg-border" />
+
+            <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                @click="editor.chain().focus().toggleHeading({ level: 1 }).run()"
+                :class="{ 'bg-muted': editor.isActive('heading', { level: 1 }) }"
+                class="h-8 w-8 p-0"
+                :title="'Título 1'"
+            >
+                <Heading1 class="h-4 w-4" />
+            </Button>
+
+            <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                @click="editor.chain().focus().toggleHeading({ level: 2 }).run()"
+                :class="{ 'bg-muted': editor.isActive('heading', { level: 2 }) }"
+                class="h-8 w-8 p-0"
+                :title="'Título 2'"
+            >
+                <Heading2 class="h-4 w-4" />
+            </Button>
+
+            <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                @click="editor.chain().focus().toggleHeading({ level: 3 }).run()"
+                :class="{ 'bg-muted': editor.isActive('heading', { level: 3 }) }"
+                class="h-8 w-8 p-0"
+                :title="'Título 3'"
+            >
+                <Heading3 class="h-4 w-4" />
+            </Button>
         </div>
         
         <!-- Editor de contenido -->
@@ -174,6 +232,29 @@ onBeforeUnmount(() => {
 
 :deep(.ProseMirror em) {
     font-style: italic;
+}
+
+/* Headings - Estilos para el EDITOR (más pequeños para facilitar edición) */
+:deep(.ProseMirror h1) {
+    font-size: 2em;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+    line-height: 1.2;
+    color: hsl(var(--foreground));
+}
+
+:deep(.ProseMirror h2) {
+    font-size: 1.5em;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+    line-height: 1.3;
+}
+
+:deep(.ProseMirror h3) {
+    font-size: 1.25em;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+    line-height: 1.4;
 }
 
 /* Placeholder */

@@ -402,8 +402,7 @@ onUnmounted(() => {
                 El código expira en 10 minutos. Si no lo recibes, verifica tu bandeja de spam.
             </p>
             <br />
-            <p>
-                Si necesitas ayuda escribe a <b>soporte@colombiahumana.co</b> para soporte sobre la plataforma. Para inquietudes jurídicas a <b>juridicoelectoral@colombiahumana.co</b>
+            <p v-html="$page.props.config['auth.mensaje_login'] || 'Si necesitas ayuda escribe a <b>soporte@colombiahumana.co</b> para soporte sobre la plataforma. Para inquietudes jurídicas a <b>juridicoelectoral@colombiahumana.co</b>'">
             </p>
         </div>
     </AuthBase>

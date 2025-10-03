@@ -528,7 +528,16 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
     Route::post('configuracion/candidaturas', [ConfiguracionController::class, 'updateCandidaturas'])
         ->middleware('can:settings.edit')
         ->name('configuracion.update.candidaturas');
-    
+    Route::post('configuracion/login', [ConfiguracionController::class, 'updateLogin'])
+        ->middleware('can:settings.edit')
+        ->name('configuracion.update.login');
+    Route::post('configuracion/dashboard-user', [ConfiguracionController::class, 'updateDashboardUser'])
+        ->middleware('can:settings.edit')
+        ->name('configuracion.update.dashboard-user');
+    Route::post('configuracion/welcome', [ConfiguracionController::class, 'updateWelcome'])
+        ->middleware('can:settings.edit')
+        ->name('configuracion.update.welcome');
+
     // Users management routes - Expandido para usar Spatie
     Route::get('usuarios', [UserController::class, 'index'])
         ->middleware('can:users.view')
