@@ -17,10 +17,10 @@ use Inertia\Inertia;
 Route::get('/', function () {
     $user = auth()->user();
     $redirectRoute = 'user.dashboard'; // Valor por defecto
-    
+
     if ($user) {
         $userRoles = $user->roles()->pluck('name')->toArray();
-        
+
         // Si tiene múltiples roles, priorizar según contexto o preferencia
         if (in_array('super_admin', $userRoles) || in_array('admin', $userRoles) || in_array('manager', $userRoles)) {
             $redirectRoute = 'admin.dashboard';
@@ -28,9 +28,13 @@ Route::get('/', function () {
             $redirectRoute = 'user.dashboard'; // Nueva ruta con prefijo
         }
     }
-    
+
+    // Obtener configuración de la página de bienvenida
+    $welcomeConfig = \Modules\Core\Services\ConfiguracionService::obtenerConfiguracionWelcome();
+
     return Inertia::render('Welcome', [
-        'redirectRoute' => $redirectRoute
+        'redirectRoute' => $redirectRoute,
+        'welcomeConfig' => $welcomeConfig
     ]);
 })->name('home');
 

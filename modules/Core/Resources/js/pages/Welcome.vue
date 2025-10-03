@@ -2,6 +2,35 @@
 import { Head, Link, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
 
+interface WelcomeLink {
+    id: string;
+    enabled: boolean;
+    order: number;
+    text: string;
+    url: string;
+    visibility: 'always' | 'logged_in' | 'logged_out';
+    is_primary: boolean;
+}
+
+interface WelcomeConfig {
+    header: {
+        logo_url: string;
+        logo_text: string;
+    };
+    hero: {
+        title_html: string;
+        description_html: string;
+    };
+    links: WelcomeLink[];
+    background_url: string;
+}
+
+interface Props {
+    welcomeConfig: WelcomeConfig;
+}
+
+const props = defineProps<Props>();
+
 // Verificar si el usuario está autenticado
 const page = usePage();
 const isAuthenticated = computed(() => !!(page.props as any).auth?.user);
@@ -10,6 +39,20 @@ const isAuthenticated = computed(() => !!(page.props as any).auth?.user);
 const hasRoleId15 = computed(() => {
     const user = (page.props as any).auth?.user;
     return user && user.roles && user.roles.some((role: any) => role.id === 15);
+});
+
+// Filtrar enlaces según visibilidad y estado
+const visibleLinks = computed(() => {
+    return props.welcomeConfig.links
+        .filter(link => {
+            if (!link.enabled) return false;
+
+            if (link.visibility === 'logged_in' && !isAuthenticated.value) return false;
+            if (link.visibility === 'logged_out' && isAuthenticated.value) return false;
+
+            return true;
+        })
+        .sort((a, b) => a.order - b.order);
 });
 </script>
 
@@ -20,7 +63,7 @@ const hasRoleId15 = computed(() => {
         <!-- Gradient Background -->
         <div class="absolute top-0 left-0 right-0 z-0 pointer-events-none">
             <div id="gradient" class="aspect-[9/16] sm:aspect-video w-full">
-                <img src="/2.png" alt="Background" class="w-full h-full object-cover" />
+                <img :src="welcomeConfig.background_url" alt="Background" class="w-full h-full object-cover" />
             </div>
             <div class="absolute inset-0 z-10 w-full h-full aspect-video bg-gradient-to-b from-transparent to-black"></div>
         </div>
@@ -29,13 +72,13 @@ const hasRoleId15 = computed(() => {
             <header class="p-5 sm:px-[40px] sm:py-[30px] sm:flex z-10 my-5 rounded bg-white shadow-lg font-medium">
                 <div class="flex justify-between content-center leading-loose sm:leading-none sm:block">
                     <a class="flex items-center gap-3" href="/" title="Home">
-                        <img 
-                            src="/logo.png" 
-                            alt="Colombia Humana" 
+                        <img
+                            :src="welcomeConfig.header.logo_url"
+                            :alt="welcomeConfig.header.logo_text"
                             class="h-10 sm:h-12 w-auto"
                         />
                         <span class="text-lg sm:text-xl font-bold text-gray-800">
-                            Colombia Humana
+                            {{ welcomeConfig.header.logo_text }}
                         </span>
                     </a>
                     <!--<button class="flex items-center gap-x-2 text-black sm:hidden">
@@ -98,9 +141,9 @@ const hasRoleId15 = computed(() => {
             <div class="px-3 sm:px-16 md:px-10 lg:px-16 flex flex-col gap-y-16 sm:gap-y-20">
                 <section id="header" class="md:flex w-full max-w-[1080px] mx-auto mt-8 sm:mt-20 md:mt-32 mb-24 md:mb-52 px-7 lg:px-0">
                     <div class="w-full mb-10 md:mb-0">
-                        <h1 class="font-bold uppercase text-[72px] lg:text-[144px] leading-[0.8] mb-10 text-white">Ágora</h1>
+                        <div v-html="welcomeConfig.hero.title_html"></div>
                         <h2 class="text-[18px] sm:text-2xl font-medium max-w-[600px] text-white">
-                            <span>Sistema de Votaciones Digital para gestionar asambleas, votaciones y procesos electorales de forma segura y transparente.</span>
+                            <span v-html="welcomeConfig.hero.description_html"></span>
                             <!--<Link href="/asambleas" class="mt-10 flex items-center gap-x-6 hover:opacity-80 transition-opacity">
                                 <svg class="w-12 h-12" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 48 48">
                                     <rect width="46" height="46" x="1" y="1" stroke="#A5A4A3" stroke-width="2" rx="23"></rect>
@@ -112,41 +155,17 @@ const hasRoleId15 = computed(() => {
                     </div>
                     <aside class="w-full max-w-[360px] flex-shrink-0 md:pl-32 flex flex-col md:justify-end md:items-end pt-10 md:pt-0 border-t md:border-t-0 md:border-l border-white/20">
                         <ul class="text-xl w-full sm:max-w-[240px]">
-                            <li class="mb-3 font-bold text-white hover:text-white transition-colors">
-                                <Link :href="hasRoleId15 ? '/dashboard' : '/miembro/asambleas'" class="flex items-center justify-between">
-                                    <span>{{ hasRoleId15 ? 'Dashboard' : 'Ver Asambleas' }}</span>
-                                    <svg class="fill-current w-2.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 7 12">
-                                        <path d="m6.687 6-.53.53-4.5 4.5-.532.532L.063 10.5l.53-.53L4.563 6 .596 2.03.063 1.5 1.125.438l.53.53 4.5 4.5.532.532Z"></path>
-                                    </svg>
-                                </Link>
-                            </li>
-                            <li class="mb-3 text-white/50 hover:text-white transition-colors">
-                                <Link href="/consulta-participantes" class="flex items-center justify-between">
-                                    <span>Consulta Participantes</span>
-                                    <svg class="fill-current w-2.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 7 12">
-                                        <path d="m6.687 6-.53.53-4.5 4.5-.532.532L.063 10.5l.53-.53L4.563 6 .596 2.03.063 1.5 1.125.438l.53.53 4.5 4.5.532.532Z"></path>
-                                    </svg>
-                                </Link>
-                            </li>
-                            <li class="mb-3 text-white/50 hover:text-white transition-colors">
-                                <Link href="/confirmar-registro" class="flex items-center justify-between">
-                                    <span>Consultar Inscripción</span>
-                                    <svg class="fill-current w-2.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 7 12">
-                                        <path d="m6.687 6-.53.53-4.5 4.5-.532.532L.063 10.5l.53-.53L4.563 6 .596 2.03.063 1.5 1.125.438l.53.53 4.5 4.5.532.532Z"></path>
-                                    </svg>
-                                </Link>
-                            </li>
-                            <li class="mb-3 text-white/50 hover:text-white transition-colors">
-                                <Link href="/postulaciones-aceptadas" class="flex items-center justify-between">
-                                    <span>Lista Precandidatos</span>
-                                    <svg class="fill-current w-2.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 7 12">
-                                        <path d="m6.687 6-.53.53-4.5 4.5-.532.532L.063 10.5l.53-.53L4.563 6 .596 2.03.063 1.5 1.125.438l.53.53 4.5 4.5.532.532Z"></path>
-                                    </svg>
-                                </Link>
-                            </li>
-                            <li v-if="!hasRoleId15" class="text-white/50 hover:text-white transition-colors">
-                                <Link :href="isAuthenticated ? '/miembro/dashboard' : '/login'" class="flex items-center justify-between">
-                                    <span>{{ isAuthenticated ? 'Dashboard' : 'Iniciar Sesión' }}</span>
+                            <li
+                                v-for="(link, index) in visibleLinks"
+                                :key="link.id"
+                                :class="[
+                                    index !== visibleLinks.length - 1 ? 'mb-3' : '',
+                                    link.is_primary ? 'font-bold text-white' : 'text-white/50',
+                                    'hover:text-white transition-colors'
+                                ]"
+                            >
+                                <Link :href="link.url" class="flex items-center justify-between">
+                                    <span>{{ link.text }}</span>
                                     <svg class="fill-current w-2.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 7 12">
                                         <path d="m6.687 6-.53.53-4.5 4.5-.532.532L.063 10.5l.53-.53L4.563 6 .596 2.03.063 1.5 1.125.438l.53.53 4.5 4.5.532.532Z"></path>
                                     </svg>

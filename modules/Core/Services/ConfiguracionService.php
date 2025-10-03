@@ -206,6 +206,175 @@ class ConfiguracionService
                     'publico' => false,
                     'descripcion' => 'Driver de email a utilizar',
                 ]
+            ],
+            [
+                'clave' => 'auth.mensaje_login',
+                'valor' => 'Si necesitas ayuda escribe a <b>soporte@colombiahumana.co</b> para soporte sobre la plataforma. Para inquietudes jurídicas a <b>juridicoelectoral@colombiahumana.co</b>',
+                'tipo' => 'string',
+                'opciones' => [
+                    'categoria' => 'auth',
+                    'publico' => true,
+                    'descripcion' => 'Mensaje HTML de ayuda que se muestra en la página de login',
+                ]
+            ],
+            [
+                'clave' => 'dashboard.user.hero_html',
+                'valor' => '<h1 class="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold mb-2 sm:mb-3 md:mb-4 text-gray-900 dark:text-white">Bienvenido a la plataforma de participación en línea</h1><p class="text-sm sm:text-base md:text-lg text-gray-600 dark:text-gray-300 max-w-2xl">Explora las herramientas disponibles para gestionar candidaturas, participar en convocatorias y asambleas del movimiento.</p>',
+                'tipo' => 'string',
+                'opciones' => [
+                    'categoria' => 'dashboard',
+                    'publico' => true,
+                    'descripcion' => 'HTML del hero del dashboard de usuarios',
+                ]
+            ],
+            [
+                'clave' => 'dashboard.user.cards',
+                'valor' => json_encode([
+                    [
+                        'id' => '1',
+                        'enabled' => true,
+                        'order' => 0,
+                        'color' => 'blue',
+                        'icon' => 'Vote',
+                        'title' => 'Participar en Votaciones',
+                        'description' => 'Consulta las votaciones activas y participa en los procesos democráticos del movimiento.',
+                        'buttonText' => 'Ver Votaciones',
+                        'buttonLink' => '/miembro/votaciones'
+                    ],
+                    [
+                        'id' => '2',
+                        'enabled' => true,
+                        'order' => 1,
+                        'color' => 'green',
+                        'icon' => 'Users',
+                        'title' => 'Participar en Asambleas',
+                        'description' => 'Accede a las asambleas del movimiento, consulta información y participa en las sesiones.',
+                        'buttonText' => 'Ver Asambleas',
+                        'buttonLink' => '/miembro/asambleas'
+                    ]
+                ]),
+                'tipo' => 'json',
+                'opciones' => [
+                    'categoria' => 'dashboard',
+                    'publico' => true,
+                    'descripcion' => 'Configuración de cards del dashboard de usuarios',
+                ]
+            ],
+            // Configuraciones de Welcome Page
+            [
+                'clave' => 'welcome.header.logo_url',
+                'valor' => '/logo.png',
+                'tipo' => 'string',
+                'opciones' => [
+                    'categoria' => 'welcome',
+                    'publico' => true,
+                    'descripcion' => 'URL del logo en header de la página principal',
+                ]
+            ],
+            [
+                'clave' => 'welcome.header.logo_text',
+                'valor' => 'Colombia Humana',
+                'tipo' => 'string',
+                'opciones' => [
+                    'categoria' => 'welcome',
+                    'publico' => true,
+                    'descripcion' => 'Texto del logo en header de la página principal',
+                ]
+            ],
+            [
+                'clave' => 'welcome.hero.title_html',
+                'valor' => "<h1 class='font-bold uppercase text-[72px] lg:text-[144px] leading-[0.8] mb-10 text-white'>Ágora</h1>",
+                'tipo' => 'string',
+                'opciones' => [
+                    'categoria' => 'welcome',
+                    'publico' => true,
+                    'descripcion' => 'HTML del título principal de la página principal',
+                ]
+            ],
+            [
+                'clave' => 'welcome.hero.description_html',
+                'valor' => '<span>Sistema de Votaciones Digital para gestionar asambleas, votaciones y procesos electorales de forma segura y transparente.</span>',
+                'tipo' => 'string',
+                'opciones' => [
+                    'categoria' => 'welcome',
+                    'publico' => true,
+                    'descripcion' => 'HTML de la descripción de la página principal',
+                ]
+            ],
+            [
+                'clave' => 'welcome.background_url',
+                'valor' => '/2.png',
+                'tipo' => 'string',
+                'opciones' => [
+                    'categoria' => 'welcome',
+                    'publico' => true,
+                    'descripcion' => 'URL del background de la página principal',
+                ]
+            ],
+            [
+                'clave' => 'welcome.links',
+                'valor' => json_encode([
+                    [
+                        'id' => '1',
+                        'enabled' => true,
+                        'order' => 0,
+                        'text' => 'Ver Asambleas',
+                        'url' => '/miembro/asambleas',
+                        'visibility' => 'always',
+                        'is_primary' => true
+                    ],
+                    [
+                        'id' => '2',
+                        'enabled' => true,
+                        'order' => 1,
+                        'text' => 'Consulta Participantes',
+                        'url' => '/consulta-participantes',
+                        'visibility' => 'always',
+                        'is_primary' => false
+                    ],
+                    [
+                        'id' => '3',
+                        'enabled' => true,
+                        'order' => 2,
+                        'text' => 'Consultar Inscripción',
+                        'url' => '/confirmar-registro',
+                        'visibility' => 'always',
+                        'is_primary' => false
+                    ],
+                    [
+                        'id' => '4',
+                        'enabled' => true,
+                        'order' => 3,
+                        'text' => 'Lista Precandidatos',
+                        'url' => '/postulaciones-aceptadas',
+                        'visibility' => 'always',
+                        'is_primary' => false
+                    ],
+                    [
+                        'id' => '5',
+                        'enabled' => true,
+                        'order' => 4,
+                        'text' => 'Iniciar Sesión',
+                        'url' => '/login',
+                        'visibility' => 'logged_out',
+                        'is_primary' => false
+                    ],
+                    [
+                        'id' => '6',
+                        'enabled' => true,
+                        'order' => 4,
+                        'text' => 'Dashboard',
+                        'url' => '/miembro/dashboard',
+                        'visibility' => 'logged_in',
+                        'is_primary' => false
+                    ]
+                ]),
+                'tipo' => 'json',
+                'opciones' => [
+                    'categoria' => 'welcome',
+                    'publico' => true,
+                    'descripcion' => 'Enlaces laterales de la página principal',
+                ]
             ]
         ];
 
@@ -291,5 +460,345 @@ class ConfiguracionService
     public static function bloqueoCandidaturasActivo(): bool
     {
         return (bool) self::obtener('candidaturas.bloqueo_activo', false);
+    }
+
+    /**
+     * Obtener configuración del mensaje de login
+     */
+    public static function obtenerConfiguracionLogin(): array
+    {
+        return [
+            'mensaje_html' => self::obtener(
+                'auth.mensaje_login',
+                'Si necesitas ayuda escribe a <b>soporte@colombiahumana.co</b> para soporte sobre la plataforma. Para inquietudes jurídicas a <b>juridicoelectoral@colombiahumana.co</b>'
+            ),
+        ];
+    }
+
+    /**
+     * Establecer configuración del mensaje de login
+     */
+    public static function configurarMensajeLogin(array $datos): bool
+    {
+        $configuraciones = [
+            [
+                'clave' => 'auth.mensaje_login',
+                'valor' => $datos['mensaje_html'],
+                'tipo' => 'string',
+                'opciones' => [
+                    'categoria' => 'auth',
+                    'publico' => true,
+                    'descripcion' => 'Mensaje HTML de ayuda que se muestra en la página de login',
+                    'validacion' => ['required', 'string', 'max:2000']
+                ]
+            ]
+        ];
+
+        return self::configurarVarios($configuraciones);
+    }
+
+    /**
+     * Obtener configuración del dashboard de usuarios
+     */
+    public static function obtenerConfiguracionDashboardUser(): array
+    {
+        $heroDefault = '<h1 class="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold mb-2 sm:mb-3 md:mb-4 text-gray-900 dark:text-white">Bienvenido a la plataforma de participación en línea</h1><p class="text-sm sm:text-base md:text-lg text-gray-600 dark:text-gray-300 max-w-2xl">Explora las herramientas disponibles para gestionar candidaturas, participar en convocatorias y asambleas del movimiento.</p>';
+
+        $cardsDefault = json_encode([
+            [
+                'id' => '1',
+                'enabled' => true,
+                'order' => 0,
+                'color' => 'blue',
+                'icon' => 'Vote',
+                'title' => 'Participar en Votaciones',
+                'description' => 'Consulta las votaciones activas y participa en los procesos democráticos del movimiento.',
+                'buttonText' => 'Ver Votaciones',
+                'buttonLink' => '/miembro/votaciones'
+            ],
+            [
+                'id' => '2',
+                'enabled' => true,
+                'order' => 1,
+                'color' => 'green',
+                'icon' => 'Users',
+                'title' => 'Participar en Asambleas',
+                'description' => 'Accede a las asambleas del movimiento, consulta información y participa en las sesiones.',
+                'buttonText' => 'Ver Asambleas',
+                'buttonLink' => '/miembro/asambleas'
+            ]
+        ]);
+
+        return [
+            'hero_html' => self::obtener('dashboard.user.hero_html', $heroDefault),
+            'cards' => json_decode(self::obtener('dashboard.user.cards', $cardsDefault), true)
+        ];
+    }
+
+    /**
+     * Establecer configuración del dashboard de usuarios
+     */
+    public static function configurarDashboardUser(array $datos): bool
+    {
+        $configuraciones = [
+            [
+                'clave' => 'dashboard.user.hero_html',
+                'valor' => $datos['hero_html'],
+                'tipo' => 'string',
+                'opciones' => [
+                    'categoria' => 'dashboard',
+                    'publico' => true,
+                    'descripcion' => 'HTML del hero del dashboard de usuarios',
+                    'validacion' => ['required', 'string', 'max:5000']
+                ]
+            ],
+            [
+                'clave' => 'dashboard.user.cards',
+                'valor' => json_encode($datos['cards']),
+                'tipo' => 'json',
+                'opciones' => [
+                    'categoria' => 'dashboard',
+                    'publico' => true,
+                    'descripcion' => 'Configuración de cards del dashboard de usuarios',
+                    'validacion' => ['required', 'array']
+                ]
+            ]
+        ];
+
+        return self::configurarVarios($configuraciones);
+    }
+
+    /**
+     * Obtener configuración de la página principal (Welcome)
+     */
+    public static function obtenerConfiguracionWelcome(): array
+    {
+        $headerDefaults = [
+            'logo_url' => '/logo.png',
+            'logo_text' => 'Colombia Humana'
+        ];
+
+        $heroDefaults = [
+            'title_html' => "<h1 class='font-bold uppercase text-[72px] lg:text-[144px] leading-[0.8] mb-10 text-white'>Ágora</h1>",
+            'description_html' => '<span>Sistema de Votaciones Digital para gestionar asambleas, votaciones y procesos electorales de forma segura y transparente.</span>'
+        ];
+
+        $linksDefault = json_encode([
+            [
+                'id' => '1',
+                'enabled' => true,
+                'order' => 0,
+                'text' => 'Ver Asambleas',
+                'url' => '/miembro/asambleas',
+                'visibility' => 'always',
+                'is_primary' => true
+            ],
+            [
+                'id' => '2',
+                'enabled' => true,
+                'order' => 1,
+                'text' => 'Consulta Participantes',
+                'url' => '/consulta-participantes',
+                'visibility' => 'always',
+                'is_primary' => false
+            ],
+            [
+                'id' => '3',
+                'enabled' => true,
+                'order' => 2,
+                'text' => 'Consultar Inscripción',
+                'url' => '/confirmar-registro',
+                'visibility' => 'always',
+                'is_primary' => false
+            ],
+            [
+                'id' => '4',
+                'enabled' => true,
+                'order' => 3,
+                'text' => 'Lista Precandidatos',
+                'url' => '/postulaciones-aceptadas',
+                'visibility' => 'always',
+                'is_primary' => false
+            ],
+            [
+                'id' => '5',
+                'enabled' => true,
+                'order' => 4,
+                'text' => 'Iniciar Sesión',
+                'url' => '/login',
+                'visibility' => 'logged_out',
+                'is_primary' => false
+            ],
+            [
+                'id' => '6',
+                'enabled' => true,
+                'order' => 4,
+                'text' => 'Dashboard',
+                'url' => '/miembro/dashboard',
+                'visibility' => 'logged_in',
+                'is_primary' => false
+            ]
+        ]);
+
+        $links = self::obtener('welcome.links', $linksDefault);
+
+        // Si es string, decodificar JSON
+        if (is_string($links)) {
+            $links = json_decode($links, true);
+        }
+
+        // Convertir valores a tipos correctos
+        $links = array_map(function ($link) {
+            // Convertir enabled a boolean (manejar cualquier formato)
+            $link['enabled'] = is_bool($link['enabled'])
+                ? $link['enabled']
+                : (bool) filter_var($link['enabled'], FILTER_VALIDATE_BOOLEAN);
+
+            // Convertir is_primary a boolean
+            $link['is_primary'] = is_bool($link['is_primary'])
+                ? $link['is_primary']
+                : (bool) filter_var($link['is_primary'], FILTER_VALIDATE_BOOLEAN);
+
+            $link['order'] = (int) $link['order'];
+            return $link;
+        }, $links);
+
+        return [
+            'header' => [
+                'logo_url' => self::obtener('welcome.header.logo_url', $headerDefaults['logo_url']),
+                'logo_text' => self::obtener('welcome.header.logo_text', $headerDefaults['logo_text'])
+            ],
+            'hero' => [
+                'title_html' => self::obtener('welcome.hero.title_html', $heroDefaults['title_html']),
+                'description_html' => self::obtener('welcome.hero.description_html', $heroDefaults['description_html'])
+            ],
+            'links' => $links,
+            'background_url' => self::obtener('welcome.background_url', '/2.png')
+        ];
+    }
+
+    /**
+     * Manejar upload de logo de Welcome
+     */
+    public static function manejarUploadLogoWelcome($archivo): ?string
+    {
+        if (!$archivo) {
+            return null;
+        }
+
+        // Eliminar logo anterior si existe
+        $logoAnterior = self::obtener('welcome.header.logo_url');
+        if ($logoAnterior && $logoAnterior !== '/logo.png' && str_starts_with($logoAnterior, '/storage/')) {
+            $relativePath = str_replace('/storage/', '', $logoAnterior);
+            if (Storage::disk('public')->exists($relativePath)) {
+                Storage::disk('public')->delete($relativePath);
+            }
+        }
+
+        // Guardar nuevo logo
+        $path = $archivo->store('logos/welcome', 'public');
+
+        return '/storage/' . $path;
+    }
+
+    /**
+     * Manejar upload de background de Welcome
+     */
+    public static function manejarUploadBackgroundWelcome($archivo): ?string
+    {
+        if (!$archivo) {
+            return null;
+        }
+
+        // Eliminar background anterior si existe
+        $backgroundAnterior = self::obtener('welcome.background_url');
+        if ($backgroundAnterior && $backgroundAnterior !== '/2.png' && str_starts_with($backgroundAnterior, '/storage/')) {
+            $relativePath = str_replace('/storage/', '', $backgroundAnterior);
+            if (Storage::disk('public')->exists($relativePath)) {
+                Storage::disk('public')->delete($relativePath);
+            }
+        }
+
+        // Guardar nuevo background
+        $path = $archivo->store('backgrounds/welcome', 'public');
+
+        return '/storage/' . $path;
+    }
+
+    /**
+     * Establecer configuración de la página principal (Welcome)
+     */
+    public static function configurarWelcome(array $datos): bool
+    {
+        $configuraciones = [
+            [
+                'clave' => 'welcome.header.logo_url',
+                'valor' => $datos['header']['logo_url'] ?? '/logo.png',
+                'tipo' => 'string',
+                'opciones' => [
+                    'categoria' => 'welcome',
+                    'publico' => true,
+                    'descripcion' => 'URL del logo en header de la página principal',
+                    'validacion' => ['nullable', 'string', 'max:500']
+                ]
+            ],
+            [
+                'clave' => 'welcome.header.logo_text',
+                'valor' => $datos['header']['logo_text'],
+                'tipo' => 'string',
+                'opciones' => [
+                    'categoria' => 'welcome',
+                    'publico' => true,
+                    'descripcion' => 'Texto del logo en header de la página principal',
+                    'validacion' => ['required', 'string', 'max:100']
+                ]
+            ],
+            [
+                'clave' => 'welcome.hero.title_html',
+                'valor' => $datos['hero']['title_html'],
+                'tipo' => 'string',
+                'opciones' => [
+                    'categoria' => 'welcome',
+                    'publico' => true,
+                    'descripcion' => 'HTML del título principal de la página principal',
+                    'validacion' => ['required', 'string', 'max:1000']
+                ]
+            ],
+            [
+                'clave' => 'welcome.hero.description_html',
+                'valor' => $datos['hero']['description_html'],
+                'tipo' => 'string',
+                'opciones' => [
+                    'categoria' => 'welcome',
+                    'publico' => true,
+                    'descripcion' => 'HTML de la descripción de la página principal',
+                    'validacion' => ['required', 'string', 'max:2000']
+                ]
+            ],
+            [
+                'clave' => 'welcome.background_url',
+                'valor' => $datos['background_url'] ?? '/2.png',
+                'tipo' => 'string',
+                'opciones' => [
+                    'categoria' => 'welcome',
+                    'publico' => true,
+                    'descripcion' => 'URL del background de la página principal',
+                    'validacion' => ['nullable', 'string', 'max:500']
+                ]
+            ],
+            [
+                'clave' => 'welcome.links',
+                'valor' => $datos['links'], // No hacer json_encode aquí, el modelo lo hará
+                'tipo' => 'json',
+                'opciones' => [
+                    'categoria' => 'welcome',
+                    'publico' => true,
+                    'descripcion' => 'Enlaces laterales de la página principal',
+                    'validacion' => ['required', 'array']
+                ]
+            ]
+        ];
+
+        return self::configurarVarios($configuraciones);
     }
 }
