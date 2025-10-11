@@ -78,6 +78,15 @@ interface Evidencia {
   };
 }
 
+interface CampoPersonalizado {
+  id: number;
+  nombre: string;
+  tipo: string;
+  es_requerido: boolean;
+  descripcion?: string;
+  opciones?: any[];
+}
+
 interface Props {
   proyecto: {
     id: number;
@@ -109,6 +118,8 @@ interface Props {
   };
   usuariosAsignados?: UsuarioAsignado[];
   actividades?: Actividad[];
+  camposPersonalizados?: CampoPersonalizado[];
+  valoresCamposPersonalizados?: Record<number, any>;
   canEdit: boolean;
   canDelete: boolean;
 }
@@ -197,6 +208,27 @@ const formatDate = (date: string | null | undefined) => {
 
 const formatDateTime = (date: string) => {
   return format(parseISO(date), "d MMM yyyy 'a las' HH:mm", { locale: es });
+};
+
+// Formatear valor de campo personalizado según su tipo
+const formatCampoPersonalizado = (campo: CampoPersonalizado, valor: any) => {
+  if (valor === null || valor === undefined || valor === '') {
+    return 'No especificado';
+  }
+
+  switch (campo.tipo) {
+    case 'date':
+      return formatDate(valor);
+    case 'checkbox':
+      return valor ? 'Sí' : 'No';
+    case 'select':
+    case 'radio':
+      // Buscar la etiqueta en las opciones
+      const opcion = campo.opciones?.find((opt: any) => opt.value === valor);
+      return opcion?.label || valor;
+    default:
+      return valor;
+  }
 };
 
 // Computed para evidencias
@@ -465,6 +497,35 @@ const { route } = window as any;
                     <span>{{ entregable.orden }}</span>
                   </div>
                 </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <!-- Campos Personalizados -->
+          <Card v-if="camposPersonalizados && camposPersonalizados.length > 0">
+            <CardHeader>
+              <CardTitle>Campos Personalizados</CardTitle>
+              <CardDescription>
+                Información adicional específica del entregable
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div class="grid gap-4 md:grid-cols-2">
+                <div v-for="campo in camposPersonalizados" :key="campo.id">
+                  <h4 class="text-sm font-medium text-muted-foreground mb-1">
+                    {{ campo.nombre }}
+                    <span v-if="campo.es_requerido" class="text-red-500">*</span>
+                  </h4>
+                  <p class="text-sm">
+                    {{ formatCampoPersonalizado(campo, valoresCamposPersonalizados?.[campo.id]) }}
+                  </p>
+                  <p v-if="campo.descripcion" class="text-xs text-muted-foreground mt-1">
+                    {{ campo.descripcion }}
+                  </p>
+                </div>
+              </div>
+              <div v-if="!camposPersonalizados || camposPersonalizados.length === 0" class="text-center py-4">
+                <p class="text-sm text-muted-foreground">No hay campos personalizados configurados</p>
               </div>
             </CardContent>
           </Card>

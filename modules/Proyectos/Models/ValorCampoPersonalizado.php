@@ -22,6 +22,8 @@ class ValorCampoPersonalizado extends Model
     protected $fillable = [
         'proyecto_id',
         'contrato_id',
+        'hito_id',
+        'entregable_id',
         'campo_personalizado_id',
         'valor'
     ];
@@ -48,6 +50,22 @@ class ValorCampoPersonalizado extends Model
     public function campoPersonalizado(): BelongsTo
     {
         return $this->belongsTo(CampoPersonalizado::class);
+    }
+
+    /**
+     * Obtiene el hito al que pertenece este valor.
+     */
+    public function hito(): BelongsTo
+    {
+        return $this->belongsTo(Hito::class);
+    }
+
+    /**
+     * Obtiene el entregable al que pertenece este valor.
+     */
+    public function entregable(): BelongsTo
+    {
+        return $this->belongsTo(Entregable::class);
     }
 
     /**
@@ -136,7 +154,23 @@ class ValorCampoPersonalizado extends Model
     }
 
     /**
-     * Obtiene la entidad relacionada (proyecto o contrato).
+     * Scope para valores de un hito específico.
+     */
+    public function scopeParaHito($query, $hitoId)
+    {
+        return $query->where('hito_id', $hitoId);
+    }
+
+    /**
+     * Scope para valores de un entregable específico.
+     */
+    public function scopeParaEntregable($query, $entregableId)
+    {
+        return $query->where('entregable_id', $entregableId);
+    }
+
+    /**
+     * Obtiene la entidad relacionada (proyecto, contrato, hito o entregable).
      */
     public function entidadRelacionada()
     {
@@ -145,6 +179,12 @@ class ValorCampoPersonalizado extends Model
         }
         if ($this->contrato_id) {
             return $this->contrato;
+        }
+        if ($this->hito_id) {
+            return $this->hito;
+        }
+        if ($this->entregable_id) {
+            return $this->entregable;
         }
         return null;
     }
@@ -159,6 +199,12 @@ class ValorCampoPersonalizado extends Model
         }
         if ($this->contrato_id) {
             return 'contrato';
+        }
+        if ($this->hito_id) {
+            return 'hito';
+        }
+        if ($this->entregable_id) {
+            return 'entregable';
         }
         return null;
     }

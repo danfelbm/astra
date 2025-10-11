@@ -15,7 +15,12 @@ class EntregableRepository
      */
     public function getAllPaginated(Request $request, int $perPage = 20): LengthAwarePaginator
     {
-        $query = Entregable::with(['hito.proyecto', 'responsable', 'usuarios']);
+        $query = Entregable::with([
+            'hito.proyecto',
+            'responsable',
+            'usuarios',
+            'camposPersonalizados.campoPersonalizado'
+        ]);
 
         // Filtro por búsqueda
         if ($request->filled('search')) {
@@ -86,7 +91,12 @@ class EntregableRepository
     public function getByHito(int $hitoId, array $filters = []): Collection
     {
         $query = Entregable::where('hito_id', $hitoId)
-                        ->with(['responsable', 'usuarios', 'completadoPor']);
+                        ->with([
+                            'responsable',
+                            'usuarios',
+                            'completadoPor',
+                            'camposPersonalizados.campoPersonalizado'
+                        ]);
 
         // Aplicar filtros si existen
         if (!empty($filters['search'])) {
@@ -117,8 +127,12 @@ class EntregableRepository
      */
     public function getMisEntregables(Request $request, int $perPage = 20): LengthAwarePaginator
     {
-        $query = Entregable::with(['hito.proyecto', 'responsable', 'usuarios'])
-                          ->misEntregables();
+        $query = Entregable::with([
+            'hito.proyecto',
+            'responsable',
+            'usuarios',
+            'camposPersonalizados.campoPersonalizado'
+        ])->misEntregables();
 
         // Aplicar filtros
         if ($request->filled('search')) {
@@ -159,7 +173,8 @@ class EntregableRepository
             'completadoPor',
             'usuarios',
             'creador',
-            'actualizador'
+            'actualizador',
+            'camposPersonalizados.campoPersonalizado'
         ])->find($id);
     }
 

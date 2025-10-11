@@ -249,6 +249,22 @@ class CampoPersonalizado extends Model
     }
 
     /**
+     * Scope para campos que aplican a hitos.
+     */
+    public function scopeParaHitos($query)
+    {
+        return $query->whereJsonContains('aplicar_para', 'hitos');
+    }
+
+    /**
+     * Scope para campos que aplican a entregables.
+     */
+    public function scopeParaEntregables($query)
+    {
+        return $query->whereJsonContains('aplicar_para', 'entregables');
+    }
+
+    /**
      * Verifica si el campo aplica para una entidad.
      */
     public function aplicaPara($entidad): bool
@@ -279,6 +295,54 @@ class CampoPersonalizado extends Model
         return ValorCampoPersonalizado::updateOrCreate(
             [
                 'contrato_id' => $contratoId,
+                'campo_personalizado_id' => $this->id
+            ],
+            ['valor' => $valor]
+        );
+    }
+
+    /**
+     * Obtiene el valor para un hito específico.
+     */
+    public function getValorParaHito($hitoId)
+    {
+        return $this->valores()
+                    ->where('hito_id', $hitoId)
+                    ->first()?->valor;
+    }
+
+    /**
+     * Establece el valor para un hito específico.
+     */
+    public function setValorParaHito($hitoId, $valor)
+    {
+        return ValorCampoPersonalizado::updateOrCreate(
+            [
+                'hito_id' => $hitoId,
+                'campo_personalizado_id' => $this->id
+            ],
+            ['valor' => $valor]
+        );
+    }
+
+    /**
+     * Obtiene el valor para un entregable específico.
+     */
+    public function getValorParaEntregable($entregableId)
+    {
+        return $this->valores()
+                    ->where('entregable_id', $entregableId)
+                    ->first()?->valor;
+    }
+
+    /**
+     * Establece el valor para un entregable específico.
+     */
+    public function setValorParaEntregable($entregableId, $valor)
+    {
+        return ValorCampoPersonalizado::updateOrCreate(
+            [
+                'entregable_id' => $entregableId,
                 'campo_personalizado_id' => $this->id
             ],
             ['valor' => $valor]

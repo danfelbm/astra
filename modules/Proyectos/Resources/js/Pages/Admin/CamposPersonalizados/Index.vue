@@ -374,6 +374,20 @@ const getTipoColor = (tipo: string) => {
                                         >
                                             Contratos
                                         </Badge>
+                                        <Badge
+                                            v-if="campo.aplicar_para?.includes('hitos')"
+                                            variant="secondary"
+                                            class="text-xs"
+                                        >
+                                            Hitos
+                                        </Badge>
+                                        <Badge
+                                            v-if="campo.aplicar_para?.includes('entregables')"
+                                            variant="secondary"
+                                            class="text-xs"
+                                        >
+                                            Entregables
+                                        </Badge>
                                     </div>
                                 </TableCell>
 

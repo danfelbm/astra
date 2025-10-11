@@ -5,6 +5,7 @@ namespace Modules\Proyectos\Services;
 use Modules\Proyectos\Models\Hito;
 use Modules\Proyectos\Models\Proyecto;
 use Modules\Proyectos\Repositories\HitoRepository;
+use Modules\Proyectos\Repositories\CampoPersonalizadoRepository;
 use Modules\Proyectos\Services\ProyectoNotificationService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -13,23 +14,33 @@ class HitoService
 {
     public function __construct(
         private HitoRepository $repository,
+        private CampoPersonalizadoRepository $campoPersonalizadoRepository,
         private ProyectoNotificationService $notificationService,
         private EntregableService $entregableService
     ) {}
 
     /**
-     * Crea un nuevo hito con sus entregables iniciales.
+     * Crea un nuevo hito con sus entregables iniciales y campos personalizados.
      */
     public function create(array $data): array
     {
         DB::beginTransaction();
         try {
-            // Separar entregables si vienen en los datos
+            // Separar datos relacionados
             $entregables = $data['entregables'] ?? [];
-            unset($data['entregables']);
+            $camposPersonalizados = $data['campos_personalizados'] ?? [];
+            unset($data['entregables'], $data['campos_personalizados']);
+
+            // Validar campos personalizados requeridos
+            $this->validarCamposPersonalizadosRequeridos($camposPersonalizados, 'hitos');
 
             // Crear el hito
             $hito = $this->repository->create($data);
+
+            // Guardar campos personalizados si existen
+            if (!empty($camposPersonalizados)) {
+                $hito->saveCamposPersonalizados($camposPersonalizados);
+            }
 
             // Crear entregables iniciales si se proporcionaron
             if (!empty($entregables)) {
@@ -49,7 +60,7 @@ class HitoService
 
             return [
                 'success' => true,
-                'hito' => $hito->fresh(['entregables']),
+                'hito' => $hito->fresh(['entregables', 'camposPersonalizados.campoPersonalizado']),
                 'message' => 'Hito creado exitosamente'
             ];
         } catch (\Exception $e) {
@@ -64,21 +75,38 @@ class HitoService
     }
 
     /**
-     * Actualiza un hito existente.
+     * Actualiza un hito existente con campos personalizados y jerarquía.
      */
     public function update(Hito $hito, array $data): array
     {
         DB::beginTransaction();
         try {
-            // Guardar el responsable anterior para notificación
+            // Guardar valores anteriores para notificaciones y validaciones
             $responsableAnterior = $hito->responsable_id;
             $estadoAnterior = $hito->estado;
+            $parentIdAnterior = $hito->parent_id;
 
-            // Separar entregables si vienen en los datos
-            unset($data['entregables']); // Los entregables se gestionan por separado
+            // Separar datos relacionados
+            $camposPersonalizados = $data['campos_personalizados'] ?? [];
+            unset($data['entregables'], $data['campos_personalizados']); // Los entregables se gestionan por separado
+
+            // Validar campos personalizados requeridos
+            if (!empty($camposPersonalizados)) {
+                $this->validarCamposPersonalizadosRequeridos($camposPersonalizados, 'hitos');
+            }
 
             // Actualizar el hito
             $this->repository->update($hito, $data);
+
+            // Guardar campos personalizados si existen
+            if (!empty($camposPersonalizados)) {
+                $hito->saveCamposPersonalizados($camposPersonalizados);
+            }
+
+            // Si cambió el parent_id, recalcular jerarquía de descendientes
+            if ($parentIdAnterior != $hito->parent_id) {
+                $this->recalcularJerarquiaDescendientes($hito);
+            }
 
             // Notificar cambio de responsable si aplica
             if ($responsableAnterior != $hito->responsable_id && $hito->responsable_id) {
@@ -94,7 +122,7 @@ class HitoService
 
             return [
                 'success' => true,
-                'hito' => $hito->fresh(['entregables']),
+                'hito' => $hito->fresh(['entregables', 'camposPersonalizados.campoPersonalizado', 'parent', 'children']),
                 'message' => 'Hito actualizado exitosamente'
             ];
         } catch (\Exception $e) {
@@ -433,6 +461,168 @@ class HitoService
         ];
 
         return $plantillas[$tipoProyecto] ?? $plantillas['generico'];
+    }
+
+    /**
+     * Mueve un hito para que sea hijo de otro hito.
+     */
+    public function moverAHijo(Hito $hito, int $nuevoParentId): array
+    {
+        DB::beginTransaction();
+        try {
+            // Validar que puede ser hijo del nuevo padre
+            if (!$hito->puedeSerHijoDe($nuevoParentId)) {
+                return [
+                    'success' => false,
+                    'message' => 'No se puede mover el hito: se crearía un ciclo en la jerarquía'
+                ];
+            }
+
+            $hito->parent_id = $nuevoParentId;
+            $hito->save();
+
+            // Recalcular jerarquía de descendientes
+            $this->recalcularJerarquiaDescendientes($hito);
+
+            DB::commit();
+
+            return [
+                'success' => true,
+                'hito' => $hito->fresh(['parent', 'children']),
+                'message' => 'Hito movido exitosamente'
+            ];
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error al mover hito: ' . $e->getMessage());
+
+            return [
+                'success' => false,
+                'message' => 'Error al mover el hito'
+            ];
+        }
+    }
+
+    /**
+     * Mueve un hito a nivel raíz (sin padre).
+     */
+    public function moverARaiz(Hito $hito): array
+    {
+        DB::beginTransaction();
+        try {
+            $hito->parent_id = null;
+            $hito->save();
+
+            // Recalcular jerarquía de descendientes
+            $this->recalcularJerarquiaDescendientes($hito);
+
+            DB::commit();
+
+            return [
+                'success' => true,
+                'hito' => $hito->fresh(['children']),
+                'message' => 'Hito movido a raíz exitosamente'
+            ];
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error al mover hito a raíz: ' . $e->getMessage());
+
+            return [
+                'success' => false,
+                'message' => 'Error al mover el hito a raíz'
+            ];
+        }
+    }
+
+    /**
+     * Duplica un hito con todos sus hijos y campos personalizados.
+     */
+    public function duplicarConHijos(Hito $hito, array $datosNuevos = []): array
+    {
+        DB::beginTransaction();
+        try {
+            // Duplicar hito principal
+            $nuevoHito = $this->repository->duplicar($hito, $datosNuevos);
+
+            // Copiar campos personalizados
+            $camposPersonalizados = $hito->getCamposPersonalizadosValues();
+            if (!empty($camposPersonalizados)) {
+                $nuevoHito->saveCamposPersonalizados($camposPersonalizados);
+            }
+
+            // Duplicar hijos recursivamente
+            foreach ($hito->children as $hijo) {
+                $this->duplicarHijoRecursivo($hijo, $nuevoHito->id);
+            }
+
+            DB::commit();
+
+            return [
+                'success' => true,
+                'hito' => $nuevoHito->fresh(['entregables', 'children', 'camposPersonalizados.campoPersonalizado']),
+                'message' => 'Hito duplicado con sus hijos exitosamente'
+            ];
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error al duplicar hito con hijos: ' . $e->getMessage());
+
+            return [
+                'success' => false,
+                'message' => 'Error al duplicar el hito con sus hijos'
+            ];
+        }
+    }
+
+    /**
+     * Duplica un hijo recursivamente.
+     */
+    private function duplicarHijoRecursivo(Hito $hijo, int $nuevoParentId): Hito
+    {
+        // Crear copia del hijo
+        $nuevoHijo = $this->repository->duplicar($hijo, ['parent_id' => $nuevoParentId]);
+
+        // Copiar campos personalizados
+        $camposPersonalizados = $hijo->getCamposPersonalizadosValues();
+        if (!empty($camposPersonalizados)) {
+            $nuevoHijo->saveCamposPersonalizados($camposPersonalizados);
+        }
+
+        // Duplicar hijos del hijo recursivamente
+        foreach ($hijo->children as $nieto) {
+            $this->duplicarHijoRecursivo($nieto, $nuevoHijo->id);
+        }
+
+        return $nuevoHijo;
+    }
+
+    /**
+     * Recalcula la jerarquía de todos los descendientes de un hito.
+     */
+    private function recalcularJerarquiaDescendientes(Hito $hito): void
+    {
+        foreach ($hito->getDescendientes() as $descendiente) {
+            $descendiente->recalcularNivel();
+            $descendiente->recalcularRuta();
+        }
+    }
+
+    /**
+     * Valida que los campos personalizados requeridos estén presentes.
+     */
+    private function validarCamposPersonalizadosRequeridos(array $valores, string $aplicarPara): void
+    {
+        // Obtener campos requeridos según el contexto
+        $camposRequeridos = match ($aplicarPara) {
+            'hitos' => $this->campoPersonalizadoRepository->getActivosParaHitos()->where('es_requerido', true),
+            'entregables' => $this->campoPersonalizadoRepository->getActivosParaEntregables()->where('es_requerido', true),
+            default => collect([])
+        };
+
+        // Validar que cada campo requerido tenga valor
+        foreach ($camposRequeridos as $campo) {
+            if (!isset($valores[$campo->id]) || empty($valores[$campo->id])) {
+                throw new \Exception("El campo '{$campo->nombre}' es requerido");
+            }
+        }
     }
 
     /**

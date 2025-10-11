@@ -72,7 +72,7 @@ const form = useForm({
 
 // Compatibilidad con props antiguos
 const tiposDisponibles = computed(() => props.tiposCampo || props.tipos || {});
-const entidades = computed(() => props.entidadesDisponibles || { proyectos: 'Proyectos', contratos: 'Contratos' });
+const entidades = computed(() => props.entidadesDisponibles || { proyectos: 'Proyectos', contratos: 'Contratos', hitos: 'Hitos', entregables: 'Entregables' });
 
 // Estado de procesamiento
 const processing = ref(false);

@@ -28,6 +28,8 @@ class StoreHitoRequest extends FormRequest
             'orden' => ['nullable', 'integer', 'min:0'],
             'estado' => ['nullable', Rule::in(['pendiente', 'en_progreso', 'completado', 'cancelado'])],
             'responsable_id' => ['nullable', 'exists:users,id'],
+            'parent_id' => ['nullable', 'exists:hitos,id'],
+            'campos_personalizados' => ['nullable', 'array'],
             'crear_entregables_predefinidos' => ['nullable', 'boolean'],
         ];
     }

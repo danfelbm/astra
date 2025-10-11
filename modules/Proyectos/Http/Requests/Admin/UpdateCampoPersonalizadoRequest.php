@@ -42,7 +42,7 @@ class UpdateCampoPersonalizadoRequest extends FormRequest
             'placeholder' => 'nullable|string|max:255',
             'validacion' => 'nullable|string|max:255',
             'aplicar_para' => 'nullable|array|min:1',
-            'aplicar_para.*' => 'in:proyectos,contratos',
+            'aplicar_para.*' => 'in:proyectos,contratos,hitos,entregables',
         ];
     }
 

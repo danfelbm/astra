@@ -16,6 +16,7 @@ import { Badge } from '@modules/Core/Resources/js/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@modules/Core/Resources/js/components/ui/avatar';
 import { Alert, AlertDescription } from '@modules/Core/Resources/js/components/ui/alert';
 import AddUsersModal from '@modules/Core/Resources/js/components/modals/AddUsersModal.vue';
+import CamposPersonalizadosForm from "@modules/Proyectos/Resources/js/components/CamposPersonalizadosForm.vue";
 import { cn } from '@modules/Core/Resources/js/lib/utils';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -44,6 +45,14 @@ interface Usuario {
   avatar?: string;
 }
 
+interface CampoPersonalizado {
+  id: number;
+  nombre: string;
+  tipo: string;
+  es_requerido: boolean;
+  opciones?: any[];
+}
+
 interface Props {
   proyecto: {
     id: number;
@@ -52,6 +61,7 @@ interface Props {
   };
   hito: Hito;
   usuarios: Usuario[];
+  camposPersonalizados?: CampoPersonalizado[];
   estados: Array<{ value: string; label: string }>;
   prioridades: Array<{ value: string; label: string; color: string }>;
   siguienteOrden?: number;
@@ -71,6 +81,7 @@ const form = useForm({
   prioridad: 'media' as PrioridadEntregable,
   responsable_id: null as number | null,
   usuarios_asignados: [] as Array<{ user_id: number; rol: 'colaborador' | 'revisor' }>,
+  campos_personalizados: {} as Record<number, any>,
   orden: props.siguienteOrden || 1,
   notas: '',
 });
@@ -609,6 +620,15 @@ const canSubmit = computed(() => {
           />
         </CardContent>
       </Card>
+
+      <!-- Campos Personalizados -->
+      <CamposPersonalizadosForm
+        v-if="camposPersonalizados && camposPersonalizados.length > 0"
+        :campos="camposPersonalizados"
+        :valores="form.campos_personalizados"
+        :errors="form.errors"
+        @update="form.campos_personalizados = $event"
+      />
 
       <!-- Errores de validación -->
       <Alert v-if="validationErrors.length > 0" variant="destructive">
