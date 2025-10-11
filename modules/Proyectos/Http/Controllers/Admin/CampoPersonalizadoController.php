@@ -48,7 +48,9 @@ class CampoPersonalizadoController extends AdminController
             'tiposCampo' => CampoPersonalizado::TIPOS_DISPONIBLES,
             'entidadesDisponibles' => [
                 'proyectos' => 'Proyectos',
-                'contratos' => 'Contratos'
+                'contratos' => 'Contratos',
+                'hitos' => 'Hitos',
+                'entregables' => 'Entregables'
             ],
         ]);
     }
@@ -65,7 +67,9 @@ class CampoPersonalizadoController extends AdminController
             'tiposCampo' => CampoPersonalizado::TIPOS_DISPONIBLES,
             'entidadesDisponibles' => [
                 'proyectos' => 'Proyectos',
-                'contratos' => 'Contratos'
+                'contratos' => 'Contratos',
+                'hitos' => 'Hitos',
+                'entregables' => 'Entregables'
             ],
         ]);
     }
@@ -114,7 +118,9 @@ class CampoPersonalizadoController extends AdminController
             'tiposCampo' => CampoPersonalizado::TIPOS_DISPONIBLES,
             'entidadesDisponibles' => [
                 'proyectos' => 'Proyectos',
-                'contratos' => 'Contratos'
+                'contratos' => 'Contratos',
+                'hitos' => 'Hitos',
+                'entregables' => 'Entregables'
             ],
         ]);
     }

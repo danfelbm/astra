@@ -8,6 +8,7 @@ use Modules\Proyectos\Models\Proyecto;
 use Modules\Proyectos\Models\Hito;
 use Modules\Proyectos\Services\HitoService;
 use Modules\Proyectos\Repositories\HitoRepository;
+use Modules\Proyectos\Repositories\CampoPersonalizadoRepository;
 use Modules\Proyectos\Http\Requests\Admin\StoreHitoRequest;
 use Modules\Proyectos\Http\Requests\Admin\UpdateHitoRequest;
 use Illuminate\Http\Request;
@@ -21,7 +22,8 @@ class HitoController extends AdminController
 
     public function __construct(
         private HitoService $hitoService,
-        private HitoRepository $hitoRepository
+        private HitoRepository $hitoRepository,
+        private CampoPersonalizadoRepository $campoPersonalizadoRepository
     ) {}
 
     /**
@@ -72,9 +74,26 @@ class HitoController extends AdminController
                 'email' => $p->user->email
             ]);
 
+        // Obtener hitos disponibles como padres
+        $hitosDisponibles = $proyecto->hitos()
+            ->with('parent:id,nombre')
+            ->orderBy('orden')
+            ->get()
+            ->map(fn($h) => [
+                'id' => $h->id,
+                'nombre' => $h->nombre,
+                'ruta_completa' => $h->ruta_completa,
+                'nivel' => $h->nivel
+            ]);
+
+        // Obtener campos personalizados para hitos
+        $camposPersonalizados = $this->campoPersonalizadoRepository->getActivosParaHitos();
+
         return Inertia::render('Modules/Proyectos/Admin/Hitos/Create', [
             'proyecto' => $proyecto,
             'responsables' => $responsables,
+            'hitosDisponibles' => $hitosDisponibles,
+            'camposPersonalizados' => $camposPersonalizados,
             'estados' => [
                 ['value' => 'pendiente', 'label' => 'Pendiente'],
                 ['value' => 'en_progreso', 'label' => 'En Progreso'],
@@ -98,6 +117,7 @@ class HitoController extends AdminController
             ['proyecto_id' => $proyecto->id]
         );
 
+        // El Service se encarga de campos personalizados y toda la lógica de negocio
         $result = $this->hitoService->create($data);
 
         if ($result['success']) {
@@ -124,7 +144,8 @@ class HitoController extends AdminController
             'entregables' => function ($query) {
                 $query->with(['responsable:id,name,email', 'usuarios:id,name,email'])
                       ->orderBy('orden');
-            }
+            },
+            'camposPersonalizados.campoPersonalizado'
         ]);
 
         // Calcular estadísticas del hito
@@ -135,14 +156,22 @@ class HitoController extends AdminController
             'entregables_en_progreso' => $hito->entregables->where('estado', 'en_progreso')->count(),
             'porcentaje_completado' => $hito->porcentaje_completado,
             'dias_restantes' => $hito->dias_restantes,
+            'esta_vencido' => $hito->esta_vencido,
         ];
+
+        // Obtener campos personalizados con sus valores
+        $camposPersonalizados = $this->campoPersonalizadoRepository->getActivosParaHitos();
+        $valoresCamposPersonalizados = $hito->getCamposPersonalizadosValues();
 
         return Inertia::render('Modules/Proyectos/Admin/Hitos/Show', [
             'proyecto' => $proyecto,
             'hito' => $hito,
             'estadisticas' => $estadisticas,
+            'camposPersonalizados' => $camposPersonalizados,
+            'valoresCamposPersonalizados' => $valoresCamposPersonalizados,
             'canEdit' => auth()->user()->can('hitos.edit'),
             'canDelete' => auth()->user()->can('hitos.delete'),
+            'canManageEntregables' => auth()->user()->can('hitos.manage_deliverables'),
             'canManageDeliverables' => auth()->user()->can('hitos.manage_deliverables'),
             'canCreateDeliverables' => auth()->user()->can('entregables.create'),
         ]);
@@ -168,10 +197,35 @@ class HitoController extends AdminController
                 'email' => $p->user->email
             ]);
 
+        // Obtener hitos disponibles como padres (excepto el hito actual y sus descendientes)
+        $hitosDisponibles = $proyecto->hitos()
+            ->where('id', '!=', $hito->id)
+            ->with('parent:id,nombre')
+            ->orderBy('orden')
+            ->get()
+            ->filter(function($h) use ($hito) {
+                // Excluir descendientes para evitar ciclos
+                return !$hito->esAncestroDe($h);
+            })
+            ->map(fn($h) => [
+                'id' => $h->id,
+                'nombre' => $h->nombre,
+                'ruta_completa' => $h->ruta_completa,
+                'nivel' => $h->nivel
+            ])
+            ->values();
+
+        // Obtener campos personalizados y valores actuales
+        $camposPersonalizados = $this->campoPersonalizadoRepository->getActivosParaHitos();
+        $valoresCamposPersonalizados = $hito->getCamposPersonalizadosValues();
+
         return Inertia::render('Modules/Proyectos/Admin/Hitos/Edit', [
             'proyecto' => $proyecto,
             'hito' => $hito,
             'responsables' => $responsables,
+            'hitosDisponibles' => $hitosDisponibles,
+            'camposPersonalizados' => $camposPersonalizados,
+            'valoresCamposPersonalizados' => $valoresCamposPersonalizados,
             'estados' => [
                 ['value' => 'pendiente', 'label' => 'Pendiente'],
                 ['value' => 'en_progreso', 'label' => 'En Progreso'],
@@ -188,7 +242,10 @@ class HitoController extends AdminController
     {
         // El FormRequest ya verifica permisos con can('hitos.edit')
 
-        $result = $this->hitoService->update($hito, $request->validated());
+        $data = $request->validated();
+
+        // El Service se encarga de campos personalizados y jerarquía
+        $result = $this->hitoService->update($hito, $data);
 
         if ($result['success']) {
             return redirect()

@@ -5,6 +5,7 @@ namespace Modules\Proyectos\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Collection;
 use Modules\Core\Traits\HasTenant;
 use Modules\Core\Traits\HasAuditLog;
 use Modules\Core\Models\User;
@@ -27,6 +28,9 @@ class Hito extends Model
      */
     protected $fillable = [
         'proyecto_id',
+        'parent_id',
+        'nivel',
+        'ruta',
         'nombre',
         'descripcion',
         'fecha_inicio',
@@ -50,6 +54,8 @@ class Hito extends Model
         'fecha_fin' => 'date:Y-m-d',
         'porcentaje_completado' => 'integer',
         'orden' => 'integer',
+        'parent_id' => 'integer',
+        'nivel' => 'integer',
     ];
 
     /**
@@ -64,7 +70,9 @@ class Hito extends Model
         'total_entregables',
         'entregables_completados',
         'esta_vencido',
-        'esta_proximo_vencer'
+        'esta_proximo_vencer',
+        'tiene_hijos',
+        'ruta_completa'
     ];
 
     /**
@@ -105,6 +113,46 @@ class Hito extends Model
     public function entregables(): HasMany
     {
         return $this->hasMany(Entregable::class)->orderBy('orden');
+    }
+
+    /**
+     * Relación con el hito padre (jerarquía).
+     */
+    public function parent(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'parent_id');
+    }
+
+    /**
+     * Relación con los hitos hijos (jerarquía).
+     */
+    public function children(): HasMany
+    {
+        return $this->hasMany(self::class, 'parent_id');
+    }
+
+    /**
+     * Obtiene todos los ancestros del hito (jerarquía).
+     */
+    public function ancestors()
+    {
+        return $this->parent()->with('ancestors');
+    }
+
+    /**
+     * Obtiene todos los descendientes del hito (jerarquía).
+     */
+    public function descendants()
+    {
+        return $this->children()->with('descendants');
+    }
+
+    /**
+     * Obtiene los valores de campos personalizados del hito.
+     */
+    public function camposPersonalizados(): HasMany
+    {
+        return $this->hasMany(ValorCampoPersonalizado::class, 'hito_id');
     }
 
     /**
@@ -210,6 +258,172 @@ class Hito extends Model
     }
 
     /**
+     * Verifica si el hito tiene hijos (jerarquía).
+     */
+    public function getTieneHijosAttribute(): bool
+    {
+        return $this->children()->exists();
+    }
+
+    /**
+     * Obtiene la ruta completa de la jerarquía.
+     */
+    public function getRutaCompletaAttribute(): string
+    {
+        if (!$this->parent_id) {
+            return $this->nombre;
+        }
+
+        $ruta = [];
+        $hito = $this;
+
+        while ($hito) {
+            array_unshift($ruta, $hito->nombre);
+            $hito = $hito->parent;
+        }
+
+        return implode(' / ', $ruta);
+    }
+
+    /**
+     * Obtiene todos los ancestros del hito.
+     */
+    public function getAncestros(): Collection
+    {
+        $ancestros = collect();
+        $padre = $this->parent;
+
+        while ($padre) {
+            $ancestros->push($padre);
+            $padre = $padre->parent;
+        }
+
+        return $ancestros;
+    }
+
+    /**
+     * Obtiene todos los descendientes del hito.
+     */
+    public function getDescendientes(): Collection
+    {
+        $descendientes = collect();
+        $queue = collect([$this]);
+
+        while ($queue->isNotEmpty()) {
+            $hito = $queue->shift();
+            $hijos = $hito->children;
+
+            foreach ($hijos as $hijo) {
+                $descendientes->push($hijo);
+                $queue->push($hijo);
+            }
+        }
+
+        return $descendientes;
+    }
+
+    /**
+     * Verifica si el hito es hijo de otro.
+     */
+    public function esHijoDe($hito): bool
+    {
+        if (!$hito) return false;
+
+        $hitoId = $hito instanceof self ? $hito->id : $hito;
+        return $this->parent_id == $hitoId;
+    }
+
+    /**
+     * Verifica si el hito es ancestro de otro.
+     */
+    public function esAncestroDe($hito): bool
+    {
+        if (!$hito) return false;
+
+        $hitoObj = $hito instanceof self ? $hito : self::find($hito);
+        if (!$hitoObj) return false;
+
+        return $hitoObj->getAncestros()->contains('id', $this->id);
+    }
+
+    /**
+     * Calcula y actualiza el nivel del hito.
+     */
+    public function recalcularNivel(): void
+    {
+        $nivel = 0;
+        $padre = $this->parent;
+
+        while ($padre) {
+            $nivel++;
+            $padre = $padre->parent;
+        }
+
+        $this->nivel = $nivel;
+        $this->saveQuietly();
+    }
+
+    /**
+     * Calcula y actualiza la ruta completa.
+     */
+    public function recalcularRuta(): void
+    {
+        $ruta = [];
+        $hito = $this;
+
+        while ($hito) {
+            array_unshift($ruta, $hito->id);
+            $hito = $hito->parent;
+        }
+
+        $this->ruta = implode('/', $ruta);
+        $this->saveQuietly();
+    }
+
+    /**
+     * Valida que no se creen ciclos en la jerarquía.
+     */
+    public function puedeSerHijoDe($padreId): bool
+    {
+        if (!$padreId) return true;
+        if ($padreId == $this->id) return false;
+
+        // Verificar que el padre propuesto no sea descendiente de este hito
+        $descendientes = $this->getDescendientes();
+        return !$descendientes->contains('id', $padreId);
+    }
+
+    /**
+     * Obtiene los valores de campos personalizados formateados.
+     */
+    public function getCamposPersonalizadosValues(): array
+    {
+        $valores = [];
+
+        foreach ($this->camposPersonalizados as $valor) {
+            $valores[$valor->campo_personalizado_id] = $valor->valor;
+        }
+
+        return $valores;
+    }
+
+    /**
+     * Guarda los valores de campos personalizados.
+     */
+    public function saveCamposPersonalizados(array $valores): void
+    {
+        foreach ($valores as $campoId => $valor) {
+            ValorCampoPersonalizado::updateOrCreate(
+                [
+                    'hito_id' => $this->id,
+                    'campo_personalizado_id' => $campoId
+                ],
+                ['valor' => $valor]
+            );
+        }
+    }
+
+    /**
      * Calcula y actualiza el porcentaje completado basado en los entregables.
      */
     public function calcularPorcentajeCompletado(): void
@@ -286,6 +500,30 @@ class Hito extends Model
     }
 
     /**
+     * Scope para hitos raíz (sin padre).
+     */
+    public function scopeRaices($query)
+    {
+        return $query->whereNull('parent_id');
+    }
+
+    /**
+     * Scope para hitos por nivel de jerarquía.
+     */
+    public function scopePorNivel($query, $nivel)
+    {
+        return $query->where('nivel', $nivel);
+    }
+
+    /**
+     * Scope para incluir jerarquía completa.
+     */
+    public function scopeConJerarquia($query)
+    {
+        return $query->with(['parent', 'children', 'proyecto']);
+    }
+
+    /**
      * Duplica el hito con sus entregables.
      */
     public function duplicar(string $nuevoNombre = null): Hito
@@ -324,5 +562,62 @@ class Hito extends Model
                   ->where('proyecto_id', $proyectoId)
                   ->update(['orden' => $orden + 1]);
         }
+    }
+
+    /**
+     * Boot del modelo para manejar jerarquía automáticamente.
+     */
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::creating(function ($model) {
+            // Calcular nivel y ruta antes de crear
+            if ($model->parent_id) {
+                $padre = static::find($model->parent_id);
+                if ($padre) {
+                    $model->nivel = $padre->nivel + 1;
+                    $model->ruta = $padre->ruta . '/' . $model->id;
+                } else {
+                    $model->nivel = 0;
+                    $model->ruta = (string) $model->id;
+                }
+            } else {
+                $model->nivel = 0;
+                $model->ruta = (string) $model->id;
+            }
+        });
+
+        static::updating(function ($model) {
+            // Validar que no se creen ciclos en la jerarquía
+            if ($model->isDirty('parent_id')) {
+                if (!$model->puedeSerHijoDe($model->parent_id)) {
+                    throw new \Exception('No se puede crear un ciclo en la jerarquía de hitos');
+                }
+
+                // Calcular nuevo nivel y ruta antes de actualizar
+                if ($model->parent_id) {
+                    $padre = static::find($model->parent_id);
+                    if ($padre) {
+                        $model->nivel = $padre->nivel + 1;
+                        $model->ruta = $padre->ruta . '/' . $model->id;
+                    }
+                } else {
+                    $model->nivel = 0;
+                    $model->ruta = (string) $model->id;
+                }
+            }
+        });
+
+        static::updated(function ($model) {
+            // Solo recalcular descendientes cuando cambie el padre
+            if ($model->wasChanged('parent_id')) {
+                // Recalcular niveles y rutas de todos los descendientes
+                foreach ($model->getDescendientes() as $descendiente) {
+                    $descendiente->recalcularNivel();
+                    $descendiente->recalcularRuta();
+                }
+            }
+        });
     }
 }

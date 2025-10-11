@@ -6,7 +6,7 @@ import { Button } from "@modules/Core/Resources/js/components/ui/button";
 import { Input } from "@modules/Core/Resources/js/components/ui/input";
 import { Badge } from "@modules/Core/Resources/js/components/ui/badge";
 import HitoCard from '@modules/Proyectos/Resources/js/components/HitoCard.vue';
-import { Plus, Search, Filter, ArrowLeft, Target } from 'lucide-vue-next';
+import { Plus, Search, Filter, ArrowLeft, Target, Network, List } from 'lucide-vue-next';
 import { toast } from 'vue-sonner';
 import { ref, computed } from 'vue';
 import type { Hito } from '@modules/Proyectos/Resources/js/types/hitos';
@@ -67,6 +67,33 @@ const hitosData = computed(() => {
 // Estado local
 const searchQuery = ref(props.filters?.search || '');
 const selectedEstado = ref(props.filters?.estado || '');
+const vistaJerarquica = ref(false);
+
+// Organizar hitos por jerarquía
+const hitosJerarquicos = computed(() => {
+  if (!vistaJerarquica.value) {
+    return hitosData.value.data;
+  }
+
+  // Obtener solo los hitos raíz (sin padre)
+  const raices = hitosData.value.data.filter(h => !h.parent_id);
+
+  // Función recursiva para construir el árbol
+  const buildTree = (parentId: number | null, nivel: number = 0): Hito[] => {
+    return hitosData.value.data
+      .filter(h => h.parent_id === parentId)
+      .flatMap(h => [
+        { ...h, _nivel: nivel },
+        ...buildTree(h.id, nivel + 1)
+      ]);
+  };
+
+  // Construir árbol completo
+  return raices.flatMap(raiz => [
+    { ...raiz, _nivel: 0 },
+    ...buildTree(raiz.id, 1)
+  ]);
+});
 
 // Breadcrumbs
 const breadcrumbs: BreadcrumbItem[] = [
@@ -216,6 +243,19 @@ const filterByEstado = (estado: string) => {
                     </div>
                 </div>
                 <div class="flex gap-2">
+                    <!-- Toggle Vista Jerárquica -->
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        :class="{'bg-primary text-primary-foreground': vistaJerarquica}"
+                        @click="vistaJerarquica = !vistaJerarquica"
+                        title="Cambiar vista"
+                    >
+                        <Network v-if="vistaJerarquica" class="h-4 w-4 mr-2" />
+                        <List v-else class="h-4 w-4 mr-2" />
+                        {{ vistaJerarquica ? 'Jerárquica' : 'Plana' }}
+                    </Button>
+
                     <Button
                         variant="outline"
                         size="sm"
@@ -252,23 +292,58 @@ const filterByEstado = (estado: string) => {
             </div>
 
             <!-- Lista de Hitos -->
-            <div v-if="hitosData.data.length > 0" class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                <HitoCard
-                    v-for="hito in hitosData.data"
-                    :key="hito.id"
-                    :hito="hito"
-                    :proyecto-id="proyecto.id"
-                    :canEdit="canEdit"
-                    :canDelete="canDelete"
-                    :canManageDeliverables="canManageDeliverables"
-                    :showActions="true"
-                    @view="navigateToHito"
-                    @edit="navigateToEditHito"
-                    @delete="confirmDeleteHito"
-                    @duplicate="duplicateHito"
-                    @add-entregable="navigateToAddEntregable"
-                    @view-entregables="navigateToEntregables"
-                />
+            <div v-if="hitosData.data.length > 0">
+                <!-- Vista en Grid (Plana) -->
+                <div v-if="!vistaJerarquica" class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    <HitoCard
+                        v-for="hito in hitosData.data"
+                        :key="hito.id"
+                        :hito="hito"
+                        :proyecto-id="proyecto.id"
+                        :canEdit="canEdit"
+                        :canDelete="canDelete"
+                        :canManageDeliverables="canManageDeliverables"
+                        :showActions="true"
+                        @view="navigateToHito"
+                        @edit="navigateToEditHito"
+                        @delete="confirmDeleteHito"
+                        @duplicate="duplicateHito"
+                        @add-entregable="navigateToAddEntregable"
+                        @view-entregables="navigateToEntregables"
+                    />
+                </div>
+
+                <!-- Vista Jerárquica (Lista) -->
+                <div v-else class="space-y-3">
+                    <div
+                        v-for="hito in hitosJerarquicos"
+                        :key="hito.id"
+                        :style="{ marginLeft: `${(hito._nivel || 0) * 2}rem` }"
+                        class="transition-all"
+                    >
+                        <HitoCard
+                            :hito="hito"
+                            :proyecto-id="proyecto.id"
+                            :canEdit="canEdit"
+                            :canDelete="canDelete"
+                            :canManageDeliverables="canManageDeliverables"
+                            :showActions="true"
+                            @view="navigateToHito"
+                            @edit="navigateToEditHito"
+                            @delete="confirmDeleteHito"
+                            @duplicate="duplicateHito"
+                            @add-entregable="navigateToAddEntregable"
+                            @view-entregables="navigateToEntregables"
+                        >
+                            <!-- Badge de nivel si es jerárquico -->
+                            <template v-if="hito._nivel > 0" #prepend>
+                                <Badge variant="outline" class="mr-2">
+                                    Nivel {{ hito._nivel }}
+                                </Badge>
+                            </template>
+                        </HitoCard>
+                    </div>
+                </div>
             </div>
 
             <!-- Estado vacío -->

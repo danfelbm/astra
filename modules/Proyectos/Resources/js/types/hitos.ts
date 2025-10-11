@@ -23,6 +23,9 @@ export interface Proyecto {
 export interface Hito {
     id: number;
     proyecto_id: number;
+    parent_id?: number | null;
+    nivel: number;
+    ruta?: string | null;
     nombre: string;
     descripcion?: string;
     fecha_inicio?: string;
@@ -39,6 +42,8 @@ export interface Hito {
 
     // Relaciones
     proyecto?: Proyecto;
+    parent?: Hito;
+    children?: Hito[];
     responsable?: User;
     entregables?: Entregable[];
 
@@ -50,6 +55,8 @@ export interface Hito {
     entregables_completados?: number;
     esta_vencido?: boolean;
     esta_proximo_vencer?: boolean;
+    tiene_hijos?: boolean;
+    ruta_completa?: string;
 }
 
 export interface Entregable {

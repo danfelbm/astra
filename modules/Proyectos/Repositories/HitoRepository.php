@@ -14,7 +14,14 @@ class HitoRepository
      */
     public function getAllPaginated(Request $request, int $perPage = 15): LengthAwarePaginator
     {
-        $query = Hito::with(['proyecto', 'responsable', 'entregables']);
+        $query = Hito::with([
+            'proyecto',
+            'responsable',
+            'entregables',
+            'camposPersonalizados.campoPersonalizado',
+            'parent',
+            'children'
+        ]);
 
         // Filtro por búsqueda
         if ($request->filled('search')) {
@@ -64,7 +71,13 @@ class HitoRepository
     public function getByProyecto(int $proyectoId, array $filters = []): Collection
     {
         $query = Hito::where('proyecto_id', $proyectoId)
-                   ->with(['responsable', 'entregables']);
+                   ->with([
+                       'responsable',
+                       'entregables',
+                       'camposPersonalizados.campoPersonalizado',
+                       'parent',
+                       'children'
+                   ]);
 
         // Aplicar filtros si existen
         if (!empty($filters['search'])) {
@@ -91,8 +104,14 @@ class HitoRepository
      */
     public function getMisHitos(Request $request, int $perPage = 15): LengthAwarePaginator
     {
-        $query = Hito::with(['proyecto', 'responsable', 'entregables'])
-                     ->misHitos();
+        $query = Hito::with([
+            'proyecto',
+            'responsable',
+            'entregables',
+            'camposPersonalizados.campoPersonalizado',
+            'parent',
+            'children'
+        ])->misHitos();
 
         // Aplicar filtros
         if ($request->filled('search')) {
@@ -260,5 +279,82 @@ class HitoRepository
                            'esta_proximo_vencer' => $hito->esta_proximo_vencer
                        ];
                    })->toArray();
+    }
+
+    /**
+     * Obtiene hitos raíz de un proyecto (sin padre).
+     */
+    public function getRaices(int $proyectoId): Collection
+    {
+        return Hito::where('proyecto_id', $proyectoId)
+                   ->raices()
+                   ->with([
+                       'responsable',
+                       'entregables',
+                       'camposPersonalizados.campoPersonalizado',
+                       'children.children' // Eager load hasta 2 niveles
+                   ])
+                   ->orderBy('orden')
+                   ->get();
+    }
+
+    /**
+     * Obtiene la estructura jerárquica completa de hitos de un proyecto.
+     */
+    public function getArbolJerarquico(int $proyectoId): array
+    {
+        // Obtener todos los hitos del proyecto con relaciones
+        $hitos = Hito::where('proyecto_id', $proyectoId)
+                     ->with([
+                         'responsable',
+                         'entregables',
+                         'camposPersonalizados.campoPersonalizado',
+                         'children'
+                     ])
+                     ->orderBy('orden')
+                     ->get();
+
+        // Construir árbol jerárquico
+        $arbol = [];
+        $hitosIndexados = [];
+
+        // Indexar todos los hitos por ID
+        foreach ($hitos as $hito) {
+            $hitosIndexados[$hito->id] = [
+                'hito' => $hito,
+                'children' => []
+            ];
+        }
+
+        // Construir estructura jerárquica
+        foreach ($hitos as $hito) {
+            if ($hito->parent_id === null) {
+                // Es un hito raíz
+                $arbol[] = &$hitosIndexados[$hito->id];
+            } else {
+                // Es un hijo, agregarlo a su padre
+                if (isset($hitosIndexados[$hito->parent_id])) {
+                    $hitosIndexados[$hito->parent_id]['children'][] = &$hitosIndexados[$hito->id];
+                }
+            }
+        }
+
+        return $arbol;
+    }
+
+    /**
+     * Obtiene un hito con toda su jerarquía (ancestros y descendientes).
+     */
+    public function findWithJerarquia(int $hitoId): ?Hito
+    {
+        $hito = Hito::with([
+            'responsable',
+            'entregables',
+            'camposPersonalizados.campoPersonalizado',
+            'parent.parent.parent', // Hasta 3 niveles de ancestros
+            'children.children.children' // Hasta 3 niveles de descendientes
+        ])->find($hitoId);
+
+        return $hito;
     }
 }

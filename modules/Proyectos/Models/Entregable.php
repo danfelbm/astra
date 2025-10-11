@@ -5,6 +5,7 @@ namespace Modules\Proyectos\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Modules\Core\Traits\HasTenant;
 use Modules\Core\Traits\HasAuditLog;
 use Modules\Core\Models\User;
@@ -168,6 +169,44 @@ class Entregable extends Model
         return $this->belongsToMany(Evidencia::class, 'evidencia_entregable')
                     ->wherePivot('estado', 'aprobada')
                     ->withTimestamps();
+    }
+
+    /**
+     * Obtiene los valores de campos personalizados del entregable.
+     */
+    public function camposPersonalizados(): HasMany
+    {
+        return $this->hasMany(ValorCampoPersonalizado::class, 'entregable_id');
+    }
+
+    /**
+     * Obtiene los valores de campos personalizados formateados.
+     */
+    public function getCamposPersonalizadosValues(): array
+    {
+        $valores = [];
+
+        foreach ($this->camposPersonalizados as $valor) {
+            $valores[$valor->campo_personalizado_id] = $valor->valor;
+        }
+
+        return $valores;
+    }
+
+    /**
+     * Guarda los valores de campos personalizados.
+     */
+    public function saveCamposPersonalizados(array $valores): void
+    {
+        foreach ($valores as $campoId => $valor) {
+            ValorCampoPersonalizado::updateOrCreate(
+                [
+                    'entregable_id' => $this->id,
+                    'campo_personalizado_id' => $campoId
+                ],
+                ['valor' => $valor]
+            );
+        }
     }
 
     /**

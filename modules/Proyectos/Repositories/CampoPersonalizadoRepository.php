@@ -167,4 +167,78 @@ class CampoPersonalizadoRepository
     {
         return CampoPersonalizado::max('orden') + 1;
     }
+
+    /**
+     * Obtiene campos activos para hitos.
+     */
+    public function getActivosParaHitos(): Collection
+    {
+        return CampoPersonalizado::activos()
+            ->paraHitos()
+            ->ordenado()
+            ->get();
+    }
+
+    /**
+     * Obtiene campos activos para entregables.
+     */
+    public function getActivosParaEntregables(): Collection
+    {
+        return CampoPersonalizado::activos()
+            ->paraEntregables()
+            ->ordenado()
+            ->get();
+    }
+
+    /**
+     * Guarda múltiples valores de campos para un hito.
+     */
+    public function guardarValoresParaHito(int $hitoId, array $valores): void
+    {
+        foreach ($valores as $campoId => $valor) {
+            ValorCampoPersonalizado::updateOrCreate(
+                [
+                    'hito_id' => $hitoId,
+                    'campo_personalizado_id' => $campoId
+                ],
+                ['valor' => $valor]
+            );
+        }
+    }
+
+    /**
+     * Guarda múltiples valores de campos para un entregable.
+     */
+    public function guardarValoresParaEntregable(int $entregableId, array $valores): void
+    {
+        foreach ($valores as $campoId => $valor) {
+            ValorCampoPersonalizado::updateOrCreate(
+                [
+                    'entregable_id' => $entregableId,
+                    'campo_personalizado_id' => $campoId
+                ],
+                ['valor' => $valor]
+            );
+        }
+    }
+
+    /**
+     * Obtiene los valores de campos para un hito específico.
+     */
+    public function getValoresParaHito(int $hitoId): Collection
+    {
+        return ValorCampoPersonalizado::with('campoPersonalizado')
+            ->where('hito_id', $hitoId)
+            ->get();
+    }
+
+    /**
+     * Obtiene los valores de campos para un entregable específico.
+     */
+    public function getValoresParaEntregable(int $entregableId): Collection
+    {
+        return ValorCampoPersonalizado::with('campoPersonalizado')
+            ->where('entregable_id', $entregableId)
+            ->get();
+    }
 }

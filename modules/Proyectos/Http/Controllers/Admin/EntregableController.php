@@ -9,6 +9,7 @@ use Modules\Proyectos\Models\Hito;
 use Modules\Proyectos\Models\Entregable;
 use Modules\Proyectos\Services\EntregableService;
 use Modules\Proyectos\Repositories\EntregableRepository;
+use Modules\Proyectos\Repositories\CampoPersonalizadoRepository;
 use Modules\Proyectos\Http\Requests\Admin\StoreEntregableRequest;
 use Modules\Proyectos\Http\Requests\Admin\UpdateEntregableRequest;
 use Illuminate\Http\Request;
@@ -22,7 +23,8 @@ class EntregableController extends AdminController
 
     public function __construct(
         private EntregableService $entregableService,
-        private EntregableRepository $entregableRepository
+        private EntregableRepository $entregableRepository,
+        private CampoPersonalizadoRepository $campoPersonalizadoRepository
     ) {}
 
     /**
@@ -87,10 +89,14 @@ class EntregableController extends AdminController
                 'email' => $p->user->email
             ]);
 
+        // Obtener campos personalizados para entregables
+        $camposPersonalizados = $this->campoPersonalizadoRepository->getActivosParaEntregables();
+
         return Inertia::render('Modules/Proyectos/Admin/Entregables/Create', [
             'proyecto' => $proyecto,
             'hito' => $hito,
             'usuarios' => $usuarios,
+            'camposPersonalizados' => $camposPersonalizados,
             'estados' => [
                 ['value' => 'pendiente', 'label' => 'Pendiente'],
                 ['value' => 'en_progreso', 'label' => 'En Progreso'],
@@ -122,12 +128,10 @@ class EntregableController extends AdminController
         $data = $request->validated();
         $data['hito_id'] = $hito->id;
 
+        // El Service se encarga de campos personalizados y validación
         $result = $this->entregableService->create($data);
 
         if ($result['success']) {
-            // Los usuarios ya se asignan en el service/repository
-            // No es necesario volver a asignarlos aquí
-
             // Actualizar porcentaje del hito
             $hito->calcularPorcentajeCompletado();
 
@@ -162,7 +166,8 @@ class EntregableController extends AdminController
                     'obligacion:id,titulo,contrato_id',
                     'obligacion.contrato'
                 ]);
-            }
+            },
+            'camposPersonalizados.campoPersonalizado'
         ]);
 
         // Preparar usuarios asignados para el frontend
@@ -182,12 +187,18 @@ class EntregableController extends AdminController
         $actividades = [];
         // TODO: Implementar registro de actividades si es necesario
 
+        // Obtener campos personalizados con sus valores
+        $camposPersonalizados = $this->campoPersonalizadoRepository->getActivosParaEntregables();
+        $valoresCamposPersonalizados = $entregable->getCamposPersonalizadosValues();
+
         return Inertia::render('Modules/Proyectos/Admin/Entregables/Show', [
             'proyecto' => $proyecto,
             'hito' => $hito,
             'entregable' => $entregable,
             'usuariosAsignados' => $usuariosAsignados,
             'actividades' => $actividades,
+            'camposPersonalizados' => $camposPersonalizados,
+            'valoresCamposPersonalizados' => $valoresCamposPersonalizados,
             'canEdit' => auth()->user()->can('entregables.edit'),
             'canDelete' => auth()->user()->can('entregables.delete'),
             'canComplete' => auth()->user()->can('entregables.complete'),
@@ -234,12 +245,18 @@ class EntregableController extends AdminController
             'rol' => $u->pivot->rol
         ])->toArray();
 
+        // Obtener campos personalizados y valores actuales
+        $camposPersonalizados = $this->campoPersonalizadoRepository->getActivosParaEntregables();
+        $valoresCamposPersonalizados = $entregable->getCamposPersonalizadosValues();
+
         return Inertia::render('Modules/Proyectos/Admin/Entregables/Edit', [
             'proyecto' => $proyecto,
             'hito' => $hito,
             'entregable' => $entregable,
             'usuarios' => $usuarios,
             'usuariosAsignados' => $usuariosAsignados,
+            'camposPersonalizados' => $camposPersonalizados,
+            'valoresCamposPersonalizados' => $valoresCamposPersonalizados,
             'estados' => [
                 ['value' => 'pendiente', 'label' => 'Pendiente'],
                 ['value' => 'en_progreso', 'label' => 'En Progreso'],
@@ -269,12 +286,10 @@ class EntregableController extends AdminController
 
         $data = $request->validated();
 
+        // El Service se encarga de campos personalizados y validación
         $result = $this->entregableService->update($entregable, $data);
 
         if ($result['success']) {
-            // Los usuarios ya se actualizan en el service/repository
-            // No es necesario volver a asignarlos aquí
-
             // Actualizar porcentaje del hito
             $hito->calcularPorcentajeCompletado();
 

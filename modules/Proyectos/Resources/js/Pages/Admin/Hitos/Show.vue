@@ -34,6 +34,15 @@ interface Proyecto {
     nombre: string;
 }
 
+interface CampoPersonalizado {
+    id: number;
+    nombre: string;
+    tipo: string;
+    es_requerido: boolean;
+    descripcion?: string;
+    opciones?: any[];
+}
+
 interface Props {
     hito: Hito;
     proyecto: Proyecto;
@@ -48,6 +57,8 @@ interface Props {
         dias_restantes: number | null;
         esta_vencido: boolean;
     };
+    camposPersonalizados?: CampoPersonalizado[];
+    valoresCamposPersonalizados?: Record<number, any>;
 }
 
 const props = defineProps<Props>();
@@ -137,6 +148,27 @@ const formatDate = (date: string | null) => {
 const formatDateTime = (date: string | null) => {
     if (!date) return 'No definida';
     return format(parseISO(date), "dd MMM yyyy 'a las' HH:mm", { locale: es });
+};
+
+// Formatear valor de campo personalizado según su tipo
+const formatCampoPersonalizado = (campo: CampoPersonalizado, valor: any) => {
+    if (valor === null || valor === undefined || valor === '') {
+        return 'No especificado';
+    }
+
+    switch (campo.tipo) {
+        case 'date':
+            return formatDate(valor);
+        case 'checkbox':
+            return valor ? 'Sí' : 'No';
+        case 'select':
+        case 'radio':
+            // Buscar la etiqueta en las opciones
+            const opcion = campo.opciones?.find((opt: any) => opt.value === valor);
+            return opcion?.label || valor;
+        default:
+            return valor;
+    }
 };
 </script>
 
@@ -331,6 +363,54 @@ const formatDateTime = (date: string | null) => {
                                         <Badge variant="outline" class="bg-green-50">{{ estadisticas.entregables_completados }}</Badge>
                                     </div>
                                 </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <!-- Jerarquía -->
+                    <Card v-if="hito.parent_id || hito.ruta_completa">
+                        <CardHeader>
+                            <CardTitle>Jerarquía</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div class="space-y-3">
+                                <div v-if="hito.ruta_completa">
+                                    <h3 class="font-semibold mb-2">Ruta Completa</h3>
+                                    <p class="text-sm text-muted-foreground">{{ hito.ruta_completa }}</p>
+                                </div>
+                                <div v-if="hito.nivel !== undefined">
+                                    <h3 class="font-semibold mb-2">Nivel</h3>
+                                    <Badge variant="outline">Nivel {{ hito.nivel }}</Badge>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <!-- Campos Personalizados -->
+                    <Card v-if="camposPersonalizados && camposPersonalizados.length > 0">
+                        <CardHeader>
+                            <CardTitle>Campos Personalizados</CardTitle>
+                            <CardDescription>
+                                Información adicional específica del hito
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div class="grid gap-4 md:grid-cols-2">
+                                <div v-for="campo in camposPersonalizados" :key="campo.id">
+                                    <h3 class="font-semibold mb-1">
+                                        {{ campo.nombre }}
+                                        <span v-if="campo.es_requerido" class="text-red-500">*</span>
+                                    </h3>
+                                    <p class="text-sm text-muted-foreground">
+                                        {{ formatCampoPersonalizado(campo, valoresCamposPersonalizados?.[campo.id]) }}
+                                    </p>
+                                    <p v-if="campo.descripcion" class="text-xs text-muted-foreground mt-1">
+                                        {{ campo.descripcion }}
+                                    </p>
+                                </div>
+                            </div>
+                            <div v-if="!camposPersonalizados || camposPersonalizados.length === 0" class="text-center py-4">
+                                <p class="text-sm text-muted-foreground">No hay campos personalizados configurados</p>
                             </div>
                         </CardContent>
                     </Card>

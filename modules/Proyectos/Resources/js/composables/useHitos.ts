@@ -1,11 +1,23 @@
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { router } from '@inertiajs/vue3';
 import { toast } from 'vue-sonner';
 import type { Hito, Entregable } from '@modules/Proyectos/Resources/js/types/hitos';
+import { useHitoHierarchy } from './useHitoHierarchy';
 
-export function useHitos() {
+export interface UseHitosOptions {
+    hitos?: Hito[] | (() => Hito[]);
+}
+
+export function useHitos(options?: UseHitosOptions) {
     const loading = ref(false);
     const processing = ref(false);
+
+    // Inicializar composable de jerarquía si se proporcionan hitos
+    const hitosRef = options?.hitos
+        ? computed(() => typeof options.hitos === 'function' ? options.hitos() : options.hitos || [])
+        : computed(() => [] as Hito[]);
+
+    const hierarchy = options?.hitos ? useHitoHierarchy(hitosRef) : null;
 
     /**
      * Crea un nuevo hito
@@ -69,6 +81,45 @@ export function useHitos() {
     };
 
     /**
+     * Elimina un hito con advertencia si tiene hijos (jerarquía)
+     */
+    const deleteHitoWithHierarchyCheck = (proyectoId: number, hito: Hito) => {
+        if (!hierarchy) {
+            // Fallback al delete normal si no hay jerarquía disponible
+            deleteHito(proyectoId, hito.id, hito.nombre);
+            return;
+        }
+
+        const descendientes = hierarchy.getDescendientes(hito.id);
+        const tieneHijos = descendientes.length > 0;
+
+        const mensaje = tieneHijos
+            ? `¿Estás seguro de eliminar el hito "${hito.nombre}"?\n\nEste hito tiene ${descendientes.length} sub-hito(s) que también serán eliminados, junto con todos sus entregables.`
+            : `¿Estás seguro de eliminar el hito "${hito.nombre}"? Se eliminarán también todos sus entregables.`;
+
+        if (!confirm(mensaje)) {
+            return;
+        }
+
+        processing.value = true;
+
+        router.delete(`/admin/proyectos/${proyectoId}/hitos/${hito.id}`, {
+            preserveScroll: true,
+            onSuccess: () => {
+                const mensaje = tieneHijos
+                    ? `Hito y ${descendientes.length} sub-hito(s) eliminados exitosamente`
+                    : 'Hito eliminado exitosamente';
+                toast.success(mensaje);
+                processing.value = false;
+            },
+            onError: () => {
+                toast.error('Error al eliminar el hito');
+                processing.value = false;
+            },
+        });
+    };
+
+    /**
      * Duplica un hito con sus entregables
      */
     const duplicateHito = (proyectoId: number, hitoId: number) => {
@@ -85,6 +136,82 @@ export function useHitos() {
                 processing.value = false;
             },
         });
+    };
+
+    /**
+     * Mueve un hito a otro padre en la jerarquía
+     */
+    const moveHitoToParent = (
+        proyectoId: number,
+        hitoId: number,
+        newParentId: number | null,
+        hitoNombre: string
+    ) => {
+        if (!hierarchy) {
+            toast.error('Funcionalidad de jerarquía no disponible');
+            return;
+        }
+
+        // Validar que no se cree un ciclo
+        if (newParentId && !hierarchy.puedeSerPadre(hitoId, newParentId)) {
+            toast.error('No se puede mover: se crearía un ciclo en la jerarquía');
+            return;
+        }
+
+        const parentName = newParentId
+            ? hitosRef.value.find(h => h.id === newParentId)?.nombre || 'hito padre'
+            : 'raíz';
+
+        if (!confirm(`¿Mover "${hitoNombre}" a "${parentName}"?`)) {
+            return;
+        }
+
+        processing.value = true;
+
+        router.put(
+            `/admin/proyectos/${proyectoId}/hitos/${hitoId}`,
+            { parent_id: newParentId },
+            {
+                preserveScroll: true,
+                preserveState: true,
+                onSuccess: () => {
+                    toast.success(`Hito movido a ${parentName}`);
+                    processing.value = false;
+                },
+                onError: () => {
+                    toast.error('Error al mover el hito');
+                    processing.value = false;
+                },
+            }
+        );
+    };
+
+    /**
+     * Valida si un hito puede ser padre de otro (evita ciclos)
+     */
+    const canBeParent = (hitoId: number, potentialParentId: number): boolean => {
+        if (!hierarchy) return true;
+        return hierarchy.puedeSerPadre(hitoId, potentialParentId);
+    };
+
+    /**
+     * Obtiene estadísticas de hitos con información de jerarquía
+     */
+    const getHitosStatsWithHierarchy = (hitos: Hito[]) => {
+        const basicStats = getHitosStats(hitos);
+
+        if (!hierarchy) {
+            return basicStats;
+        }
+
+        // Agregar estadísticas jerárquicas
+        return {
+            ...basicStats,
+            raices: hierarchy.hitosRaiz.value.length,
+            conPadre: hitos.filter(h => h.parent_id !== null).length,
+            niveles: Object.keys(hierarchy.contarPorNivel.value).length,
+            porNivel: hierarchy.contarPorNivel.value,
+        };
     };
 
     /**
@@ -241,19 +368,37 @@ export function useHitos() {
     };
 
     return {
+        // Estado
         loading,
         processing,
+
+        // CRUD básico
         createHito,
         updateHito,
         deleteHito,
         duplicateHito,
+
+        // Jerarquía (nuevas funciones)
+        deleteHitoWithHierarchyCheck,
+        moveHitoToParent,
+        canBeParent,
+        getHitosStatsWithHierarchy,
+
+        // Entregables
         completeEntregable,
+
+        // Reordenamiento
         reorderHitos,
         reorderEntregables,
+
+        // Estadísticas y helpers
         calculateOverallProgress,
         getHitosStats,
         formatEstado,
         getEstadoColor,
         getPrioridadColor,
+
+        // Acceso al composable de jerarquía (opcional)
+        hierarchy,
     };
 }

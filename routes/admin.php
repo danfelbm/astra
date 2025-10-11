@@ -1044,6 +1044,10 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
             ->name('duplicar')
             ->middleware('can:hitos.create');
 
+        Route::post('/reordenar', [\Modules\Proyectos\Http\Controllers\Admin\HitoController::class, 'reordenar'])
+            ->name('reordenar')
+            ->middleware('can:hitos.edit');
+
         // Rutas para entregables dentro del contexto de un hito
         Route::prefix('{hito}/entregables')->name('entregables.')->group(function () {
             Route::get('/', [\Modules\Proyectos\Http\Controllers\Admin\EntregableController::class, 'index'])
@@ -1077,6 +1081,10 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
             Route::post('/{entregable}/completar', [\Modules\Proyectos\Http\Controllers\Admin\EntregableController::class, 'completar'])
                 ->name('completar')
                 ->middleware('can:entregables.complete');
+
+            Route::post('/reordenar', [\Modules\Proyectos\Http\Controllers\Admin\EntregableController::class, 'reordenar'])
+                ->name('reordenar')
+                ->middleware('can:entregables.edit');
         });
     });
 
