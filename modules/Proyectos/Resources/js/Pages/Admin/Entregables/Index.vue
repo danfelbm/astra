@@ -30,7 +30,8 @@ import {
   Target,
   CircleDot,
   ChevronUp,
-  ChevronDown
+  ChevronDown,
+  Tag
 } from 'lucide-vue-next';
 import { Link } from '@inertiajs/vue3';
 import { useToast } from '@modules/Core/Resources/js/composables/useToast';
@@ -442,6 +443,7 @@ const estadisticasGenerales = computed(() => {
               <TableHead>Prioridad</TableHead>
               <TableHead>Fecha Fin</TableHead>
               <TableHead>Colaboradores</TableHead>
+              <TableHead>Etiquetas</TableHead>
               <TableHead class="text-right">Acciones</TableHead>
             </TableRow>
           </TableHeader>
@@ -511,6 +513,30 @@ const estadisticasGenerales = computed(() => {
                   </div>
                   <span v-else class="text-sm text-muted-foreground">-</span>
                 </TableCell>
+                <TableCell>
+                  <div v-if="entregable.etiquetas && entregable.etiquetas.length > 0" class="flex flex-wrap gap-1">
+                    <Badge
+                      v-for="etiqueta in entregable.etiquetas.slice(0, 2)"
+                      :key="etiqueta.id"
+                      variant="outline"
+                      class="text-xs"
+                      :style="{
+                        borderColor: etiqueta.color || '#94a3b8',
+                        color: etiqueta.color || '#64748b'
+                      }"
+                    >
+                      {{ etiqueta.nombre }}
+                    </Badge>
+                    <Badge
+                      v-if="entregable.etiquetas.length > 2"
+                      variant="outline"
+                      class="text-xs"
+                    >
+                      +{{ entregable.etiquetas.length - 2 }}
+                    </Badge>
+                  </div>
+                  <span v-else class="text-sm text-muted-foreground">-</span>
+                </TableCell>
               </Link>
               <TableCell class="text-right" @click.stop>
                 <DropdownMenu>
@@ -560,7 +586,7 @@ const estadisticasGenerales = computed(() => {
             </TableRow>
 
             <TableRow v-if="entregablesData.data.length === 0">
-              <TableCell colspan="8" class="text-center py-8">
+              <TableCell colspan="9" class="text-center py-8">
                 <p class="text-muted-foreground">No se encontraron entregables</p>
               </TableCell>
             </TableRow>

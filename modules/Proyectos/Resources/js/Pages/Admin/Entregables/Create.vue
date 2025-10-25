@@ -17,6 +17,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@modules/Core/Resources/js/
 import { Alert, AlertDescription } from '@modules/Core/Resources/js/components/ui/alert';
 import AddUsersModal from '@modules/Core/Resources/js/components/modals/AddUsersModal.vue';
 import CamposPersonalizadosForm from "@modules/Proyectos/Resources/js/components/CamposPersonalizadosForm.vue";
+import EtiquetaSelector from "@modules/Proyectos/Resources/js/components/EtiquetaSelector.vue";
 import { cn } from '@modules/Core/Resources/js/lib/utils';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -31,11 +32,13 @@ import {
   CheckCircle,
   Target,
   FileText,
-  X
+  X,
+  Tag
 } from 'lucide-vue-next';
 import { Link, router } from '@inertiajs/vue3';
 import { useToast } from '@modules/Core/Resources/js/composables/useToast';
 import type { Hito, EstadoEntregable, PrioridadEntregable } from '@modules/Proyectos/Resources/js/types/hitos';
+import type { CategoriaEtiqueta } from "@modules/Proyectos/Resources/js/types/etiquetas";
 
 // Props
 interface Usuario {
@@ -62,6 +65,7 @@ interface Props {
   hito: Hito;
   usuarios: Usuario[];
   camposPersonalizados?: CampoPersonalizado[];
+  categorias?: CategoriaEtiqueta[];
   estados: Array<{ value: string; label: string }>;
   prioridades: Array<{ value: string; label: string; color: string }>;
   siguienteOrden?: number;
@@ -82,6 +86,7 @@ const form = useForm({
   responsable_id: null as number | null,
   usuarios_asignados: [] as Array<{ user_id: number; rol: 'colaborador' | 'revisor' }>,
   campos_personalizados: {} as Record<number, any>,
+  etiquetas: [] as number[],
   orden: props.siguienteOrden || 1,
   notas: '',
 });
@@ -629,6 +634,28 @@ const canSubmit = computed(() => {
         :errors="form.errors"
         @update="form.campos_personalizados = $event"
       />
+
+      <!-- Etiquetas -->
+      <Card v-if="categorias && categorias.length > 0">
+        <CardHeader>
+          <CardTitle class="flex items-center gap-2">
+            <Tag class="h-5 w-5" />
+            Etiquetas
+          </CardTitle>
+          <CardDescription>
+            Asigna etiquetas para categorizar y organizar este entregable
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <EtiquetaSelector
+            v-model="form.etiquetas"
+            :categorias="categorias"
+            :max-etiquetas="10"
+            placeholder="Seleccionar etiquetas para el entregable..."
+            description="Puedes asignar hasta 10 etiquetas"
+          />
+        </CardContent>
+      </Card>
 
       <!-- Errores de validación -->
       <Alert v-if="validationErrors.length > 0" variant="destructive">

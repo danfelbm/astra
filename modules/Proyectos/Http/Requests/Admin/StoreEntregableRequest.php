@@ -33,6 +33,8 @@ class StoreEntregableRequest extends FormRequest
             'usuarios.*.user_id' => ['required_with:usuarios', 'exists:users,id'],
             'usuarios.*.rol' => ['required_with:usuarios', Rule::in(['responsable', 'colaborador', 'revisor'])],
             'campos_personalizados' => ['nullable', 'array'],
+            'etiquetas' => ['nullable', 'array', 'max:10'],
+            'etiquetas.*' => ['exists:etiquetas,id'],
         ];
     }
 

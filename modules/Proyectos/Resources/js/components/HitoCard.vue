@@ -68,6 +68,29 @@
         <span class="text-sm text-muted-foreground">{{ hito.responsable.name }}</span>
       </div>
 
+      <!-- Etiquetas -->
+      <div v-if="hito.etiquetas && hito.etiquetas.length > 0" class="flex flex-wrap gap-1 mb-3">
+        <Badge
+          v-for="etiqueta in hito.etiquetas.slice(0, 3)"
+          :key="etiqueta.id"
+          variant="outline"
+          class="text-xs"
+          :style="{
+            borderColor: etiqueta.color || '#94a3b8',
+            color: etiqueta.color || '#64748b'
+          }"
+        >
+          {{ etiqueta.nombre }}
+        </Badge>
+        <Badge
+          v-if="hito.etiquetas.length > 3"
+          variant="outline"
+          class="text-xs"
+        >
+          +{{ hito.etiquetas.length - 3 }}
+        </Badge>
+      </div>
+
       <!-- Barra de progreso -->
       <div class="space-y-2">
         <div class="flex justify-between items-center text-xs">

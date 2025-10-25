@@ -20,7 +20,7 @@ import {
 } from "@modules/Core/Resources/js/components/ui/alert-dialog";
 import {
     ArrowLeft, Edit, Trash2, Plus, Calendar, User, Target,
-    Clock, CheckCircle, XCircle, AlertCircle, Copy, FileText
+    Clock, CheckCircle, XCircle, AlertCircle, Copy, FileText, Tag
 } from 'lucide-vue-next';
 import { toast } from 'vue-sonner';
 import { format, parseISO } from 'date-fns';
@@ -363,6 +363,36 @@ const formatCampoPersonalizado = (campo: CampoPersonalizado, valor: any) => {
                                         <Badge variant="outline" class="bg-green-50">{{ estadisticas.entregables_completados }}</Badge>
                                     </div>
                                 </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <!-- Etiquetas -->
+                    <Card v-if="hito.etiquetas && hito.etiquetas.length > 0">
+                        <CardHeader>
+                            <div class="flex items-center gap-2">
+                                <Tag class="h-5 w-5" />
+                                <CardTitle>Etiquetas</CardTitle>
+                            </div>
+                            <CardDescription>
+                                Etiquetas asignadas a este hito para su organización y categorización
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div class="flex flex-wrap gap-2">
+                                <Badge
+                                    v-for="etiqueta in hito.etiquetas"
+                                    :key="etiqueta.id"
+                                    variant="outline"
+                                    class="px-3 py-1.5"
+                                    :style="{
+                                        borderColor: etiqueta.color || '#94a3b8',
+                                        color: etiqueta.color || '#64748b',
+                                        backgroundColor: `${etiqueta.color}15` || '#f1f5f9'
+                                    }"
+                                >
+                                    {{ etiqueta.nombre }}
+                                </Badge>
                             </div>
                         </CardContent>
                     </Card>
