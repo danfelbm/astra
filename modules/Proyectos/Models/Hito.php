@@ -4,6 +4,7 @@ namespace Modules\Proyectos\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Collection;
 use Modules\Core\Traits\HasTenant;
@@ -153,6 +154,43 @@ class Hito extends Model
     public function camposPersonalizados(): HasMany
     {
         return $this->hasMany(ValorCampoPersonalizado::class, 'hito_id');
+    }
+
+    /**
+     * Obtiene las etiquetas del hito.
+     */
+    public function etiquetas(): BelongsToMany
+    {
+        return $this->belongsToMany(Etiqueta::class, 'hito_etiqueta')
+            ->withPivot(['orden', 'created_at'])
+            ->orderBy('hito_etiqueta.orden');
+    }
+
+    /**
+     * Sincroniza las etiquetas del hito y actualiza los contadores.
+     */
+    public function syncEtiquetas(array $etiquetaIds): void
+    {
+        // Obtener etiquetas actuales antes del sync
+        $etiquetasAntiguas = $this->etiquetas()->pluck('etiqueta_id')->toArray();
+
+        // Sincronizar etiquetas con ordenamiento
+        $syncData = [];
+        foreach ($etiquetaIds as $index => $etiquetaId) {
+            $syncData[$etiquetaId] = ['orden' => $index];
+        }
+        $this->etiquetas()->sync($syncData);
+
+        // Actualizar contadores de las etiquetas afectadas
+        $etiquetasNuevas = $etiquetaIds;
+        $etiquetasAfectadas = array_unique(array_merge($etiquetasAntiguas, $etiquetasNuevas));
+
+        foreach ($etiquetasAfectadas as $etiquetaId) {
+            $etiqueta = Etiqueta::find($etiquetaId);
+            if ($etiqueta) {
+                $etiqueta->recalcularUsos();
+            }
+        }
     }
 
     /**

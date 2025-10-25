@@ -75,6 +75,7 @@ class HitoRepository
                        'responsable',
                        'entregables',
                        'camposPersonalizados.campoPersonalizado',
+                       'etiquetas.categoria',
                        'parent',
                        'children'
                    ]);
@@ -148,7 +149,8 @@ class HitoRepository
             'entregables' => function ($query) {
                 $query->with(['responsable', 'usuarios'])
                       ->orderBy('orden');
-            }
+            },
+            'etiquetas.categoria'
         ])->find($id);
     }
 

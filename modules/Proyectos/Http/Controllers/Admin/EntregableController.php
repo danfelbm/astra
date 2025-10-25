@@ -92,11 +92,18 @@ class EntregableController extends AdminController
         // Obtener campos personalizados para entregables
         $camposPersonalizados = $this->campoPersonalizadoRepository->getActivosParaEntregables();
 
+        // Obtener categorías de etiquetas disponibles
+        $categorias = \Modules\Proyectos\Models\CategoriaEtiqueta::with('etiquetas')
+            ->where('activo', true)
+            ->orderBy('orden')
+            ->get();
+
         return Inertia::render('Modules/Proyectos/Admin/Entregables/Create', [
             'proyecto' => $proyecto,
             'hito' => $hito,
             'usuarios' => $usuarios,
             'camposPersonalizados' => $camposPersonalizados,
+            'categorias' => $categorias,
             'estados' => [
                 ['value' => 'pendiente', 'label' => 'Pendiente'],
                 ['value' => 'en_progreso', 'label' => 'En Progreso'],
@@ -249,6 +256,15 @@ class EntregableController extends AdminController
         $camposPersonalizados = $this->campoPersonalizadoRepository->getActivosParaEntregables();
         $valoresCamposPersonalizados = $entregable->getCamposPersonalizadosValues();
 
+        // Cargar etiquetas actuales del entregable
+        $entregable->load('etiquetas.categoria');
+
+        // Obtener categorías de etiquetas disponibles
+        $categorias = \Modules\Proyectos\Models\CategoriaEtiqueta::with('etiquetas')
+            ->where('activo', true)
+            ->orderBy('orden')
+            ->get();
+
         return Inertia::render('Modules/Proyectos/Admin/Entregables/Edit', [
             'proyecto' => $proyecto,
             'hito' => $hito,
@@ -257,6 +273,7 @@ class EntregableController extends AdminController
             'usuariosAsignados' => $usuariosAsignados,
             'camposPersonalizados' => $camposPersonalizados,
             'valoresCamposPersonalizados' => $valoresCamposPersonalizados,
+            'categorias' => $categorias,
             'estados' => [
                 ['value' => 'pendiente', 'label' => 'Pendiente'],
                 ['value' => 'en_progreso', 'label' => 'En Progreso'],

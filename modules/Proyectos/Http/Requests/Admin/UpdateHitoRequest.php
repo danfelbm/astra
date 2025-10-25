@@ -30,6 +30,8 @@ class UpdateHitoRequest extends FormRequest
             'responsable_id' => ['nullable', 'exists:users,id'],
             'parent_id' => ['nullable', 'exists:hitos,id'],
             'campos_personalizados' => ['nullable', 'array'],
+            'etiquetas' => ['nullable', 'array', 'max:10'],
+            'etiquetas.*' => ['exists:etiquetas,id'],
             'porcentaje_completado' => ['nullable', 'integer', 'min:0', 'max:100'],
         ];
     }

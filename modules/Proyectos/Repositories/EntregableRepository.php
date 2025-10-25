@@ -95,7 +95,8 @@ class EntregableRepository
                             'responsable',
                             'usuarios',
                             'completadoPor',
-                            'camposPersonalizados.campoPersonalizado'
+                            'camposPersonalizados.campoPersonalizado',
+                            'etiquetas.categoria'
                         ]);
 
         // Aplicar filtros si existen
@@ -174,7 +175,8 @@ class EntregableRepository
             'usuarios',
             'creador',
             'actualizador',
-            'camposPersonalizados.campoPersonalizado'
+            'camposPersonalizados.campoPersonalizado',
+            'etiquetas.categoria'
         ])->find($id);
     }
 

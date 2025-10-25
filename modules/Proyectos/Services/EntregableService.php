@@ -22,9 +22,10 @@ class EntregableService
     {
         DB::beginTransaction();
         try {
-            // Separar campos personalizados
+            // Separar campos personalizados y etiquetas
             $camposPersonalizados = $data['campos_personalizados'] ?? [];
-            unset($data['campos_personalizados']);
+            $etiquetas = $data['etiquetas'] ?? [];
+            unset($data['campos_personalizados'], $data['etiquetas']);
 
             // Validar campos personalizados requeridos
             $this->validarCamposPersonalizadosRequeridos($camposPersonalizados);
@@ -35,6 +36,11 @@ class EntregableService
             // Guardar campos personalizados si existen
             if (!empty($camposPersonalizados)) {
                 $entregable->saveCamposPersonalizados($camposPersonalizados);
+            }
+
+            // Sincronizar etiquetas si existen
+            if (!empty($etiquetas)) {
+                $entregable->syncEtiquetas($etiquetas);
             }
 
             DB::commit();
@@ -61,9 +67,10 @@ class EntregableService
     {
         DB::beginTransaction();
         try {
-            // Separar campos personalizados
+            // Separar campos personalizados y etiquetas
             $camposPersonalizados = $data['campos_personalizados'] ?? [];
-            unset($data['campos_personalizados']);
+            $etiquetas = $data['etiquetas'] ?? null;
+            unset($data['campos_personalizados'], $data['etiquetas']);
 
             // Validar campos personalizados requeridos
             if (!empty($camposPersonalizados)) {
@@ -76,6 +83,11 @@ class EntregableService
             // Guardar campos personalizados si existen
             if (!empty($camposPersonalizados)) {
                 $entregable->saveCamposPersonalizados($camposPersonalizados);
+            }
+
+            // Sincronizar etiquetas si se proporcionaron
+            if ($etiquetas !== null) {
+                $entregable->syncEtiquetas($etiquetas);
             }
 
             DB::commit();

@@ -28,7 +28,8 @@ import {
   Activity,
   Image,
   ExternalLink,
-  Download
+  Download,
+  Tag
 } from 'lucide-vue-next';
 import { format, parseISO, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -526,6 +527,36 @@ const { route } = window as any;
               </div>
               <div v-if="!camposPersonalizados || camposPersonalizados.length === 0" class="text-center py-4">
                 <p class="text-sm text-muted-foreground">No hay campos personalizados configurados</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <!-- Etiquetas -->
+          <Card v-if="entregable.etiquetas && entregable.etiquetas.length > 0">
+            <CardHeader>
+              <div class="flex items-center gap-2">
+                <Tag class="h-5 w-5" />
+                <CardTitle>Etiquetas</CardTitle>
+              </div>
+              <CardDescription>
+                Etiquetas asignadas a este entregable para su organización y categorización
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div class="flex flex-wrap gap-2">
+                <Badge
+                  v-for="etiqueta in entregable.etiquetas"
+                  :key="etiqueta.id"
+                  variant="outline"
+                  class="px-3 py-1.5"
+                  :style="{
+                    borderColor: etiqueta.color || '#94a3b8',
+                    color: etiqueta.color || '#64748b',
+                    backgroundColor: `${etiqueta.color}15` || '#f1f5f9'
+                  }"
+                >
+                  {{ etiqueta.nombre }}
+                </Badge>
               </div>
             </CardContent>
           </Card>

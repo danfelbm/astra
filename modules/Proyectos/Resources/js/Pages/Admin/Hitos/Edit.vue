@@ -8,13 +8,15 @@ import { Label } from "@modules/Core/Resources/js/components/ui/label";
 import { Textarea } from "@modules/Core/Resources/js/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@modules/Core/Resources/js/components/ui/select";
 import CamposPersonalizadosForm from "@modules/Proyectos/Resources/js/components/CamposPersonalizadosForm.vue";
+import EtiquetaSelector from "@modules/Proyectos/Resources/js/components/EtiquetaSelector.vue";
 import AddUsersModal from "@modules/Core/Resources/js/components/modals/AddUsersModal.vue";
-import { ArrowLeft, Save, UserPlus, X } from 'lucide-vue-next';
+import { ArrowLeft, Save, UserPlus, X, Tag } from 'lucide-vue-next';
 import { toast } from 'vue-sonner';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { BreadcrumbItem } from '@/types';
 import type { Hito } from '@modules/Proyectos/Resources/js/types/hitos';
+import type { CategoriaEtiqueta } from "@modules/Proyectos/Resources/js/types/etiquetas";
 import { ref } from 'vue';
 
 interface User {
@@ -54,6 +56,7 @@ interface Props {
     hitosDisponibles?: HitoDisponible[];
     camposPersonalizados?: CampoPersonalizado[];
     valoresCamposPersonalizados?: Record<number, any>;
+    categorias?: CategoriaEtiqueta[];
     estados: { value: string; label: string }[];
 }
 
@@ -76,6 +79,7 @@ const form = useForm({
     responsable_id: props.hito.responsable_id || null as number | null,
     parent_id: props.hito.parent_id || null as number | null,
     campos_personalizados: props.valoresCamposPersonalizados || {} as Record<number, any>,
+    etiquetas: props.hito.etiquetas?.map((e: any) => e.id) ?? [] as number[],
     orden: props.hito.orden || 0,
 });
 
@@ -293,6 +297,27 @@ const submit = () => {
                 :errors="form.errors"
                 @update="form.campos_personalizados = $event"
             />
+
+            <Card v-if="categorias && categorias.length > 0">
+                <CardHeader>
+                    <CardTitle class="flex items-center gap-2">
+                        <Tag class="h-5 w-5" />
+                        Etiquetas
+                    </CardTitle>
+                    <CardDescription>
+                        Asigna etiquetas para categorizar y organizar este hito
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <EtiquetaSelector
+                        v-model="form.etiquetas"
+                        :categorias="categorias"
+                        :max-etiquetas="10"
+                        placeholder="Seleccionar etiquetas para el hito..."
+                        description="Puedes asignar hasta 10 etiquetas"
+                    />
+                </CardContent>
+            </Card>
         </div>
 
         <AddUsersModal

@@ -89,11 +89,18 @@ class HitoController extends AdminController
         // Obtener campos personalizados para hitos
         $camposPersonalizados = $this->campoPersonalizadoRepository->getActivosParaHitos();
 
+        // Obtener categorías de etiquetas disponibles
+        $categorias = \Modules\Proyectos\Models\CategoriaEtiqueta::with('etiquetas')
+            ->where('activo', true)
+            ->orderBy('orden')
+            ->get();
+
         return Inertia::render('Modules/Proyectos/Admin/Hitos/Create', [
             'proyecto' => $proyecto,
             'responsables' => $responsables,
             'hitosDisponibles' => $hitosDisponibles,
             'camposPersonalizados' => $camposPersonalizados,
+            'categorias' => $categorias,
             'estados' => [
                 ['value' => 'pendiente', 'label' => 'Pendiente'],
                 ['value' => 'en_progreso', 'label' => 'En Progreso'],
@@ -219,6 +226,15 @@ class HitoController extends AdminController
         $camposPersonalizados = $this->campoPersonalizadoRepository->getActivosParaHitos();
         $valoresCamposPersonalizados = $hito->getCamposPersonalizadosValues();
 
+        // Cargar etiquetas actuales del hito
+        $hito->load('etiquetas.categoria');
+
+        // Obtener categorías de etiquetas disponibles
+        $categorias = \Modules\Proyectos\Models\CategoriaEtiqueta::with('etiquetas')
+            ->where('activo', true)
+            ->orderBy('orden')
+            ->get();
+
         return Inertia::render('Modules/Proyectos/Admin/Hitos/Edit', [
             'proyecto' => $proyecto,
             'hito' => $hito,
@@ -226,6 +242,7 @@ class HitoController extends AdminController
             'hitosDisponibles' => $hitosDisponibles,
             'camposPersonalizados' => $camposPersonalizados,
             'valoresCamposPersonalizados' => $valoresCamposPersonalizados,
+            'categorias' => $categorias,
             'estados' => [
                 ['value' => 'pendiente', 'label' => 'Pendiente'],
                 ['value' => 'en_progreso', 'label' => 'En Progreso'],

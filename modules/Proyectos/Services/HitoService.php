@@ -29,7 +29,8 @@ class HitoService
             // Separar datos relacionados
             $entregables = $data['entregables'] ?? [];
             $camposPersonalizados = $data['campos_personalizados'] ?? [];
-            unset($data['entregables'], $data['campos_personalizados']);
+            $etiquetas = $data['etiquetas'] ?? [];
+            unset($data['entregables'], $data['campos_personalizados'], $data['etiquetas']);
 
             // Validar campos personalizados requeridos
             $this->validarCamposPersonalizadosRequeridos($camposPersonalizados, 'hitos');
@@ -40,6 +41,11 @@ class HitoService
             // Guardar campos personalizados si existen
             if (!empty($camposPersonalizados)) {
                 $hito->saveCamposPersonalizados($camposPersonalizados);
+            }
+
+            // Sincronizar etiquetas si existen
+            if (!empty($etiquetas)) {
+                $hito->syncEtiquetas($etiquetas);
             }
 
             // Crear entregables iniciales si se proporcionaron
@@ -88,7 +94,8 @@ class HitoService
 
             // Separar datos relacionados
             $camposPersonalizados = $data['campos_personalizados'] ?? [];
-            unset($data['entregables'], $data['campos_personalizados']); // Los entregables se gestionan por separado
+            $etiquetas = $data['etiquetas'] ?? null;
+            unset($data['entregables'], $data['campos_personalizados'], $data['etiquetas']); // Los entregables se gestionan por separado
 
             // Validar campos personalizados requeridos
             if (!empty($camposPersonalizados)) {
@@ -101,6 +108,11 @@ class HitoService
             // Guardar campos personalizados si existen
             if (!empty($camposPersonalizados)) {
                 $hito->saveCamposPersonalizados($camposPersonalizados);
+            }
+
+            // Sincronizar etiquetas si se proporcionaron
+            if ($etiquetas !== null) {
+                $hito->syncEtiquetas($etiquetas);
             }
 
             // Si cambió el parent_id, recalcular jerarquía de descendientes

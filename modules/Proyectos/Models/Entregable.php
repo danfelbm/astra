@@ -180,6 +180,43 @@ class Entregable extends Model
     }
 
     /**
+     * Obtiene las etiquetas del entregable.
+     */
+    public function etiquetas(): BelongsToMany
+    {
+        return $this->belongsToMany(Etiqueta::class, 'entregable_etiqueta')
+            ->withPivot(['orden', 'created_at'])
+            ->orderBy('entregable_etiqueta.orden');
+    }
+
+    /**
+     * Sincroniza las etiquetas del entregable y actualiza los contadores.
+     */
+    public function syncEtiquetas(array $etiquetaIds): void
+    {
+        // Obtener etiquetas actuales antes del sync
+        $etiquetasAntiguas = $this->etiquetas()->pluck('etiqueta_id')->toArray();
+
+        // Sincronizar etiquetas con ordenamiento
+        $syncData = [];
+        foreach ($etiquetaIds as $index => $etiquetaId) {
+            $syncData[$etiquetaId] = ['orden' => $index];
+        }
+        $this->etiquetas()->sync($syncData);
+
+        // Actualizar contadores de las etiquetas afectadas
+        $etiquetasNuevas = $etiquetaIds;
+        $etiquetasAfectadas = array_unique(array_merge($etiquetasAntiguas, $etiquetasNuevas));
+
+        foreach ($etiquetasAfectadas as $etiquetaId) {
+            $etiqueta = Etiqueta::find($etiquetaId);
+            if ($etiqueta) {
+                $etiqueta->recalcularUsos();
+            }
+        }
+    }
+
+    /**
      * Obtiene los valores de campos personalizados formateados.
      */
     public function getCamposPersonalizadosValues(): array
