@@ -1,6 +1,6 @@
 <?php
 
-namespace Modules\Proyectos\Database\seeders;
+namespace Modules\Proyectos\Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use Modules\Proyectos\Models\Contrato;

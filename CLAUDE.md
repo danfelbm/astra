@@ -138,7 +138,7 @@ modules/                         # Arquitectura modular completa
 │   ├── Console/Commands/
 │   ├── Database/
 │   │   ├── migrations/
-│   │   └── seeders/
+│   │   └── Seeders/
 │   ├── Http/
 │   │   ├── Controllers/
 │   │   │   ├── Admin/
@@ -356,7 +356,10 @@ modules/[NombreModulo]/
 │   └── [Entidad]NotificationService.php
 ├── Repositories/            # Acceso a datos
 │   └── [Entidad]Repository.php
-└── Models/                  # Entidades con scopes y relaciones
+├── Models/                  # Entidades con scopes y relaciones
+└── Database/
+    ├── migrations/          # Migraciones de base de datos
+    └── Seeders/             # Seeders PSR-4 compliant
 ```
 
 ### Implementación de Patrones
@@ -672,7 +675,7 @@ $admin->syncPermissions($adminPermissions);
 mkdir -p modules/NuevoModulo/{
 Config,
 Console/Commands,
-Database/{migrations,seeders,factories},
+Database/{migrations,Seeders,Factories},
 Enums,
 Helpers,
 Http/{Controllers/{Admin,User,Guest,Api},Middleware,Requests},
@@ -929,7 +932,7 @@ php artisan make:module NombreModulo
 
 #### 2. Definir Permisos
 ```php
-// modules/NombreModulo/Database/seeders/PermissionSeeder.php
+// modules/NombreModulo/Database/Seeders/PermissionSeeder.php
 $permissions = [
     'nombremodulo.view' => 'Ver módulo',
     'nombremodulo.create' => 'Crear en módulo',
