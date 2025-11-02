@@ -37,7 +37,8 @@ export default defineConfig({
         },
     },
     optimizeDeps: {
-        exclude: ['lightningcss']
+        exclude: ['lightningcss'],
+        include: ['ckeditor5', '@ckeditor/ckeditor5-vue']
     },
     build: {
         rollupOptions: {
