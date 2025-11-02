@@ -13,6 +13,7 @@ import { Head, useForm, router } from '@inertiajs/vue3';
 import { ArrowLeft, Save, Mail, Info, AlertCircle, Eye } from 'lucide-vue-next';
 import { ref, computed, watch } from 'vue';
 import { toast } from 'vue-sonner';
+import { useTemplateVariables } from '@modules/Campanas/Resources/js/composables/useTemplateVariables';
 
 interface PlantillaEmail {
     id: number;
@@ -59,18 +60,31 @@ const form = useForm({
 const variablesUsadas = ref<string[]>([]);
 const showPreview = ref(false);
 
-// Actualizar variables cuando cambia el contenido
-const handleContentChange = (content: string) => {
-    form.contenido_html = content;
-    // Generar versión de texto plano automáticamente
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = content;
-    form.contenido_texto = tempDiv.textContent || tempDiv.innerText || '';
-};
-
 const handleVariablesUpdate = (variables: string[]) => {
     variablesUsadas.value = variables;
 };
+
+// Extraer variables del asunto también
+const extractAllVariables = () => {
+    const { extractUsedVariables } = useTemplateVariables();
+    const allContent = `${form.asunto} ${form.contenido_html}`;
+    variablesUsadas.value = extractUsedVariables(allContent);
+};
+
+// Watch para generar versión de texto plano automáticamente y extraer variables
+watch(() => form.contenido_html, (content) => {
+    if (content) {
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = content;
+        form.contenido_texto = tempDiv.textContent || tempDiv.innerText || '';
+    }
+    extractAllVariables();
+});
+
+// Watch para extraer variables del asunto también
+watch(() => form.asunto, () => {
+    extractAllVariables();
+});
 
 // Guardar plantilla
 const submit = () => {
@@ -277,8 +291,7 @@ const sendTestEmail = () => {
                         </Label>
                         <div class="mt-2">
                             <EmailTemplateEditor
-                                :modelValue="form.contenido_html"
-                                @update:modelValue="handleContentChange"
+                                v-model="form.contenido_html"
                                 @update:variables="handleVariablesUpdate"
                             />
                         </div>

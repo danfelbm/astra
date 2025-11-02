@@ -26,7 +26,7 @@ import { Head, useForm, router } from '@inertiajs/vue3';
 import { Vote, ArrowLeft, Clock, AlertTriangle, CheckCircle, Timer, AlertCircle } from 'lucide-vue-next';
 import { ref, computed, Teleport, Transition, onMounted, onUnmounted } from 'vue';
 import axios from 'axios';
-import { toast } from 'sonner';
+import { toast } from 'vue-sonner';
 
 interface Categoria {
     id: number;
