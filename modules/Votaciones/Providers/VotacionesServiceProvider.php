@@ -3,6 +3,7 @@
 namespace Modules\Votaciones\Providers;
 
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Facades\Route;
 
 class VotacionesServiceProvider extends ServiceProvider
 {
@@ -19,11 +20,13 @@ class VotacionesServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        // Cargar rutas
-        $this->loadRoutesFrom(__DIR__.'/../Routes/admin.php');
-        $this->loadRoutesFrom(__DIR__.'/../Routes/user.php');
-        $this->loadRoutesFrom(__DIR__.'/../Routes/guest.php');
-        $this->loadRoutesFrom(__DIR__.'/../Routes/api.php');
+        // Cargar rutas con middleware 'web'
+        Route::middleware('web')->group(function () {
+            $this->loadRoutesFrom(__DIR__.'/../Routes/admin.php');
+            $this->loadRoutesFrom(__DIR__.'/../Routes/user.php');
+            $this->loadRoutesFrom(__DIR__.'/../Routes/guest.php');
+            $this->loadRoutesFrom(__DIR__.'/../Routes/api.php');
+        });
         
         // Cargar migraciones
         $this->loadMigrationsFrom(__DIR__.'/../Database/migrations');

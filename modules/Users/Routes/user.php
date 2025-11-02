@@ -1,11 +1,6 @@
 <?php
-
+use Modules\Users\Http\Controllers\User\DashboardController;
 use Illuminate\Support\Facades\Route;
-use Modules\Users\Http\Controllers\User;
-
-Route::middleware(['auth', 'verified'])
-    ->prefix('user/users')
-    ->name('user.users.')
-    ->group(function () {
-        // Agregar rutas aquí
-    });
+Route::middleware(['auth','verified','user'])->prefix('miembro')->name('user.')->group(function(){
+Route::get('dashboard',[DashboardController::class,'index'])->name('dashboard');
+});
