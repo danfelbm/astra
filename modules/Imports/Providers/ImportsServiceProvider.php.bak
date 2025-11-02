@@ -1,11 +1,10 @@
 <?php
 
-namespace Modules\Configuration\Providers;
+namespace Modules\Imports\Providers;
 
 use Illuminate\Support\ServiceProvider;
-use Illuminate\Support\Facades\Route;
 
-class ConfigurationServiceProvider extends ServiceProvider
+class ImportsServiceProvider extends ServiceProvider
 {
     /**
      * Register services.
@@ -20,23 +19,24 @@ class ConfigurationServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        // Cargar rutas con middleware 'web'
-        Route::middleware('web')->group(function () {
-            $this->loadRoutesFrom(__DIR__.'/../Routes/admin.php');
-        });
+        // Cargar rutas
+        $this->loadRoutesFrom(__DIR__.'/../Routes/admin.php');
+        $this->loadRoutesFrom(__DIR__.'/../Routes/user.php');
+        $this->loadRoutesFrom(__DIR__.'/../Routes/guest.php');
+        $this->loadRoutesFrom(__DIR__.'/../Routes/api.php');
         
         // Cargar migraciones
         $this->loadMigrationsFrom(__DIR__.'/../Database/migrations');
         
         // Cargar traducciones
-        $this->loadTranslationsFrom(__DIR__.'/../Resources/lang', 'configuration');
+        $this->loadTranslationsFrom(__DIR__.'/../Resources/lang', 'imports');
         
         // Cargar vistas (si usara Blade)
-        // $this->loadViewsFrom(__DIR__.'/../Resources/views', 'configuration');
+        // $this->loadViewsFrom(__DIR__.'/../Resources/views', 'imports');
         
         // Publicar configuración
         $this->publishes([
-            __DIR__.'/../Config/config.php' => config_path('configuration.php'),
+            __DIR__.'/../Config/config.php' => config_path('imports.php'),
         ], 'config');
     
         // Cargar comandos

@@ -3,13 +3,18 @@
 namespace Modules\Core\Providers;
 
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Facades\Route;
 
 class CoreServiceProvider extends ServiceProvider
 {
     public function boot()
     {
-        // Cargar rutas
-        $this->loadRoutesFrom(__DIR__.'/../Routes/auth.php');
+        // Cargar rutas con middleware 'web'
+        Route::middleware('web')->group(function () {
+            $this->loadRoutesFrom(__DIR__.'/../Routes/auth.php');
+            $this->loadRoutesFrom(__DIR__.'/../Routes/admin.php');
+            $this->loadRoutesFrom(__DIR__.'/../Routes/api.php');
+        });
         
         // Cargar migraciones
         $this->loadMigrationsFrom(__DIR__.'/../Database/migrations');

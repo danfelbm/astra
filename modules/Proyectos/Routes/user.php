@@ -15,8 +15,8 @@ use Modules\Proyectos\Http\Controllers\User\MisObligacionesController;
 |
 */
 
-Route::middleware(['auth', 'verified', 'user'])->prefix('miembro')->name('miembro.')->group(function () {
-    // Rutas para mis proyectos
+Route::middleware(['auth', 'verified', 'user'])->prefix('miembro')->name('user.')->group(function () {
+    // MÓDULO PROYECTOS - Rutas para usuarios
     Route::prefix('mis-proyectos')->name('mis-proyectos.')->group(function () {
         Route::get('/', [MisProyectosController::class, 'index'])
             ->name('index')
@@ -55,6 +55,29 @@ Route::middleware(['auth', 'verified', 'user'])->prefix('miembro')->name('miembr
         Route::post('/{proyecto}/campos-personalizados', [MisProyectosController::class, 'guardarCamposPersonalizados'])
             ->name('guardar-campos-personalizados')
             ->middleware('can:proyectos.edit_own');
+    });
+
+    // Rutas para Mis Hitos
+    Route::prefix('mis-hitos')->name('mis-hitos.')->group(function () {
+        Route::get('/', [\Modules\Proyectos\Http\Controllers\User\MisHitosController::class, 'index'])
+            ->name('index')
+            ->middleware('can:hitos.view_own');
+
+        Route::get('/timeline', [\Modules\Proyectos\Http\Controllers\User\MisHitosController::class, 'timeline'])
+            ->name('timeline')
+            ->middleware('can:hitos.view_own');
+
+        Route::get('/{hito}', [\Modules\Proyectos\Http\Controllers\User\MisHitosController::class, 'show'])
+            ->name('show')
+            ->middleware('can:hitos.view_own');
+
+        Route::post('/{hito}/entregables/{entregable}/completar', [\Modules\Proyectos\Http\Controllers\User\MisHitosController::class, 'completarEntregable'])
+            ->name('completar-entregable')
+            ->middleware('can:hitos.complete_own');
+
+        Route::put('/{hito}/entregables/{entregable}/estado', [\Modules\Proyectos\Http\Controllers\User\MisHitosController::class, 'actualizarEstadoEntregable'])
+            ->name('actualizar-estado-entregable')
+            ->middleware('can:hitos.update_progress');
     });
 
     // Rutas para mis contratos
@@ -113,29 +136,6 @@ Route::middleware(['auth', 'verified', 'user'])->prefix('miembro')->name('miembr
             Route::post('/autosave', [\Modules\Proyectos\Http\Controllers\User\EvidenciaController::class, 'autosave'])
                 ->name('autosave');
         });
-    });
-
-    // Rutas para Mis Hitos
-    Route::prefix('mis-hitos')->name('mis-hitos.')->group(function () {
-        Route::get('/', [\Modules\Proyectos\Http\Controllers\User\MisHitosController::class, 'index'])
-            ->name('index')
-            ->middleware('can:hitos.view_own');
-
-        Route::get('/timeline', [\Modules\Proyectos\Http\Controllers\User\MisHitosController::class, 'timeline'])
-            ->name('timeline')
-            ->middleware('can:hitos.view_own');
-
-        Route::get('/{hito}', [\Modules\Proyectos\Http\Controllers\User\MisHitosController::class, 'show'])
-            ->name('show')
-            ->middleware('can:hitos.view_own');
-
-        Route::post('/{hito}/entregables/{entregable}/completar', [\Modules\Proyectos\Http\Controllers\User\MisHitosController::class, 'completarEntregable'])
-            ->name('completar-entregable')
-            ->middleware('can:hitos.complete_own');
-
-        Route::put('/{hito}/entregables/{entregable}/estado', [\Modules\Proyectos\Http\Controllers\User\MisHitosController::class, 'actualizarEstadoEntregable'])
-            ->name('actualizar-estado-entregable')
-            ->middleware('can:hitos.update_progress');
     });
 
     // Rutas para Mis Obligaciones

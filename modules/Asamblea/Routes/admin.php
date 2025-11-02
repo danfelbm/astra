@@ -1,61 +1,73 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
 use Modules\Asamblea\Http\Controllers\Admin\AsambleaController;
+use Modules\Imports\Http\Controllers\Admin\ImportController;
+use Illuminate\Support\Facades\Route;
 
-Route::middleware(['auth', 'verified', 'admin'])
-    ->prefix('admin/asambleas')
-    ->name('admin.asambleas.')
-    ->group(function () {
-        // Index
-        Route::get('/', [AsambleaController::class, 'index'])
-            ->name('index')
-            ->middleware('permission:asambleas.view');
-        
-        // Create
-        Route::get('/create', [AsambleaController::class, 'create'])
-            ->name('create')
-            ->middleware('permission:asambleas.create');
-        
-        // Store
-        Route::post('/', [AsambleaController::class, 'store'])
-            ->name('store')
-            ->middleware('permission:asambleas.create');
-        
-        // Show
-        Route::get('/{asamblea}', [AsambleaController::class, 'show'])
-            ->name('show')
-            ->middleware('permission:asambleas.view');
-        
-        // Edit
-        Route::get('/{asamblea}/edit', [AsambleaController::class, 'edit'])
-            ->name('edit')
-            ->middleware('permission:asambleas.edit');
-        
-        // Update
-        Route::put('/{asamblea}', [AsambleaController::class, 'update'])
-            ->name('update')
-            ->middleware('permission:asambleas.edit');
-        
-        // Delete
-        Route::delete('/{asamblea}', [AsambleaController::class, 'destroy'])
-            ->name('destroy')
-            ->middleware('permission:asambleas.delete');
-        
-        // Manage participants
-        Route::get('/{asamblea}/participantes', [AsambleaController::class, 'getParticipantes'])
-            ->name('participantes')
-            ->middleware('permission:asambleas.manage_participants');
-        
-        Route::post('/{asamblea}/participantes', [AsambleaController::class, 'updateParticipantes'])
-            ->name('participantes.update')
-            ->middleware('permission:asambleas.manage_participants');
-        
-        Route::delete('/{asamblea}/participantes/{usuario}', [AsambleaController::class, 'removeParticipante'])
-            ->name('participantes.remove')
-            ->middleware('permission:asambleas.manage_participants');
-        
-        // Zoom redirect
-        Route::get('/zoom/redirect', [\Modules\Asamblea\Http\Controllers\User\ZoomRedirectController::class, 'redirect'])
-            ->name('zoom.redirect');
-    });
+/*
+|--------------------------------------------------------------------------
+| Asamblea Admin Routes
+|--------------------------------------------------------------------------
+|
+| Rutas administrativas para gestión de asambleas.
+| Incluye CRUD, participantes, imports y votaciones asociadas.
+|
+*/
+
+Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.')->group(function () {
+
+    // Asambleas routes - Expandido para usar Spatie
+    Route::get('asambleas', [AsambleaController::class, 'index'])
+        ->middleware('can:asambleas.view')
+        ->name('asambleas.index');
+    Route::get('asambleas/create', [AsambleaController::class, 'create'])
+        ->middleware('can:asambleas.create')
+        ->name('asambleas.create');
+    Route::post('asambleas', [AsambleaController::class, 'store'])
+        ->middleware('can:asambleas.create')
+        ->name('asambleas.store');
+    Route::get('asambleas/{asamblea}', [AsambleaController::class, 'show'])
+        ->middleware('can:asambleas.view')
+        ->name('asambleas.show');
+    Route::get('asambleas/{asamblea}/edit', [AsambleaController::class, 'edit'])
+        ->middleware('can:asambleas.edit')
+        ->name('asambleas.edit');
+    Route::put('asambleas/{asamblea}', [AsambleaController::class, 'update'])
+        ->middleware('can:asambleas.edit')
+        ->name('asambleas.update');
+    Route::delete('asambleas/{asamblea}', [AsambleaController::class, 'destroy'])
+        ->middleware('can:asambleas.delete')
+        ->name('asambleas.destroy');
+
+    Route::match(['GET', 'POST', 'DELETE', 'PUT'], 'asambleas/{asamblea}/participantes', [AsambleaController::class, 'manageParticipantes'])
+        ->middleware('can:asambleas.manage_participants')
+        ->name('asambleas.manage-participantes');
+    Route::get('asambleas/{asamblea}/participantes-list', [AsambleaController::class, 'getParticipantes'])
+        ->middleware('can:asambleas.view')
+        ->name('asambleas.participantes-list');
+
+    // Rutas de importación para asambleas
+    Route::get('asambleas/{asamblea}/imports', [ImportController::class, 'indexForAsamblea'])
+        ->middleware('can:asambleas.manage_participants')
+        ->name('asambleas.imports.index');
+    Route::get('asambleas/{asamblea}/imports/recent', [ImportController::class, 'recentForAsamblea'])
+        ->middleware('can:asambleas.manage_participants')
+        ->name('asambleas.imports.recent');
+    Route::get('asambleas/{asamblea}/imports/active', [ImportController::class, 'activeForAsamblea'])
+        ->middleware('can:asambleas.manage_participants')
+        ->name('asambleas.imports.active');
+    Route::post('asambleas/{asamblea}/imports/store', [ImportController::class, 'storeWithAsamblea'])
+        ->middleware('can:asambleas.manage_participants')
+        ->name('asambleas.imports.store');
+
+    // Rutas de votaciones asociadas a asambleas
+    Route::get('asambleas/{asamblea}/votaciones', [AsambleaController::class, 'getVotaciones'])
+        ->middleware('can:asambleas.view')
+        ->name('asambleas.votaciones');
+    Route::post('asambleas/{asamblea}/votaciones/{votacion}/sync', [AsambleaController::class, 'syncParticipantsToVotacion'])
+        ->middleware('can:asambleas.sync_participants')
+        ->name('asambleas.sync-participants');
+    Route::get('sync-job/{jobId}/status', [AsambleaController::class, 'getSyncJobStatus'])
+        ->middleware('can:asambleas.view')
+        ->name('sync-job.status');
+});

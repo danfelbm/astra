@@ -11,7 +11,10 @@ use Modules\Campanas\Http\Controllers\Admin\CampanaController;
 |--------------------------------------------------------------------------
 */
 
-Route::middleware(['auth', 'verified', 'admin'])->prefix('admin/campanas')->name('admin.campanas.')->group(function () {
+Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.')->group(function () {
+
+    // MÓDULO CAMPAÑAS - Rutas administrativas
+    Route::prefix('campanas')->name('campanas.')->group(function () {
     
     // Rutas de Plantillas de Email
     Route::prefix('plantillas-email')->name('plantillas-email.')->group(function () {
@@ -136,4 +139,5 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin/campanas')->name
     
     Route::post('/{campana}/preview', [CampanaController::class, 'preview'])->name('preview')
         ->middleware('can:campanas.view');
+    });
 });

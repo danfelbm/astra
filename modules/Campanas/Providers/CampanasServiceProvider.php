@@ -3,14 +3,17 @@
 namespace Modules\Campanas\Providers;
 
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Facades\Route;
 
 class CampanasServiceProvider extends ServiceProvider
 {
     public function boot()
     {
-        // Cargar rutas
-        $this->loadRoutesFrom(__DIR__.'/../Routes/admin.php');
-        $this->loadRoutesFrom(__DIR__.'/../Routes/guest.php');
+        // Cargar rutas con middleware 'web'
+        Route::middleware('web')->group(function () {
+            $this->loadRoutesFrom(__DIR__.'/../Routes/admin.php');
+            $this->loadRoutesFrom(__DIR__.'/../Routes/guest.php');
+        });
         
         // Cargar migraciones
         $this->loadMigrationsFrom(__DIR__.'/../Database/migrations');
