@@ -253,6 +253,104 @@ onBeforeUnmount(() => {
     background-color: hsl(var(--muted) / 0.3);
 }
 
+/* Dark Mode Support para CKEditor - Sobrescribir variables CSS de CKEditor */
+:global(.dark) .ckeditor-wrapper {
+    --ck-color-base-background: hsl(var(--background));
+    --ck-color-base-foreground: hsl(var(--muted));
+    --ck-color-base-border: hsl(var(--border));
+    --ck-color-base-text: hsl(var(--foreground));
+    --ck-color-focus-border: hsl(var(--ring));
+
+    /* Toolbar */
+    --ck-color-toolbar-background: hsl(var(--muted));
+    --ck-color-toolbar-border: hsl(var(--border));
+
+    /* Área de contenido editable */
+    --ck-color-editor-background: hsl(var(--background));
+    --ck-color-editor-text: hsl(var(--foreground));
+    --ck-color-editable-background: hsl(var(--background));
+    --ck-color-editable-text: hsl(var(--foreground));
+
+    /* Contenido específico */
+    --ck-color-content-background: hsl(var(--background));
+    --ck-color-content-text: hsl(var(--foreground));
+    --ck-content-font-color: hsl(var(--foreground));
+
+    /* Botones */
+    --ck-color-button-default-background: transparent;
+    --ck-color-button-default-hover-background: hsl(var(--accent));
+    --ck-color-button-default-active-background: hsl(var(--accent));
+    --ck-color-button-on-background: hsl(var(--accent));
+    --ck-color-button-on-hover-background: hsl(var(--accent));
+    --ck-color-button-on-active-background: hsl(var(--accent));
+    --ck-color-button-on-disabled-background: hsl(var(--muted));
+
+    /* Texto */
+    --ck-color-text: hsl(var(--foreground));
+    --ck-color-label-text: hsl(var(--foreground));
+    --ck-color-button-default-text: hsl(var(--foreground));
+
+    /* Dropdowns y paneles */
+    --ck-color-panel-background: hsl(var(--popover));
+    --ck-color-panel-border: hsl(var(--border));
+    --ck-color-dropdown-panel-background: hsl(var(--popover));
+    --ck-color-dropdown-panel-border: hsl(var(--border));
+
+    /* Listas */
+    --ck-color-list-background: hsl(var(--popover));
+    --ck-color-list-button-hover-background: hsl(var(--accent));
+    --ck-color-list-button-on-background: hsl(var(--accent));
+    --ck-color-list-button-on-text: hsl(var(--accent-foreground));
+
+    /* Inputs */
+    --ck-color-input-background: hsl(var(--background));
+    --ck-color-input-border: hsl(var(--border));
+    --ck-color-input-text: hsl(var(--foreground));
+    --ck-color-input-disabled-background: hsl(var(--muted));
+    --ck-color-input-disabled-border: hsl(var(--border));
+    --ck-color-input-disabled-text: hsl(var(--muted-foreground));
+
+    /* Tooltips */
+    --ck-color-tooltip-background: hsl(var(--popover));
+    --ck-color-tooltip-text: hsl(var(--popover-foreground));
+
+    /* Iconos */
+    --ck-icon-fill: hsl(var(--foreground));
+
+    /* Separadores */
+    --ck-color-toolbar-separator: hsl(var(--border));
+
+    /* Links */
+    --ck-color-link-default: hsl(var(--primary));
+    --ck-color-link-selected-background: hsl(var(--accent));
+
+    /* Shadows reducidas para dark mode */
+    --ck-drop-shadow: 0 0 0 1px hsl(var(--border));
+    --ck-inner-shadow: 0 0 0 1px hsl(var(--border));
+}
+
+/* Forzar color de texto en el contenido editable */
+:global(.dark) .ckeditor-wrapper :deep(.ck-content) {
+    color: hsl(var(--foreground)) !important;
+}
+
+:global(.dark) .ckeditor-wrapper :deep(.ck-editor__editable) {
+    color: hsl(var(--foreground)) !important;
+}
+
+:global(.dark) .ckeditor-wrapper :deep(.ck-content p),
+:global(.dark) .ckeditor-wrapper :deep(.ck-content h1),
+:global(.dark) .ckeditor-wrapper :deep(.ck-content h2),
+:global(.dark) .ckeditor-wrapper :deep(.ck-content h3),
+:global(.dark) .ckeditor-wrapper :deep(.ck-content h4),
+:global(.dark) .ckeditor-wrapper :deep(.ck-content h5),
+:global(.dark) .ckeditor-wrapper :deep(.ck-content h6),
+:global(.dark) .ckeditor-wrapper :deep(.ck-content li),
+:global(.dark) .ckeditor-wrapper :deep(.ck-content td),
+:global(.dark) .ckeditor-wrapper :deep(.ck-content th) {
+    color: hsl(var(--foreground)) !important;
+}
+
 .prose :deep(p) {
     margin-bottom: 0.5rem;
 }
