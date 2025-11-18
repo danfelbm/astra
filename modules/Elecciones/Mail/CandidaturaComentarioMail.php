@@ -43,7 +43,7 @@ class CandidaturaComentarioMail extends Mailable
     public function content(): Content
     {
         return new Content(
-            html: 'emails.candidatura-comentario',
+            view: 'elecciones::emails.candidatura-comentario',
             with: [
                 'userName' => $this->userName,
                 'candidaturaId' => $this->candidaturaId,

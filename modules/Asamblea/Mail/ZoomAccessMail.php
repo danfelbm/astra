@@ -54,7 +54,7 @@ class ZoomAccessMail extends Mailable
     public function content(): Content
     {
         return new Content(
-            html: 'emails.zoom-access',
+            view: 'asamblea::emails.zoom-access',
             with: [
                 'userName' => $this->userName,
                 'asambleaNombre' => $this->asambleaNombre,

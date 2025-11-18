@@ -41,7 +41,7 @@ class CandidaturaPendienteMail extends Mailable
     public function content(): Content
     {
         return new Content(
-            html: 'emails.candidatura-pendiente',
+            view: 'elecciones::emails.candidatura-pendiente',
             with: [
                 'userName' => $this->userName,
                 'candidaturaId' => $this->candidaturaId,
