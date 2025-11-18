@@ -2,7 +2,7 @@
 
 namespace Modules\Asamblea\Http\Controllers\User;
 
-use Modules\Core\Http\Controllers\Base\UserController;
+use Modules\Core\Http\Controllers\Base\GuestController;
 
 
 use Modules\Asamblea\Models\ZoomRegistrant;
@@ -15,8 +15,9 @@ use Illuminate\Contracts\Encryption\DecryptException;
 
 /**
  * Controlador para redirección pública de enlaces Zoom enmascarados
+ * Nota: Extiende GuestController para permitir acceso sin autenticación
  */
-class ZoomRedirectController extends UserController
+class ZoomRedirectController extends GuestController
 {
     /**
      * Redireccionar desde enlace enmascarado a zoom_join_url real
