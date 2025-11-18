@@ -2,7 +2,7 @@
 
 namespace Modules\Elecciones\Database\Seeders;
 
-use Modules\Elections\Models\PeriodoElectoral;
+use Modules\Elecciones\Models\PeriodoElectoral;
 use Carbon\Carbon;
 use Illuminate\Database\Seeder;
 

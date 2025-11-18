@@ -2,7 +2,7 @@
 
 namespace Modules\Elecciones\Database\Seeders;
 
-use Modules\Elections\Models\Cargo;
+use Modules\Elecciones\Models\Cargo;
 use Illuminate\Database\Seeder;
 
 class CargoSeeder extends Seeder
