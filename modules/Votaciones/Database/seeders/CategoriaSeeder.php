@@ -2,7 +2,7 @@
 
 namespace Modules\Votaciones\Database\Seeders;
 
-use Modules\Voting\Models\Categoria;
+use Modules\Votaciones\Models\Categoria;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
