@@ -2,10 +2,10 @@
 
 namespace Modules\Elecciones\Database\Seeders;
 
-use Modules\Elections\Models\Cargo;
-use Modules\Elections\Models\Convocatoria;
-use Modules\Geographic\Models\Departamento;
-use Modules\Elections\Models\PeriodoElectoral;
+use Modules\Elecciones\Models\Cargo;
+use Modules\Elecciones\Models\Convocatoria;
+use Modules\Geografico\Models\Departamento;
+use Modules\Elecciones\Models\PeriodoElectoral;
 use Carbon\Carbon;
 use Illuminate\Database\Seeder;
 

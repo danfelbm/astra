@@ -3,7 +3,7 @@
 namespace Modules\Core\Http\Controllers\Settings;
 
 use Modules\Core\Http\Controllers\Base\Controller;
-use Modules\Settings\Http\Requests\ProfileUpdateRequest;
+use Modules\Core\Http\Requests\Settings\ProfileUpdateRequest;
 use Modules\Core\Services\AvatarService;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;

@@ -3,7 +3,7 @@
 namespace Modules\Core\Http\Controllers\Auth;
 
 use Modules\Core\Http\Controllers\Base\Controller;
-use Modules\Auth\Http\Requests\LoginRequest;
+use Modules\Core\Http\Requests\Auth\LoginRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;

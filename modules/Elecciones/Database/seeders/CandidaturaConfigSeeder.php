@@ -2,7 +2,7 @@
 
 namespace Modules\Elecciones\Database\Seeders;
 
-use Modules\Elections\Models\CandidaturaConfig;
+use Modules\Elecciones\Models\CandidaturaConfig;
 use Modules\Core\Models\User;
 use Illuminate\Database\Seeder;
 
