@@ -43,7 +43,7 @@ class CandidaturaBorradorMail extends Mailable
     public function content(): Content
     {
         return new Content(
-            html: 'emails.candidatura-borrador',
+            view: 'elecciones::emails.candidatura-borrador',
             with: [
                 'userName' => $this->userName,
                 'candidaturaId' => $this->candidaturaId,

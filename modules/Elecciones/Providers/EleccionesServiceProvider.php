@@ -35,7 +35,7 @@ class EleccionesServiceProvider extends ServiceProvider
         $this->loadTranslationsFrom(__DIR__.'/../Resources/lang', 'elecciones');
         
         // Cargar vistas (si usara Blade)
-        // $this->loadViewsFrom(__DIR__.'/../Resources/views', 'elecciones');
+        $this->loadViewsFrom(__DIR__.'/../Resources/views', 'elecciones');
         
         // Publicar configuración
         $this->publishes([

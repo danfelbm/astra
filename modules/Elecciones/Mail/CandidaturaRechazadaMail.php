@@ -43,7 +43,7 @@ class CandidaturaRechazadaMail extends Mailable
     public function content(): Content
     {
         return new Content(
-            html: 'emails.candidatura-rechazada',
+            view: 'elecciones::emails.candidatura-rechazada',
             with: [
                 'userName' => $this->userName,
                 'candidaturaId' => $this->candidaturaId,

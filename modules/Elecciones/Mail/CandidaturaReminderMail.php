@@ -41,7 +41,7 @@ class CandidaturaReminderMail extends Mailable
     public function content(): Content
     {
         return new Content(
-            html: 'emails.candidatura-reminder',
+            view: 'elecciones::emails.candidatura-reminder',
             with: [
                 'userName' => $this->userName,
                 'candidaturaId' => $this->candidaturaId,
