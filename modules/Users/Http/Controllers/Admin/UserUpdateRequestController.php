@@ -180,27 +180,38 @@ class UserUpdateRequestController extends AdminController
             'request_id' => $updateRequest->id
         ]);
 
-        $approved = $this->updateService->approveRequest(
-            $updateRequest,
-            auth()->user(),
-            $request->notes
-        );
+        try {
+            $approved = $this->updateService->approveRequest(
+                $updateRequest,
+                auth()->user(),
+                $request->notes
+            );
 
-        \Log::info('[UserUpdateRequestController::approve] Resultado de aprobación', [
-            'request_id' => $updateRequest->id,
-            'approved' => $approved,
-            'new_status' => $updateRequest->fresh()->status
-        ]);
+            \Log::info('[UserUpdateRequestController::approve] Resultado de aprobación', [
+                'request_id' => $updateRequest->id,
+                'approved' => $approved,
+                'new_status' => $updateRequest->fresh()->status
+            ]);
 
-        if ($approved) {
-            return redirect()->route('admin.update-requests.index')
-                ->with('success', 'Solicitud aprobada correctamente. Los cambios han sido aplicados.');
+            if ($approved) {
+                return redirect()->route('admin.update-requests.index')
+                    ->with('success', 'Solicitud aprobada correctamente. Los cambios han sido aplicados.');
+            }
+
+            \Log::error('[UserUpdateRequestController::approve] Error al aprobar', [
+                'request_id' => $updateRequest->id
+            ]);
+            return back()->with('error', 'No se pudo aprobar la solicitud.');
+
+        } catch (\Exception $e) {
+            \Log::error('[UserUpdateRequestController::approve] Excepción', [
+                'request_id' => $updateRequest->id,
+                'error' => $e->getMessage()
+            ]);
+
+            // Retornar el mensaje de error específico al frontend
+            return back()->with('error', $e->getMessage());
         }
-
-        \Log::error('[UserUpdateRequestController::approve] Error al aprobar', [
-            'request_id' => $updateRequest->id
-        ]);
-        return back()->with('error', 'No se pudo aprobar la solicitud.');
     }
 
     /**
