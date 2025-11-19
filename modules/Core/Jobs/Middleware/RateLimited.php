@@ -145,24 +145,26 @@ class RateLimited
     
     /**
      * Factory method para crear middleware de email
+     * Configurado para: 1 mensaje cada 2 segundos (0.5 mensajes/segundo)
      *
      * @return static
      */
     public static function forEmail(): static
     {
-        $limit = config('queue.rate_limits.resend', 2);
-        return new static('otp_email', $limit, 1, 'resend');
+        $limit = config('queue.rate_limits.resend', 1);
+        return new static('otp_email', $limit, 2, 'resend');
     }
     
     /**
      * Factory method para crear middleware de WhatsApp
+     * Configurado para: 1 mensaje cada 2 segundos (0.5 mensajes/segundo)
      *
      * @return static
      */
     public static function forWhatsApp(): static
     {
         $limit = config('queue.rate_limits.whatsapp', 1);  // Límite seguro para Evolution API
-        return new static('otp_whatsapp', $limit, 1, 'whatsapp');
+        return new static('otp_whatsapp', $limit, 2, 'whatsapp');
     }
     
     /**

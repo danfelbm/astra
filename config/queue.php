@@ -140,14 +140,18 @@ return [
     | Rate Limits por Proveedor
     |--------------------------------------------------------------------------
     |
-    | Límites de rate por segundo para cada proveedor de mensajería.
-    | Estos valores se usan para controlar el throughput de envío.
+    | Límites de rate para cada proveedor de mensajería.
+    | IMPORTANTE: El sistema está configurado para procesar 1 mensaje cada 2 segundos
+    | para ambos canales (0.5 mensajes/segundo).
+    |
+    | Nota: El valor aquí define $maxAttempts (mensajes permitidos).
+    |       El período de tiempo ($decaySeconds = 2) está hardcodeado en RateLimited.php
     |
     */
 
     'rate_limits' => [
-        'resend' => env('RESEND_RATE_LIMIT', 2),      // 2 emails por segundo
-        'whatsapp' => env('WHATSAPP_RATE_LIMIT', 1),  // 1 mensaje por segundo - Límite seguro para Evolution API
+        'resend' => env('RESEND_RATE_LIMIT', 1),      // 1 email cada 2 segundos (0.5/seg)
+        'whatsapp' => env('WHATSAPP_RATE_LIMIT', 1),  // 1 mensaje cada 2 segundos (0.5/seg)
     ],
 
 ];
