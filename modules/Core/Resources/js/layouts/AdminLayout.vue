@@ -53,6 +53,7 @@ const locationDataIncomplete = computed(() => {
         />
         
         <!-- Notificaciones toast -->
-        <Toaster />
+        <!-- Notificaciones toast -->
+        <Toaster :duration="6000" rich-colors close-button />
     </AppShell>
 </template>

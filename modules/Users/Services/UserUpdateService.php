@@ -113,7 +113,7 @@ class UserUpdateService
     protected function processDocuments(array $files, int $userId): array
     {
         $paths = [];
-        
+
         foreach ($files as $file) {
             if (!$file || !$file->isValid()) {
                 continue;
@@ -170,31 +170,57 @@ class UserUpdateService
             'request_id' => $request->id
         ]);
 
-        $approved = $request->approve($admin, $notes);
+        try {
+            $approved = $request->approve($admin, $notes);
 
-        Log::info('[UserUpdateService::approveRequest] Resultado de request->approve', [
-            'request_id' => $request->id,
-            'approved' => $approved,
-            'new_status' => $request->fresh()->status
-        ]);
+            Log::info('[UserUpdateService::approveRequest] Resultado de request->approve', [
+                'request_id' => $request->id,
+                'approved' => $approved,
+                'new_status' => $request->fresh()->status
+            ]);
 
-        if ($approved) {
-            // Enviar notificación al usuario
-            dispatch(new NotifyUpdateApprovalJob($request));
-            
-            Log::info('[UserUpdateService::approveRequest] Aprobación exitosa', [
+            if ($approved) {
+                // Enviar notificación al usuario
+                dispatch(new NotifyUpdateApprovalJob($request));
+
+                Log::info('[UserUpdateService::approveRequest] Aprobación exitosa', [
+                    'request_id' => $request->id,
+                    'admin_id' => $admin->id,
+                    'cambios_aplicados' => $request->hasDataChanges()
+                ]);
+
+                return true;
+            } else {
+                Log::error('[UserUpdateService::approveRequest] Error en aprobación', [
+                    'request_id' => $request->id,
+                    'admin_id' => $admin->id
+                ]);
+                return false;
+            }
+        } catch (\Illuminate\Database\QueryException $e) {
+            // Check for duplicate entry error (1062)
+            if ($e->errorInfo[1] == 1062) {
+                Log::info('[UserUpdateService::approveRequest] Intento de duplicado detectado', [
+                    'request_id' => $request->id,
+                    'error' => $e->getMessage()
+                ]);
+
+                // Re-throw with a more user-friendly message that the controller can catch
+                throw new \Exception("El correo electrónico o documento ya está registrado por otro usuario.");
+            }
+
+            Log::error('[UserUpdateService::approveRequest] Error de base de datos', [
                 'request_id' => $request->id,
-                'admin_id' => $admin->id,
-                'cambios_aplicados' => $request->hasDataChanges()
+                'error' => $e->getMessage()
             ]);
-        } else {
-            Log::error('[UserUpdateService::approveRequest] Error en aprobación', [
+            throw $e;
+        } catch (\Exception $e) {
+            Log::error('[UserUpdateService::approveRequest] Excepción general', [
                 'request_id' => $request->id,
-                'admin_id' => $admin->id
+                'error' => $e->getMessage()
             ]);
+            throw $e;
         }
-
-        return $approved;
     }
 
     /**
@@ -232,7 +258,7 @@ class UserUpdateService
         if ($rejected) {
             // Enviar notificación al usuario
             dispatch(new NotifyUpdateRejectionJob($request));
-            
+
             Log::info('[UserUpdateService::rejectRequest] Rechazo exitoso', [
                 'request_id' => $request->id,
                 'admin_id' => $admin->id
@@ -264,7 +290,7 @@ class UserUpdateService
     public function getRequestStats(): array
     {
         $tenantId = $this->tenantService->getCurrentTenant()?->id;
-        
+
         $query = UserUpdateRequest::query();
         if ($tenantId) {
             $query->where('tenant_id', $tenantId);
@@ -320,10 +346,10 @@ class UserUpdateService
     public function sendApprovalNotification(UserUpdateRequest $request): void
     {
         $user = $request->user;
-        
+
         // Mensaje de email
         $emailMessage = $this->buildApprovalEmailMessage($request);
-        
+
         // Enviar email
         try {
             \Mail::to($user->email)->send(new \Modules\Users\Mail\UpdateApprovedMail($user, $request));
@@ -347,7 +373,7 @@ class UserUpdateService
     public function sendRejectionNotification(UserUpdateRequest $request): void
     {
         $user = $request->user;
-        
+
         // Enviar email
         try {
             \Mail::to($user->email)->send(new \Modules\Users\Mail\UpdateRejectedMail($user, $request));
@@ -373,7 +399,7 @@ class UserUpdateService
         $changes = $request->getChangesSummary();
         $message = "Hola {$request->user->name},\n\n";
         $message .= "✅ Tu solicitud de actualización de datos ha sido *APROBADA*.\n\n";
-        
+
         if (!empty($changes)) {
             $message .= "Cambios aplicados:\n";
             foreach ($changes as $field => $values) {
@@ -382,10 +408,10 @@ class UserUpdateService
             }
             $message .= "\n";
         }
-        
+
         $message .= "Los cambios ya están activos en tu cuenta.\n\n";
         $message .= "Sistema de Votaciones";
-        
+
         return $message;
     }
 
@@ -396,14 +422,14 @@ class UserUpdateService
     {
         $message = "Hola {$request->user->name},\n\n";
         $message .= "❌ Tu solicitud de actualización de datos ha sido *RECHAZADA*.\n\n";
-        
+
         if ($request->admin_notes) {
             $message .= "Motivo: {$request->admin_notes}\n\n";
         }
-        
+
         $message .= "Por favor, verifica la información y vuelve a intentarlo.\n\n";
         $message .= "Sistema de Votaciones";
-        
+
         return $message;
     }
 
@@ -415,7 +441,7 @@ class UserUpdateService
         $changes = $request->getChangesSummary();
         $message = "<h3>Solicitud Aprobada</h3>";
         $message .= "<p>Tu solicitud de actualización de datos ha sido aprobada.</p>";
-        
+
         if (!empty($changes)) {
             $message .= "<h4>Cambios aplicados:</h4><ul>";
             foreach ($changes as $field => $values) {
@@ -424,7 +450,7 @@ class UserUpdateService
             }
             $message .= "</ul>";
         }
-        
+
         return $message;
     }
 }
