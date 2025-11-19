@@ -28,13 +28,13 @@ class UserUpdateRequestController extends AdminController
     public function index(Request $request): Response
     {
         $query = UserUpdateRequest::with([
-                'user', 
-                'admin',
-                'newTerritorio',
-                'newDepartamento',
-                'newMunicipio',
-                'newLocalidad'
-            ])
+            'user',
+            'admin',
+            'newTerritorio',
+            'newDepartamento',
+            'newMunicipio',
+            'newLocalidad'
+        ])
             ->whereHas('user') // Solo incluir solicitudes con usuario válido
             ->orderBy('created_at', 'desc');
 
@@ -64,7 +64,7 @@ class UserUpdateRequestController extends AdminController
         }
 
         $requests = $query->paginate(15)->withQueryString();
-        
+
         // Añadir campos from y to a la paginación
         $requestsArray = $requests->toArray();
         if (!isset($requestsArray['from'])) {
@@ -100,7 +100,7 @@ class UserUpdateRequestController extends AdminController
             'newMunicipio',
             'newLocalidad'
         ]);
-        
+
         // Protección adicional si el usuario no existe
         if (!$updateRequest->user) {
             \Log::error('[UserUpdateRequestController::show] Usuario asociado no encontrado', [
@@ -338,7 +338,7 @@ class UserUpdateRequestController extends AdminController
 
         // Generar CSV
         $csv = "ID,Usuario,Documento,Email Actual,Email Nuevo,Teléfono Actual,Teléfono Nuevo,Estado,Admin,Fecha Solicitud,Fecha Procesamiento\n";
-        
+
         foreach ($requests as $req) {
             $csv .= sprintf(
                 "%d,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n",

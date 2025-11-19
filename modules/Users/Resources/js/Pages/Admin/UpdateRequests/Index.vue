@@ -120,15 +120,19 @@ const localFilters = ref({
     search: props.filters.search || ''
 });
 
-// Aplicar filtros con debounce
-const applyFilters = debounce(() => {
-    // Filtrar valores 'all' antes de enviar
-    const filters = Object.entries(localFilters.value).reduce((acc, [key, value]) => {
+// Obtener filtros activos
+const getActiveFilters = () => {
+    return Object.entries(localFilters.value).reduce((acc, [key, value]) => {
         if (value && value !== 'all') {
             acc[key] = value;
         }
         return acc;
     }, {} as any);
+};
+
+// Aplicar filtros con debounce
+const applyFilters = debounce(() => {
+    const filters = getActiveFilters();
     
     router.get('/admin/solicitudes-actualizacion', {
         ...filters,
@@ -157,8 +161,10 @@ const clearFilters = () => {
 
 // Navegar a página
 const changePage = (page: number) => {
+    const filters = getActiveFilters();
+    
     router.get('/admin/solicitudes-actualizacion', {
-        ...localFilters.value,
+        ...filters,
         page
     }, {
         preserveState: true,
