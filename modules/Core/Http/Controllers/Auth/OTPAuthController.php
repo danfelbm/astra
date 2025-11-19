@@ -7,10 +7,12 @@ use Modules\Core\Http\Controllers\Base\Controller;
 use Modules\Core\Models\User;
 use Modules\Core\Services\CachedGlobalSettingsService as GlobalSettingsService;
 use Modules\Core\Services\OTPService;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
@@ -392,13 +394,74 @@ class OTPAuthController extends Controller
         switch ($channel) {
             case 'whatsapp':
                 return 'Código OTP enviado a tu WhatsApp.';
-            
+
             case 'both':
                 return 'Código OTP enviado a tu correo electrónico y WhatsApp.';
-            
+
             case 'email':
             default:
                 return 'Código OTP enviado a tu correo electrónico.';
         }
     }
+
+    /**
+     * Obtener estado unificado del envío de OTP
+     * Endpoint público que retorna: "processing" o "sent"
+     */
+    public function getQueuePosition(Request $request, string $identifier): JsonResponse
+    {
+        try {
+            // Buscar el OTP más reciente del usuario
+            $userOtp = \Modules\Core\Models\OTP::where('usado', false)
+                ->where('created_at', '>', Carbon::now()->subMinutes(15))
+                ->orderBy('created_at', 'desc')
+                ->first();
+
+            if (!$userOtp) {
+                return response()->json([
+                    'success' => true,
+                    'data' => [
+                        'status' => 'not_found',
+                        'message' => 'No se encontró solicitud reciente',
+                    ],
+                ]);
+            }
+
+            // Verificar estado según el canal
+            $canal = $userOtp->canal_enviado;
+            $emailSent = !is_null($userOtp->email_sent_at);
+            $whatsappSent = !is_null($userOtp->whatsapp_sent_at);
+
+            $allSent = false;
+            if ($canal === 'both') {
+                $allSent = $emailSent && $whatsappSent;
+            } elseif ($canal === 'email') {
+                $allSent = $emailSent;
+            } elseif ($canal === 'whatsapp') {
+                $allSent = $whatsappSent;
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'status' => $allSent ? 'sent' : 'processing',
+                    'message' => $allSent ? 'Código enviado con éxito' : 'Procesando tu solicitud',
+                    'canal' => $canal,
+                    'email_sent' => $emailSent,
+                    'whatsapp_sent' => $whatsappSent,
+                ],
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error obteniendo estado de OTP', [
+                'identifier' => $identifier,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al verificar estado',
+            ], 500);
+        }
+    }
+
 }

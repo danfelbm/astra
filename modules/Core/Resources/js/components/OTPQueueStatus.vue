@@ -5,7 +5,8 @@
         <CardHeader>
           <CardTitle class="flex items-center gap-2">
             <Loader2 v-if="loading" class="h-4 w-4 animate-spin" />
-            <Clock v-else class="h-4 w-4" />
+            <Clock v-if="!loading && status === 'processing'" class="h-4 w-4" />
+            <Check v-if="!loading && status === 'sent'" class="h-4 w-4 text-green-600" />
             Estado de envío de tu código
           </CardTitle>
         </CardHeader>
@@ -17,69 +18,39 @@
           </div>
 
           <!-- Estado con datos -->
-          <div v-else-if="queueData" class="space-y-4">
-            <!-- Posición en cola -->
-            <div v-if="queueData.position > 1" class="space-y-2">
-              <div class="flex items-center justify-between">
-                <span class="text-sm text-muted-foreground">Posición en cola</span>
-                <Badge variant="secondary">{{ queueData.position }}</Badge>
-              </div>
-              
-              <!-- Barra de progreso -->
-              <Progress :value="progressPercentage" class="h-2" />
-              
-              <p class="text-sm text-muted-foreground">
-                {{ queueData.total_ahead }} personas delante de ti
-              </p>
-            </div>
+          <div v-else-if="status" class="space-y-4">
+            <Alert :variant="status === 'sent' ? 'default' : 'default'">
+              <AlertCircle v-if="status === 'processing'" class="h-4 w-4" />
+              <Check v-if="status === 'sent'" class="h-4 w-4" />
+              <AlertTitle>{{ statusTitle }}</AlertTitle>
+              <AlertDescription>
+                {{ statusMessage }}
+              </AlertDescription>
+            </Alert>
 
-            <!-- Procesando ahora -->
-            <div v-else-if="queueData.position === 1" class="space-y-2">
-              <Alert>
-                <AlertCircle class="h-4 w-4" />
-                <AlertTitle>Procesando tu solicitud</AlertTitle>
-                <AlertDescription>
-                  Tu código está siendo enviado en este momento...
-                </AlertDescription>
-              </Alert>
-            </div>
-
-            <!-- Tiempo estimado -->
-            <div v-if="queueData.estimated_seconds > 0" class="space-y-2">
-              <div class="flex items-center justify-between">
-                <span class="text-sm text-muted-foreground">Tiempo estimado</span>
-                <span class="text-sm font-medium">{{ queueData.estimated_time }}</span>
+            <!-- Info adicional cuando se envía por ambos canales -->
+            <div v-if="canal === 'both'" class="text-xs text-muted-foreground space-y-1">
+              <div class="flex items-center gap-2">
+                <Check v-if="emailSent" class="h-3 w-3 text-green-600" />
+                <Loader2 v-else class="h-3 w-3 animate-spin" />
+                <span>Correo electrónico {{ emailSent ? 'enviado' : 'procesando' }}</span>
               </div>
-              
-              <!-- Countdown visual -->
-              <div class="flex items-center gap-2 text-xs text-muted-foreground">
-                <Timer class="h-3 w-3" />
-                <span>Actualizando en {{ countdown }}s</span>
+              <div class="flex items-center gap-2">
+                <Check v-if="whatsappSent" class="h-3 w-3 text-green-600" />
+                <Loader2 v-else class="h-3 w-3 animate-spin" />
+                <span>WhatsApp {{ whatsappSent ? 'enviado' : 'procesando' }}</span>
               </div>
-            </div>
-
-            <!-- Información del rate limit -->
-            <div v-if="showRateLimitInfo" class="mt-4 pt-4 border-t">
-              <Alert variant="info">
-                <Info class="h-4 w-4" />
-                <AlertTitle>¿Por qué la espera?</AlertTitle>
-                <AlertDescription>
-                  Para garantizar la entrega confiable de mensajes, procesamos
-                  {{ rateLimit }} {{ type === 'email' ? 'correos' : 'mensajes' }} por segundo.
-                  Esto nos ayuda a mantener un servicio estable para todos.
-                </AlertDescription>
-              </Alert>
             </div>
           </div>
 
           <!-- Estado sin datos -->
           <div v-else class="text-center py-4">
             <p class="text-sm text-muted-foreground">
-              No se pudo obtener el estado de la cola
+              No se pudo obtener el estado
             </p>
-            <Button 
-              @click="checkStatus" 
-              variant="ghost" 
+            <Button
+              @click="checkStatus"
+              variant="ghost"
               size="sm"
               class="mt-2"
             >
@@ -97,113 +68,94 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card"
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert"
-import { Badge } from "./ui/badge"
 import { Button } from "./ui/button"
-import { Progress } from "./ui/progress"
 import { Skeleton } from "./ui/skeleton"
-import { 
-  Loader2, 
-  Clock, 
-  AlertCircle, 
-  Timer, 
-  Info, 
-  RefreshCw 
+import {
+  Loader2,
+  Clock,
+  AlertCircle,
+  Check,
+  RefreshCw
 } from 'lucide-vue-next'
 import axios from 'axios'
 
-interface QueueData {
-  position: number
-  total_ahead: number
-  estimated_seconds: number
-  estimated_time: string
-  type?: string
-}
-
 interface Props {
-  type: 'email' | 'whatsapp'
   identifier: string
   autoRefresh?: boolean
   refreshInterval?: number
-  showRateLimitInfo?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   autoRefresh: true,
-  refreshInterval: 5000, // 5 segundos
-  showRateLimitInfo: true
+  refreshInterval: 3000, // 3 segundos
 })
 
 const emit = defineEmits<{
-  statusUpdate: [data: QueueData | null]
+  statusUpdate: [status: string]
   error: [error: Error]
 }>()
 
 // Estado
 const loading = ref(false)
 const showStatus = ref(false)
-const queueData = ref<QueueData | null>(null)
-const countdown = ref(5)
+const status = ref<string>('')
+const canal = ref<string>('')
+const emailSent = ref(false)
+const whatsappSent = ref(false)
 const intervalId = ref<number | null>(null)
-const countdownId = ref<number | null>(null)
 
 // Computed
-const progressPercentage = computed(() => {
-  if (!queueData.value || queueData.value.total_ahead === 0) return 100
-  
-  // Estimamos el total original basándonos en la posición actual
-  const estimatedTotal = queueData.value.position + 10 // Asumimos 10 ya procesados
-  const processed = estimatedTotal - queueData.value.position
-  
-  return Math.min(100, Math.round((processed / estimatedTotal) * 100))
+const statusTitle = computed(() => {
+  if (status.value === 'sent') return 'Código enviado con éxito'
+  if (status.value === 'processing') return 'Procesando tu solicitud'
+  return 'Verificando estado...'
 })
 
-const rateLimit = computed(() => {
-  return props.type === 'email' ? 2 : 5
+const statusMessage = computed(() => {
+  if (status.value === 'sent') {
+    if (canal.value === 'both') {
+      return 'Tu código ha sido enviado por correo electrónico y WhatsApp'
+    } else if (canal.value === 'whatsapp') {
+      return 'Tu código ha sido enviado por WhatsApp'
+    } else {
+      return 'Tu código ha sido enviado por correo electrónico'
+    }
+  }
+
+  if (status.value === 'processing') {
+    return 'Tu código está siendo enviado en este momento...'
+  }
+
+  return ''
 })
 
 // Métodos
 const checkStatus = async () => {
   loading.value = true
-  
+
   try {
-    // Primero verificar posición específica
-    const positionResponse = await axios.get(
-      `/api/queue/otp/position/${encodeURIComponent(props.identifier)}`,
-      { params: { type: props.type } }
+    const response = await axios.get(
+      `/api/queue/otp/position/${encodeURIComponent(props.identifier)}`
     )
-    
-    if (positionResponse.data.success) {
-      queueData.value = positionResponse.data.data
+
+    if (response.data.success && response.data.data) {
+      const data = response.data.data
+      status.value = data.status
+      canal.value = data.canal || 'email'
+      emailSent.value = data.email_sent || false
+      whatsappSent.value = data.whatsapp_sent || false
       showStatus.value = true
-      emit('statusUpdate', queueData.value)
-      
-      // Si ya fue procesado, detener el refresh
-      if (queueData.value.position === 0) {
+
+      emit('statusUpdate', status.value)
+
+      // Si ya fue enviado, detener el auto-refresh
+      if (status.value === 'sent') {
         stopAutoRefresh()
       }
     }
   } catch (error: any) {
-    if (error.response?.status === 404) {
-      // No está en cola, probablemente ya fue procesado
-      try {
-        // Obtener estimación general
-        const estimateResponse = await axios.get('/api/queue/otp/estimate', {
-          params: { type: props.type }
-        })
-        
-        if (estimateResponse.data.success) {
-          queueData.value = estimateResponse.data.data
-          showStatus.value = true
-          emit('statusUpdate', queueData.value)
-        }
-      } catch (estimateError: any) {
-        console.error('Error obteniendo estimación:', estimateError)
-        emit('error', estimateError)
-      }
-    } else {
-      console.error('Error verificando estado:', error)
-      emit('error', error)
-    }
+    console.error('Error verificando estado:', error)
+    emit('error', error)
   } finally {
     loading.value = false
   }
@@ -211,17 +163,10 @@ const checkStatus = async () => {
 
 const startAutoRefresh = () => {
   if (!props.autoRefresh) return
-  
-  // Intervalo principal para verificar estado
+
   intervalId.value = window.setInterval(() => {
     checkStatus()
-    resetCountdown()
   }, props.refreshInterval)
-  
-  // Countdown visual
-  countdownId.value = window.setInterval(() => {
-    countdown.value = Math.max(0, countdown.value - 1)
-  }, 1000)
 }
 
 const stopAutoRefresh = () => {
@@ -229,15 +174,6 @@ const stopAutoRefresh = () => {
     clearInterval(intervalId.value)
     intervalId.value = null
   }
-  
-  if (countdownId.value) {
-    clearInterval(countdownId.value)
-    countdownId.value = null
-  }
-}
-
-const resetCountdown = () => {
-  countdown.value = Math.floor(props.refreshInterval / 1000)
 }
 
 // Lifecycle

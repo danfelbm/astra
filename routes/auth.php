@@ -30,6 +30,13 @@ Route::middleware('guest')->group(function () {
     // Endpoint público para obtener configuración de login
     Route::get('auth/login-config', [OTPAuthController::class, 'getLoginConfig'])
         ->name('auth.login-config');
+
+    // Endpoints públicos para estado de cola OTP (usados por OTPQueueStatus component)
+    Route::get('api/queue/otp/position/{identifier}', [OTPAuthController::class, 'getQueuePosition'])
+        ->name('api.queue.otp.position');
+
+    Route::get('api/queue/otp/estimate', [OTPAuthController::class, 'getQueueEstimate'])
+        ->name('api.queue.otp.estimate');
 });
 
 Route::middleware('auth')->group(function () {
