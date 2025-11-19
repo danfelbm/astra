@@ -34,7 +34,7 @@ class GeograficoServiceProvider extends ServiceProvider
         $this->loadTranslationsFrom(__DIR__.'/../Resources/lang', 'geografico');
 
         // Cargar vistas (si usara Blade)
-        // $this->loadViewsFrom(__DIR__.'/../Resources/views', 'geografico');
+        $this->loadViewsFrom(__DIR__.'/../Resources/views', 'geografico');
 
         // Publicar configuración
         $this->publishes([

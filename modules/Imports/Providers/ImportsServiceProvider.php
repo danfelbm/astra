@@ -25,8 +25,8 @@ class ImportsServiceProvider extends ServiceProvider
         // Cargar traducciones
         $this->loadTranslationsFrom(__DIR__.'/../Resources/lang', 'imports');
 
-        // Cargar vistas
-        // $this->loadViewsFrom(__DIR__.'/../Resources/views', 'imports');
+        // Cargar vistas (si usara Blade)
+        $this->loadViewsFrom(__DIR__.'/../Resources/views', 'imports');
 
         // Publicar configuración
         $this->publishes([

@@ -32,15 +32,15 @@ class VoteConfirmationMail extends Mailable
         $this->user = $user;
         $this->votacion = $votacion;
         $this->voto = $voto;
-        
+
         // Generar URL de verificación
         $this->verificationUrl = url('/verificar-token/' . $voto->token_unico);
-        
+
         // Formatear fecha y hora del voto con zona horaria de la votación
         $this->voteDateTime = Carbon::parse($voto->created_at)
             ->setTimezone($votacion->timezone)
             ->format('d/m/Y H:i') . ' (' . $this->getTimezoneAbbreviation($votacion->timezone) . ')';
-        
+
         // Preparar datos de la votación
         $this->votacionTitulo = $votacion->titulo;
         $this->votacionCategoria = $votacion->categoria ? $votacion->categoria->nombre : 'General';
@@ -62,7 +62,7 @@ class VoteConfirmationMail extends Mailable
     public function content(): Content
     {
         return new Content(
-            html: 'emails.vote-confirmation',
+            html: 'votaciones::emails.vote-confirmation',
             with: [
                 'userName' => $this->user->name,
                 'votacionTitulo' => $this->votacionTitulo,

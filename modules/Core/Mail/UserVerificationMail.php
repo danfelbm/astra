@@ -42,7 +42,7 @@ class UserVerificationMail extends Mailable
     public function content(): Content
     {
         return new Content(
-            html: 'emails.user-verification',
+            view: 'core::emails.user-verification',
             with: [
                 'userName' => $this->userName,
                 'code' => $this->code,

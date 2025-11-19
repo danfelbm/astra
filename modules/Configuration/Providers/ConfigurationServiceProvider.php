@@ -32,7 +32,7 @@ class ConfigurationServiceProvider extends ServiceProvider
         $this->loadTranslationsFrom(__DIR__.'/../Resources/lang', 'configuration');
         
         // Cargar vistas (si usara Blade)
-        // $this->loadViewsFrom(__DIR__.'/../Resources/views', 'configuration');
+        $this->loadViewsFrom(__DIR__.'/../Resources/views', 'configuration');
         
         // Publicar configuración
         $this->publishes([
