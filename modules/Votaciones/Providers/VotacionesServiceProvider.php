@@ -22,26 +22,26 @@ class VotacionesServiceProvider extends ServiceProvider
     {
         // Cargar rutas con middleware 'web'
         Route::middleware('web')->group(function () {
-            $this->loadRoutesFrom(__DIR__.'/../Routes/admin.php');
-            $this->loadRoutesFrom(__DIR__.'/../Routes/user.php');
-            $this->loadRoutesFrom(__DIR__.'/../Routes/guest.php');
-            $this->loadRoutesFrom(__DIR__.'/../Routes/api.php');
+            $this->loadRoutesFrom(__DIR__ . '/../Routes/admin.php');
+            $this->loadRoutesFrom(__DIR__ . '/../Routes/user.php');
+            $this->loadRoutesFrom(__DIR__ . '/../Routes/guest.php');
+            $this->loadRoutesFrom(__DIR__ . '/../Routes/api.php');
         });
-        
+
         // Cargar migraciones
-        $this->loadMigrationsFrom(__DIR__.'/../Database/migrations');
-        
+        $this->loadMigrationsFrom(__DIR__ . '/../Database/migrations');
+
         // Cargar traducciones
-        $this->loadTranslationsFrom(__DIR__.'/../Resources/lang', 'votaciones');
-        
-        // Cargar vistas (si usara Blade)
-        // $this->loadViewsFrom(__DIR__.'/../Resources/views', 'votaciones');
-        
+        $this->loadTranslationsFrom(__DIR__ . '/../Resources/lang', 'votaciones');
+
+        // Cargar vistas
+        $this->loadViewsFrom(__DIR__ . '/../Resources/views', 'votaciones');
+
         // Publicar configuración
         $this->publishes([
-            __DIR__.'/../Config/config.php' => config_path('votaciones.php'),
+            __DIR__ . '/../Config/config.php' => config_path('votaciones.php'),
         ], 'config');
-    
+
         // Cargar comandos
         if ($this->app->runningInConsole()) {
         }

@@ -32,7 +32,7 @@ class TenantServiceProvider extends ServiceProvider
         $this->loadTranslationsFrom(__DIR__.'/../Resources/lang', 'tenant');
 
         // Cargar vistas (si usara Blade)
-        // $this->loadViewsFrom(__DIR__.'/../Resources/views', 'tenant');
+        $this->loadViewsFrom(__DIR__.'/../Resources/views', 'tenant');
 
         // Publicar configuración
         $this->publishes([

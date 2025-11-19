@@ -34,7 +34,7 @@ class FormulariosServiceProvider extends ServiceProvider
         $this->loadTranslationsFrom(__DIR__.'/../Resources/lang', 'formularios');
         
         // Cargar vistas (si usara Blade)
-        // $this->loadViewsFrom(__DIR__.'/../Resources/views', 'formularios');
+        $this->loadViewsFrom(__DIR__.'/../Resources/views', 'formularios');
         
         // Publicar configuración
         $this->publishes([

@@ -32,7 +32,7 @@ class RbacServiceProvider extends ServiceProvider
         $this->loadTranslationsFrom(__DIR__.'/../Resources/lang', 'rbac');
 
         // Cargar vistas (si usara Blade)
-        // $this->loadViewsFrom(__DIR__.'/../Resources/views', 'rbac');
+        $this->loadViewsFrom(__DIR__.'/../Resources/views', 'rbac');
 
         // Publicar configuración
         $this->publishes([
