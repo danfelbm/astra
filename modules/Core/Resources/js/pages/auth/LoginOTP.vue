@@ -86,22 +86,27 @@ const startResendTimer = (seconds: number = 60) => {
     }, 1000);
 };
 
-// Solicitar código OTP
+// Solicitar código OTP con debouncing para evitar doble submit
 const requestOTP = () => {
+    // Prevenir múltiples submissions
+    if (isRequestingOTP.value || credentialForm.processing) {
+        return;
+    }
+
     isRequestingOTP.value = true;
-    
+
     credentialForm.post(route('auth.request-otp'), {
         onSuccess: (page: any) => {
             // Obtener el email censurado de la respuesta
             if (page.props && page.props.censoredEmail) {
                 censoredEmailRef.value = page.props.censoredEmail;
             }
-            
+
             // Cambiar a paso OTP
             step.value = 'otp';
             otpForm.credential = credentialForm.credential;
             otpForm.clearErrors();
-            
+
             // Iniciar timer de reenvío
             startResendTimer(60);
         },
@@ -135,12 +140,15 @@ const verifyOTP = () => {
     });
 };
 
-// Reenviar código OTP
+// Reenviar código OTP con debouncing
 const resendOTP = () => {
-    if (!canResend.value) return;
-    
+    // Prevenir múltiples submissions
+    if (!canResend.value || isRequestingOTP.value || otpForm.processing) {
+        return;
+    }
+
     isRequestingOTP.value = true;
-    
+
     // Usar otpForm que ya tiene el credential guardado
     otpForm.post(route('auth.resend-otp'), {
         onSuccess: (page: any) => {
@@ -148,7 +156,7 @@ const resendOTP = () => {
             if (page.props && page.props.censoredEmail) {
                 censoredEmailRef.value = page.props.censoredEmail;
             }
-            
+
             // Reiniciar timer
             startResendTimer(60);
         },
@@ -303,29 +311,6 @@ onUnmounted(() => {
                     </p>
                 </div>
 
-                <!-- Estado de la cola de envío -->
-                <div v-if="props.otpChannel === 'both'">
-                    <!-- Mostrar ambos componentes si se envió por email y WhatsApp -->
-                    <OTPQueueStatus 
-                        type="email"
-                        :identifier="censoredEmailRef || otpForm.credential"
-                        :show-rate-limit-info="true"
-                    />
-                    <OTPQueueStatus 
-                        type="whatsapp"
-                        :identifier="otpForm.credential"
-                        :show-rate-limit-info="true"
-                    />
-                </div>
-                <div v-else>
-                    <!-- Mostrar componente específico según el canal -->
-                    <OTPQueueStatus 
-                        :type="props.otpChannel === 'whatsapp' ? 'whatsapp' : 'email'"
-                        :identifier="props.otpChannel === 'whatsapp' ? otpForm.credential : (censoredEmailRef || otpForm.credential)"
-                        :show-rate-limit-info="true"
-                    />
-                </div>
-
                 <div class="grid gap-2">
                     <Label class="text-center">Código de Verificación</Label>
                     <div class="flex justify-center">
@@ -385,6 +370,9 @@ onUnmounted(() => {
                 </div>
             </div>
         </form>
+
+        <!-- Estado del envío - Card unificado -->
+        <OTPQueueStatus v-if="step === 'otp'" :identifier="otpForm.credential" />
 
         <!-- Enlace a registro - deshabilitado
         <div v-if="step === 'credential'" class="mt-6 text-center text-sm text-muted-foreground">

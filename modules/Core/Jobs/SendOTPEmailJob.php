@@ -52,7 +52,13 @@ class SendOTPEmailJob implements ShouldQueue
             // Crear y enviar el email
             $mail = new OTPCodeMail($this->codigo, $this->userName, $this->expirationMinutes);
             Mail::to($this->email)->send($mail);
-            
+
+            // Marcar como enviado en la base de datos
+            \Modules\Core\Models\OTP::where('email', $this->email)
+                ->where('codigo', $this->codigo)
+                ->whereNull('email_sent_at')
+                ->update(['email_sent_at' => now()]);
+
             Log::info("OTP enviado exitosamente a {$this->email} mediante job en cola");
         } catch (\Symfony\Component\Mailer\Exception\UnexpectedResponseException $e) {
             // Manejar específicamente el error 450 de rate limiting

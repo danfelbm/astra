@@ -87,8 +87,14 @@ class SendOTPWhatsAppJob implements ShouldQueue
             
             // Enviar mensaje por WhatsApp
             $sent = $whatsappService->sendMessage($this->phone, $message);
-            
+
             if ($sent) {
+                // Marcar como enviado en la base de datos
+                \Modules\Core\Models\OTP::where('telefono_destino', $this->phone)
+                    ->where('codigo', $this->codigo)
+                    ->whereNull('whatsapp_sent_at')
+                    ->update(['whatsapp_sent_at' => now()]);
+
                 Log::info("OTP enviado exitosamente");
             } else {
                 // El servicio retornó false - verificar si es error permanente

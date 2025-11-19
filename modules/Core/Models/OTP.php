@@ -21,6 +21,7 @@ class OTP extends Model
         'usado',
         'canal_enviado',
         'whatsapp_sent_at',
+        'email_sent_at',
         'telefono_destino',
     ];
 
@@ -30,6 +31,7 @@ class OTP extends Model
             'expira_en' => 'datetime',
             'usado' => 'boolean',
             'whatsapp_sent_at' => 'datetime',
+            'email_sent_at' => 'datetime',
         ];
     }
 
