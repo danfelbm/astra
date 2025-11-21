@@ -15,6 +15,7 @@ import {
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "./ui/sheet";
 import UserMenuContent from "./UserMenuContent.vue";
 import { getInitials } from "@modules/Core/Resources/js/composables/useInitials";
+import { usePermissions } from "@modules/Core/Resources/js/composables/usePermissions";
 import type { BreadcrumbItemType, NavItem } from '@/types';
 import { Link, usePage } from '@inertiajs/vue3';
 import { CheckSquare, FileText, FolderOpen, LayoutGrid, Menu, User, Users } from 'lucide-vue-next';
@@ -30,53 +31,81 @@ const props = withDefaults(defineProps<Props>(), {
 
 const page = usePage();
 const auth = computed(() => page.props.auth);
+const { hasPermission, hasAnyPermission } = usePermissions();
 
 const isCurrentRoute = (url: string) => {
     return page.url === url;
 };
 
-const mainNavItems: NavItem[] = [
+// Definir todos los elementos del menú con sus permisos requeridos
+const allNavItems: Array<NavItem & { permission?: string | string[] }> = [
     {
         title: 'Dashboard',
         href: '/miembro/dashboard',
         icon: LayoutGrid,
+        // Dashboard no requiere permiso específico, solo autenticación
     },
     {
         title: 'Votaciones',
         href: '/miembro/votaciones',
         icon: CheckSquare,
+        permission: 'votaciones.view_public',
     },
     {
         title: 'Candidaturas',
         href: '/miembro/candidaturas',
         icon: User,
+        permission: ['candidaturas.view_own', 'candidaturas.create_own'],
     },
     {
         title: 'Postulaciones',
         href: '/miembro/postulaciones',
         icon: FileText,
+        permission: 'postulaciones.view_own',
     },
     {
         title: 'Asambleas',
         href: '/miembro/asambleas',
         icon: Users,
+        permission: 'asambleas.view_public',
     },
     {
         title: 'Mis Proyectos',
         href: '/miembro/mis-proyectos',
         icon: FolderOpen,
+        permission: 'proyectos.view_own',
     },
     {
         title: 'Mis Contratos',
         href: '/miembro/mis-contratos',
         icon: FileText,
+        permission: 'contratos.view_own',
     },
     {
         title: 'Formularios',
         href: '/miembro/formularios',
         icon: FileText,
+        permission: 'formularios.view_public',
     },
 ];
+
+// Filtrar elementos del menú según los permisos del usuario
+const mainNavItems = computed(() => {
+    return allNavItems.filter(item => {
+        // Si no requiere permiso específico, mostrarlo siempre
+        if (!item.permission) {
+            return true;
+        }
+
+        // Si es un array de permisos, verificar si tiene al menos uno
+        if (Array.isArray(item.permission)) {
+            return hasAnyPermission(item.permission);
+        }
+
+        // Si es un permiso único, verificarlo
+        return hasPermission(item.permission);
+    });
+});
 </script>
 
 <template>
