@@ -46,7 +46,11 @@ fi
 
 echo -e "${GREEN}✅ Verificaciones iniciales completadas${NC}"
 
-# 4. Copiar archivos de servicio
+# 4. Cambiar al directorio del script para usar paths relativos
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
+# 5. Copiar archivos de servicio
 echo -e "${YELLOW}📝 Copiando archivos de servicio...${NC}"
 
 # Copiar servicio de workers default
@@ -69,11 +73,11 @@ cp systemd/laravel-scheduler.service /etc/systemd/system/
 cp systemd/laravel-scheduler.timer /etc/systemd/system/
 echo "  ✓ laravel-scheduler service y timer copiados"
 
-# 5. Recargar systemd
+# 6. Recargar systemd
 echo -e "${YELLOW}🔄 Recargando configuración de systemd...${NC}"
 systemctl daemon-reload
 
-# 6. Habilitar y arrancar workers default
+# 7. Habilitar y arrancar workers default
 echo -e "${YELLOW}⚙️  Habilitando $WORKER_COUNT workers default (CSV, limpieza)...${NC}"
 
 for i in $(seq 1 $WORKER_COUNT); do
@@ -82,7 +86,7 @@ for i in $(seq 1 $WORKER_COUNT); do
     echo "  ✓ Worker default $i habilitado y arrancado"
 done
 
-# 6.1. Habilitar y arrancar workers OTP Email
+# 8. Habilitar y arrancar workers OTP Email
 echo -e "${YELLOW}📧 Habilitando $OTP_EMAIL_WORKERS workers OTP Email (2/seg)...${NC}"
 
 for i in $(seq 1 $OTP_EMAIL_WORKERS); do
@@ -91,7 +95,7 @@ for i in $(seq 1 $OTP_EMAIL_WORKERS); do
     echo "  ✓ Worker OTP Email $i habilitado y arrancado"
 done
 
-# 6.2. Habilitar y arrancar workers OTP WhatsApp
+# 9. Habilitar y arrancar workers OTP WhatsApp
 echo -e "${YELLOW}💬 Habilitando $OTP_WHATSAPP_WORKERS workers OTP WhatsApp (5/seg)...${NC}"
 
 for i in $(seq 1 $OTP_WHATSAPP_WORKERS); do
@@ -100,7 +104,7 @@ for i in $(seq 1 $OTP_WHATSAPP_WORKERS); do
     echo "  ✓ Worker OTP WhatsApp $i habilitado y arrancado"
 done
 
-# 6.3. Habilitar y arrancar workers de Zoom
+# 10. Habilitar y arrancar workers de Zoom
 echo -e "${YELLOW}🎥 Habilitando $ZOOM_WORKERS workers de Zoom...${NC}"
 
 for i in $(seq 1 $ZOOM_WORKERS); do
@@ -109,20 +113,20 @@ for i in $(seq 1 $ZOOM_WORKERS); do
     echo "  ✓ Worker Zoom $i habilitado y arrancado"
 done
 
-# 7. Habilitar y arrancar scheduler
+# 11. Habilitar y arrancar scheduler
 echo -e "${YELLOW}⏰ Habilitando scheduler...${NC}"
 systemctl enable laravel-scheduler.timer
 systemctl start laravel-scheduler.timer
 echo "  ✓ Scheduler habilitado y arrancado"
 
-# 8. Crear directorios de logs si no existen
+# 12. Crear directorios de logs si no existen
 echo -e "${YELLOW}📁 Verificando directorios de logs...${NC}"
 mkdir -p $LARAVEL_PATH/storage/logs
 chown -R $SERVICE_USER:$SERVICE_GROUP $LARAVEL_PATH/storage
 chmod -R 775 $LARAVEL_PATH/storage
 echo "  ✓ Directorios de logs configurados"
 
-# 9. Mostrar estado
+# 13. Mostrar estado
 echo ""
 echo -e "${GREEN}✅ Instalación completada exitosamente!${NC}"
 echo "=========================================="
