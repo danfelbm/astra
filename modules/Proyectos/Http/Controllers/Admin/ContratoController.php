@@ -67,7 +67,6 @@ class ContratoController extends AdminController
 
         $proyectos = Proyecto::activos()->orderBy('nombre')->get();
         $camposPersonalizados = CampoPersonalizado::paraContratos()->activos()->ordenado()->get();
-        $usuarios = User::select('id', 'name', 'email')->orderBy('name')->get();
 
         // Buscar borrador existente del usuario para recuperarlo
         $borrador = Contrato::where('created_by', auth()->id())
@@ -76,11 +75,17 @@ class ContratoController extends AdminController
             ->latest()
             ->first();
 
+        // Solo cargar el responsable si existe en el borrador
+        $responsable = null;
+        if ($borrador && $borrador->responsable_id) {
+            $responsable = User::select('id', 'name', 'email')->find($borrador->responsable_id);
+        }
+
         return Inertia::render('Modules/Proyectos/Admin/Contratos/Create', [
             'proyecto' => $proyecto,
             'proyectos' => $proyectos,
             'camposPersonalizados' => $camposPersonalizados,
-            'usuarios' => $usuarios,
+            'responsable' => $responsable, // Solo el responsable específico, no todos los usuarios
             'borrador' => $borrador, // Pasar borrador para recuperación
             'canManageFields' => auth()->user()->can('proyectos.manage_fields'),
         ]);
@@ -145,12 +150,11 @@ class ContratoController extends AdminController
             abort(404);
         }
 
-        // Cargar relaciones adicionales para contraparte y participantes
-        $contrato->load(['contraparteUser', 'participantes']);
+        // Cargar relaciones adicionales para contraparte, participantes y responsable
+        $contrato->load(['contraparteUser', 'participantes', 'responsable']);
 
         $proyectos = Proyecto::activos()->orderBy('nombre')->get();
         $camposPersonalizados = CampoPersonalizado::paraContratos()->activos()->ordenado()->get();
-        $usuarios = User::select('id', 'name', 'email')->orderBy('name')->get();
 
         // Preparar valores de campos personalizados
         $valoresCampos = [];
@@ -162,7 +166,6 @@ class ContratoController extends AdminController
             'contrato' => $contrato,
             'proyectos' => $proyectos,
             'camposPersonalizados' => $camposPersonalizados,
-            'usuarios' => $usuarios,
             'valoresCampos' => $valoresCampos,
             'canChangeStatus' => auth()->user()->can('contratos.change_status'),
             'canDelete' => auth()->user()->can('contratos.delete'),
