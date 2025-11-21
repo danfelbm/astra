@@ -26,6 +26,7 @@ import { toast } from 'vue-sonner';
 interface User {
     id: number;
     name: string;
+    email?: string;
 }
 
 interface CampoPersonalizado {
@@ -62,7 +63,6 @@ interface Proyecto {
 
 interface Props {
     proyecto: Proyecto;
-    usuarios: User[];
     camposPersonalizados: CampoPersonalizado[];
     valoresCampos: Record<number, any>;
     categorias?: CategoriaEtiqueta[];
@@ -103,11 +103,8 @@ const showResponsableModal = ref(false);
 // Helper para obtener route
 const { route } = window as any;
 
-// Computed para obtener el responsable seleccionado
-const responsableSeleccionado = computed(() => {
-    if (!form.responsable_id) return null;
-    return props.usuarios.find(u => u.id === form.responsable_id);
-});
+// Ref para el responsable seleccionado (cargar desde props)
+const responsableSeleccionado = ref<User | null>(props.proyecto.responsable || null);
 
 // Función para actualizar
 const submit = () => {
@@ -139,9 +136,13 @@ const updateCamposPersonalizados = (valores: Record<number, any>) => {
 };
 
 // Manejar selección de responsable desde el modal
-const handleResponsableSelect = (data: { userIds: number[]; extraData: Record<string, any> }) => {
+const handleResponsableSelect = (data: { userIds: number[]; extraData: Record<string, any>; users?: User[] }) => {
     if (data.userIds.length > 0) {
         form.responsable_id = data.userIds[0];
+        // Actualizar la referencia del responsable con los datos completos
+        if (data.users && data.users.length > 0) {
+            responsableSeleccionado.value = data.users[0];
+        }
     }
 };
 </script>
@@ -296,7 +297,7 @@ const handleResponsableSelect = (data: { userIds: number[]; extraData: Record<st
                                         type="button"
                                         variant="ghost"
                                         size="sm"
-                                        @click="form.responsable_id = null"
+                                        @click="form.responsable_id = null; responsableSeleccionado = null"
                                     >
                                         <X class="h-4 w-4" />
                                     </Button>
