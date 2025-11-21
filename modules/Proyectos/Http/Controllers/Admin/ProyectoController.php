@@ -57,7 +57,6 @@ class ProyectoController extends AdminController
         // Verificar permisos
         abort_unless(auth()->user()->can('proyectos.create'), 403, 'No tienes permisos para crear proyectos');
 
-        $usuarios = User::select('id', 'name', 'email')->orderBy('name')->get();
         $camposPersonalizados = CampoPersonalizado::paraProyectos()->activos()->ordenado()->get();
 
         // Cargar etiquetas y categorías para el selector
@@ -67,7 +66,6 @@ class ProyectoController extends AdminController
             ->get();
 
         return Inertia::render('Modules/Proyectos/Admin/Proyectos/Create', [
-            'usuarios' => $usuarios,
             'camposPersonalizados' => $camposPersonalizados,
             'categorias' => $categorias,
             'estados' => config('proyectos.estados'),
@@ -178,9 +176,8 @@ class ProyectoController extends AdminController
         // Verificar permisos
         abort_unless(auth()->user()->can('proyectos.edit'), 403, 'No tienes permisos para editar este proyecto');
 
-        $usuarios = User::select('id', 'name', 'email')->orderBy('name')->get();
         $camposPersonalizados = CampoPersonalizado::paraProyectos()->activos()->ordenado()->get();
-        $proyecto->load(['camposPersonalizados', 'etiquetas.categoria']);
+        $proyecto->load(['camposPersonalizados', 'etiquetas.categoria', 'responsable']);
 
         // Preparar valores de campos personalizados
         $valoresCampos = [];
@@ -197,7 +194,6 @@ class ProyectoController extends AdminController
 
         return Inertia::render('Modules/Proyectos/Admin/Proyectos/Edit', [
             'proyecto' => $proyecto,
-            'usuarios' => $usuarios,
             'camposPersonalizados' => $camposPersonalizados,
             'valoresCampos' => $valoresCampos,
             'categorias' => $categorias,
