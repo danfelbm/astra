@@ -3,14 +3,14 @@ Description=Laravel Queue Worker (Zoom) - Instance %i
 After=network.target redis.service
 
 [Service]
-User=litespeed
-Group=litespeed
+User=nginx
+Group=nginx
 Restart=always
 RestartSec=5
 WorkingDirectory=/var/www/webroot/ROOT
 
 # Configuración específica para Zoom
-ExecStart=/usr/local/lsws/lsphp84/bin/php /var/www/webroot/ROOT/artisan queue:work redis --queue=zoom-registrations --sleep=3 --tries=3 --timeout=120 --max-jobs=50
+ExecStart=/usr/bin/php /var/www/webroot/ROOT/artisan queue:work redis --queue=zoom-registrations --sleep=3 --tries=3 --timeout=120 --max-jobs=50
 
 # Logging específico para Zoom
 StandardOutput=append:/var/www/webroot/ROOT/storage/logs/zoom-worker-%i.log

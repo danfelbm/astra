@@ -19,8 +19,8 @@ WORKER_COUNT=8
 OTP_EMAIL_WORKERS=2
 OTP_WHATSAPP_WORKERS=1
 ZOOM_WORKERS=1
-SERVICE_USER="litespeed"
-SERVICE_GROUP="litespeed"
+SERVICE_USER="nginx"
+SERVICE_GROUP="nginx"
 
 echo -e "${GREEN}🚀 Instalando Laravel Queue Workers con Systemd${NC}"
 echo "=========================================="
