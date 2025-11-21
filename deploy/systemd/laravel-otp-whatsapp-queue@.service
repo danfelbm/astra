@@ -4,15 +4,15 @@ After=network.target
 
 [Service]
 Type=simple
-User=litespeed
-Group=litespeed
+User=nginx
+Group=nginx
 Restart=always
 RestartSec=5
 StartLimitInterval=0
 
 # Worker dedicado para WhatsApp OTP con rate limiting
 # Procesa máximo 5 mensajes por segundo según límite configurado
-ExecStart=/usr/local/lsws/lsphp84/bin/php /var/www/webroot/ROOT/artisan queue:work redis \
+ExecStart=/usr/bin/php /var/www/webroot/ROOT/artisan queue:work redis \
     --queue=otp-whatsapp \
     --sleep=1 \
     --tries=3 \
