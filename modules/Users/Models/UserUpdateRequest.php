@@ -129,6 +129,56 @@ class UserUpdateRequest extends Model
             return false;
         }
 
+        // Validar que el nuevo email no esté ya en uso por otro usuario
+        if ($this->new_email && $this->new_email !== $this->current_email) {
+            $emailExists = \Modules\Core\Models\User::where('email', $this->new_email)
+                ->where('id', '!=', $this->user_id)
+                ->exists();
+
+            if ($emailExists) {
+                \Log::error('[UserUpdateRequest::approve] Email duplicado', [
+                    'id' => $this->id,
+                    'user_id' => $this->user_id,
+                    'new_email' => $this->new_email
+                ]);
+
+                // Marcar como rechazado con nota explicativa
+                $this->update([
+                    'status' => 'rejected',
+                    'admin_id' => $admin->id,
+                    'admin_notes' => 'Rechazado automáticamente: El email ' . $this->new_email . ' ya está en uso por otro usuario.',
+                    'rejected_at' => now(),
+                ]);
+
+                throw new \Exception('El email ' . $this->new_email . ' ya está registrado en el sistema.');
+            }
+        }
+
+        // Validar que el nuevo teléfono no esté ya en uso por otro usuario
+        if ($this->new_telefono && $this->new_telefono !== $this->current_telefono) {
+            $telefonoExists = \Modules\Core\Models\User::where('telefono', $this->new_telefono)
+                ->where('id', '!=', $this->user_id)
+                ->exists();
+
+            if ($telefonoExists) {
+                \Log::error('[UserUpdateRequest::approve] Teléfono duplicado', [
+                    'id' => $this->id,
+                    'user_id' => $this->user_id,
+                    'new_telefono' => $this->new_telefono
+                ]);
+
+                // Marcar como rechazado con nota explicativa
+                $this->update([
+                    'status' => 'rejected',
+                    'admin_id' => $admin->id,
+                    'admin_notes' => 'Rechazado automáticamente: El teléfono ' . $this->new_telefono . ' ya está en uso por otro usuario.',
+                    'rejected_at' => now(),
+                ]);
+
+                throw new \Exception('El teléfono ' . $this->new_telefono . ' ya está registrado en el sistema.');
+            }
+        }
+
         try {
             // Iniciar transacción
             return \DB::transaction(function () use ($admin, $notes) {

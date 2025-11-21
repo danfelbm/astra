@@ -44,6 +44,9 @@ class VotacionesServiceProvider extends ServiceProvider
 
         // Cargar comandos
         if ($this->app->runningInConsole()) {
+            $this->commands([
+                \Modules\Votaciones\Console\Commands\CleanExpiredUrnaSessions::class,
+            ]);
         }
     }
 }
