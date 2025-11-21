@@ -59,7 +59,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<{
     'update:modelValue': [value: boolean];
-    'submit': [data: { userIds: number[]; extraData: Record<string, any> }];
+    'submit': [data: { userIds: number[]; extraData: Record<string, any>; users?: User[] }];
 }>();
 
 // Estado del modal
@@ -202,6 +202,9 @@ const changePage = (page: number) => {
 const handleSubmit = async () => {
     if (selectedUserIds.value.length === 0) return;
 
+    // Obtener los datos completos de los usuarios seleccionados
+    const selectedUsers = users.value.filter(u => selectedUserIds.value.includes(u.id));
+
     // Si se proporciona un endpoint de añadir, hacer la petición
     if (props.addEndpoint) {
         submitting.value = true;
@@ -212,15 +215,16 @@ const handleSubmit = async () => {
             };
 
             await axios.post(props.addEndpoint, data);
-            
+
             toast.success(`${selectedUserIds.value.length} usuario(s) añadido(s) exitosamente`, {
                 duration: 2000,
             });
-            
+
             isOpen.value = false;
-            emit('submit', { 
-                userIds: selectedUserIds.value, 
-                extraData: extraFieldValues.value 
+            emit('submit', {
+                userIds: selectedUserIds.value,
+                extraData: extraFieldValues.value,
+                users: selectedUsers
             });
         } catch (error) {
             console.error('Error añadiendo usuarios:', error);
@@ -233,9 +237,10 @@ const handleSubmit = async () => {
         }
     } else {
         // Solo emitir el evento para que el componente padre maneje la lógica
-        emit('submit', { 
-            userIds: selectedUserIds.value, 
-            extraData: extraFieldValues.value 
+        emit('submit', {
+            userIds: selectedUserIds.value,
+            extraData: extraFieldValues.value,
+            users: selectedUsers
         });
         isOpen.value = false;
     }

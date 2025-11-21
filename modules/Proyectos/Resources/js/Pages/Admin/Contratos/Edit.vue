@@ -98,10 +98,7 @@ const props = withDefaults(defineProps<{
     proyectos: Proyecto[];
     camposPersonalizados: CampoPersonalizado[];
     valoresCampos: Record<number, any>;
-    usuarios?: User[];
-}>(), {
-    usuarios: () => []
-});
+}>(), {});
 
 const toast = useToast();
 const { uploadFiles } = useFileUpload();
@@ -173,6 +170,7 @@ const mostrarConfirmacionEliminar = ref(false);
 // Estados para los modales de selección de usuarios
 const showContraparteModal = ref(false);
 const showParticipantesModal = ref(false);
+const showResponsableModal = ref(false);
 
 // Helper para obtener route
 const { route } = window as any;
@@ -188,11 +186,14 @@ const monedas = [
     { value: 'PEN', label: 'PEN - Sol Peruano' },
 ];
 
-// Computed para obtener la contraparte seleccionada
+// Computed para obtener la contraparte seleccionada (del modelo de contrato)
 const contraparteSeleccionada = computed(() => {
     if (!form.contraparte_user_id) return null;
-    return props.usuarios?.find(u => u.id === form.contraparte_user_id);
+    return props.contrato.contraparteUser || null;
 });
+
+// Ref para el responsable seleccionado
+const responsableSeleccionado = ref<User | null>(props.contrato.responsable || null);
 
 // Campos extra para el modal de participantes
 const extraFieldsParticipantes = computed(() => [
@@ -228,21 +229,46 @@ const excludedIdsParticipantes = computed(() => {
 });
 
 // Manejar selección de contraparte
-const handleContraparteSelect = (data: { userIds: number[]; extraData: Record<string, any> }) => {
+const handleContraparteSelect = (data: { userIds: number[]; extraData: Record<string, any>; users?: User[] }) => {
     if (data.userIds.length > 0) {
         form.contraparte_user_id = data.userIds[0];
         // Actualizar automáticamente los datos de la contraparte
-        const usuario = props.usuarios?.find(u => u.id === data.userIds[0]);
-        if (usuario) {
+        if (data.users && data.users.length > 0) {
+            const usuario = data.users[0];
             form.contraparte_nombre = usuario.name;
             form.contraparte_email = usuario.email || '';
         }
     }
 };
 
+// Manejar selección de responsable
+const handleResponsableSelect = (data: { userIds: number[]; extraData: Record<string, any>; users?: User[] }) => {
+    if (data.userIds.length > 0) {
+        form.responsable_id = data.userIds[0];
+        // Actualizar la referencia del responsable
+        if (data.users && data.users.length > 0) {
+            responsableSeleccionado.value = data.users[0];
+        }
+    }
+};
+
+// Map para almacenar info de usuarios (participantes)
+const participantesInfo = ref<Map<number, User>>(new Map());
+
+// Inicializar con los participantes existentes del contrato
+if (props.contrato.participantes && props.contrato.participantes.length > 0) {
+    props.contrato.participantes.forEach(p => {
+        participantesInfo.value.set(p.id, {
+            id: p.id,
+            name: p.name,
+            email: p.email
+        });
+    });
+}
+
 // Manejar selección de participantes
-const handleParticipantesSelect = (data: { userIds: number[]; extraData: Record<string, any> }) => {
-    data.userIds.forEach(userId => {
+const handleParticipantesSelect = (data: { userIds: number[]; extraData: Record<string, any>; users?: User[] }) => {
+    data.userIds.forEach((userId, index) => {
         // Verificar que no esté ya agregado
         const yaExiste = form.participantes.some(p => p.user_id === userId);
         if (!yaExiste) {
@@ -251,6 +277,11 @@ const handleParticipantesSelect = (data: { userIds: number[]; extraData: Record<
                 rol: data.extraData.rol || 'testigo',
                 notas: data.extraData.notas || ''
             });
+
+            // Guardar info del usuario para mostrarla
+            if (data.users && data.users[index]) {
+                participantesInfo.value.set(userId, data.users[index]);
+            }
         }
     });
 };
@@ -265,7 +296,7 @@ const removeParticipante = (userId: number) => {
 
 // Obtener info de usuario
 const getUsuarioInfo = (userId: number) => {
-    return props.usuarios?.find(u => u.id === userId);
+    return participantesInfo.value.get(userId);
 };
 
 const camposAgrupados = computed(() => {
@@ -777,23 +808,40 @@ onUnmounted(() => {
                                     </div>
                                 </div>
 
-                                <div v-if="usuarios">
+                                <div>
                                     <Label for="responsable_id">Responsable</Label>
-                                    <Select v-model="form.responsable_id" :disabled="!puedeEditar">
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Seleccione un responsable" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="none">Sin responsable</SelectItem>
-                                            <SelectItem
-                                                v-for="usuario in usuarios"
-                                                :key="usuario.id"
-                                                :value="usuario.id.toString()"
-                                            >
-                                                {{ usuario.name }}
-                                            </SelectItem>
-                                        </SelectContent>
-                                    </Select>
+                                    <p class="text-sm text-muted-foreground mb-2">
+                                        Asigna un usuario responsable de este contrato
+                                    </p>
+
+                                    <!-- Mostrar responsable seleccionado -->
+                                    <div v-if="responsableSeleccionado" class="p-3 bg-muted rounded-lg flex items-center justify-between mb-2">
+                                        <div>
+                                            <p class="font-medium">{{ responsableSeleccionado.name }}</p>
+                                            <p class="text-sm text-muted-foreground">{{ responsableSeleccionado.email }}</p>
+                                        </div>
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="sm"
+                                            @click="responsableSeleccionado = null; form.responsable_id = 'none'"
+                                            :disabled="!puedeEditar"
+                                        >
+                                            <X class="h-4 w-4" />
+                                        </Button>
+                                    </div>
+
+                                    <!-- Botón para seleccionar responsable -->
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        @click="showResponsableModal = true"
+                                        class="w-full"
+                                        :disabled="!puedeEditar"
+                                    >
+                                        <UserPlus class="h-4 w-4 mr-2" />
+                                        {{ responsableSeleccionado ? 'Cambiar Responsable' : 'Seleccionar Responsable' }}
+                                    </Button>
                                 </div>
                             </CardContent>
                         </Card>
@@ -1158,6 +1206,19 @@ onUnmounted(() => {
             submit-button-text="Agregar Participantes"
             search-placeholder="Buscar por nombre, email, documento o teléfono..."
             @submit="handleParticipantesSelect"
+        />
+
+        <!-- Modal de selección de responsable -->
+        <AddUsersModal
+            v-model="showResponsableModal"
+            title="Seleccionar Responsable"
+            description="Selecciona el usuario que será responsable de este contrato"
+            :search-endpoint="route('admin.proyectos.search-users')"
+            :excluded-ids="responsableSeleccionado ? [responsableSeleccionado.id] : []"
+            :max-selection="1"
+            submit-button-text="Seleccionar Responsable"
+            search-placeholder="Buscar por nombre, email, documento o teléfono..."
+            @submit="handleResponsableSelect"
         />
     </AdminLayout>
 </template>
