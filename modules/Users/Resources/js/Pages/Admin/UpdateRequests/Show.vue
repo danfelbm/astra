@@ -121,30 +121,40 @@ const approveRequest = () => {
         notes: adminNotes.value,
         status: props.updateRequest.status
     });
-    
+
     if (isProcessing.value) return;
-    
+
     isProcessing.value = true;
-    
+
     const url = route('admin.update-requests.approve', { updateRequest: props.updateRequest.id });
     console.log('[DEBUG] URL de aprobación:', url);
-    
+
     router.post(url, {
         notes: adminNotes.value || ''
     }, {
-        preserveState: false,
         preserveScroll: true,
         onSuccess: (page: any) => {
             console.log('[DEBUG] Aprobación exitosa', page);
-            toast.success('Solicitud aprobada correctamente');
+            const flash = page.props.flash;
+            if (flash?.success) {
+                toast.success(flash.success);
+            } else {
+                toast.success('Solicitud aprobada correctamente');
+            }
             showApproveDialog.value = false;
         },
         onError: (errors: any) => {
             console.error('[DEBUG] Error en aprobación:', errors);
-            toast.error('Error al aprobar la solicitud');
+            const errorMessage = errors?.message || 'Error al aprobar la solicitud';
+            toast.error(errorMessage);
         },
-        onFinish: () => {
+        onFinish: (page: any) => {
             console.log('[DEBUG] Finalizó proceso de aprobación');
+            // Mostrar mensaje de error si viene en flash (por ejemplo, cuando hay duplicado)
+            const flash = page.props.flash;
+            if (flash?.error) {
+                toast.error(flash.error);
+            }
             isProcessing.value = false;
         }
     });

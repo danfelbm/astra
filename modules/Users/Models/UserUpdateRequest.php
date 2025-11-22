@@ -142,14 +142,7 @@ class UserUpdateRequest extends Model
                     'new_email' => $this->new_email
                 ]);
 
-                // Marcar como rechazado con nota explicativa
-                $this->update([
-                    'status' => 'rejected',
-                    'admin_id' => $admin->id,
-                    'admin_notes' => 'Rechazado automáticamente: El email ' . $this->new_email . ' ya está en uso por otro usuario.',
-                    'rejected_at' => now(),
-                ]);
-
+                // Lanzar excepción sin cambiar el estado - mantener como pending
                 throw new \Exception('El email ' . $this->new_email . ' ya está registrado en el sistema.');
             }
         }
@@ -167,14 +160,7 @@ class UserUpdateRequest extends Model
                     'new_telefono' => $this->new_telefono
                 ]);
 
-                // Marcar como rechazado con nota explicativa
-                $this->update([
-                    'status' => 'rejected',
-                    'admin_id' => $admin->id,
-                    'admin_notes' => 'Rechazado automáticamente: El teléfono ' . $this->new_telefono . ' ya está en uso por otro usuario.',
-                    'rejected_at' => now(),
-                ]);
-
+                // Lanzar excepción sin cambiar el estado - mantener como pending
                 throw new \Exception('El teléfono ' . $this->new_telefono . ' ya está registrado en el sistema.');
             }
         }
