@@ -180,18 +180,31 @@ const viewRequest = (id: number) => {
 // Aprobar solicitud rápida
 const quickApprove = (id: number) => {
     if (!confirm('¿Aprobar esta solicitud de actualización?')) return;
-    
+
     router.post(route('admin.update-requests.approve', { updateRequest: id }), {
         notes: 'Aprobado desde lista'
     }, {
-        preserveState: true,
         preserveScroll: true,
-        onSuccess: () => {
-            toast.success('Solicitud aprobada correctamente');
+        onSuccess: (page: any) => {
+            const flash = page.props.flash;
+            if (flash?.success) {
+                toast.success(flash.success);
+            } else {
+                toast.success('Solicitud aprobada correctamente');
+            }
         },
         onError: (errors: any) => {
             console.error('Error:', errors);
-            toast.error('Error al aprobar la solicitud');
+            // Intentar obtener el mensaje de error específico
+            const errorMessage = errors?.message || 'Error al aprobar la solicitud';
+            toast.error(errorMessage);
+        },
+        onFinish: (page: any) => {
+            // Mostrar mensaje de error si viene en flash (por ejemplo, cuando hay duplicado)
+            const flash = page.props.flash;
+            if (flash?.error) {
+                toast.error(flash.error);
+            }
         }
     });
 };
