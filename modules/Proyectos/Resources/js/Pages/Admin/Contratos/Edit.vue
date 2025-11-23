@@ -670,7 +670,7 @@ onUnmounted(() => {
                                 <CardDescription>Datos principales del contrato</CardDescription>
                             </CardHeader>
                             <CardContent class="space-y-4">
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div class="grid grid-cols-1 md:grid-cols-1 gap-4">
                                     <div>
                                         <Label for="proyecto_id">Proyecto *</Label>
                                         <Select v-model="form.proyecto_id" :disabled="!puedeEditar">
@@ -743,7 +743,7 @@ onUnmounted(() => {
                                 <CardDescription>Configure las fechas y el estado del contrato</CardDescription>
                             </CardHeader>
                             <CardContent class="space-y-4">
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div class="grid grid-cols-1 md:grid-cols-1 gap-4">
                                     <div>
                                         <Label for="fecha_inicio">Fecha de Inicio *</Label>
                                         <Input
@@ -855,7 +855,7 @@ onUnmounted(() => {
                                 <CardDescription>Montos y detalles financieros del contrato</CardDescription>
                             </CardHeader>
                             <CardContent class="space-y-4">
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div class="grid grid-cols-1 md:grid-cols-1 gap-4">
                                     <div>
                                         <Label for="monto_total">Monto Total</Label>
                                         <Input
@@ -976,7 +976,7 @@ onUnmounted(() => {
                                         </AlertDescription>
                                     </Alert>
 
-                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div class="grid grid-cols-1 md:grid-cols-1 gap-4">
                                         <div>
                                             <Label for="contraparte_nombre">Nombre de la Contraparte</Label>
                                             <Input

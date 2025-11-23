@@ -10,7 +10,7 @@ import { Badge } from '@modules/Core/Resources/js/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@modules/Core/Resources/js/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@modules/Core/Resources/js/components/ui/select';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@modules/Core/Resources/js/components/ui/dropdown-menu';
-import { Calendar, DollarSign, FileText, MoreHorizontal, Plus, Search, Filter, Download, AlertCircle } from 'lucide-vue-next';
+import { Calendar, FileText, MoreHorizontal, Plus, Search, Filter, Download } from 'lucide-vue-next';
 import { Link } from '@inertiajs/vue3';
 import { useToast } from '@modules/Core/Resources/js/composables/useToast';
 import { debounce } from 'lodash';
@@ -230,59 +230,6 @@ const exportarContratos = () => {
                 </div>
             </div>
 
-            <!-- Estadísticas -->
-            <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
-                <Card>
-                    <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle class="text-sm font-medium">Total</CardTitle>
-                        <FileText class="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div class="text-2xl font-bold">{{ estadisticas.total }}</div>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle class="text-sm font-medium">Activos</CardTitle>
-                        <FileText class="h-4 w-4 text-green-600" />
-                    </CardHeader>
-                    <CardContent>
-                        <div class="text-2xl font-bold text-green-600">{{ estadisticas.activos }}</div>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle class="text-sm font-medium">Vencidos</CardTitle>
-                        <AlertCircle class="h-4 w-4 text-red-600" />
-                    </CardHeader>
-                    <CardContent>
-                        <div class="text-2xl font-bold text-red-600">{{ estadisticas.vencidos }}</div>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle class="text-sm font-medium">Próximos a Vencer</CardTitle>
-                        <AlertCircle class="h-4 w-4 text-yellow-600" />
-                    </CardHeader>
-                    <CardContent>
-                        <div class="text-2xl font-bold text-yellow-600">{{ estadisticas.proximos_vencer }}</div>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle class="text-sm font-medium">Monto Total</CardTitle>
-                        <DollarSign class="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div class="text-2xl font-bold">{{ estadisticas.monto_total }}</div>
-                    </CardContent>
-                </Card>
-            </div>
-
             <!-- Filtros -->
             <Card>
                 <CardHeader>
@@ -335,21 +282,6 @@ const exportarContratos = () => {
                         >
                             Limpiar Filtros
                         </Button>
-                    </div>
-
-                    <div class="flex gap-2 mt-4">
-                        <Link :href="route('admin.contratos.vencidos')">
-                            <Button variant="outline" size="sm">
-                                <AlertCircle class="h-4 w-4 mr-2 text-red-600" />
-                                Ver Vencidos
-                            </Button>
-                        </Link>
-                        <Link :href="route('admin.contratos.proximos-vencer')">
-                            <Button variant="outline" size="sm">
-                                <AlertCircle class="h-4 w-4 mr-2 text-yellow-600" />
-                                Próximos a Vencer
-                            </Button>
-                        </Link>
                     </div>
                 </CardContent>
             </Card>

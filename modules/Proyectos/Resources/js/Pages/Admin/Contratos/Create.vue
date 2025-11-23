@@ -59,9 +59,11 @@ const props = withDefaults(defineProps<{
     proyectos: Proyecto[];
     camposPersonalizados: CampoPersonalizado[];
     responsable?: User | null; // Solo el responsable específico (si existe)
+    contraparte?: User | null; // Contraparte del sistema (si existe)
     borrador?: any; // Borrador existente del servidor
 }>(), {
     responsable: null,
+    contraparte: null,
     borrador: undefined
 });
 
@@ -115,14 +117,10 @@ const showResponsableModal = ref(false);
 // Helper para obtener route
 const { route } = window as any;
 
-// Computed para obtener la contraparte seleccionada
-const contraparteSeleccionada = computed(() => {
-    if (!form.contraparte_user_id) return null;
-    // Buscar en los datos del borrador si existe la relación cargada
-    return null; // Se maneja por el modal de búsqueda
-});
+// Ref para la contraparte seleccionada
+const contraparteSeleccionada = ref<User | null>(props.contraparte || null);
 
-// Computed para obtener el responsable seleccionado
+// Ref para el responsable seleccionado
 const responsableSeleccionado = ref<User | null>(props.responsable || null);
 
 // Campos extra para el modal de participantes
@@ -292,6 +290,8 @@ const handleContraparteSelect = (data: { userIds: number[]; extraData: Record<st
             const usuario = data.users[0];
             form.contraparte_nombre = usuario.name;
             form.contraparte_email = usuario.email || '';
+            // Actualizar la referencia de la contraparte para mostrarla en la UI
+            contraparteSeleccionada.value = usuario;
         }
     }
 };
@@ -477,7 +477,7 @@ onMounted(() => {
     // Prioridad 1: Recuperar borrador del servidor (más reciente y confiable)
     if (props.borrador) {
         // Restaurar datos del borrador del servidor
-        form.proyecto_id = props.borrador.proyecto_id || '';
+        form.proyecto_id = props.borrador.proyecto_id?.toString() || '';
         form.nombre = props.borrador.nombre || '';
         form.descripcion = props.borrador.descripcion || '';
         form.fecha_inicio = props.borrador.fecha_inicio || '';
@@ -516,8 +516,26 @@ onMounted(() => {
             // Los archivos se cargarán cuando el usuario cambie al tab manualmente
         }
 
+        // CRÍTICO: Restaurar participantes
+        if (props.borrador.participantes && Array.isArray(props.borrador.participantes)) {
+            form.participantes = props.borrador.participantes.map((p: any) => ({
+                user_id: p.pivot?.user_id || p.id,
+                rol: p.pivot?.rol || 'testigo',
+                notas: p.pivot?.notas || ''
+            }));
+
+            // Guardar info de usuarios para mostrarla
+            props.borrador.participantes.forEach((p: any) => {
+                participantesInfo.value.set(p.id, {
+                    id: p.id,
+                    name: p.name,
+                    email: p.email
+                });
+            });
+        }
+
         toast.success('Borrador recuperado', {
-            description: `Borrador del servidor cargado (${form.archivos_paths.length} archivo(s))`
+            description: `Borrador del servidor cargado (${form.archivos_paths.length} archivo(s), ${form.participantes.length} participante(s))`
         });
     } else {
         // Prioridad 2: Intentar recuperar del localStorage (fallback)
@@ -596,7 +614,7 @@ onUnmounted(() => {
                                 <CardDescription>Datos principales del contrato</CardDescription>
                             </CardHeader>
                             <CardContent class="space-y-4">
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div class="grid grid-cols-1 md:grid-cols-1 gap-4">
                                     <div>
                                         <Label for="proyecto_id">Proyecto *</Label>
                                         <Select v-model="form.proyecto_id" :disabled="!!props.proyecto">
@@ -666,7 +684,7 @@ onUnmounted(() => {
                                 <CardDescription>Configure las fechas y el estado del contrato</CardDescription>
                             </CardHeader>
                             <CardContent class="space-y-4">
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div class="grid grid-cols-1 md:grid-cols-1 gap-4">
                                     <div>
                                         <Label for="fecha_inicio">Fecha de Inicio *</Label>
                                         <Input
@@ -774,7 +792,7 @@ onUnmounted(() => {
                                 <CardDescription>Montos y detalles financieros del contrato</CardDescription>
                             </CardHeader>
                             <CardContent class="space-y-4">
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div class="grid grid-cols-1 md:grid-cols-1 gap-4">
                                     <div>
                                         <Label for="monto_total">Monto Total</Label>
                                         <Input
@@ -855,7 +873,7 @@ onUnmounted(() => {
                                                 type="button"
                                                 variant="ghost"
                                                 size="sm"
-                                                @click="form.contraparte_user_id = null; form.contraparte_nombre = ''; form.contraparte_email = ''"
+                                                @click="form.contraparte_user_id = null; form.contraparte_nombre = ''; form.contraparte_email = ''; contraparteSeleccionada = null"
                                             >
                                                 <X class="h-4 w-4" />
                                             </Button>
@@ -891,7 +909,7 @@ onUnmounted(() => {
                                         </AlertDescription>
                                     </Alert>
 
-                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div class="grid grid-cols-1 md:grid-cols-1 gap-4">
                                         <div>
                                             <Label for="contraparte_nombre">Nombre de la Contraparte</Label>
                                             <Input
