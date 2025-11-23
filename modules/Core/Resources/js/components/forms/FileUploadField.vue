@@ -272,6 +272,10 @@ const getFileIcon = (fileName: string): string => {
     return 'file';
 };
 
+const viewFile = (url: string) => {
+    window.open(url, '_blank');
+};
+
 // Exponer archivos seleccionados para que el componente padre pueda acceder
 defineExpose({
     selectedFiles,
@@ -353,18 +357,22 @@ defineExpose({
                                 type="button"
                                 variant="ghost"
                                 size="sm"
-                                @click.stop="window.open(file.url, '_blank')"
+                                @click.stop="viewFile(file.url)"
+                                aria-label="Ver archivo"
                             >
-                                <Eye class="h-4 w-4" />
+                                <Eye class="h-4 w-4 mr-1" />
+                                Ver
                             </Button>
                             <Button
-                                v-if="file.url"
+                                v-if="file.url && file.path"
                                 type="button"
                                 variant="ghost"
                                 size="sm"
-                                @click.stop="window.open(file.url + '?download=true', '_blank')"
+                                @click.stop="downloadFileFromServer(file.path, file.name)"
+                                aria-label="Descargar archivo"
                             >
-                                <Download class="h-4 w-4" />
+                                <Download class="h-4 w-4 mr-1" />
+                                Descargar
                             </Button>
                             <Button
                                 v-if="!disabled"
@@ -372,8 +380,10 @@ defineExpose({
                                 variant="ghost"
                                 size="sm"
                                 @click.stop="removeExistingFile(index)"
+                                aria-label="Eliminar archivo"
                             >
-                                <X class="h-4 w-4 text-destructive" />
+                                <X class="h-4 w-4 mr-1 text-destructive" />
+                                Eliminar
                             </Button>
                         </div>
                     </div>
