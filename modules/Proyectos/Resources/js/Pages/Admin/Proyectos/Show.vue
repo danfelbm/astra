@@ -51,6 +51,7 @@ import type { Etiqueta, CategoriaEtiqueta } from '@modules/Proyectos/Resources/j
 import type { Contrato } from '@modules/Proyectos/Resources/js/types/contratos';
 import type { Hito } from '@modules/Proyectos/Resources/js/types/hitos';
 import HitoCard from '@modules/Proyectos/Resources/js/components/HitoCard.vue';
+import HitosGrid from '@modules/Proyectos/Resources/js/components/HitosGrid.vue';
 import EntregableItem from '@modules/Proyectos/Resources/js/components/EntregableItem.vue';
 
 // Interfaces
@@ -438,17 +439,10 @@ const getInitials = (name: string) => {
 
             <!-- Navegación con Tabs -->
             <Tabs v-model="activeTab" class="w-full">
-                <TabsList class="grid w-full grid-cols-5">
+                <TabsList class="grid w-full grid-cols-4">
                     <TabsTrigger value="general">
                         <Info class="mr-2 h-4 w-4" />
                         General
-                    </TabsTrigger>
-                    <TabsTrigger value="usuarios">
-                        <UsersIcon class="mr-2 h-4 w-4" />
-                        Usuarios
-                        <Badge v-if="totales?.usuarios" class="ml-2 h-5 px-1.5" variant="secondary">
-                            {{ totales.usuarios }}
-                        </Badge>
                     </TabsTrigger>
                     <TabsTrigger value="contratos">
                         <FileText class="mr-2 h-4 w-4" />
@@ -475,9 +469,6 @@ const getInitials = (name: string) => {
 
                 <!-- Tab de Información General -->
                 <TabsContent value="general" class="space-y-4 mt-6">
-                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                <!-- Información principal -->
-                <div class="lg:col-span-2 space-y-4">
                     <!-- Estado y Progreso -->
                     <Card>
                         <CardHeader>
@@ -547,8 +538,7 @@ const getInitials = (name: string) => {
                     <!-- Etiquetas del Proyecto -->
                     <Card>
                         <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle class="flex items-center gap-2">
-                                <Tag class="h-5 w-5" />
+                            <CardTitle>
                                 Etiquetas
                             </CardTitle>
                             <Button
@@ -612,245 +602,24 @@ const getInitials = (name: string) => {
                             <CardTitle>Campos Personalizados</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div class="space-y-3">
-                                <div 
-                                    v-for="campo in proyecto.campos_personalizados" 
+                            <div class="space-y-4">
+                                <div
+                                    v-for="campo in proyecto.campos_personalizados"
                                     :key="campo.id"
-                                    class="flex justify-between py-2 border-b last:border-b-0"
+                                    class="py-2 border-b last:border-b-0"
                                 >
-                                    <span class="text-sm text-gray-600 dark:text-gray-400">{{ campo.nombre }}</span>
-                                    <span class="font-medium">{{ campo.valor_formateado || campo.valor || '-' }}</span>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    <!-- Contratos del Proyecto -->
-                    <Card v-if="canViewContracts">
-                        <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle class="flex items-center gap-2">
-                                <FileText class="h-5 w-5" />
-                                Contratos
-                            </CardTitle>
-                            <Link
-                                v-if="canCreateContracts"
-                                :href="`/admin/proyectos/${proyecto.id}/contratos/create`"
-                            >
-                                <Button size="sm">
-                                    <Plus class="h-4 w-4 mr-2" />
-                                    Nuevo Contrato
-                                </Button>
-                            </Link>
-                        </CardHeader>
-                        <CardContent>
-                            <div v-if="proyecto.contratos && proyecto.contratos.length > 0" class="space-y-4">
-                                <!-- Timeline de contratos -->
-                                <ContratoTimeline
-                                    :contratos="proyecto.contratos"
-                                    :mostrar-monto="true"
-                                    :compacto="true"
-                                />
-
-                                <!-- Lista de contratos -->
-                                <div class="mt-4">
-                                    <p class="text-sm text-muted-foreground mb-3">
-                                        {{ proyecto.contratos.length }} contrato(s) asociado(s)
+                                    <p class="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
+                                        {{ campo.campo_personalizado?.nombre }}
                                     </p>
-                                    <div class="grid gap-2">
-                                        <Link
-                                            v-for="contrato in proyecto.contratos.slice(0, 3)"
-                                            :key="contrato.id"
-                                            :href="`/admin/contratos/${contrato.id}`"
-                                            class="block p-3 rounded-lg border hover:bg-muted/50 transition-colors"
-                                        >
-                                            <div class="flex items-start justify-between">
-                                                <div>
-                                                    <p class="font-medium">{{ contrato.nombre }}</p>
-                                                    <div class="flex items-center gap-2 mt-1">
-                                                        <Badge
-                                                            :variant="contrato.estado === 'activo' ? 'default' :
-                                                                     contrato.estado === 'finalizado' ? 'secondary' :
-                                                                     contrato.estado === 'cancelado' ? 'destructive' : 'outline'"
-                                                        >
-                                                            {{ contrato.estado }}
-                                                        </Badge>
-                                                        <span class="text-xs text-muted-foreground">
-                                                            {{ new Date(contrato.fecha_inicio).toLocaleDateString() }}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                                <div v-if="contrato.monto_total" class="text-right">
-                                                    <p class="font-semibold">${{ contrato.monto_total.toLocaleString() }}</p>
-                                                    <p class="text-xs text-muted-foreground">{{ contrato.moneda || 'USD' }}</p>
-                                                </div>
-                                            </div>
-                                        </Link>
-                                    </div>
-
-                                    <Link
-                                        v-if="proyecto.contratos.length > 3"
-                                        :href="`/admin/contratos?proyecto_id=${proyecto.id}`"
-                                        class="block text-center mt-3 text-sm text-primary hover:underline"
-                                    >
-                                        Ver todos los contratos ({{ proyecto.contratos.length }})
-                                    </Link>
-                                </div>
-                            </div>
-                            <div v-else class="text-center py-6">
-                                <FileText class="h-10 w-10 mx-auto text-muted-foreground mb-3" />
-                                <p class="text-muted-foreground mb-3">No hay contratos asociados</p>
-                                <Link
-                                    v-if="canCreateContracts"
-                                    :href="`/admin/proyectos/${proyecto.id}/contratos/create`"
-                                >
-                                    <Button variant="outline" size="sm">
-                                        <Plus class="h-4 w-4 mr-2" />
-                                        Crear Primer Contrato
-                                    </Button>
-                                </Link>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    <!-- Hitos del Proyecto -->
-                    <Card v-if="canViewHitos">
-                        <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle class="flex items-center gap-2">
-                                <TargetIcon class="h-5 w-5" />
-                                Hitos y Entregables
-                            </CardTitle>
-                            <div class="flex items-center gap-2">
-                                <Link
-                                    v-if="proyecto.hitos && proyecto.hitos.length > 0"
-                                    :href="`/admin/proyectos/${proyecto.id}/hitos`"
-                                >
-                                    <Button variant="outline" size="sm">
-                                        <ListTodo class="h-4 w-4 mr-2" />
-                                        Ver Todos
-                                    </Button>
-                                </Link>
-                                <Link
-                                    v-if="canCreateHitos"
-                                    :href="`/admin/proyectos/${proyecto.id}/hitos/create`"
-                                >
-                                    <Button size="sm">
-                                        <Plus class="h-4 w-4 mr-2" />
-                                        Nuevo Hito
-                                    </Button>
-                                </Link>
-                            </div>
-                        </CardHeader>
-                        <CardContent>
-                            <!-- Estadísticas de Hitos -->
-                            <div v-if="estadisticasHitos && estadisticasHitos.total > 0" class="mb-6">
-                                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                                    <div class="text-center">
-                                        <p class="text-2xl font-bold">{{ estadisticasHitos.total }}</p>
-                                        <p class="text-xs text-muted-foreground">Total Hitos</p>
-                                    </div>
-                                    <div class="text-center">
-                                        <p class="text-2xl font-bold text-blue-500">{{ estadisticasHitos.en_progreso }}</p>
-                                        <p class="text-xs text-muted-foreground">En Progreso</p>
-                                    </div>
-                                    <div class="text-center">
-                                        <p class="text-2xl font-bold text-green-500">{{ estadisticasHitos.completados }}</p>
-                                        <p class="text-xs text-muted-foreground">Completados</p>
-                                    </div>
-                                    <div class="text-center">
-                                        <p class="text-2xl font-bold" :class="{'text-red-500': estadisticasHitos.vencidos > 0}">
-                                            {{ estadisticasHitos.vencidos }}
-                                        </p>
-                                        <p class="text-xs text-muted-foreground">Vencidos</p>
-                                    </div>
-                                </div>
-
-                                <!-- Barra de progreso general -->
-                                <div class="space-y-2">
-                                    <div class="flex justify-between items-center text-sm">
-                                        <span class="text-muted-foreground">Progreso General</span>
-                                        <span class="font-medium">{{ estadisticasHitos.progreso_general }}%</span>
-                                    </div>
-                                    <Progress :value="estadisticasHitos.progreso_general" class="h-2" />
-                                </div>
-                            </div>
-
-                            <!-- Lista de Hitos -->
-                            <div v-if="proyecto.hitos && proyecto.hitos.length > 0" class="space-y-4">
-                                <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                                    <HitoCard
-                                        v-for="hito in proyecto.hitos.slice(0, 6)"
-                                        :key="hito.id"
-                                        :hito="hito"
-                                        :canEdit="canEditHitos"
-                                        :canDelete="canDeleteHitos"
-                                        :canManageDeliverables="canManageEntregables"
-                                        :showActions="true"
-                                        @view="navigateToHito"
-                                        @edit="navigateToEditHito"
-                                        @delete="confirmDeleteHito"
-                                        @duplicate="duplicateHito"
-                                        @add-entregable="navigateToAddEntregable"
-                                        @view-entregables="navigateToEntregables"
-                                    />
-                                </div>
-
-                                <Link
-                                    v-if="proyecto.hitos.length > 6"
-                                    :href="`/admin/proyectos/${proyecto.id}/hitos`"
-                                    class="block text-center mt-4 text-sm text-primary hover:underline"
-                                >
-                                    Ver todos los hitos ({{ proyecto.hitos.length }})
-                                </Link>
-                            </div>
-                            <div v-else class="text-center py-6">
-                                <TargetIcon class="h-10 w-10 mx-auto text-muted-foreground mb-3" />
-                                <p class="text-muted-foreground mb-3">No hay hitos definidos para este proyecto</p>
-                                <Link
-                                    v-if="canCreateHitos"
-                                    :href="`/admin/proyectos/${proyecto.id}/hitos/create`"
-                                >
-                                    <Button variant="outline" size="sm">
-                                        <Plus class="h-4 w-4 mr-2" />
-                                        Crear Primer Hito
-                                    </Button>
-                                </Link>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    <!-- Actividad reciente -->
-                    <Card v-if="proyecto.activities && proyecto.activities.length > 0">
-                        <CardHeader>
-                            <CardTitle>Actividad Reciente</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div class="space-y-3">
-                                <div 
-                                    v-for="activity in proyecto.activities" 
-                                    :key="activity.id"
-                                    class="flex items-start gap-3 pb-3 border-b last:border-b-0"
-                                >
-                                    <div class="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
-                                        <User class="h-4 w-4 text-gray-500" />
-                                    </div>
-                                    <div class="flex-1">
-                                        <p class="text-sm">
-                                            <span class="font-medium">{{ activity.causer?.name || 'Sistema' }}</span>
-                                            {{ activity.description }}
-                                        </p>
-                                        <p class="text-xs text-gray-500 mt-1">
-                                            {{ formatRelativeDate(activity.created_at) }}
-                                        </p>
-                                    </div>
+                                    <p class="text-gray-900 dark:text-gray-100">
+                                        {{ campo.valor_formateado || campo.valor || '-' }}
+                                    </p>
                                 </div>
                             </div>
                         </CardContent>
                     </Card>
-                </div>
 
-                <!-- Sidebar de información -->
-                <div class="space-y-4">
-                    <!-- Información del responsable -->
+                    <!-- Responsable -->
                     <Card>
                         <CardHeader>
                             <CardTitle>Responsable</CardTitle>
@@ -869,7 +638,7 @@ const getInitials = (name: string) => {
                         </CardContent>
                     </Card>
 
-                    <!-- Información del sistema -->
+                    <!-- Información del Sistema -->
                     <Card>
                         <CardHeader>
                             <CardTitle>Información del Sistema</CardTitle>
@@ -900,82 +669,30 @@ const getInitials = (name: string) => {
                         </CardContent>
                     </Card>
 
-                    <!-- Acciones rápidas -->
-                    <Card>
+                    <!-- Actividad Reciente -->
+                    <Card v-if="proyecto.activities && proyecto.activities.length > 0">
                         <CardHeader>
-                            <CardTitle>Acciones Rápidas</CardTitle>
-                        </CardHeader>
-                        <CardContent class="space-y-2">
-                            <Link href="/admin/proyectos">
-                                <Button variant="outline" class="w-full justify-start">
-                                    Volver al listado
-                                </Button>
-                            </Link>
-                            <Link v-if="canEdit" :href="`/admin/proyectos/${proyecto.id}/edit`">
-                                <Button variant="outline" class="w-full justify-start">
-                                    <Edit class="mr-2 h-4 w-4" />
-                                    Editar proyecto
-                                </Button>
-                            </Link>
-                        </CardContent>
-                    </Card>
-                </div>
-                    </div>
-                </TabsContent>
-
-                <!-- Tab de Usuarios del Proyecto -->
-                <TabsContent value="usuarios" class="space-y-4 mt-6">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Usuarios del Proyecto</CardTitle>
-                            <CardDescription>
-                                Personas asignadas y colaborando en este proyecto
-                            </CardDescription>
+                            <CardTitle>Actividad Reciente</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div class="space-y-4">
-                                <!-- Responsable del proyecto -->
-                                <div class="pb-4 border-b">
-                                    <h4 class="text-sm font-medium mb-3">Responsable del Proyecto</h4>
-                                    <div v-if="proyecto.responsable" class="flex items-center gap-3">
-                                        <Avatar class="h-10 w-10">
-                                            <AvatarImage :src="proyecto.responsable.avatar" />
-                                            <AvatarFallback>{{ getInitials(proyecto.responsable.name) }}</AvatarFallback>
-                                        </Avatar>
-                                        <div>
-                                            <p class="font-medium">{{ proyecto.responsable.name }}</p>
-                                            <p class="text-sm text-gray-500">{{ proyecto.responsable.email }}</p>
-                                        </div>
-                                        <Badge class="ml-auto">Responsable</Badge>
+                            <div class="space-y-3">
+                                <div
+                                    v-for="activity in proyecto.activities"
+                                    :key="activity.id"
+                                    class="flex items-start gap-3 pb-3 border-b last:border-b-0"
+                                >
+                                    <div class="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+                                        <User class="h-4 w-4 text-gray-500" />
                                     </div>
-                                    <p v-else class="text-gray-500">Sin responsable asignado</p>
-                                </div>
-
-                                <!-- Participantes -->
-                                <div v-if="proyecto.participantes && proyecto.participantes.length > 0">
-                                    <h4 class="text-sm font-medium mb-3">Participantes</h4>
-                                    <div class="space-y-2">
-                                        <div
-                                            v-for="participante in proyecto.participantes"
-                                            :key="participante.id"
-                                            class="flex items-center gap-3 p-2 rounded hover:bg-gray-50 dark:hover:bg-gray-800"
-                                        >
-                                            <Avatar class="h-8 w-8">
-                                                <AvatarImage :src="participante.avatar" />
-                                                <AvatarFallback>{{ getInitials(participante.name) }}</AvatarFallback>
-                                            </Avatar>
-                                            <div class="flex-1">
-                                                <p class="text-sm font-medium">{{ participante.name }}</p>
-                                                <p class="text-xs text-gray-500">{{ participante.email }}</p>
-                                            </div>
-                                            <Badge v-if="participante.pivot?.rol" variant="outline" class="text-xs">
-                                                {{ participante.pivot.rol }}
-                                            </Badge>
-                                        </div>
+                                    <div class="flex-1">
+                                        <p class="text-sm">
+                                            <span class="font-medium">{{ activity.causer?.name || 'Sistema' }}</span>
+                                            {{ activity.description }}
+                                        </p>
+                                        <p class="text-xs text-gray-500 mt-1">
+                                            {{ formatRelativeDate(activity.created_at) }}
+                                        </p>
                                     </div>
-                                </div>
-                                <div v-else>
-                                    <p class="text-gray-500 text-center py-4">No hay participantes adicionales</p>
                                 </div>
                             </div>
                         </CardContent>
@@ -1164,57 +881,27 @@ const getInitials = (name: string) => {
 
                 <!-- Tab de Hitos y Entregables -->
                 <TabsContent value="hitos" class="space-y-4 mt-6">
-                    <div v-if="canCreateHitos" class="flex justify-end">
-                        <Link :href="`/admin/proyectos/${proyecto.id}/hitos/create`">
-                            <Button>
-                                <Plus class="mr-2 h-4 w-4" />
-                                Nuevo Hito
-                            </Button>
-                        </Link>
-                    </div>
-
-                    <Card v-if="proyecto.hitos && proyecto.hitos.length > 0">
-                        <CardHeader>
-                            <CardTitle>Hitos y Entregables</CardTitle>
-                            <CardDescription>
-                                Seguimiento de los hitos y entregables del proyecto
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <div class="space-y-6">
-                                <HitoCard
-                                    v-for="hito in proyecto.hitos"
-                                    :key="hito.id"
-                                    :hito="hito"
-                                    :proyecto-id="proyecto.id"
-                                    :can-edit="canEditHitos"
-                                    :can-delete="canDeleteHitos"
-                                    :can-manage-entregables="canManageEntregables"
-                                    :show-entregables="true"
-                                    @view="navigateToHito"
-                                    @edit="navigateToEditHito"
-                                    @delete="confirmDeleteHito"
-                                    @duplicate="duplicateHito"
-                                    @add-entregable="navigateToAddEntregable"
-                                    @view-entregables="navigateToEntregables"
-                                />
-                            </div>
-                        </CardContent>
-                    </Card>
-                    <Card v-else>
-                        <CardContent class="py-8">
-                            <div class="text-center">
-                                <Milestone class="mx-auto h-12 w-12 text-gray-400" />
-                                <p class="mt-2 text-sm text-gray-600">No hay hitos definidos</p>
-                                <Link v-if="canCreateHitos" :href="`/admin/proyectos/${proyecto.id}/hitos/create`" class="mt-4 inline-block">
-                                    <Button variant="outline">
-                                        <Plus class="mr-2 h-4 w-4" />
-                                        Crear primer hito
-                                    </Button>
-                                </Link>
-                            </div>
-                        </CardContent>
-                    </Card>
+                    <HitosGrid
+                        v-if="canViewHitos"
+                        :hitos="proyecto.hitos || []"
+                        :proyecto-id="proyecto.id"
+                        :estadisticas="estadisticasHitos"
+                        :show-stats="true"
+                        :show-header="true"
+                        :show-actions="true"
+                        :show-view-all="true"
+                        :can-create="canCreateHitos"
+                        :can-edit="canEditHitos"
+                        :can-delete="canDeleteHitos"
+                        :can-manage-deliverables="canManageEntregables"
+                        empty-message="No hay hitos definidos para este proyecto"
+                        @view="navigateToHito"
+                        @edit="navigateToEditHito"
+                        @delete="confirmDeleteHito"
+                        @duplicate="duplicateHito"
+                        @add-entregable="navigateToAddEntregable"
+                        @view-entregables="navigateToEntregables"
+                    />
                 </TabsContent>
             </Tabs>
         </div>
