@@ -43,8 +43,8 @@ interface Props {
         total_etiquetas: number;
         categorias_activas: number;
     };
-    colores: string[];
-    iconos: string[];
+    colores: Record<string, string>;
+    iconos: Record<string, string>;
 }
 
 const props = defineProps<Props>();
@@ -321,35 +321,14 @@ const handleDeleteEtiqueta = (etiqueta: Etiqueta) => {
                 </Button>
             </div>
 
-            <!-- Estadísticas -->
-            <div v-if="estadisticas" class="grid grid-cols-3 gap-4">
-                <Card>
-                    <CardContent class="pt-6">
-                        <div class="text-2xl font-bold">{{ estadisticas.total_categorias }}</div>
-                        <p class="text-xs text-muted-foreground">Categorías totales</p>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardContent class="pt-6">
-                        <div class="text-2xl font-bold">{{ estadisticas.categorias_activas }}</div>
-                        <p class="text-xs text-muted-foreground">Categorías activas</p>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardContent class="pt-6">
-                        <div class="text-2xl font-bold">{{ estadisticas.total_etiquetas }}</div>
-                        <p class="text-xs text-muted-foreground">Etiquetas totales</p>
-                    </CardContent>
-                </Card>
-            </div>
-
             <!-- Formulario de creación (si está activo) -->
             <Card v-if="creatingNew">
                 <CardHeader>
                     <CardTitle>Nueva Categoría</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="space-y-4">
+                        <!-- Nombre -->
                         <div>
                             <Label>Nombre *</Label>
                             <Input
@@ -362,6 +341,7 @@ const handleDeleteEtiqueta = (etiqueta: Etiqueta) => {
                             </p>
                         </div>
 
+                        <!-- Color -->
                         <div>
                             <Label>Color</Label>
                             <Select v-model="form.color">
@@ -372,16 +352,17 @@ const handleDeleteEtiqueta = (etiqueta: Etiqueta) => {
                                     </div>
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem v-for="color in colores" :key="color" :value="color">
+                                    <SelectItem v-for="(label, key) in colores" :key="key" :value="key">
                                         <div class="flex items-center gap-2">
-                                            <div :class="getColorClass(color)" class="w-4 h-4 rounded"></div>
-                                            {{ color }}
+                                            <div :class="getColorClass(key)" class="w-4 h-4 rounded"></div>
+                                            {{ label }}
                                         </div>
                                     </SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
 
+                        <!-- Icono -->
                         <div>
                             <Label>Icono</Label>
                             <Select v-model="form.icono">
@@ -389,13 +370,14 @@ const handleDeleteEtiqueta = (etiqueta: Etiqueta) => {
                                     <SelectValue :placeholder="form.icono" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem v-for="icono in iconos" :key="icono" :value="icono">
-                                        {{ icono }}
+                                    <SelectItem v-for="(label, key) in iconos" :key="key" :value="key">
+                                        {{ label }}
                                     </SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
 
+                        <!-- Orden -->
                         <div>
                             <Label>Orden</Label>
                             <Input
@@ -405,7 +387,8 @@ const handleDeleteEtiqueta = (etiqueta: Etiqueta) => {
                             />
                         </div>
 
-                        <div class="md:col-span-2">
+                        <!-- Descripción -->
+                        <div>
                             <Label>Descripción</Label>
                             <Input
                                 v-model="form.descripcion"
@@ -431,8 +414,7 @@ const handleDeleteEtiqueta = (etiqueta: Etiqueta) => {
             <Tabs v-model="viewMode">
                 <Card>
                     <CardHeader>
-                        <div class="flex items-center justify-between">
-                            <CardTitle>Gestión de Etiquetas</CardTitle>
+                        <div class="flex items-center justify-end">
                             <TabsList>
                                 <TabsTrigger value="table">
                                     <List class="h-4 w-4 mr-2" />
@@ -475,10 +457,10 @@ const handleDeleteEtiqueta = (etiqueta: Etiqueta) => {
                                                 </div>
                                             </SelectTrigger>
                                             <SelectContent>
-                                                <SelectItem v-for="color in colores" :key="color" :value="color">
+                                                <SelectItem v-for="(label, key) in colores" :key="key" :value="key">
                                                     <div class="flex items-center gap-2">
-                                                        <div :class="getColorClass(color)" class="w-4 h-4 rounded"></div>
-                                                        {{ color }}
+                                                        <div :class="getColorClass(key)" class="w-4 h-4 rounded"></div>
+                                                        {{ label }}
                                                     </div>
                                                 </SelectItem>
                                             </SelectContent>
@@ -607,24 +589,27 @@ const handleDeleteEtiqueta = (etiqueta: Etiqueta) => {
                                             <!-- Formulario para nueva etiqueta -->
                                             <Card v-if="creatingEtiqueta === categoria.id" class="border-dashed">
                                                 <CardContent class="pt-4">
-                                                    <div class="grid grid-cols-1 gap-4">
-                                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                            <div>
-                                                                <Label>Nombre *</Label>
-                                                                <Input
-                                                                    v-model="etiquetaForm.nombre"
-                                                                    placeholder="Nombre de la etiqueta"
-                                                                    :class="{ 'border-red-500': etiquetaForm.errors.nombre }"
-                                                                />
-                                                            </div>
-                                                            <div>
-                                                                <Label>Descripción</Label>
-                                                                <Input
-                                                                    v-model="etiquetaForm.descripcion"
-                                                                    placeholder="Descripción opcional"
-                                                                />
-                                                            </div>
+                                                    <div class="space-y-4">
+                                                        <!-- Nombre -->
+                                                        <div>
+                                                            <Label>Nombre *</Label>
+                                                            <Input
+                                                                v-model="etiquetaForm.nombre"
+                                                                placeholder="Nombre de la etiqueta"
+                                                                :class="{ 'border-red-500': etiquetaForm.errors.nombre }"
+                                                            />
                                                         </div>
+
+                                                        <!-- Descripción -->
+                                                        <div>
+                                                            <Label>Descripción</Label>
+                                                            <Input
+                                                                v-model="etiquetaForm.descripcion"
+                                                                placeholder="Descripción opcional"
+                                                            />
+                                                        </div>
+
+                                                        <!-- Etiqueta Padre -->
                                                         <div>
                                                             <EtiquetaHierarchySelector
                                                                 v-model="etiquetaForm.parent_id"
