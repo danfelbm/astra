@@ -317,60 +317,13 @@ const getObligacionEstadoVariant = (estado: string): string => {
                 </AlertDescription>
             </Alert>
 
-            <!-- Acciones rápidas de estado -->
-            <Card v-if="can.change_status && contrato.estado !== 'cancelado'">
-                <CardHeader>
-                    <CardTitle class="text-lg">Cambio de Estado</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <div class="flex gap-2">
-                        <Button
-                            v-if="contrato.estado === 'borrador'"
-                            variant="outline"
-                            size="sm"
-                            @click="cambiarEstado('activo')"
-                        >
-                            Activar Contrato
-                        </Button>
-                        <Button
-                            v-if="contrato.estado === 'activo'"
-                            variant="outline"
-                            size="sm"
-                            @click="cambiarEstado('finalizado')"
-                        >
-                            Finalizar Contrato
-                        </Button>
-                        <Button
-                            v-if="contrato.estado === 'finalizado'"
-                            variant="outline"
-                            size="sm"
-                            @click="cambiarEstado('activo')"
-                        >
-                            Reactivar
-                        </Button>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            class="text-red-600"
-                            @click="cambiarEstado('cancelado')"
-                        >
-                            Cancelar Contrato
-                        </Button>
-                    </div>
-                </CardContent>
-            </Card>
-
             <!-- Información principal -->
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <!-- Columna principal -->
-                <div class="lg:col-span-2 space-y-6">
+            <div class="space-y-6">
                     <Tabs v-model="activeTab">
                         <TabsList>
                             <TabsTrigger value="general">Información General</TabsTrigger>
-                            <TabsTrigger value="financiero">Financiero</TabsTrigger>
-                            <TabsTrigger value="contraparte">Contraparte</TabsTrigger>
-                            <TabsTrigger value="participantes" v-if="contrato.participantes?.length">
-                                Participantes ({{ contrato.participantes.length }})
+                            <TabsTrigger value="participantes">
+                                Partes Involucradas
                             </TabsTrigger>
                             <TabsTrigger value="campos" v-if="contrato.campos_personalizados?.length">
                                 Campos Adicionales
@@ -388,200 +341,301 @@ const getObligacionEstadoVariant = (estado: string): string => {
                                 <CardHeader>
                                     <CardTitle>Información General</CardTitle>
                                 </CardHeader>
-                                <CardContent class="space-y-4">
-                                    <div v-if="contrato.descripcion">
-                                        <h4 class="text-sm font-medium text-gray-600">Descripción</h4>
-                                        <p class="mt-1">{{ contrato.descripcion }}</p>
+                                <CardContent class="space-y-6">
+                                    <!-- Cambio de Estado -->
+                                    <div v-if="can.change_status && contrato.estado !== 'cancelado'" class="pb-6 border-b">
+                                        <h4 class="text-sm font-medium text-gray-600 mb-3">Cambio de Estado</h4>
+                                        <div class="flex gap-2 flex-wrap">
+                                            <Button
+                                                v-if="contrato.estado === 'borrador'"
+                                                variant="outline"
+                                                size="sm"
+                                                @click="cambiarEstado('activo')"
+                                            >
+                                                Activar Contrato
+                                            </Button>
+                                            <Button
+                                                v-if="contrato.estado === 'activo'"
+                                                variant="outline"
+                                                size="sm"
+                                                @click="cambiarEstado('finalizado')"
+                                            >
+                                                Finalizar Contrato
+                                            </Button>
+                                            <Button
+                                                v-if="contrato.estado === 'finalizado'"
+                                                variant="outline"
+                                                size="sm"
+                                                @click="cambiarEstado('activo')"
+                                            >
+                                                Reactivar
+                                            </Button>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                class="text-red-600"
+                                                @click="cambiarEstado('cancelado')"
+                                            >
+                                                Cancelar Contrato
+                                            </Button>
+                                        </div>
                                     </div>
 
-                                    <div class="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <h4 class="text-sm font-medium text-gray-600">Fecha de Inicio</h4>
-                                            <p class="mt-1 flex items-center gap-2">
-                                                <Calendar class="h-4 w-4" />
-                                                {{ formatDate(contrato.fecha_inicio) }}
+                                    <!-- Proyecto -->
+                                    <div class="pb-6 border-b">
+                                        <h4 class="text-sm font-medium text-gray-600 mb-3">Proyecto</h4>
+                                        <div class="flex items-center gap-2">
+                                            <Link
+                                                :href="route('admin.proyectos.show', contrato.proyecto.id)"
+                                                class="text-blue-600 hover:underline flex items-center gap-2 font-medium"
+                                            >
+                                                {{ contrato.proyecto.nombre }}
+                                                <ExternalLink class="h-4 w-4" />
+                                            </Link>
+                                            <Badge variant="outline">
+                                                {{ contrato.proyecto.estado }}
+                                            </Badge>
+                                        </div>
+                                    </div>
+
+                                    <!-- Información Financiera -->
+                                    <div class="pb-6 border-b">
+                                        <h4 class="text-sm font-medium text-gray-600 mb-3">Información Financiera</h4>
+                                        <div v-if="contrato.monto_total">
+                                            <p class="text-2xl font-bold flex items-center gap-2">
+                                                <DollarSign class="h-6 w-6" />
+                                                {{ contrato.monto_formateado || contrato.monto_total }}
+                                                <span class="text-sm text-gray-600">{{ contrato.moneda }}</span>
                                             </p>
                                         </div>
-                                        <div>
-                                            <h4 class="text-sm font-medium text-gray-600">Fecha de Fin</h4>
-                                            <p class="mt-1 flex items-center gap-2">
-                                                <Calendar class="h-4 w-4" />
-                                                {{ formatDate(contrato.fecha_fin) }}
-                                            </p>
+                                        <div v-else>
+                                            <p class="text-gray-500 text-sm">No se ha especificado información financiera</p>
                                         </div>
                                     </div>
 
-                                    <!-- Barra de progreso -->
-                                    <div v-if="contrato.porcentaje_transcurrido !== undefined && contrato.estado === 'activo'">
-                                        <div class="flex justify-between text-sm text-gray-600 mb-2">
-                                            <span>Progreso del contrato</span>
-                                            <span>{{ contrato.porcentaje_transcurrido }}%</span>
-                                        </div>
-                                        <div class="w-full bg-gray-200 rounded-full h-3">
-                                            <div
-                                                :class="progresoClass"
-                                                class="h-3 rounded-full transition-all duration-300"
-                                                :style="{ width: `${contrato.porcentaje_transcurrido}%` }"
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div v-if="contrato.observaciones">
-                                        <h4 class="text-sm font-medium text-gray-600">Observaciones</h4>
-                                        <p class="mt-1 text-gray-700">{{ contrato.observaciones }}</p>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        </TabsContent>
-
-                        <TabsContent value="financiero">
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>Información Financiera</CardTitle>
-                                </CardHeader>
-                                <CardContent class="space-y-4">
-                                    <div v-if="contrato.monto_total">
-                                        <h4 class="text-sm font-medium text-gray-600">Monto Total</h4>
-                                        <p class="mt-1 text-2xl font-bold flex items-center gap-2">
-                                            <DollarSign class="h-6 w-6" />
-                                            {{ contrato.monto_formateado || contrato.monto_total }}
-                                            <span class="text-sm text-gray-600">{{ contrato.moneda }}</span>
-                                        </p>
-                                    </div>
-                                    <div v-else>
-                                        <p class="text-gray-500">No se ha especificado información financiera</p>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        </TabsContent>
-
-                        <TabsContent value="contraparte">
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>Información de la Contraparte</CardTitle>
-                                </CardHeader>
-                                <CardContent class="space-y-4">
-                                    <!-- Si la contraparte es un usuario del sistema -->
-                                    <div v-if="contrato.contraparte_user">
-                                        <div class="rounded-lg border p-4 bg-blue-50 dark:bg-blue-950/20">
-                                            <div class="flex items-start gap-4">
-                                                <User class="h-8 w-8 text-blue-600 mt-1" />
-                                                <div class="flex-1">
-                                                    <div class="flex items-center gap-2 mb-2">
-                                                        <h3 class="font-semibold text-lg">{{ contrato.contraparte_user.name }}</h3>
-                                                        <Badge class="bg-blue-100 text-blue-800">
-                                                            Usuario del Sistema
-                                                        </Badge>
-                                                    </div>
-                                                    <div class="space-y-2 text-sm">
-                                                        <div class="flex items-center gap-2">
-                                                            <Mail class="h-4 w-4 text-gray-400" />
-                                                            <a :href="`mailto:${contrato.contraparte_user.email}`" class="text-blue-600 hover:underline">
-                                                                {{ contrato.contraparte_user.email }}
-                                                            </a>
-                                                        </div>
-                                                        <div v-if="contrato.contraparte_user.phone || contrato.contraparte_user.telefono" class="flex items-center gap-2">
-                                                            <Phone class="h-4 w-4 text-gray-400" />
-                                                            <a :href="`tel:${contrato.contraparte_user.phone || contrato.contraparte_user.telefono}`" class="text-blue-600 hover:underline">
-                                                                {{ contrato.contraparte_user.phone || contrato.contraparte_user.telefono }}
-                                                            </a>
-                                                        </div>
-                                                        <div class="flex items-center gap-2">
-                                                            <Hash class="h-4 w-4 text-gray-400" />
-                                                            <span class="text-gray-600">ID: #{{ contrato.contraparte_user.id }}</span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <!-- Si la contraparte es externa (datos de texto) -->
-                                    <div v-else-if="contrato.contraparte_nombre || contrato.contraparte_identificacion ||
-                                                   contrato.contraparte_email || contrato.contraparte_telefono">
+                                    <!-- Información del Contrato -->
+                                    <div class="pb-6 border-b">
+                                        <h4 class="text-sm font-medium text-gray-600 mb-3">Detalles del Contrato</h4>
                                         <div class="space-y-4">
-                                            <div v-if="contrato.contraparte_nombre" class="flex items-center gap-2">
-                                                <Building2 class="h-4 w-4 text-gray-400" />
-                                                <div>
-                                                    <h4 class="text-sm font-medium text-gray-600">Nombre</h4>
-                                                    <p>{{ contrato.contraparte_nombre }}</p>
-                                                </div>
+                                            <div v-if="contrato.descripcion">
+                                                <h5 class="text-sm font-medium text-gray-600">Descripción</h5>
+                                                <p class="mt-1">{{ contrato.descripcion }}</p>
                                             </div>
 
-                                            <div v-if="contrato.contraparte_identificacion" class="flex items-center gap-2">
-                                                <Hash class="h-4 w-4 text-gray-400" />
+                                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                 <div>
-                                                    <h4 class="text-sm font-medium text-gray-600">Identificación</h4>
-                                                    <p>{{ contrato.contraparte_identificacion }}</p>
+                                                    <h5 class="text-sm font-medium text-gray-600">Fecha de Inicio</h5>
+                                                    <p class="mt-1 flex items-center gap-2">
+                                                        <Calendar class="h-4 w-4" />
+                                                        {{ formatDate(contrato.fecha_inicio) }}
+                                                    </p>
                                                 </div>
-                                            </div>
-
-                                            <div v-if="contrato.contraparte_email" class="flex items-center gap-2">
-                                                <Mail class="h-4 w-4 text-gray-400" />
                                                 <div>
-                                                    <h4 class="text-sm font-medium text-gray-600">Email</h4>
-                                                    <a :href="`mailto:${contrato.contraparte_email}`" class="text-blue-600 hover:underline">
-                                                        {{ contrato.contraparte_email }}
-                                                    </a>
-                                                </div>
-                                            </div>
-
-                                            <div v-if="contrato.contraparte_telefono" class="flex items-center gap-2">
-                                                <Phone class="h-4 w-4 text-gray-400" />
-                                                <div>
-                                                    <h4 class="text-sm font-medium text-gray-600">Teléfono</h4>
-                                                    <a :href="`tel:${contrato.contraparte_telefono}`" class="text-blue-600 hover:underline">
-                                                        {{ contrato.contraparte_telefono }}
-                                                    </a>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div v-else>
-                                        <p class="text-gray-500">No se ha especificado información de la contraparte</p>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        </TabsContent>
-
-                        <TabsContent value="participantes" v-if="contrato.participantes?.length">
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>Participantes del Contrato</CardTitle>
-                                    <CardDescription>
-                                        Usuarios del sistema asociados a este contrato
-                                    </CardDescription>
-                                </CardHeader>
-                                <CardContent>
-                                    <div class="space-y-4">
-                                        <div
-                                            v-for="participante in contrato.participantes"
-                                            :key="participante.id"
-                                            class="flex items-center justify-between p-4 rounded-lg border hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors"
-                                        >
-                                            <div class="flex items-center gap-3">
-                                                <User class="h-8 w-8 text-gray-400" />
-                                                <div>
-                                                    <p class="font-medium">{{ participante.name }}</p>
-                                                    <p class="text-sm text-gray-500">{{ participante.email }}</p>
-                                                    <p v-if="participante.pivot.notas" class="text-sm text-gray-600 mt-1">
-                                                        {{ participante.pivot.notas }}
+                                                    <h5 class="text-sm font-medium text-gray-600">Fecha de Fin</h5>
+                                                    <p class="mt-1 flex items-center gap-2">
+                                                        <Calendar class="h-4 w-4" />
+                                                        {{ formatDate(contrato.fecha_fin) }}
                                                     </p>
                                                 </div>
                                             </div>
-                                            <Badge
-                                                :variant="
-                                                    participante.pivot.rol === 'aprobador' ? 'default' :
-                                                    participante.pivot.rol === 'observador' ? 'secondary' :
-                                                    'outline'
-                                                "
-                                            >
-                                                {{
-                                                    participante.pivot.rol === 'aprobador' ? 'Aprobador' :
-                                                    participante.pivot.rol === 'observador' ? 'Observador' :
-                                                    'Participante'
-                                                }}
-                                            </Badge>
+
+                                            <!-- Barra de progreso -->
+                                            <div v-if="contrato.porcentaje_transcurrido !== undefined && contrato.estado === 'activo'">
+                                                <div class="flex justify-between text-sm text-gray-600 mb-2">
+                                                    <span>Progreso del contrato</span>
+                                                    <span>{{ contrato.porcentaje_transcurrido }}%</span>
+                                                </div>
+                                                <div class="w-full bg-gray-200 rounded-full h-3">
+                                                    <div
+                                                        :class="progresoClass"
+                                                        class="h-3 rounded-full transition-all duration-300"
+                                                        :style="{ width: `${contrato.porcentaje_transcurrido}%` }"
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            <div v-if="contrato.observaciones">
+                                                <h5 class="text-sm font-medium text-gray-600">Observaciones</h5>
+                                                <p class="mt-1 text-gray-700">{{ contrato.observaciones }}</p>
+                                            </div>
                                         </div>
+                                    </div>
+
+                                    <!-- Información del Sistema -->
+                                    <div>
+                                        <h4 class="text-sm font-medium text-gray-600 mb-3">Información del Sistema</h4>
+                                        <div class="space-y-3 text-sm">
+                                            <div>
+                                                <span class="text-gray-600">ID:</span>
+                                                <span class="ml-2 font-mono">#{{ contrato.id }}</span>
+                                            </div>
+                                            <div>
+                                                <span class="text-gray-600">Creado:</span>
+                                                <span class="ml-2">{{ formatDateTime(contrato.created_at) }}</span>
+                                                <span v-if="contrato.created_by" class="block text-xs text-gray-500 ml-2 mt-1">
+                                                    por {{ contrato.created_by.name }}
+                                                </span>
+                                            </div>
+                                            <div>
+                                                <span class="text-gray-600">Última actualización:</span>
+                                                <span class="ml-2">{{ formatDateTime(contrato.updated_at) }}</span>
+                                                <span v-if="contrato.updated_by" class="block text-xs text-gray-500 ml-2 mt-1">
+                                                    por {{ contrato.updated_by.name }}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </TabsContent>
+
+                        <TabsContent value="participantes">
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Partes Involucradas</CardTitle>
+                                    <CardDescription>
+                                        Responsable, contraparte y participantes del contrato
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent class="space-y-6">
+                                    <!-- Responsable -->
+                                    <div v-if="contrato.responsable" class="pb-6 border-b">
+                                        <h4 class="text-sm font-medium text-gray-600 mb-3">Responsable del Contrato</h4>
+                                        <div class="flex items-center gap-3 p-4 rounded-lg border bg-blue-50 dark:bg-blue-950/20">
+                                            <User class="h-8 w-8 text-blue-600" />
+                                            <div>
+                                                <p class="font-medium">{{ contrato.responsable.name }}</p>
+                                                <a
+                                                    :href="`mailto:${contrato.responsable.email}`"
+                                                    class="text-sm text-blue-600 hover:underline"
+                                                >
+                                                    {{ contrato.responsable.email }}
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Contraparte -->
+                                    <div class="pb-6 border-b">
+                                        <h4 class="text-sm font-medium text-gray-600 mb-3">Contraparte</h4>
+                                        <!-- Si la contraparte es un usuario del sistema -->
+                                        <div v-if="contrato.contraparte_user">
+                                            <div class="rounded-lg border p-4 bg-green-50 dark:bg-green-950/20">
+                                                <div class="flex items-start gap-4">
+                                                    <User class="h-8 w-8 text-green-600 mt-1" />
+                                                    <div class="flex-1">
+                                                        <div class="flex items-center gap-2 mb-2">
+                                                            <h5 class="font-semibold">{{ contrato.contraparte_user.name }}</h5>
+                                                            <Badge class="bg-green-100 text-green-800">
+                                                                Usuario del Sistema
+                                                            </Badge>
+                                                        </div>
+                                                        <div class="space-y-2 text-sm">
+                                                            <div class="flex items-center gap-2">
+                                                                <Mail class="h-4 w-4 text-gray-400" />
+                                                                <a :href="`mailto:${contrato.contraparte_user.email}`" class="text-blue-600 hover:underline">
+                                                                    {{ contrato.contraparte_user.email }}
+                                                                </a>
+                                                            </div>
+                                                            <div v-if="contrato.contraparte_user.phone || contrato.contraparte_user.telefono" class="flex items-center gap-2">
+                                                                <Phone class="h-4 w-4 text-gray-400" />
+                                                                <a :href="`tel:${contrato.contraparte_user.phone || contrato.contraparte_user.telefono}`" class="text-blue-600 hover:underline">
+                                                                    {{ contrato.contraparte_user.phone || contrato.contraparte_user.telefono }}
+                                                                </a>
+                                                            </div>
+                                                            <div class="flex items-center gap-2">
+                                                                <Hash class="h-4 w-4 text-gray-400" />
+                                                                <span class="text-gray-600">ID: #{{ contrato.contraparte_user.id }}</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <!-- Si la contraparte es externa (datos de texto) -->
+                                        <div v-else-if="contrato.contraparte_nombre || contrato.contraparte_identificacion ||
+                                                       contrato.contraparte_email || contrato.contraparte_telefono">
+                                            <div class="space-y-3 p-4 rounded-lg border bg-gray-50 dark:bg-gray-900/20">
+                                                <div v-if="contrato.contraparte_nombre" class="flex items-start gap-3">
+                                                    <Building2 class="h-5 w-5 text-gray-400 mt-0.5" />
+                                                    <div>
+                                                        <h5 class="text-sm font-medium text-gray-600">Nombre</h5>
+                                                        <p class="font-medium">{{ contrato.contraparte_nombre }}</p>
+                                                    </div>
+                                                </div>
+
+                                                <div v-if="contrato.contraparte_identificacion" class="flex items-start gap-3">
+                                                    <Hash class="h-5 w-5 text-gray-400 mt-0.5" />
+                                                    <div>
+                                                        <h5 class="text-sm font-medium text-gray-600">Identificación</h5>
+                                                        <p>{{ contrato.contraparte_identificacion }}</p>
+                                                    </div>
+                                                </div>
+
+                                                <div v-if="contrato.contraparte_email" class="flex items-start gap-3">
+                                                    <Mail class="h-5 w-5 text-gray-400 mt-0.5" />
+                                                    <div>
+                                                        <h5 class="text-sm font-medium text-gray-600">Email</h5>
+                                                        <a :href="`mailto:${contrato.contraparte_email}`" class="text-blue-600 hover:underline">
+                                                            {{ contrato.contraparte_email }}
+                                                        </a>
+                                                    </div>
+                                                </div>
+
+                                                <div v-if="contrato.contraparte_telefono" class="flex items-start gap-3">
+                                                    <Phone class="h-5 w-5 text-gray-400 mt-0.5" />
+                                                    <div>
+                                                        <h5 class="text-sm font-medium text-gray-600">Teléfono</h5>
+                                                        <a :href="`tel:${contrato.contraparte_telefono}`" class="text-blue-600 hover:underline">
+                                                            {{ contrato.contraparte_telefono }}
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div v-else>
+                                            <p class="text-gray-500 text-sm">No se ha especificado información de la contraparte</p>
+                                        </div>
+                                    </div>
+
+                                    <!-- Participantes -->
+                                    <div v-if="contrato.participantes?.length">
+                                        <h4 class="text-sm font-medium text-gray-600 mb-3">Participantes del Contrato ({{ contrato.participantes.length }})</h4>
+                                        <div class="space-y-2">
+                                            <div
+                                                v-for="participante in contrato.participantes"
+                                                :key="participante.id"
+                                                class="flex items-center justify-between p-4 rounded-lg border hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors"
+                                            >
+                                                <div class="flex items-center gap-3">
+                                                    <User class="h-8 w-8 text-gray-400" />
+                                                    <div>
+                                                        <p class="font-medium">{{ participante.name }}</p>
+                                                        <p class="text-sm text-gray-500">{{ participante.email }}</p>
+                                                        <p v-if="participante.pivot.notas" class="text-sm text-gray-600 mt-1">
+                                                            {{ participante.pivot.notas }}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <Badge
+                                                    :variant="
+                                                        participante.pivot.rol === 'aprobador' ? 'default' :
+                                                        participante.pivot.rol === 'observador' ? 'secondary' :
+                                                        'outline'
+                                                    "
+                                                >
+                                                    {{
+                                                        participante.pivot.rol === 'aprobador' ? 'Aprobador' :
+                                                        participante.pivot.rol === 'observador' ? 'Observador' :
+                                                        'Participante'
+                                                    }}
+                                                </Badge>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div v-else>
+                                        <h4 class="text-sm font-medium text-gray-600 mb-3">Participantes del Contrato</h4>
+                                        <p class="text-gray-500 text-sm">No hay participantes adicionales registrados para este contrato</p>
                                     </div>
                                 </CardContent>
                             </Card>
@@ -734,77 +788,6 @@ const getObligacionEstadoVariant = (estado: string): string => {
                             </Card>
                         </TabsContent>
                     </Tabs>
-                </div>
-
-                <!-- Columna lateral -->
-                <div class="space-y-6">
-                    <!-- Proyecto -->
-                    <Card>
-                        <CardHeader>
-                            <CardTitle class="text-lg">Proyecto</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <Link
-                                :href="route('admin.proyectos.show', contrato.proyecto.id)"
-                                class="text-blue-600 hover:underline flex items-center gap-2"
-                            >
-                                {{ contrato.proyecto.nombre }}
-                                <ExternalLink class="h-4 w-4" />
-                            </Link>
-                            <Badge variant="outline" class="mt-2">
-                                {{ contrato.proyecto.estado }}
-                            </Badge>
-                        </CardContent>
-                    </Card>
-
-                    <!-- Responsable -->
-                    <Card v-if="contrato.responsable">
-                        <CardHeader>
-                            <CardTitle class="text-lg">Responsable</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div class="flex items-center gap-3">
-                                <User class="h-8 w-8 text-gray-400" />
-                                <div>
-                                    <p class="font-medium">{{ contrato.responsable.name }}</p>
-                                    <a
-                                        :href="`mailto:${contrato.responsable.email}`"
-                                        class="text-sm text-blue-600 hover:underline"
-                                    >
-                                        {{ contrato.responsable.email }}
-                                    </a>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    <!-- Metadatos -->
-                    <Card>
-                        <CardHeader>
-                            <CardTitle class="text-lg">Información del Sistema</CardTitle>
-                        </CardHeader>
-                        <CardContent class="space-y-3 text-sm">
-                            <div>
-                                <span class="text-gray-600">ID:</span>
-                                <span class="ml-2 font-mono">#{{ contrato.id }}</span>
-                            </div>
-                            <div>
-                                <span class="text-gray-600">Creado:</span>
-                                <span class="ml-2">{{ formatDateTime(contrato.created_at) }}</span>
-                                <span v-if="contrato.created_by" class="block text-xs text-gray-500 ml-2">
-                                    por {{ contrato.created_by.name }}
-                                </span>
-                            </div>
-                            <div>
-                                <span class="text-gray-600">Última actualización:</span>
-                                <span class="ml-2">{{ formatDateTime(contrato.updated_at) }}</span>
-                                <span v-if="contrato.updated_by" class="block text-xs text-gray-500 ml-2">
-                                    por {{ contrato.updated_by.name }}
-                                </span>
-                            </div>
-                        </CardContent>
-                    </Card>
-                </div>
             </div>
         </div>
     </AdminLayout>
