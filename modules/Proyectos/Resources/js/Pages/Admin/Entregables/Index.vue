@@ -37,6 +37,7 @@ import { Link } from '@inertiajs/vue3';
 import { useToast } from '@modules/Core/Resources/js/composables/useToast';
 import { debounce } from 'lodash';
 import type { Hito, Entregable, EstadoEntregable, PrioridadEntregable } from '@modules/Proyectos/Resources/js/types/hitos';
+import EntregablesTable from '@modules/Proyectos/Resources/js/components/EntregablesTable.vue';
 
 // Props con tipos
 interface Props {
@@ -201,6 +202,25 @@ const eliminarEntregable = (entregable: Entregable) => {
       }
     );
   }
+};
+
+const marcarEnProgreso = (entregable: Entregable) => {
+  if (!props.canEdit) return;
+
+  router.post(
+    `/admin/proyectos/${props.proyecto.id}/hitos/${props.hito.id}/entregables/${entregable.id}/actualizar-estado`,
+    {
+      estado: 'en_progreso',
+    },
+    {
+      onSuccess: () => {
+        toast.success('Entregable marcado como en progreso');
+      },
+      onError: () => {
+        toast.error('Error al actualizar el estado del entregable');
+      },
+    }
+  );
 };
 
 const getEstadoBadgeVariant = (estado: EstadoEntregable) => {
@@ -428,170 +448,19 @@ const estadisticasGenerales = computed(() => {
     <!-- Tabla de entregables -->
     <Card>
       <CardContent class="p-0">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead class="w-[40px]">
-                <Checkbox
-                  :checked="selectedEntregables.length === entregablesData.data.length && entregablesData.data.length > 0"
-                  @update:checked="toggleSelectAll"
-                />
-              </TableHead>
-              <TableHead>Entregable</TableHead>
-              <TableHead>Responsable</TableHead>
-              <TableHead>Estado</TableHead>
-              <TableHead>Prioridad</TableHead>
-              <TableHead>Fecha Fin</TableHead>
-              <TableHead>Colaboradores</TableHead>
-              <TableHead>Etiquetas</TableHead>
-              <TableHead class="text-right">Acciones</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow
-              v-for="entregable in entregablesConInfo"
-              :key="entregable.id"
-              class="cursor-pointer hover:bg-muted/50"
-            >
-              <TableCell @click.stop>
-                <Checkbox
-                  :checked="isSelected(entregable.id)"
-                  @update:checked="() => toggleSelection(entregable.id)"
-                />
-              </TableCell>
-              <Link
-                :href="`/admin/proyectos/${proyecto.id}/hitos/${hito.id}/entregables/${entregable.id}`"
-                class="contents"
-              >
-                <TableCell>
-                  <div>
-                    <p class="font-medium">{{ entregable.nombre }}</p>
-                    <p v-if="entregable.descripcion" class="text-sm text-muted-foreground">
-                      {{ entregable.descripcion }}
-                    </p>
-                    <div v-if="entregable.estaVencido" class="flex items-center gap-1 mt-1">
-                      <AlertCircle class="h-3 w-3 text-red-600" />
-                      <span class="text-xs text-red-600">Vencido hace {{ Math.abs(entregable.diasRestantes) }} días</span>
-                    </div>
-                    <div v-else-if="entregable.estaProximoVencer" class="flex items-center gap-1 mt-1">
-                      <AlertCircle class="h-3 w-3 text-orange-600" />
-                      <span class="text-xs text-orange-600">Vence en {{ entregable.diasRestantes }} días</span>
-                    </div>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div v-if="entregable.responsable" class="flex items-center gap-2">
-                    <Avatar class="h-8 w-8">
-                      <AvatarImage v-if="entregable.responsable.avatar" :src="entregable.responsable.avatar" />
-                      <AvatarFallback>{{ entregable.responsable.name.substring(0, 2).toUpperCase() }}</AvatarFallback>
-                    </Avatar>
-                    <span class="text-sm">{{ entregable.responsable.name }}</span>
-                  </div>
-                  <span v-else class="text-sm text-muted-foreground">Sin asignar</span>
-                </TableCell>
-                <TableCell>
-                  <Badge :variant="getEstadoBadgeVariant(entregable.estado)">
-                    {{ entregable.estado_label }}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <Badge :variant="getPrioridadBadgeVariant(entregable.prioridad)">
-                    <component :is="getPrioridadIcon(entregable.prioridad)" class="mr-1 h-3 w-3" />
-                    {{ entregable.prioridad_label }}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <div class="flex items-center gap-1">
-                    <Calendar class="h-4 w-4 text-muted-foreground" />
-                    <span class="text-sm">{{ formatDate(entregable.fecha_fin) }}</span>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div v-if="entregable.usuarios && entregable.usuarios.length > 0" class="flex items-center gap-1">
-                    <Users class="h-4 w-4 text-muted-foreground" />
-                    <span class="text-sm">{{ entregable.usuarios.length }}</span>
-                  </div>
-                  <span v-else class="text-sm text-muted-foreground">-</span>
-                </TableCell>
-                <TableCell>
-                  <div v-if="entregable.etiquetas && entregable.etiquetas.length > 0" class="flex flex-wrap gap-1">
-                    <Badge
-                      v-for="etiqueta in entregable.etiquetas.slice(0, 2)"
-                      :key="etiqueta.id"
-                      variant="outline"
-                      class="text-xs"
-                      :style="{
-                        borderColor: etiqueta.color || '#94a3b8',
-                        color: etiqueta.color || '#64748b'
-                      }"
-                    >
-                      {{ etiqueta.nombre }}
-                    </Badge>
-                    <Badge
-                      v-if="entregable.etiquetas.length > 2"
-                      variant="outline"
-                      class="text-xs"
-                    >
-                      +{{ entregable.etiquetas.length - 2 }}
-                    </Badge>
-                  </div>
-                  <span v-else class="text-sm text-muted-foreground">-</span>
-                </TableCell>
-              </Link>
-              <TableCell class="text-right" @click.stop>
-                <DropdownMenu>
-                  <DropdownMenuTrigger as-child>
-                    <Button variant="ghost" class="h-8 w-8 p-0">
-                      <span class="sr-only">Abrir menú</span>
-                      <MoreHorizontal class="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-
-                    <Link
-                      v-if="canEdit"
-                      :href="`/admin/proyectos/${proyecto.id}/hitos/${hito.id}/entregables/${entregable.id}/edit`"
-                      as="button"
-                      class="w-full"
-                    >
-                      <DropdownMenuItem>
-                        <Edit class="mr-2 h-4 w-4" />
-                        Editar
-                      </DropdownMenuItem>
-                    </Link>
-
-                    <DropdownMenuItem
-                      v-if="canComplete && entregable.estado !== 'completado'"
-                      @click="marcarComoCompletado(entregable)"
-                    >
-                      <CheckCircle2 class="mr-2 h-4 w-4" />
-                      Marcar como completado
-                    </DropdownMenuItem>
-
-                    <DropdownMenuSeparator v-if="canDelete" />
-
-                    <DropdownMenuItem
-                      v-if="canDelete"
-                      @click="eliminarEntregable(entregable)"
-                      class="text-red-600"
-                    >
-                      <Trash2 class="mr-2 h-4 w-4" />
-                      Eliminar
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </TableCell>
-            </TableRow>
-
-            <TableRow v-if="entregablesData.data.length === 0">
-              <TableCell colspan="9" class="text-center py-8">
-                <p class="text-muted-foreground">No se encontraron entregables</p>
-              </TableCell>
-            </TableRow>
-          </TableBody>
-        </Table>
+        <EntregablesTable
+          :entregables="entregablesData.data"
+          :proyecto-id="proyecto.id"
+          :hito-id="hito.id"
+          :can-edit="canEdit"
+          :can-delete="canDelete"
+          :can-complete="canComplete"
+          @view="(entregable) => router.visit(`/admin/proyectos/${proyecto.id}/hitos/${hito.id}/entregables/${entregable.id}`)"
+          @edit="(entregable) => router.visit(`/admin/proyectos/${proyecto.id}/hitos/${hito.id}/entregables/${entregable.id}/edit`)"
+          @complete="marcarComoCompletado"
+          @mark-in-progress="marcarEnProgreso"
+          @delete="eliminarEntregable"
+        />
       </CardContent>
     </Card>
 
