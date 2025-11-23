@@ -451,18 +451,18 @@ const getInitials = (name: string) => {
                             {{ totales.contratos }}
                         </Badge>
                     </TabsTrigger>
-                    <TabsTrigger value="evidencias">
-                        <Image class="mr-2 h-4 w-4" />
-                        Evidencias
-                        <Badge v-if="totales?.evidencias" class="ml-2 h-5 px-1.5" variant="secondary">
-                            {{ totales.evidencias }}
-                        </Badge>
-                    </TabsTrigger>
                     <TabsTrigger value="hitos">
                         <Milestone class="mr-2 h-4 w-4" />
                         Hitos y Entregables
                         <Badge v-if="totales?.hitos" class="ml-2 h-5 px-1.5" variant="secondary">
                             {{ totales.hitos }}
+                        </Badge>
+                    </TabsTrigger>
+                    <TabsTrigger value="evidencias">
+                        <Image class="mr-2 h-4 w-4" />
+                        Evidencias
+                        <Badge v-if="totales?.evidencias" class="ml-2 h-5 px-1.5" variant="secondary">
+                            {{ totales.evidencias }}
                         </Badge>
                     </TabsTrigger>
                 </TabsList>
@@ -744,6 +744,31 @@ const getInitials = (name: string) => {
                     </Card>
                 </TabsContent>
 
+                <!-- Tab de Hitos y Entregables -->
+                <TabsContent value="hitos" class="space-y-4 mt-6">
+                    <HitosGrid
+                        v-if="canViewHitos"
+                        :hitos="proyecto.hitos || []"
+                        :proyecto-id="proyecto.id"
+                        :estadisticas="estadisticasHitos"
+                        :show-stats="true"
+                        :show-header="true"
+                        :show-actions="true"
+                        :show-view-all="true"
+                        :can-create="canCreateHitos"
+                        :can-edit="canEditHitos"
+                        :can-delete="canDeleteHitos"
+                        :can-manage-deliverables="canManageEntregables"
+                        empty-message="No hay hitos definidos para este proyecto"
+                        @view="navigateToHito"
+                        @edit="navigateToEditHito"
+                        @delete="confirmDeleteHito"
+                        @duplicate="duplicateHito"
+                        @add-entregable="navigateToAddEntregable"
+                        @view-entregables="navigateToEntregables"
+                    />
+                </TabsContent>
+
                 <!-- Tab de Evidencias -->
                 <TabsContent value="evidencias" class="space-y-4 mt-6">
                     <!-- Filtros de evidencias -->
@@ -877,31 +902,6 @@ const getInitials = (name: string) => {
                             </div>
                         </CardContent>
                     </Card>
-                </TabsContent>
-
-                <!-- Tab de Hitos y Entregables -->
-                <TabsContent value="hitos" class="space-y-4 mt-6">
-                    <HitosGrid
-                        v-if="canViewHitos"
-                        :hitos="proyecto.hitos || []"
-                        :proyecto-id="proyecto.id"
-                        :estadisticas="estadisticasHitos"
-                        :show-stats="true"
-                        :show-header="true"
-                        :show-actions="true"
-                        :show-view-all="true"
-                        :can-create="canCreateHitos"
-                        :can-edit="canEditHitos"
-                        :can-delete="canDeleteHitos"
-                        :can-manage-deliverables="canManageEntregables"
-                        empty-message="No hay hitos definidos para este proyecto"
-                        @view="navigateToHito"
-                        @edit="navigateToEditHito"
-                        @delete="confirmDeleteHito"
-                        @duplicate="duplicateHito"
-                        @add-entregable="navigateToAddEntregable"
-                        @view-entregables="navigateToEntregables"
-                    />
                 </TabsContent>
             </Tabs>
         </div>
