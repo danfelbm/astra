@@ -414,7 +414,7 @@ const handleDeleteEtiqueta = (etiqueta: Etiqueta) => {
             <Tabs v-model="viewMode">
                 <Card>
                     <CardHeader>
-                        <div class="flex items-center justify-end">
+                        <div class="flex items-center">
                             <TabsList>
                                 <TabsTrigger value="table">
                                     <List class="h-4 w-4 mr-2" />
