@@ -9,11 +9,12 @@ import { Badge } from '@modules/Core/Resources/js/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@modules/Core/Resources/js/components/ui/tabs';
 import { Alert, AlertDescription } from '@modules/Core/Resources/js/components/ui/alert';
 import {
-    Calendar, DollarSign, User, FileText, Edit, Trash2, Copy, Download,
+    Calendar, DollarSign, User, FileText, Edit, Trash2, Copy, Download, Eye,
     Building2, Phone, Mail, Hash, AlertCircle, Clock, CheckCircle,
     XCircle, ArrowLeft, ExternalLink, Plus, TreePine, ChevronRight, List
 } from 'lucide-vue-next';
 import { useToast } from '@modules/Core/Resources/js/composables/useToast';
+import { useFileUpload } from '@modules/Core/Resources/js/composables/useFileUpload';
 
 // Tipos
 interface User {
@@ -46,6 +47,9 @@ interface Contrato {
     monto_formateado?: string;
     moneda: string;
     archivo_pdf?: string;
+    archivos_paths?: string[];
+    archivos_nombres?: string[];
+    tipos_archivos?: Record<string, string>;
     observaciones?: string;
     dias_restantes?: number;
     porcentaje_transcurrido?: number;
@@ -70,11 +74,11 @@ interface Contrato {
     contraparte_email?: string;
     contraparte_telefono?: string;
     participantes?: Participante[];
-    created_by?: {
+    creador?: {
         id: number;
         name: string;
     };
-    updated_by?: {
+    actualizador?: {
         id: number;
         name: string;
     };
@@ -99,6 +103,7 @@ const props = defineProps<{
 }>();
 
 const toast = useToast();
+const { downloadFile: downloadFileFromServer } = useFileUpload();
 const activeTab = ref('general');
 
 // Breadcrumbs para navegación
@@ -207,6 +212,10 @@ const duplicarContrato = () => {
     }
 };
 
+const viewFile = (url: string) => {
+    window.open(url, '_blank');
+};
+
 const descargarPDF = () => {
     if (props.contrato.archivo_pdf) {
         window.open(props.contrato.archivo_pdf, '_blank');
@@ -303,7 +312,7 @@ const getObligacionEstadoVariant = (estado: string): string => {
             </div>
 
             <!-- Alertas -->
-            <Alert v-if="contrato.esta_vencido" variant="destructive">
+            <Alert v-if="contrato.esta_vencido" class="bg-red-100 dark:bg-red-950/30 border-red-300 dark:border-red-800 text-red-800 dark:text-red-200">
                 <AlertCircle class="h-4 w-4" />
                 <AlertDescription>
                     Este contrato venció el {{ formatDate(contrato.fecha_fin) }}.
@@ -325,6 +334,12 @@ const getObligacionEstadoVariant = (estado: string): string => {
                             <TabsTrigger value="participantes">
                                 Partes Involucradas
                             </TabsTrigger>
+                            <TabsTrigger value="archivos" v-if="contrato.archivos_paths?.length">
+                                Archivos
+                                <Badge variant="outline" class="ml-1">
+                                    {{ contrato.archivos_paths.length }}
+                                </Badge>
+                            </TabsTrigger>
                             <TabsTrigger value="campos" v-if="contrato.campos_personalizados?.length">
                                 Campos Adicionales
                             </TabsTrigger>
@@ -342,45 +357,6 @@ const getObligacionEstadoVariant = (estado: string): string => {
                                     <CardTitle>Información General</CardTitle>
                                 </CardHeader>
                                 <CardContent class="space-y-6">
-                                    <!-- Cambio de Estado -->
-                                    <div v-if="can.change_status && contrato.estado !== 'cancelado'" class="pb-6 border-b">
-                                        <h4 class="text-sm font-medium text-gray-600 mb-3">Cambio de Estado</h4>
-                                        <div class="flex gap-2 flex-wrap">
-                                            <Button
-                                                v-if="contrato.estado === 'borrador'"
-                                                variant="outline"
-                                                size="sm"
-                                                @click="cambiarEstado('activo')"
-                                            >
-                                                Activar Contrato
-                                            </Button>
-                                            <Button
-                                                v-if="contrato.estado === 'activo'"
-                                                variant="outline"
-                                                size="sm"
-                                                @click="cambiarEstado('finalizado')"
-                                            >
-                                                Finalizar Contrato
-                                            </Button>
-                                            <Button
-                                                v-if="contrato.estado === 'finalizado'"
-                                                variant="outline"
-                                                size="sm"
-                                                @click="cambiarEstado('activo')"
-                                            >
-                                                Reactivar
-                                            </Button>
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                class="text-red-600"
-                                                @click="cambiarEstado('cancelado')"
-                                            >
-                                                Cancelar Contrato
-                                            </Button>
-                                        </div>
-                                    </div>
-
                                     <!-- Proyecto -->
                                     <div class="pb-6 border-b">
                                         <h4 class="text-sm font-medium text-gray-600 mb-3">Proyecto</h4>
@@ -441,11 +417,11 @@ const getObligacionEstadoVariant = (estado: string): string => {
 
                                             <!-- Barra de progreso -->
                                             <div v-if="contrato.porcentaje_transcurrido !== undefined && contrato.estado === 'activo'">
-                                                <div class="flex justify-between text-sm text-gray-600 mb-2">
+                                                <div class="flex justify-between text-sm text-gray-600 dark:text-gray-400 mb-2">
                                                     <span>Progreso del contrato</span>
                                                     <span>{{ contrato.porcentaje_transcurrido }}%</span>
                                                 </div>
-                                                <div class="w-full bg-gray-200 rounded-full h-3">
+                                                <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
                                                     <div
                                                         :class="progresoClass"
                                                         class="h-3 rounded-full transition-all duration-300"
@@ -472,15 +448,15 @@ const getObligacionEstadoVariant = (estado: string): string => {
                                             <div>
                                                 <span class="text-gray-600">Creado:</span>
                                                 <span class="ml-2">{{ formatDateTime(contrato.created_at) }}</span>
-                                                <span v-if="contrato.created_by" class="block text-xs text-gray-500 ml-2 mt-1">
-                                                    por {{ contrato.created_by.name }}
+                                                <span v-if="contrato.creador" class="block text-xs text-gray-500 ml-2 mt-1">
+                                                    por {{ contrato.creador.name }}
                                                 </span>
                                             </div>
                                             <div>
                                                 <span class="text-gray-600">Última actualización:</span>
                                                 <span class="ml-2">{{ formatDateTime(contrato.updated_at) }}</span>
-                                                <span v-if="contrato.updated_by" class="block text-xs text-gray-500 ml-2 mt-1">
-                                                    por {{ contrato.updated_by.name }}
+                                                <span v-if="contrato.actualizador" class="block text-xs text-gray-500 ml-2 mt-1">
+                                                    por {{ contrato.actualizador.name }}
                                                 </span>
                                             </div>
                                         </div>
@@ -636,6 +612,61 @@ const getObligacionEstadoVariant = (estado: string): string => {
                                     <div v-else>
                                         <h4 class="text-sm font-medium text-gray-600 mb-3">Participantes del Contrato</h4>
                                         <p class="text-gray-500 text-sm">No hay participantes adicionales registrados para este contrato</p>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </TabsContent>
+
+                        <!-- Tab de Archivos -->
+                        <TabsContent value="archivos" v-if="contrato.archivos_paths?.length">
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Archivos del Contrato</CardTitle>
+                                    <CardDescription>Archivos adjuntos relacionados con el contrato</CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <div class="space-y-2">
+                                        <div
+                                            v-for="(path, index) in contrato.archivos_paths"
+                                            :key="index"
+                                            class="border rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                                        >
+                                            <div class="flex items-center justify-between">
+                                                <div class="flex items-center space-x-3 flex-1">
+                                                    <FileText class="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                                                    <div class="min-w-0 flex-1">
+                                                        <p class="text-sm font-medium truncate">
+                                                            {{ contrato.archivos_nombres?.[index] || path.split('/').pop() || 'archivo' }}
+                                                        </p>
+                                                        <p v-if="contrato.tipos_archivos?.[path]" class="text-xs text-muted-foreground">
+                                                            {{ contrato.tipos_archivos[path] }}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <div class="flex items-center space-x-2">
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        @click="viewFile(`/storage/${path}`)"
+                                                        aria-label="Ver archivo"
+                                                    >
+                                                        <Eye class="h-4 w-4 mr-1" />
+                                                        Ver
+                                                    </Button>
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        @click="downloadFileFromServer(path, contrato.archivos_nombres?.[index] || 'archivo')"
+                                                        aria-label="Descargar archivo"
+                                                    >
+                                                        <Download class="h-4 w-4 mr-1" />
+                                                        Descargar
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </CardContent>
                             </Card>
