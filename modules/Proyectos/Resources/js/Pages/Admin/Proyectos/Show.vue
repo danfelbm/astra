@@ -1004,9 +1004,9 @@ const getInitials = (name: string) => {
                             <div class="space-y-4">
                                 <ContratosList
                                     :contratos="proyecto.contratos"
-                                    :proyecto-id="proyecto.id"
-                                    :can-edit="canEdit"
-                                    :can-delete="canDelete"
+                                    :show-proyecto="false"
+                                    :show-actions="true"
+                                    actions-style="buttons"
                                 />
                             </div>
                         </CardContent>
