@@ -202,27 +202,28 @@ const exportarContratos = () => {
     <AdminLayout :breadcrumbs="breadcrumbs">
         <div class="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
             <!-- Header -->
-            <div class="flex justify-between items-center">
+            <div class="flex flex-col gap-4 md:flex-row md:justify-between md:items-center">
                 <div>
-                    <h1 class="text-3xl font-bold">
+                    <h1 class="text-2xl md:text-3xl font-bold">
                         Contratos
-                        <span v-if="proyecto" class="text-sm text-gray-600">
+                        <span v-if="proyecto" class="text-xs md:text-sm text-gray-600 block md:inline mt-1 md:mt-0">
                             del proyecto: {{ proyecto.nombre }}
                         </span>
                     </h1>
-                    <p class="text-gray-600 mt-1">Gestiona los contratos de los proyectos</p>
+                    <p class="text-sm md:text-base text-gray-600 mt-1">Gestiona los contratos de los proyectos</p>
                 </div>
-                <div class="flex gap-2">
-                    <Button variant="outline" @click="exportarContratos">
+                <div class="flex gap-2 flex-wrap">
+                    <Button variant="outline" @click="exportarContratos" class="flex-1 sm:flex-none">
                         <Download class="h-4 w-4 mr-2" />
-                        Exportar
+                        <span class="hidden sm:inline">Exportar</span>
                     </Button>
                     <Link
                         :href="proyecto
                             ? route('admin.proyectos.contratos.create', proyecto.id)
                             : route('admin.contratos.create')"
+                        class="flex-1 sm:flex-none"
                     >
-                        <Button>
+                        <Button class="w-full">
                             <Plus class="h-4 w-4 mr-2" />
                             Nuevo Contrato
                         </Button>
@@ -289,122 +290,133 @@ const exportarContratos = () => {
             <!-- Tabla de contratos -->
             <Card>
                 <CardContent class="p-0">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Nombre</TableHead>
-                                <TableHead>Proyecto</TableHead>
-                                <TableHead>Estado</TableHead>
-                                <TableHead>Tipo</TableHead>
-                                <TableHead>Fecha Inicio</TableHead>
-                                <TableHead>Fecha Fin</TableHead>
-                                <TableHead>Monto</TableHead>
-                                <TableHead>Responsable</TableHead>
-                                <TableHead class="text-right">Acciones</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            <TableRow v-for="contrato in contratos.data" :key="contrato.id">
-                                <TableCell class="font-medium">
-                                    <div class="flex items-center gap-2">
-                                        {{ contrato.nombre }}
-                                        <Badge
-                                            v-if="contrato.esta_vencido"
-                                            variant="destructive"
-                                            class="text-xs"
+                    <!-- Contenedor con scroll horizontal para móvil -->
+                    <div class="overflow-x-auto">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead class="min-w-[200px]">Nombre</TableHead>
+                                    <TableHead class="hidden lg:table-cell min-w-[150px]">Proyecto</TableHead>
+                                    <TableHead class="min-w-[100px]">Estado</TableHead>
+                                    <TableHead class="hidden md:table-cell min-w-[100px]">Tipo</TableHead>
+                                    <TableHead class="hidden xl:table-cell min-w-[120px]">Fecha Inicio</TableHead>
+                                    <TableHead class="hidden xl:table-cell min-w-[120px]">Fecha Fin</TableHead>
+                                    <TableHead class="hidden lg:table-cell min-w-[120px]">Monto</TableHead>
+                                    <TableHead class="hidden xl:table-cell min-w-[150px]">Responsable</TableHead>
+                                    <TableHead class="text-right min-w-[150px]">Acciones</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                <TableRow v-for="contrato in contratos.data" :key="contrato.id">
+                                    <TableCell class="font-medium">
+                                        <div class="flex flex-col gap-1">
+                                            <span>{{ contrato.nombre }}</span>
+                                            <div class="flex items-center gap-2 flex-wrap">
+                                                <Badge
+                                                    v-if="contrato.esta_vencido"
+                                                    variant="destructive"
+                                                    class="text-xs"
+                                                >
+                                                    Vencido
+                                                </Badge>
+                                                <Badge
+                                                    v-else-if="contrato.esta_proximo_vencer"
+                                                    variant="outline"
+                                                    class="text-xs text-yellow-600 border-yellow-600"
+                                                >
+                                                    {{ contrato.dias_restantes }} días
+                                                </Badge>
+                                            </div>
+                                            <!-- Info adicional visible solo en móvil -->
+                                            <div class="flex flex-col gap-1 text-xs text-gray-500 lg:hidden">
+                                                <span>Proyecto: {{ contrato.proyecto.nombre }}</span>
+                                                <span class="md:hidden">Tipo: {{ contrato.tipo }}</span>
+                                            </div>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell class="hidden lg:table-cell">
+                                        <Link
+                                            :href="route('admin.proyectos.show', contrato.proyecto.id)"
+                                            class="text-blue-600 hover:underline"
                                         >
-                                            Vencido
+                                            {{ contrato.proyecto.nombre }}
+                                        </Link>
+                                    </TableCell>
+                                    <TableCell>
+                                        <Badge :class="getEstadoBadgeClass(contrato.estado)">
+                                            {{ contrato.estado }}
                                         </Badge>
-                                        <Badge
-                                            v-else-if="contrato.esta_proximo_vencer"
-                                            variant="outline"
-                                            class="text-xs text-yellow-600 border-yellow-600"
-                                        >
-                                            {{ contrato.dias_restantes }} días
+                                    </TableCell>
+                                    <TableCell class="hidden md:table-cell">
+                                        <Badge :class="getTipoBadgeClass(contrato.tipo)">
+                                            {{ contrato.tipo }}
                                         </Badge>
-                                    </div>
-                                </TableCell>
-                                <TableCell>
-                                    <Link
-                                        :href="route('admin.proyectos.show', contrato.proyecto.id)"
-                                        class="text-blue-600 hover:underline"
-                                    >
-                                        {{ contrato.proyecto.nombre }}
-                                    </Link>
-                                </TableCell>
-                                <TableCell>
-                                    <Badge :class="getEstadoBadgeClass(contrato.estado)">
-                                        {{ contrato.estado }}
-                                    </Badge>
-                                </TableCell>
-                                <TableCell>
-                                    <Badge :class="getTipoBadgeClass(contrato.tipo)">
-                                        {{ contrato.tipo }}
-                                    </Badge>
-                                </TableCell>
-                                <TableCell>{{ formatDate(contrato.fecha_inicio) }}</TableCell>
-                                <TableCell>{{ formatDate(contrato.fecha_fin) }}</TableCell>
-                                <TableCell>{{ contrato.monto_formateado || '-' }}</TableCell>
-                                <TableCell>{{ contrato.responsable?.name || '-' }}</TableCell>
-                                <TableCell class="text-right">
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                            <Button variant="ghost" size="sm">
-                                                <MoreHorizontal class="h-4 w-4" />
-                                            </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end">
-                                            <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-                                            <DropdownMenuSeparator />
-                                            <Link :href="route('admin.contratos.show', contrato.id)">
-                                                <DropdownMenuItem>Ver detalles</DropdownMenuItem>
-                                            </Link>
-                                            <Link :href="route('admin.contratos.edit', contrato.id)">
-                                                <DropdownMenuItem>Editar</DropdownMenuItem>
-                                            </Link>
-                                            <DropdownMenuSeparator />
-                                            <DropdownMenuItem
-                                                v-if="contrato.estado === 'borrador'"
-                                                @click="cambiarEstado(contrato, 'activo')"
-                                            >
-                                                Activar
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem
-                                                v-if="contrato.estado === 'activo'"
-                                                @click="cambiarEstado(contrato, 'finalizado')"
-                                            >
-                                                Finalizar
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem @click="duplicarContrato(contrato)">
-                                                Duplicar
-                                            </DropdownMenuItem>
-                                            <DropdownMenuSeparator />
-                                            <DropdownMenuItem
-                                                class="text-red-600"
-                                                @click="deleteContrato(contrato)"
-                                            >
-                                                Eliminar
-                                            </DropdownMenuItem>
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
-                                </TableCell>
-                            </TableRow>
-                            <TableRow v-if="contratos.data.length === 0">
-                                <TableCell colspan="9" class="text-center py-8 text-gray-500">
-                                    No se encontraron contratos
-                                </TableCell>
-                            </TableRow>
-                        </TableBody>
-                    </Table>
+                                    </TableCell>
+                                    <TableCell class="hidden xl:table-cell">{{ formatDate(contrato.fecha_inicio) }}</TableCell>
+                                    <TableCell class="hidden xl:table-cell">{{ formatDate(contrato.fecha_fin) }}</TableCell>
+                                    <TableCell class="hidden lg:table-cell">{{ contrato.monto_formateado || '-' }}</TableCell>
+                                    <TableCell class="hidden xl:table-cell">{{ contrato.responsable?.name || '-' }}</TableCell>
+                                    <TableCell class="text-right">
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button variant="ghost" size="sm">
+                                                    <MoreHorizontal class="h-4 w-4 mr-2" />
+                                                    <span class="hidden sm:inline">Ver acciones</span>
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                <DropdownMenuLabel>Acciones</DropdownMenuLabel>
+                                                <DropdownMenuSeparator />
+                                                <Link :href="route('admin.contratos.show', contrato.id)">
+                                                    <DropdownMenuItem>Ver detalles</DropdownMenuItem>
+                                                </Link>
+                                                <Link :href="route('admin.contratos.edit', contrato.id)">
+                                                    <DropdownMenuItem>Editar</DropdownMenuItem>
+                                                </Link>
+                                                <DropdownMenuSeparator />
+                                                <DropdownMenuItem
+                                                    v-if="contrato.estado === 'borrador'"
+                                                    @click="cambiarEstado(contrato, 'activo')"
+                                                >
+                                                    Activar
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem
+                                                    v-if="contrato.estado === 'activo'"
+                                                    @click="cambiarEstado(contrato, 'finalizado')"
+                                                >
+                                                    Finalizar
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem @click="duplicarContrato(contrato)">
+                                                    Duplicar
+                                                </DropdownMenuItem>
+                                                <DropdownMenuSeparator />
+                                                <DropdownMenuItem
+                                                    class="text-red-600"
+                                                    @click="deleteContrato(contrato)"
+                                                >
+                                                    Eliminar
+                                                </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    </TableCell>
+                                </TableRow>
+                                <TableRow v-if="contratos.data.length === 0">
+                                    <TableCell colspan="9" class="text-center py-8 text-gray-500">
+                                        No se encontraron contratos
+                                    </TableCell>
+                                </TableRow>
+                            </TableBody>
+                        </Table>
+                    </div>
                 </CardContent>
             </Card>
 
             <!-- Paginación -->
-            <div v-if="contratos.last_page > 1" class="flex items-center justify-between">
-                <p class="text-sm text-gray-600">
+            <div v-if="contratos.last_page > 1" class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <p class="text-xs sm:text-sm text-gray-600 text-center sm:text-left">
                     Mostrando {{ contratos.from }} - {{ contratos.to }} de {{ contratos.total }} contratos
                 </p>
-                <div class="flex gap-2">
+                <div class="flex gap-2 flex-wrap justify-center sm:justify-end">
                     <Link
                         v-for="page in contratos.last_page"
                         :key="page"
