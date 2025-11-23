@@ -31,7 +31,8 @@ import {
     Trash2,
     AlertCircle,
     FileText,
-    Download
+    Download,
+    List
 } from 'lucide-vue-next';
 import type { Contrato, EstadoContrato } from '../types/contratos';
 import {
@@ -49,6 +50,7 @@ interface Props {
     showActions?: boolean;
     showSelection?: boolean;
     selectedIds?: number[];
+    actionsStyle?: 'dropdown' | 'buttons';
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -56,7 +58,8 @@ const props = withDefaults(defineProps<Props>(), {
     showProyecto: true,
     showActions: true,
     showSelection: false,
-    selectedIds: () => []
+    selectedIds: () => [],
+    actionsStyle: 'dropdown'
 });
 
 const emit = defineEmits<{
@@ -117,23 +120,23 @@ const sortedContratos = computed(() => {
 // Métodos
 const getEstadoBadgeClass = (estado: string) => {
     const clases = {
-        'borrador': 'bg-gray-100 text-gray-800',
-        'activo': 'bg-green-100 text-green-800',
-        'finalizado': 'bg-blue-100 text-blue-800',
-        'cancelado': 'bg-red-100 text-red-800',
+        'borrador': 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200',
+        'activo': 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+        'finalizado': 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+        'cancelado': 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
     };
-    return clases[estado] || 'bg-gray-100 text-gray-800';
+    return clases[estado] || 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200';
 };
 
 const getTipoBadgeClass = (tipo: string) => {
     const clases = {
-        'servicio': 'bg-purple-100 text-purple-800',
-        'obra': 'bg-orange-100 text-orange-800',
-        'suministro': 'bg-indigo-100 text-indigo-800',
-        'consultoria': 'bg-pink-100 text-pink-800',
-        'otro': 'bg-gray-100 text-gray-800',
+        'servicio': 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
+        'obra': 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
+        'suministro': 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200',
+        'consultoria': 'bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200',
+        'otro': 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200',
     };
-    return clases[tipo] || 'bg-gray-100 text-gray-800';
+    return clases[tipo] || 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200';
 };
 
 const formatDate = (date: string | undefined) => {
@@ -179,6 +182,9 @@ const handleAction = (action: string, contrato: Contrato) => {
         case 'edit':
             emit('edit', contrato);
             router.get(route('admin.contratos.edit', contrato.id));
+            break;
+        case 'obligations':
+            router.get(route('admin.obligaciones.index', { contrato_id: contrato.id }));
             break;
         case 'duplicate':
             emit('duplicate', contrato);
@@ -264,7 +270,7 @@ defineExpose({
                                 </div>
                             </TableHead>
                             <TableHead>Responsable</TableHead>
-                            <TableHead v-if="showActions" class="text-right">Acciones</TableHead>
+                            <TableHead v-if="showActions && actionsStyle === 'dropdown'" class="text-right">Acciones</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -281,27 +287,82 @@ defineExpose({
                                     />
                                 </TableCell>
                                 <TableCell class="font-medium">
-                                    <div class="flex items-center gap-2">
-                                        <FileText class="h-4 w-4 text-gray-400" />
-                                        <div>
-                                            {{ contrato.nombre }}
-                                            <div class="flex items-center gap-1 mt-1">
-                                                <Badge
-                                                    v-if="contrato.esta_vencido"
-                                                    variant="destructive"
-                                                    class="text-xs"
-                                                >
-                                                    Vencido
-                                                </Badge>
-                                                <Badge
-                                                    v-else-if="contrato.esta_proximo_vencer"
-                                                    variant="outline"
-                                                    class="text-xs text-yellow-600 border-yellow-600"
-                                                >
-                                                    <AlertCircle class="h-3 w-3 mr-1" />
-                                                    {{ contrato.dias_restantes }} días
-                                                </Badge>
+                                    <div class="flex flex-col gap-2">
+                                        <div class="flex items-center gap-2">
+                                            <FileText class="h-4 w-4 text-gray-400" />
+                                            <div>
+                                                {{ contrato.nombre }}
+                                                <div class="flex items-center gap-1 mt-1">
+                                                    <Badge
+                                                        v-if="contrato.esta_vencido"
+                                                        variant="destructive"
+                                                        class="text-xs"
+                                                    >
+                                                        Vencido
+                                                    </Badge>
+                                                    <Badge
+                                                        v-else-if="contrato.esta_proximo_vencer"
+                                                        variant="outline"
+                                                        class="text-xs text-yellow-600 border-yellow-600"
+                                                    >
+                                                        <AlertCircle class="h-3 w-3 mr-1" />
+                                                        {{ contrato.dias_restantes }} días
+                                                    </Badge>
+                                                </div>
                                             </div>
+                                        </div>
+
+                                        <!-- Acciones como botones inline -->
+                                        <div v-if="showActions && actionsStyle === 'buttons'" class="flex items-center gap-1 flex-wrap">
+                                            <Link :href="route('admin.contratos.show', contrato.id)">
+                                                <Button variant="outline" size="sm" class="h-7 text-xs">
+                                                    Ver detalles
+                                                </Button>
+                                            </Link>
+                                            <Link :href="route('admin.contratos.edit', contrato.id)">
+                                                <Button variant="outline" size="sm" class="h-7 text-xs">
+                                                    Editar
+                                                </Button>
+                                            </Link>
+                                            <Link :href="route('admin.obligaciones.index', { contrato_id: contrato.id })">
+                                                <Button variant="outline" size="sm" class="h-7 text-xs">
+                                                    Ver obligaciones
+                                                </Button>
+                                            </Link>
+                                            <Button
+                                                v-if="contrato.estado === 'borrador'"
+                                                variant="outline"
+                                                size="sm"
+                                                class="h-7 text-xs text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-950"
+                                                @click="cambiarEstado(contrato, 'activo')"
+                                            >
+                                                Activar
+                                            </Button>
+                                            <Button
+                                                v-if="contrato.estado === 'activo'"
+                                                variant="outline"
+                                                size="sm"
+                                                class="h-7 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950"
+                                                @click="cambiarEstado(contrato, 'finalizado')"
+                                            >
+                                                Finalizar
+                                            </Button>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                class="h-7 text-xs text-purple-600 hover:text-purple-700 hover:bg-purple-50 dark:hover:bg-purple-950"
+                                                @click="handleAction('duplicate', contrato)"
+                                            >
+                                                Duplicar
+                                            </Button>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                class="h-7 text-xs text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
+                                                @click="handleAction('delete', contrato)"
+                                            >
+                                                Eliminar
+                                            </Button>
                                         </div>
                                     </div>
                                 </TableCell>
@@ -344,7 +405,7 @@ defineExpose({
                                 <TableCell>
                                     {{ contrato.responsable?.name || '-' }}
                                 </TableCell>
-                                <TableCell v-if="showActions" class="text-right">
+                                <TableCell v-if="showActions && actionsStyle === 'dropdown'" class="text-right">
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
                                             <Button variant="ghost" size="sm">
@@ -363,6 +424,11 @@ defineExpose({
                                             <DropdownMenuItem @click="handleAction('edit', contrato)">
                                                 <Edit class="h-4 w-4 mr-2" />
                                                 Editar
+                                            </DropdownMenuItem>
+
+                                            <DropdownMenuItem @click="handleAction('obligations', contrato)">
+                                                <List class="h-4 w-4 mr-2" />
+                                                Ver obligaciones
                                             </DropdownMenuItem>
 
                                             <DropdownMenuItem
