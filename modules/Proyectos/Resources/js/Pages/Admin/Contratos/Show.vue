@@ -112,22 +112,22 @@ const breadcrumbs: BreadcrumbItem[] = [
 const estadoConfig = computed(() => {
     const configs = {
         'borrador': {
-            color: 'bg-gray-100 text-gray-800',
+            color: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200',
             icon: FileText,
             label: 'Borrador'
         },
         'activo': {
-            color: 'bg-green-100 text-green-800',
+            color: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
             icon: CheckCircle,
             label: 'Activo'
         },
         'finalizado': {
-            color: 'bg-blue-100 text-blue-800',
+            color: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
             icon: CheckCircle,
             label: 'Finalizado'
         },
         'cancelado': {
-            color: 'bg-red-100 text-red-800',
+            color: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
             icon: XCircle,
             label: 'Cancelado'
         }
@@ -261,7 +261,7 @@ const getObligacionEstadoVariant = (estado: string): string => {
                             <Badge v-if="contrato.esta_vencido" variant="destructive">
                                 Vencido
                             </Badge>
-                            <Badge v-else-if="contrato.esta_proximo_vencer" class="bg-yellow-100 text-yellow-800">
+                            <Badge v-else-if="contrato.esta_proximo_vencer" class="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 border border-yellow-300 dark:border-yellow-700">
                                 Vence en {{ contrato.dias_restantes }} días
                             </Badge>
                         </div>
@@ -709,32 +709,32 @@ const getObligacionEstadoVariant = (estado: string): string => {
                                         <div class="grid grid-cols-4 gap-4 mb-6">
                                             <div class="text-center">
                                                 <div class="text-2xl font-bold">{{ contrato.total_obligaciones }}</div>
-                                                <p class="text-xs text-gray-600">Total</p>
+                                                <p class="text-xs text-gray-600 dark:text-gray-400">Total</p>
                                             </div>
                                             <div class="text-center">
-                                                <div class="text-2xl font-bold text-yellow-600">{{ contrato.obligaciones_pendientes }}</div>
-                                                <p class="text-xs text-gray-600">Pendientes</p>
+                                                <div class="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{{ contrato.obligaciones_pendientes }}</div>
+                                                <p class="text-xs text-gray-600 dark:text-gray-400">Pendientes</p>
                                             </div>
                                             <div class="text-center">
-                                                <div class="text-2xl font-bold text-green-600">{{ contrato.obligaciones_cumplidas }}</div>
-                                                <p class="text-xs text-gray-600">Cumplidas</p>
+                                                <div class="text-2xl font-bold text-green-600 dark:text-green-400">{{ contrato.obligaciones_cumplidas }}</div>
+                                                <p class="text-xs text-gray-600 dark:text-gray-400">Cumplidas</p>
                                             </div>
                                             <div class="text-center">
                                                 <div class="text-2xl font-bold">
                                                     {{ contrato.total_obligaciones > 0 ? Math.round((contrato.obligaciones_cumplidas / contrato.total_obligaciones) * 100) : 0 }}%
                                                 </div>
-                                                <p class="text-xs text-gray-600">Progreso</p>
+                                                <p class="text-xs text-gray-600 dark:text-gray-400">Progreso</p>
                                             </div>
                                         </div>
 
                                         <!-- Lista de obligaciones principales -->
                                         <div v-if="contrato.obligaciones && contrato.obligaciones.length > 0" class="mt-6 space-y-2">
-                                            <h4 class="text-sm font-medium text-gray-700 mb-2">Obligaciones principales:</h4>
-                                            <div v-for="obligacion in contrato.obligaciones" :key="obligacion.id" class="border rounded-lg p-3 hover:bg-gray-50">
+                                            <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Obligaciones principales:</h4>
+                                            <div v-for="obligacion in contrato.obligaciones" :key="obligacion.id" class="border rounded-lg p-3 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
                                                 <div class="flex items-center justify-between">
                                                     <div class="flex-1">
                                                         <h5 class="font-medium">{{ obligacion.titulo }}</h5>
-                                                        <p v-if="obligacion.descripcion" class="text-sm text-gray-600 mt-1">{{ obligacion.descripcion }}</p>
+                                                        <p v-if="obligacion.descripcion" class="text-sm text-gray-600 dark:text-gray-400 mt-1">{{ obligacion.descripcion }}</p>
                                                         <div class="flex items-center gap-4 mt-2">
                                                             <Badge :variant="getObligacionEstadoVariant(obligacion.estado)" size="sm">
                                                                 {{ obligacion.estado }}
