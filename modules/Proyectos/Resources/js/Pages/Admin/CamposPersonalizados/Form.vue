@@ -9,6 +9,7 @@ import { Textarea } from "@modules/Core/Resources/js/components/ui/textarea";
 import { Label } from "@modules/Core/Resources/js/components/ui/label";
 import { Switch } from "@modules/Core/Resources/js/components/ui/switch";
 import { Alert, AlertDescription } from "@modules/Core/Resources/js/components/ui/alert";
+import { Checkbox } from "@modules/Core/Resources/js/components/ui/checkbox";
 import {
     Select,
     SelectContent,
@@ -347,15 +348,12 @@ const getValidacionEjemplo = (tipo: string) => {
                             <Label>Aplicar a:</Label>
                             <div class="space-y-2">
                                 <div v-for="(label, key) in entidades" :key="key" class="flex items-center space-x-2">
-                                    <input
-                                        type="checkbox"
+                                    <Checkbox
                                         :id="`aplicar_${key}`"
-                                        :value="key"
                                         :checked="form.aplicar_para.includes(key)"
-                                        @change="toggleAplicarPara(key)"
-                                        class="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                                        @update:checked="() => toggleAplicarPara(key)"
                                     />
-                                    <Label :for="`aplicar_${key}`" class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                                    <Label :for="`aplicar_${key}`" class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer">
                                         {{ label }}
                                     </Label>
                                 </div>
