@@ -172,75 +172,73 @@ const handleResponsableSelect = (data: { userIds: number[]; extraData: Record<st
                             </p>
                         </div>
 
-                        <!-- Fechas -->
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <Label for="fecha_inicio">Fecha de Inicio *</Label>
-                                <Input
-                                    id="fecha_inicio"
-                                    v-model="form.fecha_inicio"
-                                    type="date"
-                                    :class="{ 'border-red-500': form.errors.fecha_inicio }"
-                                    required
-                                />
-                                <p v-if="form.errors.fecha_inicio" class="mt-1 text-sm text-red-600">
-                                    {{ form.errors.fecha_inicio }}
-                                </p>
-                            </div>
-
-                            <div>
-                                <Label for="fecha_fin">Fecha de Fin</Label>
-                                <Input
-                                    id="fecha_fin"
-                                    v-model="form.fecha_fin"
-                                    type="date"
-                                    :min="form.fecha_inicio"
-                                    :class="{ 'border-red-500': form.errors.fecha_fin }"
-                                />
-                                <p v-if="form.errors.fecha_fin" class="mt-1 text-sm text-red-600">
-                                    {{ form.errors.fecha_fin }}
-                                </p>
-                            </div>
+                        <!-- Fecha de Inicio -->
+                        <div>
+                            <Label for="fecha_inicio">Fecha de Inicio *</Label>
+                            <Input
+                                id="fecha_inicio"
+                                v-model="form.fecha_inicio"
+                                type="date"
+                                :class="{ 'border-red-500': form.errors.fecha_inicio }"
+                                required
+                            />
+                            <p v-if="form.errors.fecha_inicio" class="mt-1 text-sm text-red-600">
+                                {{ form.errors.fecha_inicio }}
+                            </p>
                         </div>
 
-                        <!-- Estado y Prioridad -->
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <Label for="estado">Estado *</Label>
-                                <Select v-model="form.estado">
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Seleccione el estado" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="planificacion">Planificación</SelectItem>
-                                        <SelectItem value="en_progreso">En Progreso</SelectItem>
-                                        <SelectItem value="pausado">Pausado</SelectItem>
-                                        <SelectItem value="completado">Completado</SelectItem>
-                                        <SelectItem value="cancelado">Cancelado</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                                <p v-if="form.errors.estado" class="mt-1 text-sm text-red-600">
-                                    {{ form.errors.estado }}
-                                </p>
-                            </div>
+                        <!-- Fecha de Fin -->
+                        <div>
+                            <Label for="fecha_fin">Fecha de Fin</Label>
+                            <Input
+                                id="fecha_fin"
+                                v-model="form.fecha_fin"
+                                type="date"
+                                :min="form.fecha_inicio"
+                                :class="{ 'border-red-500': form.errors.fecha_fin }"
+                            />
+                            <p v-if="form.errors.fecha_fin" class="mt-1 text-sm text-red-600">
+                                {{ form.errors.fecha_fin }}
+                            </p>
+                        </div>
 
-                            <div>
-                                <Label for="prioridad">Prioridad *</Label>
-                                <Select v-model="form.prioridad">
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Seleccione la prioridad" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="baja">Baja</SelectItem>
-                                        <SelectItem value="media">Media</SelectItem>
-                                        <SelectItem value="alta">Alta</SelectItem>
-                                        <SelectItem value="critica">Crítica</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                                <p v-if="form.errors.prioridad" class="mt-1 text-sm text-red-600">
-                                    {{ form.errors.prioridad }}
-                                </p>
-                            </div>
+                        <!-- Estado -->
+                        <div>
+                            <Label for="estado">Estado *</Label>
+                            <Select v-model="form.estado">
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Seleccione el estado" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="planificacion">Planificación</SelectItem>
+                                    <SelectItem value="en_progreso">En Progreso</SelectItem>
+                                    <SelectItem value="pausado">Pausado</SelectItem>
+                                    <SelectItem value="completado">Completado</SelectItem>
+                                    <SelectItem value="cancelado">Cancelado</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <p v-if="form.errors.estado" class="mt-1 text-sm text-red-600">
+                                {{ form.errors.estado }}
+                            </p>
+                        </div>
+
+                        <!-- Prioridad -->
+                        <div>
+                            <Label for="prioridad">Prioridad *</Label>
+                            <Select v-model="form.prioridad">
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Seleccione la prioridad" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="baja">Baja</SelectItem>
+                                    <SelectItem value="media">Media</SelectItem>
+                                    <SelectItem value="alta">Alta</SelectItem>
+                                    <SelectItem value="critica">Crítica</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <p v-if="form.errors.prioridad" class="mt-1 text-sm text-red-600">
+                                {{ form.errors.prioridad }}
+                            </p>
                         </div>
 
                         <!-- Responsable -->

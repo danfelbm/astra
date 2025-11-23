@@ -311,10 +311,10 @@ const handleSubmit = async () => {
 
                         <!-- Lista de usuarios -->
                         <div v-else-if="users.length > 0" class="space-y-2">
-                            <div 
-                                v-for="user in users" 
-                                :key="user.id" 
-                                class="flex items-start space-x-3 py-2 hover:bg-gray-50 rounded px-2"
+                            <div
+                                v-for="user in users"
+                                :key="user.id"
+                                class="flex items-start space-x-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded px-2 transition-colors"
                             >
                                 <Checkbox
                                     :id="`user-${user.id}`"
