@@ -72,6 +72,10 @@ class ContratoController extends AdminController
         $borrador = Contrato::where('created_by', auth()->id())
             ->where('estado', 'borrador')
             ->where('tenant_id', auth()->user()->tenant_id)
+            ->with([
+                'participantes:id,name,email', // Cargar participantes con campos específicos
+                'contraparteUser:id,name,email' // Cargar contraparte del sistema
+            ])
             ->latest()
             ->first();
 
@@ -81,11 +85,18 @@ class ContratoController extends AdminController
             $responsable = User::select('id', 'name', 'email')->find($borrador->responsable_id);
         }
 
+        // Solo cargar la contraparte si existe en el borrador
+        $contraparte = null;
+        if ($borrador && $borrador->contraparte_user_id) {
+            $contraparte = $borrador->contraparteUser;
+        }
+
         return Inertia::render('Modules/Proyectos/Admin/Contratos/Create', [
             'proyecto' => $proyecto,
             'proyectos' => $proyectos,
             'camposPersonalizados' => $camposPersonalizados,
             'responsable' => $responsable, // Solo el responsable específico, no todos los usuarios
+            'contraparte' => $contraparte, // Contraparte del sistema si existe
             'borrador' => $borrador, // Pasar borrador para recuperación
             'canManageFields' => auth()->user()->can('proyectos.manage_fields'),
         ]);
@@ -383,6 +394,19 @@ class ContratoController extends AdminController
 
             // Guardar sin disparar eventos ni validación estricta
             $contrato->saveQuietly();
+
+            // Sincronizar participantes si se enviaron
+            if (isset($formData['participantes']) && is_array($formData['participantes'])) {
+                $participantes = collect($formData['participantes'])
+                    ->mapWithKeys(function ($p) {
+                        return [$p['user_id'] => [
+                            'rol' => $p['rol'] ?? 'testigo',
+                            'notas' => $p['notas'] ?? null
+                        ]];
+                    });
+
+                $contrato->participantes()->sync($participantes);
+            }
 
             return response()->json([
                 'success' => true,
