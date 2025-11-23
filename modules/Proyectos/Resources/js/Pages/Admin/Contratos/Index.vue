@@ -94,23 +94,23 @@ const hasActiveFilters = computed(() => {
 // Métodos
 const getEstadoBadgeClass = (estado: string) => {
     const clases = {
-        'borrador': 'bg-gray-100 text-gray-800',
-        'activo': 'bg-green-100 text-green-800',
-        'finalizado': 'bg-blue-100 text-blue-800',
-        'cancelado': 'bg-red-100 text-red-800',
+        'borrador': 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200',
+        'activo': 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+        'finalizado': 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+        'cancelado': 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
     };
-    return clases[estado] || 'bg-gray-100 text-gray-800';
+    return clases[estado] || 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200';
 };
 
 const getTipoBadgeClass = (tipo: string) => {
     const clases = {
-        'servicio': 'bg-purple-100 text-purple-800',
-        'obra': 'bg-orange-100 text-orange-800',
-        'suministro': 'bg-indigo-100 text-indigo-800',
-        'consultoria': 'bg-pink-100 text-pink-800',
-        'otro': 'bg-gray-100 text-gray-800',
+        'servicio': 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
+        'obra': 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
+        'suministro': 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200',
+        'consultoria': 'bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200',
+        'otro': 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200',
     };
-    return clases[tipo] || 'bg-gray-100 text-gray-800';
+    return clases[tipo] || 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200';
 };
 
 const formatDate = (date: string) => {
@@ -303,13 +303,12 @@ const exportarContratos = () => {
                                     <TableHead class="hidden xl:table-cell min-w-[120px]">Fecha Fin</TableHead>
                                     <TableHead class="hidden lg:table-cell min-w-[120px]">Monto</TableHead>
                                     <TableHead class="hidden xl:table-cell min-w-[150px]">Responsable</TableHead>
-                                    <TableHead class="text-right min-w-[150px]">Acciones</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 <TableRow v-for="contrato in contratos.data" :key="contrato.id">
                                     <TableCell class="font-medium">
-                                        <div class="flex flex-col gap-1">
+                                        <div class="flex flex-col gap-2">
                                             <span>{{ contrato.nombre }}</span>
                                             <div class="flex items-center gap-2 flex-wrap">
                                                 <Badge
@@ -331,6 +330,58 @@ const exportarContratos = () => {
                                             <div class="flex flex-col gap-1 text-xs text-gray-500 lg:hidden">
                                                 <span>Proyecto: {{ contrato.proyecto.nombre }}</span>
                                                 <span class="md:hidden">Tipo: {{ contrato.tipo }}</span>
+                                            </div>
+                                            <!-- Acciones -->
+                                            <div class="flex items-center gap-1 flex-wrap">
+                                                <Link :href="route('admin.contratos.show', contrato.id)">
+                                                    <Button variant="outline" size="sm" class="h-7 text-xs">
+                                                        Ver detalles
+                                                    </Button>
+                                                </Link>
+                                                <Link :href="route('admin.contratos.edit', contrato.id)">
+                                                    <Button variant="outline" size="sm" class="h-7 text-xs">
+                                                        Editar
+                                                    </Button>
+                                                </Link>
+                                                <Link :href="route('admin.obligaciones.index', { contrato_id: contrato.id })">
+                                                    <Button variant="outline" size="sm" class="h-7 text-xs">
+                                                        Ver obligaciones
+                                                    </Button>
+                                                </Link>
+                                                <Button
+                                                    v-if="contrato.estado === 'borrador'"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    class="h-7 text-xs text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-950"
+                                                    @click="cambiarEstado(contrato, 'activo')"
+                                                >
+                                                    Activar
+                                                </Button>
+                                                <Button
+                                                    v-if="contrato.estado === 'activo'"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    class="h-7 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950"
+                                                    @click="cambiarEstado(contrato, 'finalizado')"
+                                                >
+                                                    Finalizar
+                                                </Button>
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    class="h-7 text-xs text-purple-600 hover:text-purple-700 hover:bg-purple-50 dark:hover:bg-purple-950"
+                                                    @click="duplicarContrato(contrato)"
+                                                >
+                                                    Duplicar
+                                                </Button>
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    class="h-7 text-xs text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
+                                                    @click="deleteContrato(contrato)"
+                                                >
+                                                    Eliminar
+                                                </Button>
                                             </div>
                                         </div>
                                     </TableCell>
@@ -356,52 +407,9 @@ const exportarContratos = () => {
                                     <TableCell class="hidden xl:table-cell">{{ formatDate(contrato.fecha_fin) }}</TableCell>
                                     <TableCell class="hidden lg:table-cell">{{ contrato.monto_formateado || '-' }}</TableCell>
                                     <TableCell class="hidden xl:table-cell">{{ contrato.responsable?.name || '-' }}</TableCell>
-                                    <TableCell class="text-right">
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button variant="ghost" size="sm">
-                                                    <MoreHorizontal class="h-4 w-4 mr-2" />
-                                                    <span class="hidden sm:inline">Ver acciones</span>
-                                                </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end">
-                                                <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-                                                <DropdownMenuSeparator />
-                                                <Link :href="route('admin.contratos.show', contrato.id)">
-                                                    <DropdownMenuItem>Ver detalles</DropdownMenuItem>
-                                                </Link>
-                                                <Link :href="route('admin.contratos.edit', contrato.id)">
-                                                    <DropdownMenuItem>Editar</DropdownMenuItem>
-                                                </Link>
-                                                <DropdownMenuSeparator />
-                                                <DropdownMenuItem
-                                                    v-if="contrato.estado === 'borrador'"
-                                                    @click="cambiarEstado(contrato, 'activo')"
-                                                >
-                                                    Activar
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem
-                                                    v-if="contrato.estado === 'activo'"
-                                                    @click="cambiarEstado(contrato, 'finalizado')"
-                                                >
-                                                    Finalizar
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem @click="duplicarContrato(contrato)">
-                                                    Duplicar
-                                                </DropdownMenuItem>
-                                                <DropdownMenuSeparator />
-                                                <DropdownMenuItem
-                                                    class="text-red-600"
-                                                    @click="deleteContrato(contrato)"
-                                                >
-                                                    Eliminar
-                                                </DropdownMenuItem>
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
-                                    </TableCell>
                                 </TableRow>
                                 <TableRow v-if="contratos.data.length === 0">
-                                    <TableCell colspan="9" class="text-center py-8 text-gray-500">
+                                    <TableCell colspan="8" class="text-center py-8 text-gray-500">
                                         No se encontraron contratos
                                     </TableCell>
                                 </TableRow>
