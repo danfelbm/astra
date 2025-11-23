@@ -337,7 +337,7 @@ const {
     stopAutoSave
 } = useAutoSave(formDataRef, {
     url: `/admin/contratos/${props.contrato.id}/autosave`,
-    resourceId: props.contrato.id,
+    // NO pasar resourceId aquí porque la URL ya contiene el ID del contrato
     debounceTime: 3000,
     showNotifications: true,
     useLocalStorage: false // No usar localStorage en Edit
