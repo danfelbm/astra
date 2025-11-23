@@ -484,14 +484,16 @@ const handleDeleteEtiqueta = (etiqueta: Etiqueta) => {
                                                 @click="updateCategoria(categoria.id)"
                                                 :disabled="form.processing"
                                             >
-                                                <Save class="h-4 w-4" />
+                                                <Save class="h-4 w-4 mr-2" />
+                                                Guardar
                                             </Button>
                                             <Button
                                                 size="sm"
                                                 variant="outline"
                                                 @click="cancelEditing"
                                             >
-                                                <X class="h-4 w-4" />
+                                                <X class="h-4 w-4 mr-2" />
+                                                Cancelar
                                             </Button>
                                         </div>
                                     </TableCell>
@@ -512,26 +514,9 @@ const handleDeleteEtiqueta = (etiqueta: Etiqueta) => {
                                         </div>
                                     </TableCell>
                                     <TableCell>
-                                        <div class="flex items-center gap-2">
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                @click="toggleExpanded(categoria.id)"
-                                                class="p-1"
-                                            >
-                                                <ChevronRight
-                                                    v-if="!expandedRows.has(categoria.id)"
-                                                    class="h-4 w-4"
-                                                />
-                                                <ChevronDown
-                                                    v-else
-                                                    class="h-4 w-4"
-                                                />
-                                            </Button>
-                                            <Badge variant="outline">
-                                                {{ categoria.etiquetas_count || 0 }} etiquetas
-                                            </Badge>
-                                        </div>
+                                        <Badge variant="outline">
+                                            {{ categoria.etiquetas_count || 0 }} etiquetas
+                                        </Badge>
                                     </TableCell>
                                     <TableCell>
                                         {{ categoria.orden }}
@@ -549,10 +534,26 @@ const handleDeleteEtiqueta = (etiqueta: Etiqueta) => {
                                         <div class="flex justify-end gap-2">
                                             <Button
                                                 size="sm"
+                                                variant="outline"
+                                                @click="toggleExpanded(categoria.id)"
+                                            >
+                                                <ChevronRight
+                                                    v-if="!expandedRows.has(categoria.id)"
+                                                    class="h-4 w-4 mr-2"
+                                                />
+                                                <ChevronDown
+                                                    v-else
+                                                    class="h-4 w-4 mr-2"
+                                                />
+                                                Ver y añadir etiquetas
+                                            </Button>
+                                            <Button
+                                                size="sm"
                                                 variant="ghost"
                                                 @click="startEditing(categoria)"
                                             >
-                                                <Edit class="h-4 w-4" />
+                                                <Edit class="h-4 w-4 mr-2" />
+                                                Editar
                                             </Button>
                                             <Button
                                                 size="sm"
@@ -560,7 +561,8 @@ const handleDeleteEtiqueta = (etiqueta: Etiqueta) => {
                                                 @click="deleteCategoria(categoria)"
                                                 class="text-destructive hover:text-destructive"
                                             >
-                                                <Trash2 class="h-4 w-4" />
+                                                <Trash2 class="h-4 w-4 mr-2" />
+                                                Eliminar
                                             </Button>
                                         </div>
                                     </TableCell>
@@ -641,7 +643,7 @@ const handleDeleteEtiqueta = (etiqueta: Etiqueta) => {
                                                 >
                                                     <!-- Formulario de edición -->
                                                     <div v-if="editingEtiqueta === etiqueta.id" class="flex-1">
-                                                        <div class="grid grid-cols-2 gap-4 mb-2">
+                                                        <div class="space-y-4">
                                                             <Input
                                                                 v-model="etiquetaForm.nombre"
                                                                 placeholder="Nombre"
@@ -650,31 +652,31 @@ const handleDeleteEtiqueta = (etiqueta: Etiqueta) => {
                                                                 v-model="etiquetaForm.descripcion"
                                                                 placeholder="Descripción"
                                                             />
-                                                        </div>
-                                                        <div class="flex gap-2 items-end">
-                                                            <div class="flex-1">
-                                                                <EtiquetaHierarchySelector
-                                                                    v-model="etiquetaForm.parent_id"
-                                                                    :categorias="[categoria]"
-                                                                    :excluded-id="etiqueta.id"
-                                                                    label=""
-                                                                    placeholder="Etiqueta padre..."
-                                                                />
+                                                            <EtiquetaHierarchySelector
+                                                                v-model="etiquetaForm.parent_id"
+                                                                :categorias="[categoria]"
+                                                                :excluded-id="etiqueta.id"
+                                                                label=""
+                                                                placeholder="Etiqueta padre..."
+                                                            />
+                                                            <div class="flex gap-2">
+                                                                <Button
+                                                                    size="sm"
+                                                                    @click="updateEtiqueta(etiqueta.id)"
+                                                                    :disabled="etiquetaForm.processing"
+                                                                >
+                                                                    <Save class="h-4 w-4 mr-2" />
+                                                                    Guardar
+                                                                </Button>
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="outline"
+                                                                    @click="cancelEtiquetaEditing"
+                                                                >
+                                                                    <X class="h-4 w-4 mr-2" />
+                                                                    Cancelar
+                                                                </Button>
                                                             </div>
-                                                            <Button
-                                                                size="sm"
-                                                                @click="updateEtiqueta(etiqueta.id)"
-                                                                :disabled="etiquetaForm.processing"
-                                                            >
-                                                                <Save class="h-4 w-4" />
-                                                            </Button>
-                                                            <Button
-                                                                size="sm"
-                                                                variant="outline"
-                                                                @click="cancelEtiquetaEditing"
-                                                            >
-                                                                <X class="h-4 w-4" />
-                                                            </Button>
                                                         </div>
                                                     </div>
 
@@ -703,14 +705,16 @@ const handleDeleteEtiqueta = (etiqueta: Etiqueta) => {
                                                                 variant="outline"
                                                                 @click="startEditingEtiqueta(etiqueta)"
                                                             >
-                                                                <Edit class="h-4 w-4" />
+                                                                <Edit class="h-4 w-4 mr-2" />
+                                                                Editar
                                                             </Button>
                                                             <Button
                                                                 size="sm"
                                                                 variant="outline"
                                                                 @click="deleteEtiqueta(etiqueta.id)"
                                                             >
-                                                                <Trash2 class="h-4 w-4" />
+                                                                <Trash2 class="h-4 w-4 mr-2" />
+                                                                Eliminar
                                                             </Button>
                                                         </div>
                                                     </div>
