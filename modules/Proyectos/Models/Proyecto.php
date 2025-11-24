@@ -417,14 +417,30 @@ class Proyecto extends Model
      */
     public function sincronizarGestores(array $gestoresIds): void
     {
+        // Filtrar IDs inválidos (0, null, false, strings vacías)
+        $gestoresIds = array_filter($gestoresIds, function($id) {
+            return !empty($id) && is_numeric($id) && $id > 0;
+        });
+
+        // Si no hay gestores válidos, solo mantener otros participantes
+        if (empty($gestoresIds)) {
+            $otrosParticipantes = $this->participantes()
+                ->wherePivotIn('rol', ['participante', 'supervisor', 'colaborador'])
+                ->get()
+                ->mapWithKeys(function ($user) {
+                    return [$user->id => ['rol' => $user->pivot->rol]];
+                })
+                ->toArray();
+
+            $this->participantes()->sync($otrosParticipantes);
+            return;
+        }
+
         // Preparar datos para sincronizar con rol 'gestor'
         $gestoresConRol = [];
         foreach ($gestoresIds as $userId) {
             $gestoresConRol[$userId] = ['rol' => 'gestor'];
         }
-
-        // Obtener IDs actuales de gestores
-        $gestoresActuales = $this->gestores()->pluck('user_id')->toArray();
 
         // Obtener otros participantes (no gestores) que deben mantenerse
         $otrosParticipantes = $this->participantes()
@@ -435,8 +451,11 @@ class Proyecto extends Model
             })
             ->toArray();
 
+        // Usar array_replace en lugar de array_merge para preservar claves numéricas
+        $dataToSync = array_replace($otrosParticipantes, $gestoresConRol);
+
         // Sincronizar: mantener otros roles + nuevos gestores
-        $this->participantes()->sync(array_merge($otrosParticipantes, $gestoresConRol));
+        $this->participantes()->sync($dataToSync);
     }
 
     /**
