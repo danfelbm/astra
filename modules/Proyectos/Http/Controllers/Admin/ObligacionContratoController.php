@@ -158,9 +158,13 @@ class ObligacionContratoController extends AdminController
             }
         ]);
 
+        // Obtener actividades de la obligación
+        $actividades = $obligacion->getActivityLogs(50);
+
         return Inertia::render('Modules/Proyectos/Admin/Obligaciones/Show', [
             'obligacion' => $obligacion,
             'contrato' => $obligacion->contrato->load('proyecto'),
+            'actividades' => $actividades,
             'canEdit' => auth()->user()->can('obligaciones.edit'),
             'canDelete' => auth()->user()->can('obligaciones.delete'),
             // canComplete eliminado - estado deprecado

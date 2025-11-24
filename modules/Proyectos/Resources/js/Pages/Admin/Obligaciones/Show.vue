@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@modu
 import { Badge } from '@modules/Core/Resources/js/components/ui/badge';
 import { Label } from '@modules/Core/Resources/js/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@modules/Core/Resources/js/components/ui/tabs';
+import { Avatar, AvatarFallback, AvatarImage } from '@modules/Core/Resources/js/components/ui/avatar';
 import EvidenciaFilters from '@modules/Proyectos/Resources/js/components/EvidenciaFilters.vue';
 import EvidenciasTable from '@modules/Proyectos/Resources/js/components/EvidenciasTable.vue';
 import ObligacionTree from '@modules/Proyectos/Resources/js/components/ObligacionTree.vue';
@@ -16,7 +17,8 @@ import {
   Info,
   ListTree,
   Image,
-  ArrowLeft
+  ArrowLeft,
+  Activity
 } from 'lucide-vue-next';
 import { usePermissions } from '@modules/Core/Resources/js/composables/usePermissions';
 import { format, parseISO } from 'date-fns';
@@ -37,12 +39,31 @@ interface Evidencia {
   };
 }
 
+interface Usuario {
+  id: number;
+  name: string;
+  email: string;
+  avatar?: string;
+}
+
+interface Actividad {
+  id: number;
+  description: string;
+  causer: Usuario;
+  created_at: string;
+  properties?: {
+    attributes?: any;
+    old?: any;
+  };
+}
+
 interface Props {
   obligacion: any;
   contrato: any;
   canEdit: boolean;
   canDelete: boolean;
   canCreateChild: boolean;
+  actividades?: Actividad[];
 }
 
 const props = defineProps<Props>();
@@ -193,6 +214,13 @@ const formatDateShort = (dateString: string | undefined) => {
               {{ evidenciasDeLaObligacion.length }}
             </Badge>
           </TabsTrigger>
+          <TabsTrigger value="actividad">
+            <Activity class="h-4 w-4 mr-2" />
+            Actividad
+            <Badge v-if="actividades && actividades.length > 0" class="ml-2 h-5 px-1.5" variant="secondary">
+              {{ actividades.length }}
+            </Badge>
+          </TabsTrigger>
         </TabsList>
 
         <!-- Tab General -->
@@ -306,6 +334,46 @@ const formatDateShort = (dateString: string | undefined) => {
             card-title="Evidencias Asociadas"
             card-description="Evidencias cargadas para esta obligación"
           />
+        </TabsContent>
+
+        <!-- Tab Actividad -->
+        <TabsContent value="actividad" class="space-y-4 mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Historial de Actividad</CardTitle>
+              <CardDescription>
+                Registro de cambios y actividades relacionadas con esta obligación
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div v-if="actividades && actividades.length > 0" class="space-y-4">
+                <div
+                  v-for="actividad in actividades"
+                  :key="actividad.id"
+                  class="flex gap-3 pb-4 border-b last:border-0"
+                >
+                  <Avatar class="h-8 w-8">
+                    <AvatarImage v-if="actividad.causer?.avatar" :src="actividad.causer.avatar" />
+                    <AvatarFallback>
+                      {{ actividad.causer?.name?.substring(0, 2).toUpperCase() || 'SI' }}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div class="flex-1">
+                    <p class="text-sm">
+                      <span class="font-medium">{{ actividad.causer?.name || 'Sistema' }}</span>
+                      {{ actividad.description }}
+                    </p>
+                    <p class="text-xs text-muted-foreground mt-1">
+                      {{ formatDate(actividad.created_at) }}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <p v-else class="text-sm text-muted-foreground text-center py-8">
+                No hay actividad registrada
+              </p>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>
