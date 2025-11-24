@@ -191,7 +191,19 @@ class EntregableController extends AdminController
         ])->toArray();
 
         // Obtener actividades del entregable
-        $actividades = $entregable->getActivityLogs(50);
+        $actividades = $entregable->getActivityLogs(100);
+
+        // Obtener usuarios únicos de las actividades para los filtros
+        $usuariosActividades = $actividades
+            ->pluck('causer')
+            ->filter()
+            ->unique('id')
+            ->map(fn($user) => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email
+            ])
+            ->values();
 
         // Obtener campos personalizados con sus valores
         $camposPersonalizados = $this->campoPersonalizadoRepository->getActivosParaEntregables();
@@ -203,6 +215,7 @@ class EntregableController extends AdminController
             'entregable' => $entregable,
             'usuariosAsignados' => $usuariosAsignados,
             'actividades' => $actividades,
+            'usuariosActividades' => $usuariosActividades,
             'camposPersonalizados' => $camposPersonalizados,
             'valoresCamposPersonalizados' => $valoresCamposPersonalizados,
             'canEdit' => auth()->user()->can('entregables.edit'),

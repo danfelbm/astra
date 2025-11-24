@@ -145,8 +145,38 @@ class ProyectoController extends AdminController
                 ->get()
             : null;
 
-        // Obtener actividades del proyecto
-        $actividades = $proyecto->getActivityLogs(50);
+        // Obtener actividades acumuladas del proyecto + hitos + entregables
+        $actividadesProyecto = $proyecto->getActivityLogs();
+        $actividadesHitos = collect();
+        $actividadesEntregables = collect();
+
+        foreach ($proyecto->hitos as $hito) {
+            $actividadesHitos = $actividadesHitos->merge($hito->getActivityLogs());
+
+            foreach ($hito->entregables as $entregable) {
+                $actividadesEntregables = $actividadesEntregables->merge($entregable->getActivityLogs());
+            }
+        }
+
+        // Combinar todas las actividades y ordenar por fecha descendente
+        $actividades = $actividadesProyecto
+            ->merge($actividadesHitos)
+            ->merge($actividadesEntregables)
+            ->sortByDesc('created_at')
+            ->take(100) // Limitar a las 100 actividades más recientes
+            ->values();
+
+        // Obtener usuarios únicos de las actividades para los filtros
+        $usuariosActividades = $actividades
+            ->pluck('causer')
+            ->filter()
+            ->unique('id')
+            ->map(fn($user) => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email
+            ])
+            ->values();
 
         return Inertia::render('Modules/Proyectos/Admin/Proyectos/Show', [
             'proyecto' => $proyecto,
@@ -158,6 +188,7 @@ class ProyectoController extends AdminController
                 'hitos' => $totalHitos,
             ],
             'activities' => $actividades,
+            'usuariosActividades' => $usuariosActividades,
             'canEdit' => auth()->user()->can('proyectos.edit'),
             'canDelete' => auth()->user()->can('proyectos.delete'),
             'canManageTags' => auth()->user()->can('proyectos.manage_tags'),

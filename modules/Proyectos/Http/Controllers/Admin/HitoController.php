@@ -170,8 +170,32 @@ class HitoController extends AdminController
         $camposPersonalizados = $this->campoPersonalizadoRepository->getActivosParaHitos();
         $valoresCamposPersonalizados = $hito->getCamposPersonalizadosValues();
 
-        // Obtener actividades del hito
-        $actividades = $hito->getActivityLogs(50);
+        // Obtener actividades acumuladas del hito + entregables
+        $actividadesHito = $hito->getActivityLogs();
+        $actividadesEntregables = collect();
+
+        foreach ($hito->entregables as $entregable) {
+            $actividadesEntregables = $actividadesEntregables->merge($entregable->getActivityLogs());
+        }
+
+        // Combinar actividades y ordenar por fecha descendente
+        $actividades = $actividadesHito
+            ->merge($actividadesEntregables)
+            ->sortByDesc('created_at')
+            ->take(100) // Limitar a las 100 actividades más recientes
+            ->values();
+
+        // Obtener usuarios únicos de las actividades para los filtros
+        $usuariosActividades = $actividades
+            ->pluck('causer')
+            ->filter()
+            ->unique('id')
+            ->map(fn($user) => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email
+            ])
+            ->values();
 
         return Inertia::render('Modules/Proyectos/Admin/Hitos/Show', [
             'proyecto' => $proyecto,
@@ -180,6 +204,7 @@ class HitoController extends AdminController
             'camposPersonalizados' => $camposPersonalizados,
             'valoresCamposPersonalizados' => $valoresCamposPersonalizados,
             'actividades' => $actividades,
+            'usuariosActividades' => $usuariosActividades,
             'canEdit' => auth()->user()->can('hitos.edit'),
             'canDelete' => auth()->user()->can('hitos.delete'),
             'canManageEntregables' => auth()->user()->can('hitos.manage_deliverables'),
