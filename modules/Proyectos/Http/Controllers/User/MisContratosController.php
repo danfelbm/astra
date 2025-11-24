@@ -19,31 +19,18 @@ class MisContratosController extends UserController
     }
 
     /**
-     * Muestra los contratos de los proyectos del usuario.
+     * Muestra los contratos donde el usuario tiene relación DIRECTA.
+     * IMPORTANTE: Solo mostrar contratos donde el usuario es responsable, contraparte o participante.
+     * NO mostrar todos los contratos de proyectos donde el usuario es gestor/responsable.
      */
     public function index(Request $request): Response
     {
         $user = auth()->user();
 
-        // Obtener proyectos donde el usuario tiene alguna relación
-        $proyectosIds = Proyecto::where(function ($query) use ($user) {
-                $query->where('responsable_id', $user->id)
-                      ->orWhere('created_by', $user->id)
-                      ->orWhereHas('gestores', function ($q) use ($user) {
-                          $q->where('user_id', $user->id);
-                      })
-                      ->orWhereHas('contratos', function ($q) use ($user) {
-                          $q->where('responsable_id', $user->id)
-                            ->orWhere('contraparte_user_id', $user->id);
-                      });
-            })
-            ->pluck('id');
-
-        // Obtener contratos donde el usuario tiene algún tipo de relación
+        // Obtener contratos donde el usuario tiene relación DIRECTA
         $query = Contrato::with(['proyecto', 'responsable', 'contraparteUser'])
-            ->where(function ($q) use ($proyectosIds, $user) {
-                $q->whereIn('proyecto_id', $proyectosIds)
-                  ->orWhere('responsable_id', $user->id)
+            ->where(function ($q) use ($user) {
+                $q->where('responsable_id', $user->id)
                   ->orWhere('contraparte_user_id', $user->id)
                   ->orWhereHas('participantes', function ($query) use ($user) {
                       $query->where('user_id', $user->id);
@@ -97,7 +84,17 @@ class MisContratosController extends UserController
             'monto_total' => (clone $queryStats)->sum('monto_total') ?? 0,
         ];
 
-        // Mis proyectos para filtro
+        // Obtener proyectos únicos de los contratos a los que el usuario tiene acceso
+        $proyectosIds = Contrato::where(function ($q) use ($user) {
+                $q->where('responsable_id', $user->id)
+                  ->orWhere('contraparte_user_id', $user->id)
+                  ->orWhereHas('participantes', function ($query) use ($user) {
+                      $query->where('user_id', $user->id);
+                  });
+            })
+            ->distinct()
+            ->pluck('proyecto_id');
+
         $misProyectos = Proyecto::whereIn('id', $proyectosIds)
             ->orderBy('nombre')
             ->get(['id', 'nombre']);
@@ -177,30 +174,19 @@ class MisContratosController extends UserController
     }
 
     /**
-     * Muestra contratos próximos a vencer del usuario.
+     * Muestra contratos próximos a vencer donde el usuario tiene relación DIRECTA.
      */
     public function proximosVencer(): Response
     {
         $user = auth()->user();
 
-        // Obtener proyectos donde el usuario tiene alguna relación
-        $proyectosIds = Proyecto::where(function ($query) use ($user) {
-                $query->where('responsable_id', $user->id)
-                      ->orWhere('created_by', $user->id)
-                      ->orWhereHas('gestores', function ($q) use ($user) {
-                          $q->where('user_id', $user->id);
-                      })
-                      ->orWhereHas('contratos', function ($q) use ($user) {
-                          $q->where('responsable_id', $user->id)
-                            ->orWhere('contraparte_user_id', $user->id);
-                      });
-            })
-            ->pluck('id');
-
         $contratos = Contrato::with(['proyecto', 'responsable'])
-            ->where(function ($q) use ($proyectosIds, $user) {
-                $q->whereIn('proyecto_id', $proyectosIds)
-                  ->orWhere('responsable_id', $user->id);
+            ->where(function ($q) use ($user) {
+                $q->where('responsable_id', $user->id)
+                  ->orWhere('contraparte_user_id', $user->id)
+                  ->orWhereHas('participantes', function ($query) use ($user) {
+                      $query->where('user_id', $user->id);
+                  });
             })
             ->where('estado', 'activo')
             ->where('fecha_fin', '<=', now()->addDays(30))
@@ -214,30 +200,19 @@ class MisContratosController extends UserController
     }
 
     /**
-     * Muestra contratos vencidos del usuario.
+     * Muestra contratos vencidos donde el usuario tiene relación DIRECTA.
      */
     public function vencidos(): Response
     {
         $user = auth()->user();
 
-        // Obtener proyectos donde el usuario tiene alguna relación
-        $proyectosIds = Proyecto::where(function ($query) use ($user) {
-                $query->where('responsable_id', $user->id)
-                      ->orWhere('created_by', $user->id)
-                      ->orWhereHas('gestores', function ($q) use ($user) {
-                          $q->where('user_id', $user->id);
-                      })
-                      ->orWhereHas('contratos', function ($q) use ($user) {
-                          $q->where('responsable_id', $user->id)
-                            ->orWhere('contraparte_user_id', $user->id);
-                      });
-            })
-            ->pluck('id');
-
         $contratos = Contrato::with(['proyecto', 'responsable'])
-            ->where(function ($q) use ($proyectosIds, $user) {
-                $q->whereIn('proyecto_id', $proyectosIds)
-                  ->orWhere('responsable_id', $user->id);
+            ->where(function ($q) use ($user) {
+                $q->where('responsable_id', $user->id)
+                  ->orWhere('contraparte_user_id', $user->id)
+                  ->orWhereHas('participantes', function ($query) use ($user) {
+                      $query->where('user_id', $user->id);
+                  });
             })
             ->where('estado', 'activo')
             ->where('fecha_fin', '<', now())

@@ -164,6 +164,19 @@ class ContratoController extends AdminController
         // Cargar relaciones adicionales para contraparte, participantes y responsable
         $contrato->load(['contraparteUser', 'participantes', 'responsable']);
 
+        // 🔍 DEBUG: Verificar qué tiene contraparteUser
+        \Log::info('🔍 ContratoController@edit - DEBUG CONTRAPARTE', [
+            'contrato_id' => $contrato->id,
+            'contraparte_user_id' => $contrato->contraparte_user_id,
+            'contraparteUser_cargado' => $contrato->contraparteUser ? 'SI' : 'NO',
+            'contraparteUser_data' => $contrato->contraparteUser ? [
+                'id' => $contrato->contraparteUser->id,
+                'name' => $contrato->contraparteUser->name,
+                'email' => $contrato->contraparteUser->email,
+            ] : null,
+            'contrato_nombre' => $contrato->nombre,
+        ]);
+
         $proyectos = Proyecto::activos()->orderBy('nombre')->get();
         $camposPersonalizados = CampoPersonalizado::paraContratos()->activos()->ordenado()->get();
 
@@ -173,8 +186,31 @@ class ContratoController extends AdminController
             $valoresCampos[$valor->campo_personalizado_contrato_id] = $valor->valor;
         }
 
+        // 🔧 FIX: Asegurar que las relaciones se serialicen correctamente para Inertia
+        $contratoArray = $contrato->toArray();
+        $contratoArray['contraparteUser'] = $contrato->contraparteUser ? [
+            'id' => $contrato->contraparteUser->id,
+            'name' => $contrato->contraparteUser->name,
+            'email' => $contrato->contraparteUser->email,
+        ] : null;
+        $contratoArray['responsable'] = $contrato->responsable ? [
+            'id' => $contrato->responsable->id,
+            'name' => $contrato->responsable->name,
+            'email' => $contrato->responsable->email,
+        ] : null;
+        $contratoArray['participantes'] = $contrato->participantes->map(fn($p) => [
+            'id' => $p->id,
+            'name' => $p->name,
+            'email' => $p->email,
+            'pivot' => [
+                'user_id' => $p->pivot->user_id,
+                'rol' => $p->pivot->rol,
+                'notas' => $p->pivot->notas,
+            ]
+        ])->toArray();
+
         return Inertia::render('Modules/Proyectos/Admin/Contratos/Edit', [
-            'contrato' => $contrato,
+            'contrato' => $contratoArray,
             'proyectos' => $proyectos,
             'camposPersonalizados' => $camposPersonalizados,
             'valoresCampos' => $valoresCampos,
