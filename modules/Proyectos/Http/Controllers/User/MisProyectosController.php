@@ -33,7 +33,8 @@ class MisProyectosController extends UserController
                           $q->where('user_id', auth()->id());
                       })
                       ->orWhereHas('contratos', function ($q) {
-                          $q->where('responsable_id', auth()->id());
+                          $q->where('responsable_id', auth()->id())
+                            ->orWhere('contraparte_user_id', auth()->id());
                       });
             })
             ->when($request->search, function ($query, $search) {
