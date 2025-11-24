@@ -62,79 +62,16 @@
         <CardTitle>Archivos Adjuntos</CardTitle>
       </CardHeader>
       <CardContent>
-        <!-- Archivos existentes (solo en edición) -->
-        <div v-if="obligacion?.archivos_adjuntos?.length" class="mb-4">
-          <Label>Archivos actuales</Label>
-          <div class="space-y-2 mt-2">
-            <div
-              v-for="(archivo, index) in obligacion.archivos_adjuntos"
-              :key="index"
-              class="flex items-center justify-between p-2 bg-gray-50 rounded-lg"
-            >
-              <div class="flex items-center gap-2">
-                <Paperclip class="h-4 w-4 text-gray-500" />
-                <span class="text-sm">{{ archivo.nombre_original }}</span>
-                <Badge variant="outline" class="text-xs">
-                  {{ formatFileSize(archivo.tamaño) }}
-                </Badge>
-              </div>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                class="h-8 w-8 text-red-600"
-                @click="eliminarArchivo(archivo.ruta)"
-              >
-                <X class="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Nuevos archivos -->
-        <div>
-          <Label for="archivos">Agregar nuevos archivos</Label>
-          <Input
-            id="archivos"
-            type="file"
-            multiple
-            accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
-            @change="handleFileChange"
-            class="mt-1"
-          />
-          <p class="text-xs text-gray-500 mt-1">
-            Formatos permitidos: PDF, Word, Excel, Imágenes. Máximo 5MB por archivo.
-          </p>
-        </div>
-
-        <!-- Vista previa de archivos nuevos -->
-        <div v-if="nuevosArchivos.length > 0" class="mt-4">
-          <Label>Archivos a subir</Label>
-          <div class="space-y-2 mt-2">
-            <div
-              v-for="(archivo, index) in nuevosArchivos"
-              :key="index"
-              class="flex items-center justify-between p-2 bg-blue-50 rounded-lg"
-            >
-              <div class="flex items-center gap-2">
-                <Upload class="h-4 w-4 text-blue-500" />
-                <span class="text-sm">{{ archivo.name }}</span>
-                <Badge variant="outline" class="text-xs">
-                  {{ formatFileSize(archivo.size) }}
-                </Badge>
-              </div>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                class="h-8 w-8"
-                @click="removerNuevoArchivo(index)"
-              >
-                <X class="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        </div>
+        <FileAttachmentManager
+          :existing-files="archivosExistentesFiltrados"
+          description="Formatos: PDF, Word, Excel, Imágenes"
+          :multiple="true"
+          :max-files="20"
+          :max-size-m-b="5"
+          accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
+          @files-added="handleFilesAdded"
+          @file-removed="handleFileRemoved"
+        />
       </CardContent>
     </Card>
 
@@ -166,8 +103,6 @@ import { Label } from '@modules/Core/Resources/js/components/ui/label';
 import { Input } from '@modules/Core/Resources/js/components/ui/input';
 import { Textarea } from '@modules/Core/Resources/js/components/ui/textarea';
 import { Button } from '@modules/Core/Resources/js/components/ui/button';
-import { Badge } from '@modules/Core/Resources/js/components/ui/badge';
-// Slider no disponible, usando input range nativo
 import {
   Select,
   SelectContent,
@@ -176,12 +111,8 @@ import {
   SelectValue
 } from '@modules/Core/Resources/js/components/ui/select';
 import InputError from '@modules/Core/Resources/js/components/InputError.vue';
-import {
-  Loader2,
-  Paperclip,
-  Upload,
-  X
-} from 'lucide-vue-next';
+import FileAttachmentManager from '@modules/Core/Resources/js/components/forms/FileAttachmentManager.vue';
+import { Loader2 } from 'lucide-vue-next';
 import type { ObligacionContrato, ObligacionFormProps, ObligacionFormData } from '@modules/Proyectos/Resources/js/types/obligaciones';
 
 const props = withDefaults(defineProps<ObligacionFormProps>(), {
@@ -204,56 +135,34 @@ const form = ref<ObligacionFormData>({
   archivos_eliminar: [],
 });
 
-const nuevosArchivos = ref<File[]>([]);
 const obligacionesPadre = ref<ObligacionContrato[]>([]); // Cargar desde API para mostrar jerarquía
+
+// Computed para archivos existentes filtrados (excluyendo los marcados para eliminar)
+const archivosExistentesFiltrados = computed(() => {
+  const archivosOriginales = props.obligacion?.archivos_adjuntos || [];
+  return archivosOriginales.filter((archivo: any) =>
+    !form.value.archivos_eliminar?.includes(archivo.ruta)
+  );
+});
 
 // Métodos
 const handleSubmit = () => {
   const formData = {
-    ...form.value,
-    archivos: nuevosArchivos.value
+    ...form.value
   };
   emit('submit', formData);
 };
 
-const handleFileChange = (event: Event) => {
-  const input = event.target as HTMLInputElement;
-  if (!input.files) return;
-
-  const archivos = Array.from(input.files);
-
-  // Validar tamaño (máximo 5MB por archivo)
-  const archivosValidos = archivos.filter(archivo => {
-    if (archivo.size > 5 * 1024 * 1024) {
-      alert(`El archivo ${archivo.name} excede el tamaño máximo de 5MB`);
-      return false;
-    }
-    return true;
-  });
-
-  nuevosArchivos.value.push(...archivosValidos);
-  form.value.archivos = nuevosArchivos.value;
-
-  // Limpiar input
-  input.value = '';
+// Manejar archivos agregados desde FileAttachmentManager
+const handleFilesAdded = (files: File[]) => {
+  form.value.archivos = files;
 };
 
-const removerNuevoArchivo = (index: number) => {
-  nuevosArchivos.value.splice(index, 1);
-  form.value.archivos = nuevosArchivos.value;
-};
-
-const eliminarArchivo = (ruta: string) => {
-  if (confirm('¿Estás seguro de eliminar este archivo?')) {
-    form.value.archivos_eliminar = form.value.archivos_eliminar || [];
+// Manejar archivos eliminados desde FileAttachmentManager
+const handleFileRemoved = (ruta: string) => {
+  form.value.archivos_eliminar = form.value.archivos_eliminar || [];
+  if (!form.value.archivos_eliminar.includes(ruta)) {
     form.value.archivos_eliminar.push(ruta);
   }
-};
-
-const formatFileSize = (bytes: number | undefined): string => {
-  if (!bytes) return '0 KB';
-  const sizes = ['B', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(1024));
-  return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${sizes[i]}`;
 };
 </script>

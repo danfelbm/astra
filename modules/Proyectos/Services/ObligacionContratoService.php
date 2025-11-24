@@ -101,7 +101,13 @@ class ObligacionContratoService
             if (isset($data['archivos_eliminar'])) {
                 $this->eliminarArchivos($data['archivos_eliminar']);
                 $archivosActuales = $obligacion->archivos_adjuntos ?? [];
-                $data['archivos_adjuntos'] = array_diff($archivosActuales, $data['archivos_eliminar']);
+
+                // Filtrar archivos: mantener solo aquellos cuya ruta NO esté en archivos_eliminar
+                $data['archivos_adjuntos'] = array_values(array_filter($archivosActuales, function($archivo) use ($data) {
+                    $ruta = is_array($archivo) ? ($archivo['ruta'] ?? '') : $archivo;
+                    return !in_array($ruta, $data['archivos_eliminar']);
+                }));
+
                 unset($data['archivos_eliminar']);
             }
 

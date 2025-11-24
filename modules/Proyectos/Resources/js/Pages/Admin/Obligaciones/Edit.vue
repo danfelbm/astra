@@ -37,9 +37,12 @@ const form = useForm({
 const handleSubmit = (data: any) => {
   const formData = new FormData();
 
-  // Agregar campos normales
-  Object.keys(data).forEach(key => {
-    if (key !== 'archivos' && data[key] !== undefined && data[key] !== null) {
+  // Lista blanca de campos permitidos (según UpdateObligacionContratoRequest)
+  const camposPermitidos = ['parent_id', 'titulo', 'descripcion', 'orden'];
+
+  // Agregar solo campos permitidos
+  camposPermitidos.forEach(key => {
+    if (data[key] !== undefined && data[key] !== null) {
       formData.append(key, String(data[key]));
     }
   });
@@ -51,18 +54,26 @@ const handleSubmit = (data: any) => {
     });
   }
 
-  router.post(route('admin.obligaciones.update', props.obligacion.id), {
-    ...formData,
-    _method: 'PUT'
-  }, {
+  // Agregar archivos a eliminar si hay
+  if (data.archivos_eliminar && data.archivos_eliminar.length > 0) {
+    data.archivos_eliminar.forEach((ruta: string, index: number) => {
+      formData.append(`archivos_eliminar[${index}]`, ruta);
+    });
+  }
+
+  // Agregar método PUT
+  formData.append('_method', 'PUT');
+
+  router.post(route('admin.obligaciones.update', props.obligacion.id), formData, {
     forceFormData: true,
     preserveScroll: true,
     onSuccess: () => {
       toast.success('Obligación actualizada exitosamente');
       router.visit(route('admin.obligaciones.show', props.obligacion.id));
     },
-    onError: () => {
-      toast.error('Error al actualizar la obligación');
+    onError: (errors) => {
+      console.error('Errores al actualizar:', errors);
+      toast.error('Error al actualizar la obligación. Revisa los campos.');
     }
   });
 };
