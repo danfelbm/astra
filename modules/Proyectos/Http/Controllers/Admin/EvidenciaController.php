@@ -143,7 +143,7 @@ class EvidenciaController extends AdminController
             return back()->with('success', $result['message'] ?? 'Evidencia aprobada exitosamente');
         } elseif ($nuevoEstado === 'rechazada') {
             $result = $this->service->rechazar($evidencia, $observaciones);
-            return back()->with('success', $result['message'] ?? 'Evidencia rechazada');
+            return back()->with('error', $result['message'] ?? 'Evidencia rechazada');
         } else {
             // Volver a pendiente
             $evidencia->estado = 'pendiente';
@@ -152,7 +152,7 @@ class EvidenciaController extends AdminController
             $evidencia->revisado_por = null;
             $evidencia->save();
 
-            return back()->with('success', 'Estado cambiado a pendiente');
+            return back()->with('info', 'Estado cambiado a pendiente');
         }
     }
 }
