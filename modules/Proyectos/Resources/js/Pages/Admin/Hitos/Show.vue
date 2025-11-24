@@ -28,7 +28,7 @@ import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { BreadcrumbItem } from '@/types';
 import type { Hito, Entregable } from '@modules/Proyectos/Resources/js/types/hitos';
-import EntregablesList from '@modules/Proyectos/Resources/js/components/EntregablesList.vue';
+import EntregablesTable from '@modules/Proyectos/Resources/js/components/EntregablesTable.vue';
 import ActivityFilters from '@modules/Proyectos/Resources/js/components/ActivityFilters.vue';
 import ActivityLog from '@modules/Proyectos/Resources/js/components/ActivityLog.vue';
 
@@ -139,6 +139,10 @@ const crearEntregable = () => {
     router.visit(`/admin/proyectos/${props.proyecto.id}/hitos/${props.hito.id}/entregables/create`);
 };
 
+const verEntregable = (entregable: Entregable) => {
+    router.visit(`/admin/proyectos/${props.proyecto.id}/hitos/${props.hito.id}/entregables/${entregable.id}`);
+};
+
 const editarEntregable = (entregable: Entregable) => {
     router.visit(`/admin/proyectos/${props.proyecto.id}/hitos/${props.hito.id}/entregables/${entregable.id}/edit`);
 };
@@ -150,6 +154,30 @@ const eliminarEntregable = (entregable: Entregable) => {
         },
         onError: () => {
             toast.error('Error al eliminar el entregable');
+        }
+    });
+};
+
+const completarEntregable = (entregable: Entregable) => {
+    router.post(`/admin/proyectos/${props.proyecto.id}/hitos/${props.hito.id}/entregables/${entregable.id}/completar`, {}, {
+        onSuccess: () => {
+            toast.success('Entregable completado exitosamente');
+        },
+        onError: () => {
+            toast.error('Error al completar el entregable');
+        }
+    });
+};
+
+const marcarEnProgreso = (entregable: Entregable) => {
+    router.post(`/admin/proyectos/${props.proyecto.id}/hitos/${props.hito.id}/entregables/${entregable.id}/actualizar-estado`, {
+        estado: 'en_progreso'
+    }, {
+        onSuccess: () => {
+            toast.success('Entregable marcado como en progreso');
+        },
+        onError: () => {
+            toast.error('Error al actualizar el estado');
         }
     });
 };
@@ -560,12 +588,20 @@ const actividadesFiltradas = computed(() => {
                         </Button>
                     </div>
 
-                    <EntregablesList
+                    <EntregablesTable
                         :entregables="hito.entregables || []"
+                        :proyecto-id="proyecto.id"
+                        :hito-id="hito.id"
                         :can-edit="canManageEntregables"
                         :can-delete="canManageEntregables"
+                        :can-complete="canManageEntregables"
+                        :show-checkbox="false"
+                        :grouped="true"
+                        @view="verEntregable"
                         @edit="editarEntregable"
                         @delete="eliminarEntregable"
+                        @complete="completarEntregable"
+                        @mark-in-progress="marcarEnProgreso"
                     />
 
                     <!-- Mensaje si no hay entregables -->
