@@ -186,11 +186,8 @@ const monedas = [
     { value: 'PEN', label: 'PEN - Sol Peruano' },
 ];
 
-// Computed para obtener la contraparte seleccionada (del modelo de contrato)
-const contraparteSeleccionada = computed(() => {
-    if (!form.contraparte_user_id) return null;
-    return props.contrato.contraparteUser || null;
-});
+// Ref para la contraparte seleccionada
+const contraparteSeleccionada = ref<User | null>(props.contrato.contraparteUser || null);
 
 // Ref para el responsable seleccionado
 const responsableSeleccionado = ref<User | null>(props.contrato.responsable || null);
@@ -235,6 +232,7 @@ const handleContraparteSelect = (data: { userIds: number[]; extraData: Record<st
         // Actualizar automáticamente los datos de la contraparte
         if (data.users && data.users.length > 0) {
             const usuario = data.users[0];
+            contraparteSeleccionada.value = usuario; // Guardar el objeto User completo
             form.contraparte_nombre = usuario.name;
             form.contraparte_email = usuario.email || '';
         }
@@ -938,7 +936,7 @@ onUnmounted(() => {
                                                 type="button"
                                                 variant="ghost"
                                                 size="sm"
-                                                @click="form.contraparte_user_id = null; form.contraparte_nombre = ''; form.contraparte_email = ''"
+                                                @click="form.contraparte_user_id = null; contraparteSeleccionada = null; form.contraparte_nombre = ''; form.contraparte_email = ''"
                                                 :disabled="!puedeEditar"
                                             >
                                                 <X class="h-4 w-4" />
