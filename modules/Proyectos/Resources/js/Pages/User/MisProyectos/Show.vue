@@ -326,23 +326,16 @@ const formatCampoValor = (campo: CampoPersonalizado) => {
 
             <!-- Navegación con Tabs -->
             <Tabs v-model="activeTab" class="w-full">
-                <TabsList class="grid w-full grid-cols-5">
+                <TabsList class="grid w-full grid-cols-4">
                     <TabsTrigger value="general">
                         <Info class="mr-2 h-4 w-4" />
                         General
                     </TabsTrigger>
                     <TabsTrigger value="usuarios">
                         <UsersIcon class="mr-2 h-4 w-4" />
-                        Usuarios
-                        <Badge v-if="totales?.usuarios" class="ml-2 h-5 px-1.5" variant="secondary">
-                            {{ totales.usuarios }}
-                        </Badge>
-                    </TabsTrigger>
-                    <TabsTrigger value="contratos">
-                        <FileText class="mr-2 h-4 w-4" />
-                        Contratos
-                        <Badge v-if="totales?.contratos" class="ml-2 h-5 px-1.5" variant="secondary">
-                            {{ totales.contratos }}
+                        Personas
+                        <Badge v-if="totales?.usuarios || totales?.contratos" class="ml-2 h-5 px-1.5" variant="secondary">
+                            {{ (totales?.usuarios || 0) + (totales?.contratos || 0) }}
                         </Badge>
                     </TabsTrigger>
                     <TabsTrigger value="evidencias">
@@ -611,11 +604,9 @@ const formatCampoValor = (campo: CampoPersonalizado) => {
                             </div>
                         </CardContent>
                     </Card>
-                </TabsContent>
 
-                <!-- Tab de Contratos -->
-                <TabsContent value="contratos" class="space-y-4 mt-6">
-                    <Card v-if="proyecto.contratos && proyecto.contratos.length > 0">
+                    <!-- Contratos del Proyecto -->
+                    <Card v-if="proyecto.contratos && proyecto.contratos.length > 0" class="mt-6">
                         <CardHeader>
                             <CardTitle>Contratos del Proyecto</CardTitle>
                             <CardDescription>
@@ -628,18 +619,10 @@ const formatCampoValor = (campo: CampoPersonalizado) => {
                                     v-for="contrato in proyecto.contratos"
                                     :key="contrato.id"
                                     :contrato="contrato"
-                                    :proyecto-id="proyecto.id"
-                                    :can-edit="false"
+                                    :show-proyecto="false"
                                     :show-actions="true"
+                                    view-mode="user"
                                 />
-                            </div>
-                        </CardContent>
-                    </Card>
-                    <Card v-else>
-                        <CardContent class="py-8">
-                            <div class="text-center">
-                                <FileText class="mx-auto h-12 w-12 text-gray-400" />
-                                <p class="mt-2 text-sm text-gray-600">No hay contratos asociados</p>
                             </div>
                         </CardContent>
                     </Card>
@@ -792,7 +775,7 @@ const formatCampoValor = (campo: CampoPersonalizado) => {
                                     :key="hito.id"
                                     :hito="hito"
                                     :show-entregables="true"
-                                    :can-edit="false"
+                                    :show-actions="true"
                                 />
                             </div>
                         </CardContent>
