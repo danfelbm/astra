@@ -33,7 +33,8 @@ class MisContratosController extends UserController
                           $q->where('user_id', $user->id);
                       })
                       ->orWhereHas('contratos', function ($q) use ($user) {
-                          $q->where('responsable_id', $user->id);
+                          $q->where('responsable_id', $user->id)
+                            ->orWhere('contraparte_user_id', $user->id);
                       });
             })
             ->pluck('id');
@@ -190,7 +191,8 @@ class MisContratosController extends UserController
                           $q->where('user_id', $user->id);
                       })
                       ->orWhereHas('contratos', function ($q) use ($user) {
-                          $q->where('responsable_id', $user->id);
+                          $q->where('responsable_id', $user->id)
+                            ->orWhere('contraparte_user_id', $user->id);
                       });
             })
             ->pluck('id');
@@ -226,7 +228,8 @@ class MisContratosController extends UserController
                           $q->where('user_id', $user->id);
                       })
                       ->orWhereHas('contratos', function ($q) use ($user) {
-                          $q->where('responsable_id', $user->id);
+                          $q->where('responsable_id', $user->id)
+                            ->orWhere('contraparte_user_id', $user->id);
                       });
             })
             ->pluck('id');
