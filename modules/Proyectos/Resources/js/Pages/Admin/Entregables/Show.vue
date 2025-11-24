@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
-import { Head, Link } from '@inertiajs/vue3';
+import { computed, ref, watch } from 'vue';
+import { Head, Link, router } from '@inertiajs/vue3';
 import AdminLayout from '@modules/Core/Resources/js/layouts/AdminLayout.vue';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@modules/Core/Resources/js/components/ui/card';
 import { Button } from '@modules/Core/Resources/js/components/ui/button';
@@ -133,8 +133,28 @@ const props = defineProps<Props>();
 const usuariosAsignados = computed(() => props.usuariosAsignados || []);
 const actividades = computed(() => props.actividades || []);
 
-// Estado para el tab activo
-const activeTab = ref('detalles');
+// Tabs válidos para validación
+const validTabs = ['detalles', 'equipo', 'evidencias', 'actividad'];
+
+// Estado para el tab activo - leer de URL query params
+const getInitialTab = (): string => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const tabFromUrl = urlParams.get('tab');
+    return tabFromUrl && validTabs.includes(tabFromUrl) ? tabFromUrl : 'detalles';
+};
+
+const activeTab = ref(getInitialTab());
+
+// Sincronizar tab con URL usando query params
+watch(activeTab, (newTab) => {
+    const url = `/admin/proyectos/${props.proyecto.id}/hitos/${props.hito.id}/entregables/${props.entregable.id}?tab=${newTab}`;
+    router.get(url, {}, {
+        preserveState: true,
+        preserveScroll: true,
+        replace: true,
+        only: []
+    });
+});
 
 // Estado para filtros de evidencias
 const filtrosEvidencias = ref({

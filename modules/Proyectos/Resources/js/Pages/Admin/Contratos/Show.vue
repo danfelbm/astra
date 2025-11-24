@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { router, Link, usePage } from '@inertiajs/vue3';
 import { type BreadcrumbItem } from '@/types';
 import AdminLayout from '@modules/Core/Resources/js/layouts/AdminLayout.vue';
@@ -104,7 +104,29 @@ const props = defineProps<{
 
 const toast = useToast();
 const { downloadFile: downloadFileFromServer } = useFileUpload();
-const activeTab = ref('general');
+
+// Tabs válidos para validación
+const validTabs = ['general', 'participantes', 'archivos', 'campos', 'obligaciones'];
+
+// Estado para el tab activo - leer de URL query params
+const getInitialTab = (): string => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const tabFromUrl = urlParams.get('tab');
+    return tabFromUrl && validTabs.includes(tabFromUrl) ? tabFromUrl : 'general';
+};
+
+const activeTab = ref(getInitialTab());
+
+// Sincronizar tab con URL usando query params
+watch(activeTab, (newTab) => {
+    const url = `/admin/contratos/${props.contrato.id}?tab=${newTab}`;
+    router.get(url, {}, {
+        preserveState: true,
+        preserveScroll: true,
+        replace: true,
+        only: []
+    });
+});
 
 // Breadcrumbs para navegación
 const breadcrumbs: BreadcrumbItem[] = [

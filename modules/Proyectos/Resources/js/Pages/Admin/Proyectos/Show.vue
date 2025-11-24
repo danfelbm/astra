@@ -45,7 +45,7 @@ import EvidenciasDisplay from "@modules/Proyectos/Resources/js/components/Eviden
 import ActivityFilters from "@modules/Proyectos/Resources/js/components/ActivityFilters.vue";
 import ActivityLog from "@modules/Proyectos/Resources/js/components/ActivityLog.vue";
 import { useEtiquetas } from '@modules/Proyectos/Resources/js/composables/useEtiquetas';
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import type { Etiqueta, CategoriaEtiqueta } from '@modules/Proyectos/Resources/js/types/etiquetas';
 import type { Contrato } from '@modules/Proyectos/Resources/js/types/contratos';
 import type { Hito } from '@modules/Proyectos/Resources/js/types/hitos';
@@ -152,8 +152,32 @@ interface Props {
 
 const props = defineProps<Props>();
 
-// Estado para el tab activo
-const activeTab = ref('general');
+// Tabs válidos para validación
+const validTabs = ['general', 'contratos', 'hitos', 'evidencias', 'actividad'];
+
+// Estado para el tab activo - leer de URL query params
+const getInitialTab = (): string => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const tabFromUrl = urlParams.get('tab');
+    // Validar que el tab existe, si no usar 'general' como default
+    return tabFromUrl && validTabs.includes(tabFromUrl) ? tabFromUrl : 'general';
+};
+
+const activeTab = ref(getInitialTab());
+
+// Sincronizar tab con URL usando query params
+watch(activeTab, (newTab) => {
+    // Construir URL con query param
+    const url = `/admin/proyectos/${props.proyecto.id}?tab=${newTab}`;
+
+    // Navegar sin recargar el componente ni cambiar el scroll
+    router.get(url, {}, {
+        preserveState: true,    // No recargar el componente
+        preserveScroll: true,   // Mantener posición de scroll
+        replace: true,          // Reemplazar en historial (no agregar entrada)
+        only: []                // No recargar ningún prop desde el servidor
+    });
+});
 
 // Computed para verificar si el usuario puede gestionar evidencias
 const puedeGestionarEvidencias = computed(() => {

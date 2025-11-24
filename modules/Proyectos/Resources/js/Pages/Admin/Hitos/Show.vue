@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import AdminLayout from "@modules/Core/Resources/js/layouts/AdminLayout.vue";
 import { Head, Link, router } from '@inertiajs/vue3';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@modules/Core/Resources/js/components/ui/card";
@@ -97,8 +97,28 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: props.hito.nombre, href: '#' },
 ];
 
-// Estado local
-const activeTab = ref('detalles');
+// Tabs válidos para validación
+const validTabs = ['detalles', 'entregables', 'actividad'];
+
+// Estado para el tab activo - leer de URL query params
+const getInitialTab = (): string => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const tabFromUrl = urlParams.get('tab');
+    return tabFromUrl && validTabs.includes(tabFromUrl) ? tabFromUrl : 'detalles';
+};
+
+const activeTab = ref(getInitialTab());
+
+// Sincronizar tab con URL usando query params
+watch(activeTab, (newTab) => {
+    const url = `/admin/proyectos/${props.proyecto.id}/hitos/${props.hito.id}?tab=${newTab}`;
+    router.get(url, {}, {
+        preserveState: true,
+        preserveScroll: true,
+        replace: true,
+        only: []
+    });
+});
 
 // Estado para filtros de actividades
 const filtrosActividades = ref({
