@@ -29,6 +29,7 @@ import { es } from 'date-fns/locale';
 import type { BreadcrumbItem } from '@/types';
 import type { Hito, Entregable } from '@modules/Proyectos/Resources/js/types/hitos';
 import EntregablesTable from '@modules/Proyectos/Resources/js/components/EntregablesTable.vue';
+import EntregablesFilters from '@modules/Proyectos/Resources/js/components/EntregablesFilters.vue';
 import ActivityFilters from '@modules/Proyectos/Resources/js/components/ActivityFilters.vue';
 import ActivityLog from '@modules/Proyectos/Resources/js/components/ActivityLog.vue';
 
@@ -104,6 +105,16 @@ const filtrosActividades = ref({
     usuario_id: null as number | null,
     tipo_entidad: null as string | null,
     tipo_accion: null as string | null,
+    fecha_inicio: null as string | null,
+    fecha_fin: null as string | null
+});
+
+// Estado para filtros de entregables
+const filtrosEntregables = ref({
+    search: null as string | null,
+    estado: null as string | null,
+    prioridad: null as string | null,
+    responsable_id: null as number | null,
     fecha_inicio: null as string | null,
     fecha_fin: null as string | null
 });
@@ -232,6 +243,70 @@ const formatCampoPersonalizado = (campo: CampoPersonalizado, valor: any) => {
             return valor;
     }
 };
+
+// Entregables filtrados
+const entregablesFiltrados = computed(() => {
+    let result = props.hito.entregables || [];
+
+    // Filtrar por búsqueda
+    if (filtrosEntregables.value.search) {
+        const searchLower = filtrosEntregables.value.search.toLowerCase();
+        result = result.filter(e =>
+            e.nombre.toLowerCase().includes(searchLower) ||
+            (e.descripcion && e.descripcion.toLowerCase().includes(searchLower))
+        );
+    }
+
+    // Filtrar por estado
+    if (filtrosEntregables.value.estado) {
+        result = result.filter(e => e.estado === filtrosEntregables.value.estado);
+    }
+
+    // Filtrar por prioridad
+    if (filtrosEntregables.value.prioridad) {
+        result = result.filter(e => e.prioridad === filtrosEntregables.value.prioridad);
+    }
+
+    // Filtrar por responsable
+    if (filtrosEntregables.value.responsable_id) {
+        result = result.filter(e => e.responsable?.id === filtrosEntregables.value.responsable_id);
+    }
+
+    // Filtrar por rango de fechas
+    if (filtrosEntregables.value.fecha_inicio || filtrosEntregables.value.fecha_fin) {
+        result = result.filter(e => {
+            if (!e.fecha_fin) return false;
+            const fecha = new Date(e.fecha_fin);
+            if (filtrosEntregables.value.fecha_inicio) {
+                const fechaInicio = new Date(filtrosEntregables.value.fecha_inicio);
+                if (fecha < fechaInicio) return false;
+            }
+            if (filtrosEntregables.value.fecha_fin) {
+                const fechaFin = new Date(filtrosEntregables.value.fecha_fin);
+                fechaFin.setHours(23, 59, 59, 999);
+                if (fecha > fechaFin) return false;
+            }
+            return true;
+        });
+    }
+
+    return result;
+});
+
+// Obtener usuarios únicos de los entregables para los filtros
+const usuariosEntregables = computed(() => {
+    const usuarios = new Map();
+    (props.hito.entregables || []).forEach(e => {
+        if (e.responsable?.id) {
+            usuarios.set(e.responsable.id, {
+                id: e.responsable.id,
+                name: e.responsable.name,
+                email: e.responsable.email
+            });
+        }
+    });
+    return Array.from(usuarios.values());
+});
 
 // Actividades filtradas
 const actividadesFiltradas = computed(() => {
@@ -588,21 +663,32 @@ const actividadesFiltradas = computed(() => {
                         </Button>
                     </div>
 
-                    <EntregablesTable
-                        :entregables="hito.entregables || []"
-                        :proyecto-id="proyecto.id"
-                        :hito-id="hito.id"
-                        :can-edit="canManageEntregables"
-                        :can-delete="canManageEntregables"
-                        :can-complete="canManageEntregables"
-                        :show-checkbox="false"
-                        :grouped="true"
-                        @view="verEntregable"
-                        @edit="editarEntregable"
-                        @delete="eliminarEntregable"
-                        @complete="completarEntregable"
-                        @mark-in-progress="marcarEnProgreso"
+                    <!-- Filtros de entregables -->
+                    <EntregablesFilters
+                        v-if="hito.entregables && hito.entregables.length > 0"
+                        v-model="filtrosEntregables"
+                        :usuarios="usuariosEntregables"
                     />
+
+                    <!-- Tabla de entregables -->
+                    <Card>
+                        <CardContent class="p-0">
+                            <EntregablesTable
+                                :entregables="entregablesFiltrados"
+                                :proyecto-id="proyecto.id"
+                                :hito-id="hito.id"
+                                :can-edit="canManageEntregables"
+                                :can-delete="canManageEntregables"
+                                :can-complete="canManageEntregables"
+                                :show-checkbox="false"
+                                @view="verEntregable"
+                                @edit="editarEntregable"
+                                @delete="eliminarEntregable"
+                                @complete="completarEntregable"
+                                @mark-in-progress="marcarEnProgreso"
+                            />
+                        </CardContent>
+                    </Card>
 
                     <!-- Mensaje si no hay entregables -->
                     <Card v-if="!hito.entregables || hito.entregables.length === 0">

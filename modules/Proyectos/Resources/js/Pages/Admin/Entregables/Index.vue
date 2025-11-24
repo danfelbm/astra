@@ -38,6 +38,7 @@ import { useToast } from '@modules/Core/Resources/js/composables/useToast';
 import { debounce } from 'lodash';
 import type { Hito, Entregable, EstadoEntregable, PrioridadEntregable } from '@modules/Proyectos/Resources/js/types/hitos';
 import EntregablesTable from '@modules/Proyectos/Resources/js/components/EntregablesTable.vue';
+import EntregablesFilters from '@modules/Proyectos/Resources/js/components/EntregablesFilters.vue';
 
 // Props con tipos
 interface Props {
@@ -100,13 +101,17 @@ const entregablesData = computed(() => {
   return props.entregables;
 });
 
-// Estado local
-const searchTerm = ref(props.filters?.search || '');
-const selectedEstado = ref(props.filters?.estado || '');
-const selectedPrioridad = ref(props.filters?.prioridad || '');
-const selectedResponsable = ref(props.filters?.responsable_id?.toString() || '');
+// Estado local para filtros
+const filtros = ref({
+  search: props.filters?.search || null,
+  estado: props.filters?.estado || null,
+  prioridad: props.filters?.prioridad || null,
+  responsable_id: props.filters?.responsable_id || null,
+  fecha_inicio: null,
+  fecha_fin: null
+});
+
 const selectedEntregables = ref<number[]>([]);
-const showFilters = ref(false);
 
 // Breadcrumbs
 const breadcrumbs = computed<BreadcrumbItem[]>(() => [
@@ -123,10 +128,10 @@ const performSearch = debounce(() => {
   router.get(
     `/admin/proyectos/${props.proyecto.id}/hitos/${props.hito.id}/entregables`,
     {
-      search: searchTerm.value,
-      estado: selectedEstado.value,
-      prioridad: selectedPrioridad.value,
-      responsable_id: selectedResponsable.value,
+      search: filtros.value.search,
+      estado: filtros.value.estado,
+      prioridad: filtros.value.prioridad,
+      responsable_id: filtros.value.responsable_id,
       page: 1,
     },
     { preserveState: true, preserveScroll: true }
@@ -134,17 +139,9 @@ const performSearch = debounce(() => {
 }, 300);
 
 // Watchers
-watch([searchTerm, selectedEstado, selectedPrioridad, selectedResponsable], () => {
+watch(filtros, () => {
   performSearch();
-});
-
-// Métodos
-const clearFilters = () => {
-  searchTerm.value = '';
-  selectedEstado.value = '';
-  selectedPrioridad.value = '';
-  selectedResponsable.value = '';
-};
+}, { deep: true });
 
 const toggleSelectAll = () => {
   if (selectedEntregables.value.length === entregablesData.value.data.length) {
@@ -380,70 +377,10 @@ const estadisticasGenerales = computed(() => {
       </Card>
     </div>
 
-    <!-- Filtros -->
-    <Card>
-      <CardHeader>
-        <div class="flex items-center justify-between">
-          <CardTitle>Entregables</CardTitle>
-          <Button variant="outline" size="sm" @click="showFilters = !showFilters">
-            <Filter class="mr-2 h-4 w-4" />
-            {{ showFilters ? 'Ocultar' : 'Mostrar' }} Filtros
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent v-if="showFilters" class="space-y-4">
-        <div class="grid gap-4 md:grid-cols-4">
-          <div>
-            <label class="text-sm font-medium">Buscar</label>
-            <div class="relative">
-              <Search class="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                v-model="searchTerm"
-                placeholder="Buscar entregable..."
-                class="pl-8"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label class="text-sm font-medium">Estado</label>
-            <Select v-model="selectedEstado">
-              <SelectTrigger>
-                <SelectValue placeholder="Todos los estados" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">Todos los estados</SelectItem>
-                <SelectItem v-for="estado in estados" :key="estado.value" :value="estado.value">
-                  {{ estado.label }}
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div>
-            <label class="text-sm font-medium">Prioridad</label>
-            <Select v-model="selectedPrioridad">
-              <SelectTrigger>
-                <SelectValue placeholder="Todas las prioridades" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">Todas las prioridades</SelectItem>
-                <SelectItem v-for="prioridad in prioridades" :key="prioridad.value" :value="prioridad.value">
-                  {{ prioridad.label }}
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div>
-            <label class="text-sm font-medium">&nbsp;</label>
-            <Button @click="clearFilters" variant="outline" class="w-full">
-              Limpiar Filtros
-            </Button>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+    <!-- Filtros de entregables -->
+    <EntregablesFilters
+      v-model="filtros"
+    />
 
     <!-- Tabla de entregables -->
     <Card>
