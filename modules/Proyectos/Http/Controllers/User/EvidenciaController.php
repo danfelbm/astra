@@ -277,4 +277,94 @@ class EvidenciaController extends UserController
 
         return $entregables;
     }
+
+    /**
+     * Aprueba una evidencia desde el contexto de proyecto (solo gestores).
+     */
+    public function aprobarDesdeProyecto(Request $request, \Modules\Proyectos\Models\Proyecto $proyecto, \Modules\Proyectos\Models\Evidencia $evidencia): JsonResponse
+    {
+        // Verificar que el usuario es gestor del proyecto
+        if (!$this->esGestorDelProyecto($proyecto)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No tienes permisos para gestionar evidencias de este proyecto'
+            ], 403);
+        }
+
+        // Verificar que la evidencia pertenece a un contrato del proyecto
+        $contrato = \Modules\Proyectos\Models\Contrato::where('proyecto_id', $proyecto->id)
+            ->whereHas('obligaciones.evidencias', function ($query) use ($evidencia) {
+                $query->where('evidencias.id', $evidencia->id);
+            })
+            ->first();
+
+        if (!$contrato) {
+            return response()->json([
+                'success' => false,
+                'message' => 'La evidencia no pertenece a este proyecto'
+            ], 404);
+        }
+
+        $result = $this->service->aprobar(
+            $evidencia,
+            $request->input('observaciones')
+        );
+
+        return response()->json($result);
+    }
+
+    /**
+     * Rechaza una evidencia desde el contexto de proyecto (solo gestores).
+     */
+    public function rechazarDesdeProyecto(Request $request, \Modules\Proyectos\Models\Proyecto $proyecto, \Modules\Proyectos\Models\Evidencia $evidencia): JsonResponse
+    {
+        // Verificar que el usuario es gestor del proyecto
+        if (!$this->esGestorDelProyecto($proyecto)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No tienes permisos para gestionar evidencias de este proyecto'
+            ], 403);
+        }
+
+        // Verificar que la evidencia pertenece a un contrato del proyecto
+        $contrato = \Modules\Proyectos\Models\Contrato::where('proyecto_id', $proyecto->id)
+            ->whereHas('obligaciones.evidencias', function ($query) use ($evidencia) {
+                $query->where('evidencias.id', $evidencia->id);
+            })
+            ->first();
+
+        if (!$contrato) {
+            return response()->json([
+                'success' => false,
+                'message' => 'La evidencia no pertenece a este proyecto'
+            ], 404);
+        }
+
+        $result = $this->service->rechazar(
+            $evidencia,
+            $request->input('observaciones')
+        );
+
+        return response()->json($result);
+    }
+
+    /**
+     * Verifica si el usuario es gestor del proyecto.
+     */
+    private function esGestorDelProyecto(\Modules\Proyectos\Models\Proyecto $proyecto): bool
+    {
+        $userId = auth()->id();
+
+        // Es el responsable del proyecto
+        if ($proyecto->responsable_id === $userId) {
+            return true;
+        }
+
+        // Es gestor del proyecto
+        if ($proyecto->gestores()->where('user_id', $userId)->exists()) {
+            return true;
+        }
+
+        return false;
+    }
 }

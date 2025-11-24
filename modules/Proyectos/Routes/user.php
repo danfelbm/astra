@@ -55,6 +55,13 @@ Route::middleware(['auth', 'verified', 'user'])->prefix('miembro')->name('user.'
         Route::post('/{proyecto}/campos-personalizados', [MisProyectosController::class, 'guardarCamposPersonalizados'])
             ->name('guardar-campos-personalizados')
             ->middleware('can:proyectos.edit_own');
+
+        // Rutas para gestión de evidencias desde contexto de proyecto (solo gestores)
+        Route::post('/{proyecto}/evidencias/{evidencia}/aprobar', [\Modules\Proyectos\Http\Controllers\User\EvidenciaController::class, 'aprobarDesdeProyecto'])
+            ->name('evidencias.aprobar');
+
+        Route::post('/{proyecto}/evidencias/{evidencia}/rechazar', [\Modules\Proyectos\Http\Controllers\User\EvidenciaController::class, 'rechazarDesdeProyecto'])
+            ->name('evidencias.rechazar');
     });
 
     // Rutas para Mis Hitos

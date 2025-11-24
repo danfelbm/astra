@@ -5,11 +5,22 @@ namespace Modules\Proyectos\Http\Controllers\Admin;
 use Modules\Core\Http\Controllers\AdminController;
 use Modules\Proyectos\Models\Contrato;
 use Modules\Proyectos\Models\Evidencia;
+use Modules\Proyectos\Models\Proyecto;
+use Modules\Proyectos\Services\EvidenciaService;
+use Illuminate\Http\Request;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\JsonResponse;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class EvidenciaController extends AdminController
 {
+    public function __construct(
+        private EvidenciaService $service
+    ) {
+        parent::__construct();
+    }
+
     /**
      * Muestra una evidencia específica (solo lectura para admin).
      */
@@ -39,5 +50,65 @@ class EvidenciaController extends AdminController
             'contrato' => $contrato->load('proyecto'),
             'evidencia' => $evidencia
         ]);
+    }
+
+    /**
+     * Aprueba una evidencia desde el contexto de proyecto.
+     */
+    public function aprobarDesdeProyecto(Request $request, Proyecto $proyecto, Evidencia $evidencia): JsonResponse
+    {
+        // Verificar que la evidencia pertenece a un contrato del proyecto
+        $contrato = Contrato::where('proyecto_id', $proyecto->id)
+            ->whereHas('obligaciones.evidencias', function ($query) use ($evidencia) {
+                $query->where('evidencias.id', $evidencia->id);
+            })
+            ->first();
+
+        if (!$contrato) {
+            return response()->json([
+                'success' => false,
+                'message' => 'La evidencia no pertenece a este proyecto'
+            ], 404);
+        }
+
+        // Verificar permisos
+        $this->authorize('evidencias.aprobar', $evidencia);
+
+        $result = $this->service->aprobar(
+            $evidencia,
+            $request->input('observaciones')
+        );
+
+        return response()->json($result);
+    }
+
+    /**
+     * Rechaza una evidencia desde el contexto de proyecto.
+     */
+    public function rechazarDesdeProyecto(Request $request, Proyecto $proyecto, Evidencia $evidencia): JsonResponse
+    {
+        // Verificar que la evidencia pertenece a un contrato del proyecto
+        $contrato = Contrato::where('proyecto_id', $proyecto->id)
+            ->whereHas('obligaciones.evidencias', function ($query) use ($evidencia) {
+                $query->where('evidencias.id', $evidencia->id);
+            })
+            ->first();
+
+        if (!$contrato) {
+            return response()->json([
+                'success' => false,
+                'message' => 'La evidencia no pertenece a este proyecto'
+            ], 404);
+        }
+
+        // Verificar permisos
+        $this->authorize('evidencias.rechazar', $evidencia);
+
+        $result = $this->service->rechazar(
+            $evidencia,
+            $request->input('observaciones')
+        );
+
+        return response()->json($result);
     }
 }

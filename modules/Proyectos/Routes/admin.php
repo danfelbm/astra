@@ -64,6 +64,15 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
         Route::post('/{proyecto}/asignar-responsable', [ProyectoController::class, 'asignarResponsable'])
             ->name('asignar-responsable')
             ->middleware('can:proyectos.edit');
+
+        // Rutas para gestión de evidencias desde contexto de proyecto
+        Route::post('/{proyecto}/evidencias/{evidencia}/aprobar', [\Modules\Proyectos\Http\Controllers\Admin\EvidenciaController::class, 'aprobarDesdeProyecto'])
+            ->name('evidencias.aprobar')
+            ->middleware('can:evidencias.aprobar');
+
+        Route::post('/{proyecto}/evidencias/{evidencia}/rechazar', [\Modules\Proyectos\Http\Controllers\Admin\EvidenciaController::class, 'rechazarDesdeProyecto'])
+            ->name('evidencias.rechazar')
+            ->middleware('can:evidencias.rechazar');
     });
 
     // Rutas para gestión de campos personalizados
