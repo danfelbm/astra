@@ -120,13 +120,8 @@ class MisProyectosController extends UserController
      */
     public function show(Proyecto $proyecto): Response
     {
-        // Verificar permisos y acceso al proyecto
+        // Verificar permisos - cualquier usuario autenticado puede ver proyectos
         abort_unless(auth()->user()->can('proyectos.view_own'), 403, 'No tienes permiso para ver proyectos');
-        abort_unless(
-            auth()->user()->puedeEditarProyecto($proyecto),
-            403,
-            'No tienes acceso a este proyecto'
-        );
 
         // Cargar todas las relaciones necesarias para los tabs
         $proyecto->load([
