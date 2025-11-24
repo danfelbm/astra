@@ -16,6 +16,7 @@ import {
 } from "@modules/Core/Resources/js/components/ui/select";
 import CamposPersonalizadosForm from "@modules/Proyectos/Resources/js/components/CamposPersonalizadosForm.vue";
 import EtiquetaSelector from "@modules/Proyectos/Resources/js/components/EtiquetaSelector.vue";
+import GestoresManager from "@modules/Proyectos/Resources/js/components/GestoresManager.vue";
 import AddUsersModal from "@modules/Core/Resources/js/components/modals/AddUsersModal.vue";
 import { Save, X, AlertCircle, Tag, UserPlus } from 'lucide-vue-next';
 import type { CategoriaEtiqueta, Etiqueta } from "@modules/Proyectos/Resources/js/types/etiquetas";
@@ -66,6 +67,7 @@ interface Props {
     camposPersonalizados: CampoPersonalizado[];
     valoresCampos: Record<number, any>;
     categorias?: CategoriaEtiqueta[];
+    gestores?: User[];
 }
 
 const props = defineProps<Props>();
@@ -91,6 +93,7 @@ const form = useForm({
     prioridad: props.proyecto.prioridad,
     responsable_id: props.proyecto.responsable_id || null,
     etiquetas: props.proyecto.etiquetas?.map(e => e.id) || [],
+    gestores: props.gestores?.map(g => g.id) || [],
     campos_personalizados: valoresIniciales
 });
 
@@ -335,6 +338,12 @@ const handleResponsableSelect = (data: { userIds: number[]; extraData: Record<st
                         </div>
                     </CardContent>
                 </Card>
+
+                <!-- Gestores del Proyecto -->
+                <GestoresManager
+                    v-model="form.gestores"
+                    :gestores="gestores"
+                />
 
                 <!-- Campos Personalizados -->
                 <CamposPersonalizadosForm

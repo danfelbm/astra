@@ -484,9 +484,40 @@ class User extends Authenticatable
     }
     
     /**
+     * Verificar si el usuario es gestor de un proyecto específico.
+     * Los gestores tienen permisos de edición sobre el proyecto.
+     *
+     * @param Proyecto $proyecto
+     * @return bool
+     */
+    public function esGestorDe(Proyecto $proyecto): bool
+    {
+        return $proyecto->gestores()
+            ->where('user_id', $this->id)
+            ->exists();
+    }
+
+    /**
+     * Verificar si el usuario puede editar un proyecto.
+     * Puede editar si es:
+     * 1. El responsable del proyecto
+     * 2. El creador del proyecto
+     * 3. Un gestor del proyecto
+     *
+     * @param Proyecto $proyecto
+     * @return bool
+     */
+    public function puedeEditarProyecto(Proyecto $proyecto): bool
+    {
+        return $proyecto->responsable_id === $this->id
+            || $proyecto->created_by === $this->id
+            || $this->esGestorDe($proyecto);
+    }
+
+    /**
      * Obtener la ruta de redirección preferida después del login
      * Prioriza roles administrativos cuando el usuario tiene múltiples roles
-     * 
+     *
      * @return string
      */
     public function getPreferredRedirectRoute(): string
@@ -496,16 +527,16 @@ class User extends Authenticatable
             ->where('is_administrative', true)
             ->whereNotNull('redirect_after_login')
             ->first();
-        
+
         if ($adminRoleWithRedirect && $adminRoleWithRedirect->redirect_after_login) {
             return $adminRoleWithRedirect->redirect_after_login;
         }
-        
+
         // Si no hay rol administrativo con ruta, buscar cualquier rol con ruta configurada
         $roleWithRedirect = $this->roles()
             ->whereNotNull('redirect_after_login')
             ->first();
-        
+
         if ($roleWithRedirect && $roleWithRedirect->redirect_after_login) {
             // Si el usuario tiene acceso administrativo pero el rol no es admin,
             // redirigir al dashboard admin de todos modos
@@ -514,10 +545,10 @@ class User extends Authenticatable
             }
             return $roleWithRedirect->redirect_after_login;
         }
-        
+
         // Si no hay ruta configurada, determinar por tipo de acceso
-        return $this->hasAdministrativeAccess() 
-            ? 'admin.dashboard' 
+        return $this->hasAdministrativeAccess()
+            ? 'admin.dashboard'
             : 'user.dashboard';
     }
 }

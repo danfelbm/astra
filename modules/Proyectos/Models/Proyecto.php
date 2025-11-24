@@ -124,6 +124,17 @@ class Proyecto extends Model
     }
 
     /**
+     * Obtiene los gestores del proyecto.
+     * Los gestores tienen permisos de edición sobre el proyecto.
+     */
+    public function gestores(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'proyecto_usuario', 'proyecto_id', 'user_id')
+                    ->wherePivot('rol', 'gestor')
+                    ->withTimestamps();
+    }
+
+    /**
      * Obtiene los hitos del proyecto.
      */
     public function hitos(): HasMany
@@ -316,6 +327,20 @@ class Proyecto extends Model
     }
 
     /**
+     * Scope para proyectos donde el usuario actual es gestor.
+     * Los gestores tienen permisos de edición sobre el proyecto.
+     */
+    public function scopeMisProyectosComoGestor($query)
+    {
+        if (auth()->check()) {
+            return $query->whereHas('gestores', function ($q) {
+                $q->where('user_id', auth()->id());
+            });
+        }
+        return $query;
+    }
+
+    /**
      * Scope para proyectos en progreso.
      */
     public function scopeEnProgreso($query)
@@ -381,6 +406,37 @@ class Proyecto extends Model
         Etiqueta::whereIn('id', $etiquetaIds)->each(function ($etiqueta) {
             $etiqueta->recalcularUsos();
         });
+    }
+
+    /**
+     * Sincroniza los gestores del proyecto.
+     * Los gestores son usuarios con permisos de edición sobre el proyecto.
+     *
+     * @param array $gestoresIds Array de IDs de usuarios que serán gestores
+     * @return void
+     */
+    public function sincronizarGestores(array $gestoresIds): void
+    {
+        // Preparar datos para sincronizar con rol 'gestor'
+        $gestoresConRol = [];
+        foreach ($gestoresIds as $userId) {
+            $gestoresConRol[$userId] = ['rol' => 'gestor'];
+        }
+
+        // Obtener IDs actuales de gestores
+        $gestoresActuales = $this->gestores()->pluck('user_id')->toArray();
+
+        // Obtener otros participantes (no gestores) que deben mantenerse
+        $otrosParticipantes = $this->participantes()
+            ->wherePivotIn('rol', ['participante', 'supervisor', 'colaborador'])
+            ->get()
+            ->mapWithKeys(function ($user) {
+                return [$user->id => ['rol' => $user->pivot->rol]];
+            })
+            ->toArray();
+
+        // Sincronizar: mantener otros roles + nuevos gestores
+        $this->participantes()->sync(array_merge($otrosParticipantes, $gestoresConRol));
     }
 
     /**

@@ -120,7 +120,7 @@ class MisProyectosController extends UserController
         // Verificar permisos y acceso al proyecto
         abort_unless(auth()->user()->can('proyectos.view_own'), 403, 'No tienes permiso para ver proyectos');
         abort_unless(
-            $proyecto->responsable_id === auth()->id() || $proyecto->created_by === auth()->id(),
+            auth()->user()->puedeEditarProyecto($proyecto),
             403,
             'No tienes acceso a este proyecto'
         );
@@ -196,7 +196,7 @@ class MisProyectosController extends UserController
         // Verificar permisos y acceso al proyecto
         abort_unless(auth()->user()->can('proyectos.edit_own'), 403, 'No tienes permiso para editar proyectos');
         abort_unless(
-            $proyecto->responsable_id === auth()->id() || $proyecto->created_by === auth()->id(),
+            auth()->user()->puedeEditarProyecto($proyecto),
             403,
             'No tienes acceso a este proyecto'
         );
@@ -234,7 +234,7 @@ class MisProyectosController extends UserController
         // Verificar permisos y acceso al proyecto
         abort_unless(auth()->user()->can('proyectos.edit_own'), 403, 'No tienes permiso para editar proyectos');
         abort_unless(
-            $proyecto->responsable_id === auth()->id() || $proyecto->created_by === auth()->id(),
+            auth()->user()->puedeEditarProyecto($proyecto),
             403,
             'No tienes acceso a este proyecto'
         );
@@ -254,7 +254,7 @@ class MisProyectosController extends UserController
         // Verificar permisos y acceso al proyecto
         abort_unless(auth()->user()->can('proyectos.edit_own'), 403, 'No tienes permiso para editar proyectos');
         abort_unless(
-            $proyecto->responsable_id === auth()->id() || $proyecto->created_by === auth()->id(),
+            auth()->user()->puedeEditarProyecto($proyecto),
             403,
             'No tienes permiso para cambiar el estado de este proyecto'
         );
@@ -280,7 +280,7 @@ class MisProyectosController extends UserController
         // Verificar permisos y acceso al proyecto
         abort_unless(auth()->user()->can('proyectos.view_own'), 403, 'No tienes permiso para ver proyectos');
         abort_unless(
-            $proyecto->responsable_id === auth()->id() || $proyecto->created_by === auth()->id(),
+            auth()->user()->puedeEditarProyecto($proyecto),
             403,
             'No tienes acceso a este proyecto'
         );
@@ -311,7 +311,7 @@ class MisProyectosController extends UserController
         // Verificar permisos y acceso al proyecto
         abort_unless(auth()->user()->can('proyectos.edit_own'), 403, 'No tienes permiso para editar proyectos');
         abort_unless(
-            $proyecto->responsable_id === auth()->id() || $proyecto->created_by === auth()->id(),
+            auth()->user()->puedeEditarProyecto($proyecto),
             403,
             'No tienes permiso para editar este proyecto'
         );

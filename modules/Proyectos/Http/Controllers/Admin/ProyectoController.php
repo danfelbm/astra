@@ -212,7 +212,7 @@ class ProyectoController extends AdminController
         abort_unless(auth()->user()->can('proyectos.edit'), 403, 'No tienes permisos para editar este proyecto');
 
         $camposPersonalizados = CampoPersonalizado::paraProyectos()->activos()->ordenado()->get();
-        $proyecto->load(['camposPersonalizados', 'etiquetas.categoria', 'responsable']);
+        $proyecto->load(['camposPersonalizados', 'etiquetas.categoria', 'responsable', 'gestores']);
 
         // Preparar valores de campos personalizados
         $valoresCampos = [];
@@ -234,6 +234,7 @@ class ProyectoController extends AdminController
             'categorias' => $categorias,
             'estados' => config('proyectos.estados'),
             'prioridades' => config('proyectos.prioridades'),
+            'gestores' => $proyecto->gestores,
         ]);
     }
 

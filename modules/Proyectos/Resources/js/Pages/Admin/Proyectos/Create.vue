@@ -17,6 +17,7 @@ import {
 } from "@modules/Core/Resources/js/components/ui/select";
 import CamposPersonalizadosForm from "@modules/Proyectos/Resources/js/components/CamposPersonalizadosForm.vue";
 import EtiquetaSelector from "@modules/Proyectos/Resources/js/components/EtiquetaSelector.vue";
+import GestoresManager from "@modules/Proyectos/Resources/js/components/GestoresManager.vue";
 import AddUsersModal from "@modules/Core/Resources/js/components/modals/AddUsersModal.vue";
 import { Save, X, Tag, UserPlus } from 'lucide-vue-next';
 import type { CategoriaEtiqueta } from "@modules/Proyectos/Resources/js/types/etiquetas";
@@ -65,6 +66,7 @@ const form = useForm({
     prioridad: 'media',
     responsable_id: null as number | null,
     etiquetas: [] as number[],
+    gestores: [] as number[],
     campos_personalizados: {} as Record<number, any>
 });
 
@@ -76,6 +78,9 @@ const showResponsableModal = ref(false);
 
 // Ref para el responsable seleccionado
 const responsableSeleccionado = ref<User | null>(null);
+
+// Refs para gestores (lista completa de usuarios disponibles)
+const gestoresDisponibles = ref<User[]>([]);
 
 // Helper para obtener route
 const { route } = window as any;
@@ -295,6 +300,12 @@ const handleResponsableSelect = (data: { userIds: number[]; extraData: Record<st
                         </div>
                     </CardContent>
                 </Card>
+
+                <!-- Gestores del Proyecto -->
+                <GestoresManager
+                    v-model="form.gestores"
+                    :gestores="gestoresDisponibles"
+                />
 
                 <!-- Campos Personalizados -->
                 <CamposPersonalizadosForm
