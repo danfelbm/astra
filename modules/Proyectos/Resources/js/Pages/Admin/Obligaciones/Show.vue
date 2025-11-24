@@ -271,74 +271,63 @@ const formatDateShort = (dateString: string | undefined) => {
 
         <!-- Tab General -->
         <TabsContent value="general" class="space-y-4 mt-6">
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div class="md:col-span-2 space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Información General</CardTitle>
-                </CardHeader>
-                <CardContent class="space-y-4">
-                  <div>
-                    <Label>Descripción</Label>
-                    <p class="mt-1">{{ obligacion.descripcion || 'Sin descripción' }}</p>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+          <Card>
+            <CardHeader>
+              <CardTitle>Información General</CardTitle>
+            </CardHeader>
+            <CardContent class="space-y-4">
+              <!-- Descripción -->
+              <div>
+                <Label>Descripción</Label>
+                <p class="mt-1">{{ obligacion.descripcion || 'Sin descripción' }}</p>
+              </div>
 
-            <div class="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Detalles del Contrato</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <Link :href="route('admin.contratos.show', contrato.id)" class="hover:underline">
-                    <h3 class="font-medium">{{ contrato.nombre }}</h3>
-                  </Link>
-                  <p class="text-sm text-gray-600 mt-1">{{ contrato.proyecto?.nombre }}</p>
-                </CardContent>
-              </Card>
+              <!-- Contrato -->
+              <div class="pt-4 border-t">
+                <Label>Contrato</Label>
+                <Link :href="route('admin.contratos.show', contrato.id)" class="hover:underline">
+                  <h3 class="font-medium mt-1">{{ contrato.nombre }}</h3>
+                </Link>
+                <p class="text-sm text-gray-600 mt-1">{{ contrato.proyecto?.nombre }}</p>
+              </div>
 
-              <Card v-if="obligacion.archivos_adjuntos?.length">
-                <CardHeader>
-                  <CardTitle>Archivos Adjuntos</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div class="space-y-2">
-                    <div v-for="archivo in obligacion.archivos_adjuntos" :key="archivo.ruta" class="flex items-center gap-2">
-                      <Paperclip class="h-4 w-4" />
-                      <a :href="archivo.ruta" target="_blank" class="hover:underline text-sm">
-                        {{ archivo.nombre_original }}
-                      </a>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+              <!-- Auditoría -->
+              <div class="pt-4 border-t space-y-3">
+                <div>
+                  <span class="text-sm text-gray-600">Creado por:</span>
+                  <p class="mt-1">{{ obligacion.creador?.name || 'Sistema' }}</p>
+                  <p class="text-xs text-gray-500">{{ formatDate(obligacion.created_at) }}</p>
+                </div>
+                <div v-if="obligacion.updated_at">
+                  <span class="text-sm text-gray-600">Última actualización:</span>
+                  <p class="mt-1">{{ obligacion.actualizador?.name || 'Sistema' }}</p>
+                  <p class="text-xs text-gray-500">{{ formatDate(obligacion.updated_at) }}</p>
+                </div>
+                <div v-if="obligacion.cumplido_at">
+                  <span class="text-sm text-gray-600">Cumplido por:</span>
+                  <p class="mt-1">{{ obligacion.cumplido_por_usuario?.name || 'Sistema' }}</p>
+                  <p class="text-xs text-gray-500">{{ formatDate(obligacion.cumplido_at) }}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle>Auditoría</CardTitle>
-                </CardHeader>
-                <CardContent class="text-sm space-y-2">
-                  <div>
-                    <span class="text-gray-600">Creado por:</span>
-                    <p>{{ obligacion.creador?.name || 'Sistema' }}</p>
-                    <p class="text-xs text-gray-500">{{ formatDate(obligacion.created_at) }}</p>
-                  </div>
-                  <div v-if="obligacion.updated_at">
-                    <span class="text-gray-600">Última actualización:</span>
-                    <p>{{ obligacion.actualizador?.name || 'Sistema' }}</p>
-                    <p class="text-xs text-gray-500">{{ formatDate(obligacion.updated_at) }}</p>
-                  </div>
-                  <div v-if="obligacion.cumplido_at">
-                    <span class="text-gray-600">Cumplido por:</span>
-                    <p>{{ obligacion.cumplido_por_usuario?.name || 'Sistema' }}</p>
-                    <p class="text-xs text-gray-500">{{ formatDate(obligacion.cumplido_at) }}</p>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
+          <!-- Archivos Adjuntos -->
+          <Card v-if="obligacion.archivos_adjuntos?.length">
+            <CardHeader>
+              <CardTitle>Archivos Adjuntos</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div class="space-y-2">
+                <div v-for="archivo in obligacion.archivos_adjuntos" :key="archivo.ruta" class="flex items-center gap-2">
+                  <Paperclip class="h-4 w-4" />
+                  <a :href="archivo.ruta" target="_blank" class="hover:underline text-sm">
+                    {{ archivo.nombre_original }}
+                  </a>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <!-- Tab Obligaciones Hijas -->
