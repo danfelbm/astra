@@ -483,19 +483,19 @@ const { route } = window as any;
               </div>
 
               <div class="border-t pt-4">
-                <h4 class="text-sm font-medium text-muted-foreground mb-2">Metadatos</h4>
-                <div class="grid gap-2 text-sm">
-                  <div class="flex justify-between">
-                    <span class="text-muted-foreground">Creado:</span>
-                    <span>{{ formatDateTime(entregable.created_at) }}</span>
+                <h4 class="text-sm font-medium text-muted-foreground mb-4">Metadatos</h4>
+                <div class="grid gap-4 md:grid-cols-3 text-sm">
+                  <div>
+                    <span class="text-muted-foreground text-xs font-medium block mb-1">Creado</span>
+                    <span class="block">{{ formatDateTime(entregable.created_at) }}</span>
                   </div>
-                  <div class="flex justify-between">
-                    <span class="text-muted-foreground">Última actualización:</span>
-                    <span>{{ formatDateTime(entregable.updated_at) }}</span>
+                  <div>
+                    <span class="text-muted-foreground text-xs font-medium block mb-1">Última actualización</span>
+                    <span class="block">{{ formatDateTime(entregable.updated_at) }}</span>
                   </div>
-                  <div class="flex justify-between">
-                    <span class="text-muted-foreground">Orden de visualización:</span>
-                    <span>{{ entregable.orden }}</span>
+                  <div>
+                    <span class="text-muted-foreground text-xs font-medium block mb-1">Orden de visualización</span>
+                    <span class="block">{{ entregable.orden }}</span>
                   </div>
                 </div>
               </div>
