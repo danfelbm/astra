@@ -7,6 +7,7 @@ import { Button } from "@modules/Core/Resources/js/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@modules/Core/Resources/js/components/ui/table";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@modules/Core/Resources/js/components/ui/accordion";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@modules/Core/Resources/js/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@modules/Core/Resources/js/components/ui/select";
 import { Textarea } from "@modules/Core/Resources/js/components/ui/textarea";
 import { Label } from "@modules/Core/Resources/js/components/ui/label";
 import EvidenciaFilters from "./EvidenciaFilters.vue";
@@ -213,6 +214,33 @@ const cambiarEstado = async () => {
         }
     });
 };
+
+// Función para cambiar estado directamente desde dropdown (admin)
+const cambiarEstadoDirecto = (evidencia: Evidencia, nuevoEstado: string) => {
+    if (nuevoEstado === evidencia.estado) return; // No hacer nada si es el mismo estado
+
+    const endpoint = `/admin/proyectos/${props.proyectoId}/evidencias/${evidencia.id}/cambiar-estado`;
+
+    router.post(endpoint, {
+        estado: nuevoEstado,
+        observaciones: null
+    }, {
+        preserveScroll: true,
+        onSuccess: () => {
+            const mensajes = {
+                'pendiente': 'Estado cambiado a Pendiente',
+                'aprobada': 'Evidencia aprobada',
+                'rechazada': 'Evidencia rechazada'
+            };
+            toast.success(mensajes[nuevoEstado] || 'Estado actualizado');
+            router.reload({ only: ['proyecto'] });
+        },
+        onError: (errors) => {
+            toast.error('Error al cambiar el estado');
+            console.error(errors);
+        }
+    });
+};
 </script>
 
 <template>
@@ -322,8 +350,31 @@ const cambiarEstado = async () => {
                                             <Download class="h-4 w-4" />
                                         </a>
 
-                                        <!-- Botones de aprobar/rechazar (solo si puede gestionar) -->
-                                        <template v-if="puedeGestionarEstado && evidencia.estado === 'pendiente'">
+                                        <!-- Dropdown de estados para Admin -->
+                                        <template v-if="modo === 'admin'">
+                                            <Select
+                                                :model-value="evidencia.estado"
+                                                @update:model-value="(value) => cambiarEstadoDirecto(evidencia, value)"
+                                            >
+                                                <SelectTrigger class="h-8 w-32">
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="pendiente">
+                                                        <span class="text-yellow-600">Pendiente</span>
+                                                    </SelectItem>
+                                                    <SelectItem value="aprobada">
+                                                        <span class="text-green-600">Aprobada</span>
+                                                    </SelectItem>
+                                                    <SelectItem value="rechazada">
+                                                        <span class="text-red-600">Rechazada</span>
+                                                    </SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </template>
+
+                                        <!-- Botones de aprobar/rechazar (solo para User gestores) -->
+                                        <template v-else-if="puedeGestionarEstado && evidencia.estado === 'pendiente'">
                                             <Button
                                                 size="sm"
                                                 variant="ghost"
