@@ -536,6 +536,17 @@ const cancelar = () => {
 
 // Lifecycle hooks
 onMounted(() => {
+    // 🔍 DEBUG: Verificar qué llega del backend
+    console.log('🔍 Edit.vue - DEBUG CONTRAPARTE onMounted', {
+        contrato_id: props.contrato.id,
+        contraparte_user_id: props.contrato.contraparte_user_id,
+        contraparteUser: props.contrato.contraparteUser,
+        contraparteUser_existe: !!props.contrato.contraparteUser,
+        contraparteSeleccionada_value: contraparteSeleccionada.value,
+        form_contraparte_user_id: form.contraparte_user_id,
+        form_contraparte_nombre: form.contraparte_nombre,
+    });
+
     // Iniciar autoguardado (solo si puede editar)
     if (puedeEditar.value) {
         startWatching();
@@ -936,7 +947,7 @@ onUnmounted(() => {
                                                 type="button"
                                                 variant="ghost"
                                                 size="sm"
-                                                @click="form.contraparte_user_id = null; contraparteSeleccionada = null; form.contraparte_nombre = ''; form.contraparte_email = ''"
+                                                @click="form.contraparte_user_id = null; contraparteSeleccionada.value = null; form.contraparte_nombre = ''; form.contraparte_email = ''"
                                                 :disabled="!puedeEditar"
                                             >
                                                 <X class="h-4 w-4" />
