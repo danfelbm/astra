@@ -138,25 +138,24 @@ const hasMoreHitos = computed(() => {
                 </div>
             </div>
 
-            <!-- Grid de Hitos -->
-            <div v-if="hitos.length > 0" class="space-y-4">
-                <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    <HitoCard
-                        v-for="hito in hitosToShow"
-                        :key="hito.id"
-                        :hito="hito"
-                        :canEdit="canEdit"
-                        :canDelete="canDelete"
-                        :canManageDeliverables="canManageDeliverables"
-                        :showActions="true"
-                        @view="$emit('view', hito)"
-                        @edit="$emit('edit', hito)"
-                        @delete="$emit('delete', hito)"
-                        @duplicate="$emit('duplicate', hito)"
-                        @add-entregable="$emit('add-entregable', hito)"
-                        @view-entregables="$emit('view-entregables', hito)"
-                    />
-                </div>
+            <!-- Lista de Hitos (1 columna) -->
+            <div v-if="hitos.length > 0" class="space-y-3">
+                <HitoCard
+                    v-for="hito in hitosToShow"
+                    :key="hito.id"
+                    :hito="hito"
+                    :canEdit="canEdit"
+                    :canDelete="canDelete"
+                    :canManageDeliverables="canManageDeliverables"
+                    :showActions="true"
+                    :compact="true"
+                    @view="$emit('view', hito)"
+                    @edit="$emit('edit', hito)"
+                    @delete="$emit('delete', hito)"
+                    @duplicate="$emit('duplicate', hito)"
+                    @add-entregable="$emit('add-entregable', hito)"
+                    @view-entregables="$emit('view-entregables', hito)"
+                />
 
                 <!-- Link para ver todos -->
                 <Link

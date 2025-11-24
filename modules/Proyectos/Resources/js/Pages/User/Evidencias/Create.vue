@@ -1,4 +1,4 @@
-<script setup lang="ts">
+l<script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useForm, router, Head } from '@inertiajs/vue3';
 import UserLayout from '@modules/Core/Resources/js/layouts/UserLayout.vue';
@@ -16,7 +16,7 @@ import FileUploadField from '@modules/Core/Resources/js/components/forms/FileUpl
 import { useAutoSave } from '@modules/Core/Resources/js/composables/useAutoSave';
 import { useFileUpload } from '@modules/Core/Resources/js/composables/useFileUpload';
 import { toast } from 'vue-sonner';
-import { ArrowLeft, Save, CheckCircle, Clock, AlertCircle, PanelLeft, Camera, Mic, Upload, FileText, Image, Video, Music } from 'lucide-vue-next';
+import { ArrowLeft, Save, CheckCircle, Clock, AlertCircle, Trash2, Camera, Mic, Upload, FileText, Image, Video, Music } from 'lucide-vue-next';
 import type { Contrato } from '@modules/Proyectos/Resources/js/types/contratos';
 import type { ObligacionContrato } from '@modules/Proyectos/Resources/js/types/obligaciones';
 import type { Entregable } from '@modules/Proyectos/Resources/js/types/hitos';
@@ -494,12 +494,27 @@ const handleSubmit = async () => {
     });
 };
 
-// Alternar sidebar
-const toggleSidebar = () => {
-    const sidebarTrigger = document.querySelector('[data-sidebar="trigger"]') as HTMLElement;
-    if (sidebarTrigger) {
-        sidebarTrigger.click();
+// Descartar borrador y resetear formulario
+const discardDraft = () => {
+    if (!confirm('¿Estás seguro de descartar el borrador? Se perderán todos los cambios no enviados.')) {
+        return;
     }
+
+    // Limpiar localStorage
+    clearLocalStorage();
+
+    // Resetear formulario a valores iniciales
+    form.reset();
+
+    // Limpiar archivos
+    limpiarTodosArchivos();
+
+    // Detener captura si está activa
+    if (isCapturing.value) {
+        stopCapture();
+    }
+
+    toast.success('Borrador descartado');
 };
 
 // Lifecycle hooks
@@ -759,16 +774,16 @@ onUnmounted(() => {
                     <div class="mx-auto max-w-7xl">
                         <div class="backdrop-blur-lg bg-tertiary-60 dark:bg-gray-900/80 border border-gray-200/50 dark:border-gray-700/50 rounded-xl sm:rounded-2xl shadow-2xl p-3 sm:p-4">
                             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
-                                <!-- Botón Ocultar Sidebar -->
+                                <!-- Botón Descartar Borrador -->
                                 <div class="hidden sm:flex items-center">
                                     <Button
                                         variant="outline"
                                         type="button"
-                                        @click="toggleSidebar"
-                                        class="backdrop-blur-sm flex-shrink-0 text-xs sm:text-sm py-2 px-3"
+                                        @click="discardDraft"
+                                        class="backdrop-blur-sm flex-shrink-0 text-xs sm:text-sm py-2 px-3 text-destructive hover:text-destructive"
                                     >
-                                        <PanelLeft class="h-4 w-4" />
-                                        <span class="ml-2">Ocultar sidebar</span>
+                                        <Trash2 class="h-4 w-4" />
+                                        <span class="ml-2">Descartar borrador</span>
                                     </Button>
                                 </div>
 

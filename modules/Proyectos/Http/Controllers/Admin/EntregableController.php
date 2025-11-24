@@ -78,15 +78,13 @@ class EntregableController extends AdminController
         // Verificar permisos
         abort_unless(auth()->user()->can('entregables.create'), 403, 'No tienes permisos para crear entregables');
 
-        $proyecto->load(['participantes.user:id,name,email']);
-
+        // Cargar participantes (BelongsToMany directo a User)
         $usuarios = $proyecto->participantes()
-            ->with('user:id,name,email')
-            ->get()
-            ->map(fn($p) => [
-                'id' => $p->user->id,
-                'name' => $p->user->name,
-                'email' => $p->user->email
+            ->get(['users.id', 'users.name', 'users.email'])
+            ->map(fn($user) => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email
             ]);
 
         // Obtener campos personalizados para entregables
@@ -233,8 +231,6 @@ class EntregableController extends AdminController
         // Verificar permisos
         abort_unless(auth()->user()->can('entregables.edit'), 403, 'No tienes permisos para editar entregables');
 
-        $proyecto->load(['participantes.user:id,name,email']);
-
         $entregable->load([
             'responsable:id,name,email',
             'usuarios' => function ($query) {
@@ -243,13 +239,13 @@ class EntregableController extends AdminController
             }
         ]);
 
+        // Obtener usuarios del proyecto (participantes es BelongsToMany directo a User)
         $usuarios = $proyecto->participantes()
-            ->with('user:id,name,email')
-            ->get()
-            ->map(fn($p) => [
-                'id' => $p->user->id,
-                'name' => $p->user->name,
-                'email' => $p->user->email
+            ->get(['users.id', 'users.name', 'users.email'])
+            ->map(fn($user) => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email
             ]);
 
         // Preparar usuarios asignados actuales con información completa del usuario
