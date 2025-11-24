@@ -666,7 +666,7 @@ onUnmounted(() => {
                         <TabsTrigger value="informacion">Información General</TabsTrigger>
                         <TabsTrigger value="fechas">Fechas y Estado</TabsTrigger>
                         <TabsTrigger value="financiero">Información Financiera</TabsTrigger>
-                        <TabsTrigger value="contraparte">Contraparte</TabsTrigger>
+                        <TabsTrigger value="contraparte">Participantes</TabsTrigger>
                         <TabsTrigger value="archivos">Archivos</TabsTrigger>
                         <TabsTrigger value="adicional">Información Adicional</TabsTrigger>
                     </TabsList>
@@ -816,42 +816,6 @@ onUnmounted(() => {
                                         </div>
                                     </div>
                                 </div>
-
-                                <div>
-                                    <Label for="responsable_id">Responsable</Label>
-                                    <p class="text-sm text-muted-foreground mb-2">
-                                        Asigna un usuario responsable de este contrato
-                                    </p>
-
-                                    <!-- Mostrar responsable seleccionado -->
-                                    <div v-if="responsableSeleccionado" class="p-3 bg-muted rounded-lg flex items-center justify-between mb-2">
-                                        <div>
-                                            <p class="font-medium">{{ responsableSeleccionado.name }}</p>
-                                            <p class="text-sm text-muted-foreground">{{ responsableSeleccionado.email }}</p>
-                                        </div>
-                                        <Button
-                                            type="button"
-                                            variant="ghost"
-                                            size="sm"
-                                            @click="responsableSeleccionado = null; form.responsable_id = 'none'"
-                                            :disabled="!puedeEditar"
-                                        >
-                                            <X class="h-4 w-4" />
-                                        </Button>
-                                    </div>
-
-                                    <!-- Botón para seleccionar responsable -->
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        @click="showResponsableModal = true"
-                                        class="w-full"
-                                        :disabled="!puedeEditar"
-                                    >
-                                        <UserPlus class="h-4 w-4 mr-2" />
-                                        {{ responsableSeleccionado ? 'Cambiar Responsable' : 'Seleccionar Responsable' }}
-                                    </Button>
-                                </div>
                             </CardContent>
                         </Card>
                     </TabsContent>
@@ -917,10 +881,52 @@ onUnmounted(() => {
                         </Card>
                     </TabsContent>
 
-                    <!-- Tab: Contraparte -->
+                    <!-- Tab: Participantes -->
                     <TabsContent value="contraparte">
                         <div class="space-y-6">
-                            <!-- Sección 1: Contraparte del Sistema -->
+                            <!-- Sección 1: Responsable del Contrato -->
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Responsable del Contrato</CardTitle>
+                                    <CardDescription>
+                                        Asigna un usuario responsable de este contrato
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <div class="space-y-4">
+                                        <!-- Mostrar responsable seleccionado -->
+                                        <div v-if="responsableSeleccionado" class="p-3 bg-muted rounded-lg flex items-center justify-between mb-2">
+                                            <div>
+                                                <p class="font-medium">{{ responsableSeleccionado.name }}</p>
+                                                <p class="text-sm text-muted-foreground">{{ responsableSeleccionado.email }}</p>
+                                            </div>
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="sm"
+                                                @click="responsableSeleccionado = null; form.responsable_id = 'none'"
+                                                :disabled="!puedeEditar"
+                                            >
+                                                <X class="h-4 w-4" />
+                                            </Button>
+                                        </div>
+
+                                        <!-- Botón para seleccionar responsable -->
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            @click="showResponsableModal = true"
+                                            class="w-full"
+                                            :disabled="!puedeEditar"
+                                        >
+                                            <UserPlus class="h-4 w-4 mr-2" />
+                                            {{ responsableSeleccionado ? 'Cambiar Responsable' : 'Seleccionar Responsable' }}
+                                        </Button>
+                                    </div>
+                                </CardContent>
+                            </Card>
+
+                            <!-- Sección 2: Contraparte del Sistema -->
                             <Card>
                                 <CardHeader>
                                     <CardTitle>Contraparte - Usuario del Sistema</CardTitle>
@@ -969,7 +975,7 @@ onUnmounted(() => {
                                 </CardContent>
                             </Card>
 
-                            <!-- Sección 2: Contraparte Externa -->
+                            <!-- Sección 3: Contraparte Externa -->
                             <Card>
                                 <CardHeader>
                                     <CardTitle>Contraparte - Información Externa</CardTitle>
@@ -1030,7 +1036,7 @@ onUnmounted(() => {
                                 </CardContent>
                             </Card>
 
-                            <!-- Sección 3: Participantes del Contrato -->
+                            <!-- Sección 4: Participantes del Contrato -->
                             <Card>
                                 <CardHeader>
                                     <CardTitle>Participantes del Contrato</CardTitle>
