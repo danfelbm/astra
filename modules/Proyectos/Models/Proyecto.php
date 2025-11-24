@@ -248,9 +248,10 @@ class Proyecto extends Model
         // Obtener hitos del proyecto
         $hitos = $this->hitos;
 
-        // Si no hay hitos, usar cálculo basado en fechas como fallback
+        // Si no hay hitos, retornar 0% (sin trabajo planificado = sin progreso)
+        // No usamos cálculo por fechas porque es engañoso (confunde tiempo con trabajo)
         if ($hitos->isEmpty()) {
-            return $this->calcularProgresoPorFechas();
+            return 0;
         }
 
         // Calcular progreso basado en hitos y entregables
@@ -268,28 +269,6 @@ class Proyecto extends Model
         return round($progresoPromedio);
     }
 
-    /**
-     * Calcula el progreso basado en fechas (fallback cuando no hay hitos).
-     */
-    private function calcularProgresoPorFechas(): int
-    {
-        if (!$this->fecha_inicio || !$this->fecha_fin) {
-            return 0;
-        }
-
-        $totalDias = $this->fecha_inicio->diffInDays($this->fecha_fin);
-        if ($totalDias === 0) {
-            return 0;
-        }
-
-        $diasTranscurridos = $this->fecha_inicio->diffInDays(now());
-        if ($diasTranscurridos <= 0) {
-            return 0;
-        }
-
-        $porcentaje = min(100, max(0, ($diasTranscurridos / $totalDias) * 100));
-        return round($porcentaje);
-    }
 
     /**
      * Scope para proyectos activos.
