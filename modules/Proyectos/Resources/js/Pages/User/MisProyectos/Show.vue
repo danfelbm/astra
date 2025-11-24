@@ -523,18 +523,19 @@ const formatCampoValor = (campo: CampoPersonalizado) => {
                         <CardHeader>
                             <CardTitle>Contratos del Proyecto</CardTitle>
                             <CardDescription>
-                                Lista de contratos asociados a este proyecto
+                                Haz clic en cualquier contrato para ver sus detalles
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <div class="space-y-4">
+                            <div class="space-y-3">
                                 <ContratoCard
                                     v-for="contrato in proyecto.contratos"
                                     :key="contrato.id"
                                     :contrato="contrato"
                                     :show-proyecto="false"
-                                    :show-actions="true"
+                                    :show-actions="false"
                                     view-mode="user"
+                                    compact
                                 />
                             </div>
                         </CardContent>
