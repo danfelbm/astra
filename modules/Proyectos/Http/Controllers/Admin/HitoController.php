@@ -62,16 +62,15 @@ class HitoController extends AdminController
         // Verificar permisos
         abort_unless(auth()->user()->can('hitos.create'), 403, 'No tienes permisos para crear hitos');
 
-        $proyecto->load(['participantes', 'responsable']);
+        $proyecto->load(['responsable']);
 
-        // Obtener posibles responsables del proyecto
+        // Obtener posibles responsables del proyecto (participantes es BelongsToMany directo a User)
         $responsables = $proyecto->participantes()
-            ->with('user:id,name,email')
-            ->get()
-            ->map(fn($p) => [
-                'id' => $p->user->id,
-                'name' => $p->user->name,
-                'email' => $p->user->email
+            ->get(['users.id', 'users.name', 'users.email'])
+            ->map(fn($user) => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email
             ]);
 
         // Obtener hitos disponibles como padres
@@ -221,16 +220,15 @@ class HitoController extends AdminController
         // Verificar permisos
         abort_unless(auth()->user()->can('hitos.edit'), 403, 'No tienes permisos para editar hitos');
 
-        $proyecto->load(['participantes.user:id,name,email']);
         $hito->load(['responsable:id,name,email']);
 
+        // Obtener posibles responsables del proyecto (participantes es BelongsToMany directo a User)
         $responsables = $proyecto->participantes()
-            ->with('user:id,name,email')
-            ->get()
-            ->map(fn($p) => [
-                'id' => $p->user->id,
-                'name' => $p->user->name,
-                'email' => $p->user->email
+            ->get(['users.id', 'users.name', 'users.email'])
+            ->map(fn($user) => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email
             ]);
 
         // Obtener hitos disponibles como padres (excepto el hito actual y sus descendientes)

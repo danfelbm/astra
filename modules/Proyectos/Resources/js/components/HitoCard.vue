@@ -1,75 +1,71 @@
 <template>
-  <Card class="hover:shadow-lg transition-shadow duration-200">
-    <CardHeader class="pb-3">
-      <div class="flex items-center justify-between">
-        <div class="flex items-center space-x-3">
-          <div :class="estadoClasses" class="w-2 h-2 rounded-full"></div>
-          <CardTitle class="text-lg font-medium">{{ hito.nombre }}</CardTitle>
+  <Card class="hover:shadow-md transition-shadow duration-200">
+    <!-- Header compacto -->
+    <CardHeader :class="compact ? 'pb-2 pt-3 px-4' : 'pb-3'">
+      <div class="flex items-center justify-between gap-2">
+        <div class="flex items-center gap-2 min-w-0 flex-1">
+          <div :class="estadoClasses" class="w-2 h-2 rounded-full flex-shrink-0"></div>
+          <CardTitle :class="compact ? 'text-base' : 'text-lg'" class="font-medium truncate">
+            {{ hito.nombre }}
+          </CardTitle>
         </div>
-        <div class="flex items-center space-x-2">
-          <Badge :variant="prioridadVariant" class="text-xs">
-            {{ hito.estado_label || estadoLabel }}
-          </Badge>
-          <DropdownMenu v-if="canEdit || canDelete">
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" class="h-8 w-8">
-                <MoreHorizontal class="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem v-if="canEdit" @click="$emit('edit', hito)">
-                <Edit2 class="mr-2 h-4 w-4" />
-                Editar
-              </DropdownMenuItem>
-              <DropdownMenuItem v-if="canManageDeliverables" @click="$emit('add-entregable', hito)">
-                <Plus class="mr-2 h-4 w-4" />
-                Añadir Entregable
-              </DropdownMenuItem>
-              <DropdownMenuItem @click="$emit('duplicate', hito)">
-                <Copy class="mr-2 h-4 w-4" />
-                Duplicar
-              </DropdownMenuItem>
-              <DropdownMenuSeparator v-if="canDelete" />
-              <DropdownMenuItem v-if="canDelete" @click="$emit('delete', hito)" class="text-red-600">
-                <Trash2 class="mr-2 h-4 w-4" />
-                Eliminar
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+        <Badge :variant="prioridadVariant" :class="compact ? 'text-xs px-2 py-0.5' : 'text-xs'">
+          {{ hito.estado_label || estadoLabel }}
+        </Badge>
       </div>
     </CardHeader>
 
-    <CardContent class="pb-3">
-      <!-- Descripción -->
-      <p v-if="hito.descripcion" class="text-sm text-muted-foreground mb-3 line-clamp-2">
+    <CardContent :class="compact ? 'pb-2 px-4 space-y-2' : 'pb-3 space-y-3'">
+      <!-- Descripción (solo si no es compact) -->
+      <p v-if="hito.descripcion && !compact" class="text-sm text-muted-foreground line-clamp-2">
         {{ hito.descripcion }}
       </p>
 
-      <!-- Fechas -->
-      <div v-if="hito.fecha_inicio || hito.fecha_fin" class="flex items-center space-x-4 text-sm text-muted-foreground mb-3">
-        <div v-if="hito.fecha_inicio" class="flex items-center">
-          <CalendarDays class="mr-1 h-3 w-3" />
-          <span>{{ formatDate(hito.fecha_inicio) }}</span>
+      <!-- Fechas y Responsable en línea -->
+      <div class="flex items-center justify-between gap-4 text-xs text-muted-foreground">
+        <div class="flex items-center gap-3">
+          <div v-if="hito.fecha_inicio" class="flex items-center gap-1">
+            <CalendarDays class="h-3 w-3" />
+            <span>{{ formatDate(hito.fecha_inicio) }}</span>
+          </div>
+          <span v-if="hito.fecha_inicio && hito.fecha_fin" class="text-gray-300">→</span>
+          <div v-if="hito.fecha_fin" class="flex items-center gap-1">
+            <CalendarCheck class="h-3 w-3" />
+            <span>{{ formatDate(hito.fecha_fin) }}</span>
+          </div>
         </div>
-        <div v-if="hito.fecha_fin" class="flex items-center">
-          <CalendarCheck class="mr-1 h-3 w-3" />
-          <span>{{ formatDate(hito.fecha_fin) }}</span>
+        <div v-if="hito.responsable" class="flex items-center gap-1.5">
+          <Avatar class="h-5 w-5">
+            <AvatarFallback class="text-[10px]">
+              {{ hito.responsable.name?.charAt(0)?.toUpperCase() }}
+            </AvatarFallback>
+          </Avatar>
+          <span class="truncate max-w-[100px]">{{ hito.responsable.name }}</span>
         </div>
       </div>
 
-      <!-- Responsable -->
-      <div v-if="hito.responsable" class="flex items-center space-x-2 mb-3">
-        <Avatar class="h-6 w-6">
-          <AvatarFallback class="text-xs">
-            {{ hito.responsable.name?.charAt(0)?.toUpperCase() }}
-          </AvatarFallback>
-        </Avatar>
-        <span class="text-sm text-muted-foreground">{{ hito.responsable.name }}</span>
+      <!-- Barra de progreso compacta -->
+      <div :class="compact ? 'space-y-1' : 'space-y-2'">
+        <div class="flex justify-between items-center text-xs">
+          <span class="text-muted-foreground">Progreso</span>
+          <span class="font-medium">{{ hito.porcentaje_completado }}%</span>
+        </div>
+        <Progress :model-value="hito.porcentaje_completado" :class="compact ? 'h-1.5' : 'h-2'" />
       </div>
 
-      <!-- Etiquetas -->
-      <div v-if="hito.etiquetas && hito.etiquetas.length > 0" class="flex flex-wrap gap-1 mb-3">
+      <!-- Stats de entregables y días restantes -->
+      <div class="flex items-center justify-between text-xs text-muted-foreground">
+        <span>{{ hito.entregables_completados || 0 }}/{{ hito.total_entregables || hito.entregables?.length || 0 }} entregables</span>
+        <div v-if="hito.dias_restantes !== null && hito.dias_restantes !== undefined" class="flex items-center gap-1">
+          <Clock class="h-3 w-3" />
+          <span :class="{'text-red-500 font-medium': hito.dias_restantes < 0, 'text-orange-500': hito.dias_restantes >= 0 && hito.dias_restantes <= 7}">
+            {{ hito.dias_restantes < 0 ? `Vencido hace ${Math.abs(hito.dias_restantes)} días` : `${hito.dias_restantes} días` }}
+          </span>
+        </div>
+      </div>
+
+      <!-- Etiquetas (solo si no es compact y hay etiquetas) -->
+      <div v-if="!compact && hito.etiquetas && hito.etiquetas.length > 0" class="flex flex-wrap gap-1">
         <Badge
           v-for="etiqueta in hito.etiquetas.slice(0, 3)"
           :key="etiqueta.id"
@@ -82,48 +78,45 @@
         >
           {{ etiqueta.nombre }}
         </Badge>
-        <Badge
-          v-if="hito.etiquetas.length > 3"
-          variant="outline"
-          class="text-xs"
-        >
+        <Badge v-if="hito.etiquetas.length > 3" variant="outline" class="text-xs">
           +{{ hito.etiquetas.length - 3 }}
         </Badge>
       </div>
-
-      <!-- Barra de progreso -->
-      <div class="space-y-2">
-        <div class="flex justify-between items-center text-xs">
-          <span class="text-muted-foreground">Progreso</span>
-          <span class="font-medium">{{ hito.porcentaje_completado }}%</span>
-        </div>
-        <Progress :model-value="hito.porcentaje_completado" class="h-2" />
-      </div>
-
-      <!-- Estadísticas de entregables -->
-      <div v-if="hito.entregables && hito.entregables.length > 0" class="mt-3 flex items-center justify-between text-xs text-muted-foreground">
-        <div class="flex items-center space-x-3">
-          <span>{{ hito.entregables_completados || 0 }}/{{ hito.total_entregables || hito.entregables.length }} entregables</span>
-        </div>
-        <div v-if="hito.dias_restantes !== null" class="flex items-center">
-          <Clock class="mr-1 h-3 w-3" />
-          <span :class="{'text-red-500': hito.dias_restantes < 0, 'text-orange-500': hito.dias_restantes <= 7}">
-            {{ hito.dias_restantes < 0 ? `Vencido hace ${Math.abs(hito.dias_restantes)} días` : `${hito.dias_restantes} días restantes` }}
-          </span>
-        </div>
-      </div>
     </CardContent>
 
-    <CardFooter v-if="showActions" class="pt-3 border-t">
-      <div class="w-full flex justify-between">
-        <Button variant="ghost" size="sm" @click="$emit('view', hito)">
-          <Eye class="mr-2 h-4 w-4" />
-          Ver detalles
-        </Button>
-        <Button variant="outline" size="sm" @click="$emit('view-entregables', hito)">
-          <ListTodo class="mr-2 h-4 w-4" />
-          Entregables
-        </Button>
+    <!-- Footer con TODAS las acciones -->
+    <CardFooter v-if="showActions" :class="compact ? 'pt-2 pb-3 px-4 border-t' : 'pt-3 border-t'">
+      <div class="w-full flex items-center justify-between gap-2">
+        <!-- Acciones primarias -->
+        <div class="flex items-center gap-1">
+          <Button variant="ghost" size="sm" @click="$emit('view', hito)" class="h-8 px-2">
+            <Eye class="h-4 w-4" />
+            <span class="ml-1.5">Ver detalles</span>
+          </Button>
+          <Button variant="ghost" size="sm" @click="$emit('view-entregables', hito)" class="h-8 px-2">
+            <ListTodo class="h-4 w-4" />
+            <span class="ml-1.5">Entregables</span>
+          </Button>
+        </div>
+        <!-- Acciones secundarias -->
+        <div class="flex items-center gap-1">
+          <Button v-if="canEdit" variant="ghost" size="sm" @click="$emit('edit', hito)" class="h-8 px-2">
+            <Edit2 class="h-4 w-4" />
+            <span class="ml-1.5">Editar</span>
+          </Button>
+          <Button v-if="canManageDeliverables" variant="ghost" size="sm" @click="$emit('add-entregable', hito)" class="h-8 px-2">
+            <Plus class="h-4 w-4" />
+            <span class="ml-1.5">Añadir</span>
+          </Button>
+          <Button variant="ghost" size="sm" @click="$emit('duplicate', hito)" class="h-8 px-2">
+            <Copy class="h-4 w-4" />
+            <span class="ml-1.5">Duplicar</span>
+          </Button>
+          <Button v-if="canDelete" variant="ghost" size="sm" @click="$emit('delete', hito)" class="h-8 px-2 text-red-600 hover:text-red-700 hover:bg-red-50">
+            <Trash2 class="h-4 w-4" />
+            <span class="ml-1.5">Eliminar</span>
+          </Button>
+        </div>
       </div>
     </CardFooter>
   </Card>
@@ -139,13 +132,6 @@ import { Badge } from '@modules/Core/Resources/js/components/ui/badge';
 import { Progress } from '@modules/Core/Resources/js/components/ui/progress';
 import { Avatar, AvatarFallback } from '@modules/Core/Resources/js/components/ui/avatar';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@modules/Core/Resources/js/components/ui/dropdown-menu';
-import {
   CalendarDays,
   CalendarCheck,
   Clock,
@@ -153,20 +139,26 @@ import {
   Edit2,
   Eye,
   ListTodo,
-  MoreHorizontal,
   Plus,
   Trash2,
 } from 'lucide-vue-next';
 import type { Hito } from '@modules/Proyectos/Resources/js/types/hitos';
 
 // Props
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   hito: Hito;
   canEdit?: boolean;
   canDelete?: boolean;
   canManageDeliverables?: boolean;
   showActions?: boolean;
-}>();
+  compact?: boolean;
+}>(), {
+  canEdit: false,
+  canDelete: false,
+  canManageDeliverables: false,
+  showActions: true,
+  compact: false,
+});
 
 // Emits
 defineEmits<{
