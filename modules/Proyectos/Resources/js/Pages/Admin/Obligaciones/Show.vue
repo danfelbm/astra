@@ -7,18 +7,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@modu
 import { Badge } from '@modules/Core/Resources/js/components/ui/badge';
 import { Label } from '@modules/Core/Resources/js/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@modules/Core/Resources/js/components/ui/tabs';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@modules/Core/Resources/js/components/ui/table';
 import EvidenciaFilters from '@modules/Proyectos/Resources/js/components/EvidenciaFilters.vue';
+import EvidenciasTable from '@modules/Proyectos/Resources/js/components/EvidenciasTable.vue';
 import ObligacionTree from '@modules/Proyectos/Resources/js/components/ObligacionTree.vue';
 import {
   Pencil,
   Paperclip,
-  FileText,
   Info,
   ListTree,
   Image,
-  ExternalLink,
-  Download,
   ArrowLeft
 } from 'lucide-vue-next';
 import { usePermissions } from '@modules/Core/Resources/js/composables/usePermissions';
@@ -300,112 +297,15 @@ const formatDateShort = (dateString: string | undefined) => {
             :evidencias="evidenciasDeLaObligacion"
           />
 
-          <!-- Lista de evidencias -->
-          <div v-if="evidenciasFiltradas.length > 0">
-            <Card>
-              <CardHeader>
-                <CardTitle>Evidencias Asociadas</CardTitle>
-                <CardDescription>
-                  Evidencias cargadas para esta obligación
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Tipo</TableHead>
-                      <TableHead>Descripción</TableHead>
-                      <TableHead>Entregable</TableHead>
-                      <TableHead>Usuario</TableHead>
-                      <TableHead>Estado</TableHead>
-                      <TableHead>Fecha</TableHead>
-                      <TableHead class="text-right">Acciones</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    <TableRow
-                      v-for="evidencia in evidenciasFiltradas"
-                      :key="evidencia.id"
-                      class="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
-                    >
-                      <Link
-                        :href="`/admin/contratos/${contrato.id}/evidencias/${evidencia.id}`"
-                        class="contents"
-                      >
-                        <TableCell>
-                          <Badge variant="outline">{{ evidencia.tipo_evidencia }}</Badge>
-                        </TableCell>
-                        <TableCell>
-                          <span class="text-sm text-gray-600">{{ evidencia.descripcion || '-' }}</span>
-                        </TableCell>
-                        <TableCell>
-                          <div v-if="evidencia.entregables && evidencia.entregables.length > 0" class="flex flex-wrap gap-1">
-                            <Badge
-                              v-for="entregable in evidencia.entregables"
-                              :key="entregable.id"
-                              variant="secondary"
-                              class="text-xs"
-                            >
-                              {{ entregable.nombre }}
-                            </Badge>
-                          </div>
-                          <span v-else class="text-sm text-gray-500">-</span>
-                        </TableCell>
-                        <TableCell>
-                          <span class="text-sm">{{ evidencia.usuario?.name || '-' }}</span>
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            :class="{
-                              'bg-yellow-100 text-yellow-800': evidencia.estado === 'pendiente',
-                              'bg-green-100 text-green-800': evidencia.estado === 'aprobada',
-                              'bg-red-100 text-red-800': evidencia.estado === 'rechazada'
-                            }"
-                          >
-                            {{ evidencia.estado }}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{{ formatDateShort(evidencia.created_at) }}</TableCell>
-                        <TableCell class="text-right">
-                          <a
-                            v-if="evidencia.archivo_url"
-                            :href="evidencia.archivo_url"
-                            target="_blank"
-                            class="inline-flex items-center text-blue-600 hover:text-blue-800"
-                            @click.stop
-                          >
-                            <Download class="h-4 w-4" />
-                          </a>
-                        </TableCell>
-                      </Link>
-                    </TableRow>
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          </div>
-
-          <!-- Estado vacío -->
-          <Card v-else-if="evidenciasDeLaObligacion.length === 0">
-            <CardContent class="py-8">
-              <div class="text-center">
-                <Image class="mx-auto h-12 w-12 text-gray-400" />
-                <p class="mt-2 text-sm text-gray-600">No hay evidencias asociadas</p>
-                <p class="text-xs text-gray-500 mt-1">Las evidencias se cargan desde los contratos</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <!-- Sin resultados después de filtrar -->
-          <Card v-else>
-            <CardContent class="py-8">
-              <div class="text-center">
-                <Image class="mx-auto h-12 w-12 text-gray-400" />
-                <p class="mt-2 text-sm text-gray-600">No hay evidencias que coincidan con los filtros</p>
-                <p class="text-xs text-gray-500 mt-1">Intenta ajustar los criterios de búsqueda</p>
-              </div>
-            </CardContent>
-          </Card>
+          <!-- Tabla de evidencias (componente reutilizable) -->
+          <EvidenciasTable
+            mode="simple"
+            :evidencias="evidenciasFiltradas"
+            :contrato="contrato"
+            :format-date="formatDateShort"
+            card-title="Evidencias Asociadas"
+            card-description="Evidencias cargadas para esta obligación"
+          />
         </TabsContent>
       </Tabs>
     </div>
