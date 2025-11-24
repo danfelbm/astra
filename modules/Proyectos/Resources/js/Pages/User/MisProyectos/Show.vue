@@ -6,7 +6,6 @@ import { Button } from "@modules/Core/Resources/js/components/ui/button";
 import { Badge } from "@modules/Core/Resources/js/components/ui/badge";
 import { Progress } from "@modules/Core/Resources/js/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@modules/Core/Resources/js/components/ui/tabs";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@modules/Core/Resources/js/components/ui/table";
 import { Avatar, AvatarFallback, AvatarImage } from "@modules/Core/Resources/js/components/ui/avatar";
 import { Separator } from "@modules/Core/Resources/js/components/ui/separator";
 import { ref, computed, defineAsyncComponent } from 'vue';
@@ -29,14 +28,11 @@ import {
     Image,
     Milestone,
     UserPlus,
-    ExternalLink,
-    Download
 } from 'lucide-vue-next';
 import EtiquetaDisplay from "@modules/Proyectos/Resources/js/components/EtiquetaDisplay.vue";
 import ContratoCard from "@modules/Proyectos/Resources/js/components/ContratoCard.vue";
 import HitoCard from "@modules/Proyectos/Resources/js/components/HitoCard.vue";
-import EvidenciaFilters from "@modules/Proyectos/Resources/js/components/EvidenciaFilters.vue";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@modules/Core/Resources/js/components/ui/accordion";
+import EvidenciasDisplay from "@modules/Proyectos/Resources/js/components/EvidenciasDisplay.vue";
 import type { Etiqueta } from '@modules/Proyectos/Resources/js/types/etiquetas';
 import type { Contrato } from '@modules/Proyectos/Resources/js/types/contratos';
 import type { Hito } from '@modules/Proyectos/Resources/js/types/hitos';
@@ -107,14 +103,18 @@ const props = defineProps<Props>();
 // Estado para el tab activo
 const activeTab = ref('general');
 
-// Estado para filtros de evidencias
-const filtrosEvidencias = ref({
-    contrato_id: null,
-    fecha_inicio: null,
-    fecha_fin: null,
-    tipo: null,
-    estado: null,
-    usuario_id: null
+// Computed para verificar si el usuario es gestor del proyecto
+const esGestorDelProyecto = computed(() => {
+    const userId = props.proyecto.responsable?.id;
+    // Es el responsable del proyecto
+    if (props.proyecto.responsable?.id === userId) {
+        return true;
+    }
+    // Es gestor del proyecto (verificar en participantes con rol gestor)
+    if (props.proyecto.participantes) {
+        return props.proyecto.participantes.some(p => p.pivot?.rol === 'gestor');
+    }
+    return false;
 });
 
 // Lazy loading para tabs pesados
@@ -180,93 +180,6 @@ const getDiasRestantes = (fechaFin: string) => {
 
 const diasRestantes = props.proyecto.fecha_fin ? getDiasRestantes(props.proyecto.fecha_fin) : null;
 
-// Función para obtener todas las evidencias de los contratos
-const todasLasEvidencias = computed(() => {
-    const evidencias: any[] = [];
-    if (props.proyecto.contratos) {
-        props.proyecto.contratos.forEach(contrato => {
-            if (contrato.obligaciones) {
-                contrato.obligaciones.forEach(obligacion => {
-                    if (obligacion.evidencias) {
-                        obligacion.evidencias.forEach(evidencia => {
-                            evidencias.push({
-                                ...evidencia,
-                                contrato_id: contrato.id,
-                                contrato_numero: contrato.numero_contrato,
-                                contrato_nombre: contrato.nombre,
-                                obligacion_titulo: obligacion.titulo,
-                                // Incluir referencia al contrato completo para el accordion
-                                _contrato: contrato
-                            });
-                        });
-                    }
-                });
-            }
-        });
-    }
-    return evidencias;
-});
-
-// Evidencias filtradas según los filtros activos
-const evidenciasFiltradas = computed(() => {
-    let result = todasLasEvidencias.value;
-
-    // Filtrar por contrato
-    if (filtrosEvidencias.value.contrato_id) {
-        result = result.filter(e => e.contrato_id === filtrosEvidencias.value.contrato_id);
-    }
-
-    // Filtrar por tipo
-    if (filtrosEvidencias.value.tipo) {
-        result = result.filter(e => e.tipo_evidencia === filtrosEvidencias.value.tipo);
-    }
-
-    // Filtrar por estado
-    if (filtrosEvidencias.value.estado) {
-        result = result.filter(e => e.estado === filtrosEvidencias.value.estado);
-    }
-
-    // Filtrar por usuario
-    if (filtrosEvidencias.value.usuario_id) {
-        result = result.filter(e => e.usuario?.id === filtrosEvidencias.value.usuario_id);
-    }
-
-    // Filtrar por rango de fechas
-    if (filtrosEvidencias.value.fecha_inicio || filtrosEvidencias.value.fecha_fin) {
-        result = result.filter(e => {
-            const fecha = new Date(e.created_at);
-            if (filtrosEvidencias.value.fecha_inicio) {
-                const fechaInicio = new Date(filtrosEvidencias.value.fecha_inicio);
-                if (fecha < fechaInicio) return false;
-            }
-            if (filtrosEvidencias.value.fecha_fin) {
-                const fechaFin = new Date(filtrosEvidencias.value.fecha_fin);
-                fechaFin.setHours(23, 59, 59, 999); // Incluir todo el día
-                if (fecha > fechaFin) return false;
-            }
-            return true;
-        });
-    }
-
-    return result;
-});
-
-// Evidencias agrupadas por contrato (para el Accordion)
-const evidenciasAgrupadasPorContrato = computed(() => {
-    const grupos: Record<number, any> = {};
-
-    evidenciasFiltradas.value.forEach(evidencia => {
-        if (!grupos[evidencia.contrato_id]) {
-            grupos[evidencia.contrato_id] = {
-                contrato: evidencia._contrato,
-                evidencias: []
-            };
-        }
-        grupos[evidencia.contrato_id].evidencias.push(evidencia);
-    });
-
-    return Object.values(grupos);
-});
 
 // Función para obtener el inicial del nombre
 const getInitials = (name: string) => {
@@ -630,133 +543,13 @@ const formatCampoValor = (campo: CampoPersonalizado) => {
 
                 <!-- Tab de Evidencias -->
                 <TabsContent value="evidencias" class="space-y-4 mt-6">
-                    <!-- Filtros de evidencias -->
-                    <EvidenciaFilters
-                        v-if="todasLasEvidencias.length > 0"
-                        v-model="filtrosEvidencias"
+                    <EvidenciasDisplay
                         :contratos="proyecto.contratos || []"
-                        :evidencias="todasLasEvidencias"
+                        :proyecto-id="proyecto.id"
+                        modo="user"
+                        :puede-gestionar-estado="esGestorDelProyecto"
+                        :format-date="formatDate"
                     />
-
-                    <!-- Evidencias agrupadas por contrato -->
-                    <div v-if="evidenciasAgrupadasPorContrato.length > 0">
-                        <Accordion type="multiple" class="space-y-4" collapsible>
-                            <AccordionItem
-                                v-for="grupo in evidenciasAgrupadasPorContrato"
-                                :key="grupo.contrato.id"
-                                :value="`contrato-${grupo.contrato.id}`"
-                                class="border rounded-lg bg-card"
-                            >
-                                <AccordionTrigger class="px-4 py-3 hover:no-underline hover:bg-gray-50 dark:hover:bg-gray-800 rounded-t-lg">
-                                    <div class="flex items-center justify-between w-full pr-4">
-                                        <div class="flex items-center gap-3">
-                                            <FileText class="h-5 w-5 text-gray-500" />
-                                            <div class="text-left">
-                                                <div class="font-semibold">
-                                                    {{ grupo.contrato.nombre }}
-                                                </div>
-                                                <div class="text-sm text-gray-500">
-                                                    {{ grupo.contrato.numero_contrato || 'Sin número' }}
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="flex items-center gap-3">
-                                            <Badge variant="secondary">
-                                                {{ grupo.evidencias.length }} evidencia(s)
-                                            </Badge>
-                                            <Link
-                                                :href="`/miembro/mis-contratos/${grupo.contrato.id}`"
-                                                @click.stop
-                                                class="text-blue-600 hover:text-blue-800 flex items-center gap-1"
-                                            >
-                                                Ver contrato
-                                                <ExternalLink class="h-3 w-3" />
-                                            </Link>
-                                        </div>
-                                    </div>
-                                </AccordionTrigger>
-                                <AccordionContent class="px-4 pb-4">
-                                    <Table>
-                                        <TableHeader>
-                                            <TableRow>
-                                                <TableHead>Tipo</TableHead>
-                                                <TableHead>Obligación</TableHead>
-                                                <TableHead>Descripción</TableHead>
-                                                <TableHead>Estado</TableHead>
-                                                <TableHead>Fecha</TableHead>
-                                                <TableHead class="text-right">Acciones</TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            <TableRow
-                                                v-for="evidencia in grupo.evidencias"
-                                                :key="evidencia.id"
-                                                class="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
-                                            >
-                                                <Link
-                                                    :href="`/miembro/mis-contratos/${evidencia.contrato_id}/evidencias/${evidencia.id}`"
-                                                    class="contents"
-                                                >
-                                                    <TableCell>
-                                                        <Badge variant="outline">{{ evidencia.tipo_evidencia }}</Badge>
-                                                    </TableCell>
-                                                    <TableCell>{{ evidencia.obligacion_titulo }}</TableCell>
-                                                    <TableCell>
-                                                        <span class="text-sm text-gray-600">{{ evidencia.descripcion || '-' }}</span>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <Badge
-                                                            :class="{
-                                                                'bg-yellow-100 text-yellow-800': evidencia.estado === 'pendiente',
-                                                                'bg-green-100 text-green-800': evidencia.estado === 'aprobada',
-                                                                'bg-red-100 text-red-800': evidencia.estado === 'rechazada'
-                                                            }"
-                                                        >
-                                                            {{ evidencia.estado }}
-                                                        </Badge>
-                                                    </TableCell>
-                                                    <TableCell>{{ formatDate(evidencia.created_at) }}</TableCell>
-                                                    <TableCell class="text-right">
-                                                        <a
-                                                            v-if="evidencia.archivo_url"
-                                                            :href="evidencia.archivo_url"
-                                                            target="_blank"
-                                                            class="inline-flex items-center text-blue-600 hover:text-blue-800"
-                                                            @click.stop
-                                                        >
-                                                            <Download class="h-4 w-4" />
-                                                        </a>
-                                                    </TableCell>
-                                                </Link>
-                                            </TableRow>
-                                        </TableBody>
-                                    </Table>
-                                </AccordionContent>
-                            </AccordionItem>
-                        </Accordion>
-                    </div>
-
-                    <!-- Estado vacío -->
-                    <Card v-else-if="todasLasEvidencias.length === 0">
-                        <CardContent class="py-8">
-                            <div class="text-center">
-                                <Image class="mx-auto h-12 w-12 text-gray-400" />
-                                <p class="mt-2 text-sm text-gray-600">No hay evidencias cargadas</p>
-                                <p class="text-xs text-gray-500 mt-1">Las evidencias se cargan desde los contratos</p>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    <!-- Sin resultados después de filtrar -->
-                    <Card v-else>
-                        <CardContent class="py-8">
-                            <div class="text-center">
-                                <Image class="mx-auto h-12 w-12 text-gray-400" />
-                                <p class="mt-2 text-sm text-gray-600">No hay evidencias que coincidan con los filtros</p>
-                                <p class="text-xs text-gray-500 mt-1">Intenta ajustar los criterios de búsqueda</p>
-                            </div>
-                        </CardContent>
-                    </Card>
                 </TabsContent>
 
                 <!-- Tab de Hitos y Entregables -->
