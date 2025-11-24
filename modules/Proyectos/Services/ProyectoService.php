@@ -24,13 +24,15 @@ class ProyectoService
     {
         DB::beginTransaction();
         try {
-            // Separar campos personalizados y etiquetas del resto de datos
+            // Separar campos personalizados, etiquetas y gestores del resto de datos
             $camposPersonalizados = $data['campos_personalizados'] ?? [];
             $etiquetas = $data['etiquetas'] ?? [];
+            $gestores = $data['gestores'] ?? [];
             $crearHitosIniciales = $data['crear_hitos_iniciales'] ?? false;
             $tipoProyecto = $data['tipo_proyecto'] ?? null;
             unset($data['campos_personalizados']);
             unset($data['etiquetas']);
+            unset($data['gestores']);
             unset($data['crear_hitos_iniciales']);
             unset($data['tipo_proyecto']);
 
@@ -45,6 +47,11 @@ class ProyectoService
             // Sincronizar etiquetas si existen
             if (!empty($etiquetas)) {
                 $proyecto->sincronizarEtiquetas($etiquetas);
+            }
+
+            // Sincronizar gestores si existen
+            if (!empty($gestores)) {
+                $proyecto->sincronizarGestores($gestores);
             }
 
             // Crear hitos iniciales si se solicitó
@@ -85,11 +92,13 @@ class ProyectoService
             // Guardar el responsable anterior para notificación
             $responsableAnterior = $proyecto->responsable_id;
 
-            // Separar campos personalizados y etiquetas del resto de datos
+            // Separar campos personalizados, etiquetas y gestores del resto de datos
             $camposPersonalizados = $data['campos_personalizados'] ?? [];
             $etiquetas = $data['etiquetas'] ?? null;
+            $gestores = $data['gestores'] ?? null;
             unset($data['campos_personalizados']);
             unset($data['etiquetas']);
+            unset($data['gestores']);
 
             // Actualizar el proyecto
             $this->repository->update($proyecto, $data);
@@ -102,6 +111,11 @@ class ProyectoService
             // Sincronizar etiquetas si se proporcionaron
             if ($etiquetas !== null) {
                 $proyecto->sincronizarEtiquetas($etiquetas);
+            }
+
+            // Sincronizar gestores si se proporcionaron
+            if ($gestores !== null) {
+                $proyecto->sincronizarGestores($gestores);
             }
 
             // Notificar cambio de responsable si aplica

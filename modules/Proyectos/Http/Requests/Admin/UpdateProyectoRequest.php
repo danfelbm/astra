@@ -32,6 +32,8 @@ class UpdateProyectoRequest extends FormRequest
             'campos_personalizados' => 'nullable|array',
             'etiquetas' => 'nullable|array|max:' . config('proyectos.etiquetas.max_por_proyecto', 10),
             'etiquetas.*' => 'exists:etiquetas,id',
+            'gestores' => 'nullable|array',
+            'gestores.*' => 'exists:users,id',
         ];
 
         // Agregar reglas dinámicas para campos personalizados
