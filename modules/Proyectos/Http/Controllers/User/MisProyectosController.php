@@ -139,6 +139,11 @@ class MisProyectosController extends UserController
         // Verificar permisos - cualquier usuario autenticado puede ver proyectos
         abort_unless(auth()->user()->can('proyectos.view_own'), 403, 'No tienes permiso para ver proyectos');
 
+        // Verificar si el usuario es gestor del proyecto
+        $userId = auth()->id();
+        $esGestor = $proyecto->responsable_id === $userId ||
+                    $proyecto->gestores()->where('user_id', $userId)->exists();
+
         // Cargar todas las relaciones necesarias para los tabs
         $proyecto->load([
             'responsable',
@@ -151,17 +156,27 @@ class MisProyectosController extends UserController
                       ->orderBy('users.name');
             },
             // Contratos del proyecto
-            'contratos' => function ($query) {
+            'contratos' => function ($query) use ($esGestor, $userId) {
                 $query->with([
                     'contraparteUser:id,name,email',
                     'responsable:id,name,email',
-                    'obligaciones' => function ($q) {
+                    'obligaciones' => function ($q) use ($esGestor, $userId) {
                         $q->with([
-                            'evidencias' => function ($eq) {
+                            'evidencias' => function ($eq) use ($esGestor, $userId) {
                                 $eq->with('usuario:id,name,email')
                                    ->latest();
+
+                                // Si NO es gestor, filtrar solo evidencias propias
+                                if (!$esGestor) {
+                                    $eq->where('user_id', $userId);
+                                }
                             }
-                        ])->withCount('evidencias');
+                        ])->withCount(['evidencias' => function ($query) use ($esGestor, $userId) {
+                            // Contar solo evidencias visibles para el usuario
+                            if (!$esGestor) {
+                                $query->where('user_id', $userId);
+                            }
+                        }]);
                     }
                 ])->orderBy('fecha_inicio', 'desc');
             },
@@ -183,6 +198,7 @@ class MisProyectosController extends UserController
         $totalHitos = $proyecto->hitos->count();
 
         // Contar evidencias totales a través de contratos->obligaciones->evidencias
+        // El conteo ya está filtrado por el withCount en la query de evidencias
         $totalEvidencias = $proyecto->contratos->sum(function ($contrato) {
             return $contrato->obligaciones->sum('evidencias_count');
         });
