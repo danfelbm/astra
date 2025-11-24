@@ -46,7 +46,7 @@ class StoreContratoRequest extends FormRequest
             // Participantes del contrato
             'participantes' => 'nullable|array',
             'participantes.*.user_id' => 'required_with:participantes|exists:users,id',
-            'participantes.*.rol' => 'required_with:participantes|in:participante,observador,aprobador',
+            'participantes.*.rol' => 'required_with:participantes|in:participante,observador,aprobador,testigo',
             'participantes.*.notas' => 'nullable|string|max:500',
 
             // Información de contraparte externa (solo si no hay usuario contraparte)
