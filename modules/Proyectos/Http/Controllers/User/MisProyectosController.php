@@ -28,7 +28,10 @@ class MisProyectosController extends UserController
         $proyectos = Proyecto::query()
             ->where(function ($query) {
                 $query->where('responsable_id', auth()->id())
-                      ->orWhere('created_by', auth()->id());
+                      ->orWhere('created_by', auth()->id())
+                      ->orWhereHas('gestores', function ($q) {
+                          $q->where('user_id', auth()->id());
+                      });
             })
             ->when($request->search, function ($query, $search) {
                 $query->where(function ($q) use ($search) {
@@ -182,9 +185,9 @@ class MisProyectosController extends UserController
                 'hitos' => $totalHitos,
             ],
             'canEdit' => auth()->user()->can('proyectos.edit_own') &&
-                        ($proyecto->responsable_id === auth()->id() || $proyecto->created_by === auth()->id()),
+                        auth()->user()->puedeEditarProyecto($proyecto),
             'canDelete' => auth()->user()->can('proyectos.delete_own') &&
-                          ($proyecto->responsable_id === auth()->id() || $proyecto->created_by === auth()->id()),
+                          auth()->user()->puedeEditarProyecto($proyecto),
         ]);
     }
 
@@ -299,7 +302,7 @@ class MisProyectosController extends UserController
             'camposPersonalizados' => $camposPersonalizados,
             'valoresCampos' => $valoresCampos,
             'canEdit' => auth()->user()->can('proyectos.edit_own') &&
-                        ($proyecto->responsable_id === auth()->id() || $proyecto->created_by === auth()->id()),
+                        auth()->user()->puedeEditarProyecto($proyecto),
         ]);
     }
 
