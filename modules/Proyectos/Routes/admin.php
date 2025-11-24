@@ -73,6 +73,9 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
         Route::post('/{proyecto}/evidencias/{evidencia}/rechazar', [\Modules\Proyectos\Http\Controllers\Admin\EvidenciaController::class, 'rechazarDesdeProyecto'])
             ->name('evidencias.rechazar')
             ->middleware('can:evidencias.rechazar');
+
+        Route::post('/{proyecto}/evidencias/{evidencia}/cambiar-estado', [\Modules\Proyectos\Http\Controllers\Admin\EvidenciaController::class, 'cambiarEstadoDesdeProyecto'])
+            ->name('evidencias.cambiar-estado');
     });
 
     // Rutas para gestión de campos personalizados

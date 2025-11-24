@@ -111,4 +111,55 @@ class EvidenciaController extends AdminController
 
         return response()->json($result);
     }
+
+    /**
+     * Cambia el estado de una evidencia directamente (solo admin).
+     */
+    public function cambiarEstadoDesdeProyecto(Request $request, Proyecto $proyecto, Evidencia $evidencia): JsonResponse
+    {
+        // Verificar que la evidencia pertenece a un contrato del proyecto
+        $contrato = Contrato::where('proyecto_id', $proyecto->id)
+            ->whereHas('obligaciones.evidencias', function ($query) use ($evidencia) {
+                $query->where('evidencias.id', $evidencia->id);
+            })
+            ->first();
+
+        if (!$contrato) {
+            return response()->json([
+                'success' => false,
+                'message' => 'La evidencia no pertenece a este proyecto'
+            ], 404);
+        }
+
+        // Validar el estado
+        $request->validate([
+            'estado' => 'required|in:pendiente,aprobada,rechazada',
+            'observaciones' => 'nullable|string'
+        ]);
+
+        $nuevoEstado = $request->input('estado');
+        $observaciones = $request->input('observaciones');
+
+        // Cambiar el estado según lo solicitado
+        if ($nuevoEstado === 'aprobada') {
+            $result = $this->service->aprobar($evidencia, $observaciones);
+        } elseif ($nuevoEstado === 'rechazada') {
+            $result = $this->service->rechazar($evidencia, $observaciones);
+        } else {
+            // Volver a pendiente
+            $evidencia->estado = 'pendiente';
+            $evidencia->observaciones_admin = $observaciones;
+            $evidencia->revisado_at = null;
+            $evidencia->revisado_por = null;
+            $evidencia->save();
+
+            $result = [
+                'success' => true,
+                'evidencia' => $evidencia->fresh(),
+                'message' => 'Estado cambiado a pendiente'
+            ];
+        }
+
+        return response()->json($result);
+    }
 }
