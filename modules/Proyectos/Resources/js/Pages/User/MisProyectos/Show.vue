@@ -410,9 +410,9 @@ const formatCampoValor = (campo: CampoPersonalizado) => {
                                     <span class="text-gray-600 dark:text-gray-400">Progreso del proyecto</span>
                                     <span class="font-medium">{{ proyecto.porcentaje_completado }}%</span>
                                 </div>
-                                <Progress :value="proyecto.porcentaje_completado" class="h-3" />
+                                <Progress :model-value="proyecto.porcentaje_completado" class="h-3" />
                                 <p class="text-xs text-gray-500">
-                                    Calculado automáticamente según las fechas
+                                    Calculado según hitos y entregables completados
                                 </p>
                             </div>
 

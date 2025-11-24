@@ -97,7 +97,7 @@
           <span class="text-muted-foreground">Progreso</span>
           <span class="font-medium">{{ hito.porcentaje_completado }}%</span>
         </div>
-        <Progress :value="hito.porcentaje_completado" class="h-2" />
+        <Progress :model-value="hito.porcentaje_completado" class="h-2" />
       </div>
 
       <!-- Estadísticas de entregables -->

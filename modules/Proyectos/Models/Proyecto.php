@@ -216,10 +216,16 @@ class Proyecto extends Model
     }
 
     /**
-     * Calcula el porcentaje completado basado en las fechas.
+     * Calcula el porcentaje completado basado en hitos y entregables.
+     * Jerarquía: Proyecto > Hitos > Entregables
+     *
+     * El progreso se calcula considerando:
+     * 1. El porcentaje de cada hito (que a su vez se basa en sus entregables)
+     * 2. Promedio ponderado de todos los hitos del proyecto
      */
     public function getPorcentajeCompletadoAttribute(): int
     {
+        // Estados absolutos
         if ($this->estado === 'completado') {
             return 100;
         }
@@ -228,6 +234,34 @@ class Proyecto extends Model
             return 0;
         }
 
+        // Obtener hitos del proyecto
+        $hitos = $this->hitos;
+
+        // Si no hay hitos, usar cálculo basado en fechas como fallback
+        if ($hitos->isEmpty()) {
+            return $this->calcularProgresoPorFechas();
+        }
+
+        // Calcular progreso basado en hitos y entregables
+        $sumaProgresos = 0;
+        $totalHitos = $hitos->count();
+
+        foreach ($hitos as $hito) {
+            // Cada hito contribuye con su porcentaje_completado
+            // que ya está calculado basado en sus entregables
+            $sumaProgresos += $hito->porcentaje_completado ?? 0;
+        }
+
+        $progresoPromedio = $totalHitos > 0 ? ($sumaProgresos / $totalHitos) : 0;
+
+        return round($progresoPromedio);
+    }
+
+    /**
+     * Calcula el progreso basado en fechas (fallback cuando no hay hitos).
+     */
+    private function calcularProgresoPorFechas(): int
+    {
         if (!$this->fecha_inicio || !$this->fecha_fin) {
             return 0;
         }
