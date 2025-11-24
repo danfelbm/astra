@@ -321,7 +321,7 @@ const formatDateShort = (dateString: string | undefined) => {
               <div class="space-y-2">
                 <div v-for="archivo in obligacion.archivos_adjuntos" :key="archivo.ruta" class="flex items-center gap-2">
                   <Paperclip class="h-4 w-4" />
-                  <a :href="archivo.ruta" target="_blank" class="hover:underline text-sm">
+                  <a :href="`/storage/${archivo.ruta}`" target="_blank" class="hover:underline text-sm">
                     {{ archivo.nombre_original }}
                   </a>
                 </div>
