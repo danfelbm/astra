@@ -34,11 +34,13 @@ interface Props {
     contrato: Contrato;
     showProyecto?: boolean;
     showActions?: boolean;
+    viewMode?: 'admin' | 'user';
 }
 
 const props = withDefaults(defineProps<Props>(), {
     showProyecto: true,
     showActions: true,
+    viewMode: 'admin',
 });
 
 // Clases de color según el estado
@@ -82,7 +84,7 @@ const formatDate = (date: string) => {
                     </CardTitle>
                     <div v-if="showProyecto && contrato.proyecto" class="text-sm text-gray-600 dark:text-gray-400">
                         <Link
-                            :href="`/admin/proyectos/${contrato.proyecto.id}`"
+                            :href="viewMode === 'user' ? `/miembro/mis-proyectos/${contrato.proyecto.id}` : `/admin/proyectos/${contrato.proyecto.id}`"
                             class="hover:text-primary transition-colors"
                         >
                             {{ contrato.proyecto.nombre }}
@@ -102,7 +104,7 @@ const formatDate = (date: string) => {
             </p>
 
             <!-- Información principal -->
-            <div class="grid grid-cols-2 gap-3 text-sm">
+            <div v-if="viewMode === 'admin'" class="grid grid-cols-2 gap-3 text-sm">
                 <!-- Fechas -->
                 <div class="flex items-center gap-2">
                     <Calendar class="h-4 w-4 text-gray-400" />
@@ -129,6 +131,15 @@ const formatDate = (date: string) => {
                 <div v-if="contrato.responsable" class="flex items-center gap-2">
                     <User class="h-4 w-4 text-gray-400" />
                     <span class="truncate">{{ contrato.responsable.name }}</span>
+                </div>
+            </div>
+
+            <!-- Información simplificada para vista de usuario -->
+            <div v-else-if="viewMode === 'user' && contrato.responsable" class="text-sm">
+                <div class="flex items-center gap-2">
+                    <User class="h-4 w-4 text-gray-400" />
+                    <span class="text-gray-600 dark:text-gray-400">Responsable:</span>
+                    <span class="truncate font-medium">{{ contrato.responsable.name }}</span>
                 </div>
             </div>
 
@@ -175,19 +186,29 @@ const formatDate = (date: string) => {
                 <!-- Acciones -->
                 <div v-if="showActions" class="flex gap-2">
                     <Button
+                        v-if="viewMode === 'user'"
                         size="sm"
                         variant="ghost"
-                        @click="$inertia.get(`/admin/contratos/${contrato.id}`)"
+                        @click="$inertia.get(`/miembro/mis-contratos/${contrato.id}`)"
                     >
                         <Eye class="h-4 w-4" />
                     </Button>
-                    <Button
-                        size="sm"
-                        variant="ghost"
-                        @click="$inertia.get(`/admin/contratos/${contrato.id}/edit`)"
-                    >
-                        <Edit class="h-4 w-4" />
-                    </Button>
+                    <template v-else>
+                        <Button
+                            size="sm"
+                            variant="ghost"
+                            @click="$inertia.get(`/admin/contratos/${contrato.id}`)"
+                        >
+                            <Eye class="h-4 w-4" />
+                        </Button>
+                        <Button
+                            size="sm"
+                            variant="ghost"
+                            @click="$inertia.get(`/admin/contratos/${contrato.id}/edit`)"
+                        >
+                            <Edit class="h-4 w-4" />
+                        </Button>
+                    </template>
                 </div>
             </div>
         </CardContent>
