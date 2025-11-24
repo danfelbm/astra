@@ -25,6 +25,12 @@ class MisProyectosController extends UserController
      */
     public function index(Request $request): Response
     {
+        // Debug: Log usuario actual
+        \Log::info('MisProyectosController@index - Usuario autenticado:', [
+            'user_id' => auth()->id(),
+            'user_name' => auth()->user()->name,
+        ]);
+
         $proyectos = Proyecto::query()
             ->where(function ($query) {
                 $query->where('responsable_id', auth()->id())
@@ -53,6 +59,12 @@ class MisProyectosController extends UserController
             ->orderBy('prioridad', 'desc')
             ->orderBy('fecha_inicio', 'asc')
             ->paginate(12);
+
+        // Debug: Log proyectos encontrados
+        \Log::info('MisProyectosController@index - Proyectos encontrados:', [
+            'total' => $proyectos->total(),
+            'proyectos_ids' => $proyectos->pluck('id')->toArray(),
+        ]);
 
         return Inertia::render('Modules/Proyectos/User/MisProyectos/Index', [
             'proyectos' => $proyectos,
