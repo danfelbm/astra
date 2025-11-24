@@ -31,6 +31,9 @@ class MisProyectosController extends UserController
                       ->orWhere('created_by', auth()->id())
                       ->orWhereHas('gestores', function ($q) {
                           $q->where('user_id', auth()->id());
+                      })
+                      ->orWhereHas('contratos', function ($q) {
+                          $q->where('responsable_id', auth()->id());
                       });
             })
             ->when($request->search, function ($query, $search) {
