@@ -484,7 +484,7 @@ const { route } = window as any;
 
               <div class="border-t pt-4">
                 <h4 class="text-sm font-medium text-muted-foreground mb-4">Metadatos</h4>
-                <div class="grid gap-4 md:grid-cols-3 text-sm">
+                <div class="space-y-3 text-sm">
                   <div>
                     <span class="text-muted-foreground text-xs font-medium block mb-1">Creado</span>
                     <span class="block">{{ formatDateTime(entregable.created_at) }}</span>
