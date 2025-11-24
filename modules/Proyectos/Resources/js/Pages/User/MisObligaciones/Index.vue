@@ -193,7 +193,7 @@ const actualizarProgreso = (obligacion: any) => {
     router.put(route('miembro.mis-obligaciones.actualizar-progreso', obligacion.id), {
       porcentaje_cumplimiento: parseInt(porcentaje)
     }, {
-      onSuccess: () => toast.success('Progreso actualizado')
+      preserveScroll: true
     });
   }
 };
@@ -201,7 +201,7 @@ const actualizarProgreso = (obligacion: any) => {
 const completarObligacion = (obligacion: any) => {
   if (confirm('¿Marcar esta obligación como cumplida?')) {
     router.post(route('miembro.mis-obligaciones.completar', obligacion.id), {}, {
-      onSuccess: () => toast.success('Obligación marcada como cumplida')
+      preserveScroll: true
     });
   }
 };

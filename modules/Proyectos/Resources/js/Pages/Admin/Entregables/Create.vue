@@ -201,12 +201,7 @@ const submit = () => {
   delete dataToSend.usuarios_asignados;
 
   form.transform(() => dataToSend).post(`/admin/proyectos/${props.proyecto.id}/hitos/${props.hito.id}/entregables`, {
-    onSuccess: () => {
-      toast.success('Entregable creado correctamente');
-    },
-    onError: () => {
-      toast.error('Error al crear el entregable');
-    },
+    preserveScroll: true
   });
 };
 

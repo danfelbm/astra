@@ -91,13 +91,6 @@ const submit = () => {
 
     form.post('/admin/proyectos', {
         preserveScroll: true,
-        onSuccess: () => {
-            toast.success('Proyecto creado exitosamente');
-        },
-        onError: (errors) => {
-            toast.error('Error al crear el proyecto');
-            console.error(errors);
-        },
         onFinish: () => {
             processing.value = false;
         }

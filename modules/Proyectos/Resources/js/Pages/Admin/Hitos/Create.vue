@@ -103,12 +103,7 @@ const handleResponsableSelect = (data: { userIds: number[]; extraData: Record<st
 
 const submit = () => {
     form.post(`/admin/proyectos/${props.proyecto.id}/hitos`, {
-        onSuccess: () => {
-            toast.success('Hito creado exitosamente');
-        },
-        onError: () => {
-            toast.error('Error al crear el hito');
-        },
+        preserveScroll: true
     });
 };
 </script>
