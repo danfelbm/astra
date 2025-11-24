@@ -36,7 +36,8 @@ import {
     Info,
     UserPlus,
     ExternalLink,
-    Download
+    Download,
+    Activity
 } from 'lucide-vue-next';
 import { toast } from 'vue-sonner';
 import EtiquetaDisplay from '@modules/Proyectos/Resources/js/components/EtiquetaDisplay.vue';
@@ -114,6 +115,7 @@ interface Proyecto {
 interface Props {
     proyecto: Proyecto;
     categorias?: CategoriaEtiqueta[];
+    activities?: Activity[];
     totales?: {
         usuarios: number;
         contratos: number;
@@ -439,7 +441,7 @@ const getInitials = (name: string) => {
 
             <!-- Navegación con Tabs -->
             <Tabs v-model="activeTab" class="w-full">
-                <TabsList class="grid w-full grid-cols-4">
+                <TabsList class="grid w-full grid-cols-5">
                     <TabsTrigger value="general">
                         <Info class="mr-2 h-4 w-4" />
                         General
@@ -464,6 +466,10 @@ const getInitials = (name: string) => {
                         <Badge v-if="totales?.evidencias" class="ml-2 h-5 px-1.5" variant="secondary">
                             {{ totales.evidencias }}
                         </Badge>
+                    </TabsTrigger>
+                    <TabsTrigger value="actividad">
+                        <Activity class="mr-2 h-4 w-4" />
+                        Actividad
                     </TabsTrigger>
                 </TabsList>
 
@@ -900,6 +906,46 @@ const getInitials = (name: string) => {
                                 <p class="mt-2 text-sm text-gray-600">No hay evidencias que coincidan con los filtros</p>
                                 <p class="text-xs text-gray-500 mt-1">Intenta ajustar los criterios de búsqueda</p>
                             </div>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+
+                <!-- Tab de Actividad -->
+                <TabsContent value="actividad" class="space-y-4 mt-6">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Historial de Actividad</CardTitle>
+                            <CardDescription>
+                                Registro completo de cambios y eventos del proyecto
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div v-if="activities && activities.length > 0" class="space-y-4">
+                                <div
+                                    v-for="activity in activities"
+                                    :key="activity.id"
+                                    class="flex gap-3 pb-4 border-b last:border-0"
+                                >
+                                    <Avatar class="h-8 w-8">
+                                        <AvatarImage v-if="activity.causer?.avatar" :src="activity.causer.avatar" />
+                                        <AvatarFallback>
+                                            {{ activity.causer?.name?.substring(0, 2).toUpperCase() || 'SI' }}
+                                        </AvatarFallback>
+                                    </Avatar>
+                                    <div class="flex-1">
+                                        <p class="text-sm">
+                                            <span class="font-medium">{{ activity.causer?.name || 'Sistema' }}</span>
+                                            {{ activity.description }}
+                                        </p>
+                                        <p class="text-xs text-muted-foreground mt-1">
+                                            {{ formatRelativeDate(activity.created_at) }}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                            <p v-else class="text-sm text-muted-foreground text-center py-8">
+                                No hay actividad registrada
+                            </p>
                         </CardContent>
                     </Card>
                 </TabsContent>

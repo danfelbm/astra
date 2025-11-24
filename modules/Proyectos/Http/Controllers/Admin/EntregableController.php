@@ -191,8 +191,7 @@ class EntregableController extends AdminController
         ])->toArray();
 
         // Obtener actividades del entregable
-        $actividades = [];
-        // TODO: Implementar registro de actividades si es necesario
+        $actividades = $entregable->getActivityLogs(50);
 
         // Obtener campos personalizados con sus valores
         $camposPersonalizados = $this->campoPersonalizadoRepository->getActivosParaEntregables();

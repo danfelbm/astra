@@ -7,6 +7,7 @@ import { Button } from "@modules/Core/Resources/js/components/ui/button";
 import { Badge } from "@modules/Core/Resources/js/components/ui/badge";
 import { Progress } from "@modules/Core/Resources/js/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@modules/Core/Resources/js/components/ui/tabs";
+import { Avatar, AvatarFallback, AvatarImage } from "@modules/Core/Resources/js/components/ui/avatar";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -28,6 +29,24 @@ import { es } from 'date-fns/locale';
 import type { BreadcrumbItem } from '@/types';
 import type { Hito, Entregable } from '@modules/Proyectos/Resources/js/types/hitos';
 import EntregablesList from '@modules/Proyectos/Resources/js/components/EntregablesList.vue';
+
+interface Usuario {
+    id: number;
+    name: string;
+    email: string;
+    avatar?: string;
+}
+
+interface Actividad {
+    id: number;
+    description: string;
+    causer: Usuario;
+    created_at: string;
+    properties?: {
+        attributes?: any;
+        old?: any;
+    };
+}
 
 interface Proyecto {
     id: number;
@@ -57,6 +76,7 @@ interface Props {
         dias_restantes: number | null;
         esta_vencido: boolean;
     };
+    actividades?: Actividad[];
     camposPersonalizados?: CampoPersonalizado[];
     valoresCamposPersonalizados?: Record<number, any>;
 }
@@ -522,8 +542,31 @@ const formatCampoPersonalizado = (campo: CampoPersonalizado, valor: any) => {
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <p class="text-sm text-muted-foreground text-center py-8">
-                                El historial de actividad estará disponible próximamente
+                            <div v-if="actividades && actividades.length > 0" class="space-y-4">
+                                <div
+                                    v-for="actividad in actividades"
+                                    :key="actividad.id"
+                                    class="flex gap-3 pb-4 border-b last:border-0"
+                                >
+                                    <Avatar class="h-8 w-8">
+                                        <AvatarImage v-if="actividad.causer?.avatar" :src="actividad.causer.avatar" />
+                                        <AvatarFallback>
+                                            {{ actividad.causer?.name?.substring(0, 2).toUpperCase() || 'SI' }}
+                                        </AvatarFallback>
+                                    </Avatar>
+                                    <div class="flex-1">
+                                        <p class="text-sm">
+                                            <span class="font-medium">{{ actividad.causer?.name || 'Sistema' }}</span>
+                                            {{ actividad.description }}
+                                        </p>
+                                        <p class="text-xs text-muted-foreground mt-1">
+                                            {{ formatDateTime(actividad.created_at) }}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                            <p v-else class="text-sm text-muted-foreground text-center py-8">
+                                No hay actividad registrada
                             </p>
                         </CardContent>
                     </Card>

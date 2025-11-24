@@ -145,6 +145,9 @@ class ProyectoController extends AdminController
                 ->get()
             : null;
 
+        // Obtener actividades del proyecto
+        $actividades = $proyecto->getActivityLogs(50);
+
         return Inertia::render('Modules/Proyectos/Admin/Proyectos/Show', [
             'proyecto' => $proyecto,
             'categorias' => $categorias,
@@ -154,6 +157,7 @@ class ProyectoController extends AdminController
                 'evidencias' => $totalEvidencias,
                 'hitos' => $totalHitos,
             ],
+            'activities' => $actividades,
             'canEdit' => auth()->user()->can('proyectos.edit'),
             'canDelete' => auth()->user()->can('proyectos.delete'),
             'canManageTags' => auth()->user()->can('proyectos.manage_tags'),
