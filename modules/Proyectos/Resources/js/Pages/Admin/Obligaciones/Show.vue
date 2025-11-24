@@ -11,6 +11,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@modules/Core/Resources/js/
 import EvidenciaFilters from '@modules/Proyectos/Resources/js/components/EvidenciaFilters.vue';
 import EvidenciasTable from '@modules/Proyectos/Resources/js/components/EvidenciasTable.vue';
 import ObligacionTree from '@modules/Proyectos/Resources/js/components/ObligacionTree.vue';
+import ActivityFilters from '@modules/Proyectos/Resources/js/components/ActivityFilters.vue';
+import ActivityLog from '@modules/Proyectos/Resources/js/components/ActivityLog.vue';
 import {
   Pencil,
   Paperclip,
@@ -64,6 +66,7 @@ interface Props {
   canDelete: boolean;
   canCreateChild: boolean;
   actividades?: Actividad[];
+  usuariosActividades?: Usuario[];
 }
 
 const props = defineProps<Props>();
@@ -82,6 +85,15 @@ const filtrosEvidencias = ref({
   estado: null as string | null,
   usuario_id: null as number | null,
   entregable_id: null as number | null
+});
+
+// Estado para filtros de actividades
+const filtrosActividades = ref({
+  usuario_id: null as number | null,
+  tipo_entidad: null as string | null,
+  tipo_accion: null as string | null,
+  fecha_inicio: null as string | null,
+  fecha_fin: null as string | null
 });
 
 // Breadcrumbs
@@ -132,6 +144,40 @@ const evidenciasFiltradas = computed(() => {
       }
       if (filtrosEvidencias.value.fecha_fin) {
         const fechaFin = new Date(filtrosEvidencias.value.fecha_fin);
+        fechaFin.setHours(23, 59, 59, 999);
+        if (fecha > fechaFin) return false;
+      }
+      return true;
+    });
+  }
+
+  return result;
+});
+
+// Actividades filtradas
+const actividadesFiltradas = computed(() => {
+  let result = props.actividades || [];
+
+  // Filtrar por usuario
+  if (filtrosActividades.value.usuario_id) {
+    result = result.filter(a => a.causer?.id === filtrosActividades.value.usuario_id);
+  }
+
+  // Filtrar por tipo de acción
+  if (filtrosActividades.value.tipo_accion) {
+    result = result.filter(a => a.event === filtrosActividades.value.tipo_accion);
+  }
+
+  // Filtrar por rango de fechas
+  if (filtrosActividades.value.fecha_inicio || filtrosActividades.value.fecha_fin) {
+    result = result.filter(a => {
+      const fecha = new Date(a.created_at);
+      if (filtrosActividades.value.fecha_inicio) {
+        const fechaInicio = new Date(filtrosActividades.value.fecha_inicio);
+        if (fecha < fechaInicio) return false;
+      }
+      if (filtrosActividades.value.fecha_fin) {
+        const fechaFin = new Date(filtrosActividades.value.fecha_fin);
         fechaFin.setHours(23, 59, 59, 999);
         if (fecha > fechaFin) return false;
       }
@@ -338,42 +384,21 @@ const formatDateShort = (dateString: string | undefined) => {
 
         <!-- Tab Actividad -->
         <TabsContent value="actividad" class="space-y-4 mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Historial de Actividad</CardTitle>
-              <CardDescription>
-                Registro de cambios y actividades relacionadas con esta obligación
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div v-if="actividades && actividades.length > 0" class="space-y-4">
-                <div
-                  v-for="actividad in actividades"
-                  :key="actividad.id"
-                  class="flex gap-3 pb-4 border-b last:border-0"
-                >
-                  <Avatar class="h-8 w-8">
-                    <AvatarImage v-if="actividad.causer?.avatar" :src="actividad.causer.avatar" />
-                    <AvatarFallback>
-                      {{ actividad.causer?.name?.substring(0, 2).toUpperCase() || 'SI' }}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div class="flex-1">
-                    <p class="text-sm">
-                      <span class="font-medium">{{ actividad.causer?.name || 'Sistema' }}</span>
-                      {{ actividad.description }}
-                    </p>
-                    <p class="text-xs text-muted-foreground mt-1">
-                      {{ formatDate(actividad.created_at) }}
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <p v-else class="text-sm text-muted-foreground text-center py-8">
-                No hay actividad registrada
-              </p>
-            </CardContent>
-          </Card>
+          <!-- Filtros de actividades -->
+          <ActivityFilters
+            v-if="actividades && actividades.length > 0"
+            v-model="filtrosActividades"
+            :usuarios="usuariosActividades"
+            context-level="entregable"
+          />
+
+          <!-- Log de actividades -->
+          <ActivityLog
+            :activities="actividadesFiltradas"
+            title="Historial de Actividad"
+            description="Registro de cambios y actividades relacionadas con esta obligación"
+            empty-message="No hay actividad registrada"
+          />
         </TabsContent>
       </Tabs>
     </div>
