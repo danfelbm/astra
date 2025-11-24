@@ -59,10 +59,16 @@ const handleSubmit = (data: ObligacionFormData) => {
   // Crear FormData para enviar archivos
   const formData = new FormData();
 
-  // Agregar campos normales
+  // Agregar campos normales (excluyendo archivos y arrays de archivos)
   Object.keys(data).forEach(key => {
-    if (key !== 'archivos' && data[key as keyof ObligacionFormData] !== undefined && data[key as keyof ObligacionFormData] !== null) {
-      formData.append(key, String(data[key as keyof ObligacionFormData]));
+    if (key !== 'archivos' && key !== 'archivos_eliminar' && key !== 'archivos_adjuntos' && data[key as keyof ObligacionFormData] !== undefined && data[key as keyof ObligacionFormData] !== null) {
+      const value = data[key as keyof ObligacionFormData];
+      // Si es un objeto o array, convertir a JSON
+      if (typeof value === 'object') {
+        formData.append(key, JSON.stringify(value));
+      } else {
+        formData.append(key, String(value));
+      }
     }
   });
 
@@ -88,7 +94,7 @@ const handleSubmit = (data: ObligacionFormData) => {
       }
     },
     onError: (errors) => {
-      console.error('Errores:', errors);
+      console.error('Errores al crear:', errors);
       toast.error('Error al crear la obligación. Revisa los campos marcados.');
     }
   });
