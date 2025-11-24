@@ -62,6 +62,9 @@ Route::middleware(['auth', 'verified', 'user'])->prefix('miembro')->name('user.'
 
         Route::post('/{proyecto}/evidencias/{evidencia}/rechazar', [\Modules\Proyectos\Http\Controllers\User\EvidenciaController::class, 'rechazarDesdeProyecto'])
             ->name('evidencias.rechazar');
+
+        Route::post('/{proyecto}/evidencias/{evidencia}/cambiar-estado', [\Modules\Proyectos\Http\Controllers\User\EvidenciaController::class, 'cambiarEstadoDesdeProyecto'])
+            ->name('evidencias.cambiar-estado');
     });
 
     // Rutas para Mis Hitos

@@ -215,11 +215,14 @@ const cambiarEstado = async () => {
     });
 };
 
-// Función para cambiar estado directamente desde dropdown (admin)
+// Función para cambiar estado directamente desde dropdown (admin y user gestores)
 const cambiarEstadoDirecto = (evidencia: Evidencia, nuevoEstado: string) => {
     if (nuevoEstado === evidencia.estado) return; // No hacer nada si es el mismo estado
 
-    const endpoint = `/admin/proyectos/${props.proyectoId}/evidencias/${evidencia.id}/cambiar-estado`;
+    // Determinar el endpoint según el modo
+    const endpoint = props.modo === 'admin'
+        ? `/admin/proyectos/${props.proyectoId}/evidencias/${evidencia.id}/cambiar-estado`
+        : `/miembro/mis-proyectos/${props.proyectoId}/evidencias/${evidencia.id}/cambiar-estado`;
 
     router.post(endpoint, {
         estado: nuevoEstado,
@@ -350,8 +353,8 @@ const cambiarEstadoDirecto = (evidencia: Evidencia, nuevoEstado: string) => {
                                             <Download class="h-4 w-4" />
                                         </a>
 
-                                        <!-- Dropdown de estados para Admin -->
-                                        <template v-if="modo === 'admin'">
+                                        <!-- Dropdown de estados para Admin y User gestores -->
+                                        <template v-if="(modo === 'admin') || (modo === 'user' && puedeGestionarEstado)">
                                             <Select
                                                 :model-value="evidencia.estado"
                                                 @update:model-value="(value) => cambiarEstadoDirecto(evidencia, value)"
@@ -371,26 +374,6 @@ const cambiarEstadoDirecto = (evidencia: Evidencia, nuevoEstado: string) => {
                                                     </SelectItem>
                                                 </SelectContent>
                                             </Select>
-                                        </template>
-
-                                        <!-- Botones de aprobar/rechazar (solo para User gestores) -->
-                                        <template v-else-if="puedeGestionarEstado && evidencia.estado === 'pendiente'">
-                                            <Button
-                                                size="sm"
-                                                variant="ghost"
-                                                @click="abrirModalEstado(evidencia, 'aprobar')"
-                                                class="h-8 w-8 p-0 text-green-600 hover:text-green-800 hover:bg-green-50"
-                                            >
-                                                <CheckCircle class="h-4 w-4" />
-                                            </Button>
-                                            <Button
-                                                size="sm"
-                                                variant="ghost"
-                                                @click="abrirModalEstado(evidencia, 'rechazar')"
-                                                class="h-8 w-8 p-0 text-red-600 hover:text-red-800 hover:bg-red-50"
-                                            >
-                                                <XCircle class="h-4 w-4" />
-                                            </Button>
                                         </template>
                                     </div>
                                 </TableCell>

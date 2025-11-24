@@ -1,1 +1,0 @@
-import{a as e}from"./createLucideIcon-CDD88oTc.js";import{d as n,i as o,n as r,f as l,Z as c,m as i}from"./app-DB52i0Vi.js";const d=n({__name:"AlertTitle",props:{class:{}},setup(t){const s=t;return(a,m)=>(i(),o("div",{"data-slot":"alert-title",class:r(l(e)("col-start-2 line-clamp-1 min-h-4 font-medium tracking-tight",s.class))},[c(a.$slots,"default")],2))}});export{d as _};

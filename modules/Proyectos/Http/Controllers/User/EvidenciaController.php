@@ -349,6 +349,65 @@ class EvidenciaController extends UserController
     }
 
     /**
+     * Cambia el estado de una evidencia directamente (solo gestores).
+     */
+    public function cambiarEstadoDesdeProyecto(Request $request, \Modules\Proyectos\Models\Proyecto $proyecto, \Modules\Proyectos\Models\Evidencia $evidencia): JsonResponse
+    {
+        // Verificar que el usuario es gestor del proyecto
+        if (!$this->esGestorDelProyecto($proyecto)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No tienes permisos para gestionar evidencias de este proyecto'
+            ], 403);
+        }
+
+        // Verificar que la evidencia pertenece a un contrato del proyecto
+        $contrato = \Modules\Proyectos\Models\Contrato::where('proyecto_id', $proyecto->id)
+            ->whereHas('obligaciones.evidencias', function ($query) use ($evidencia) {
+                $query->where('evidencias.id', $evidencia->id);
+            })
+            ->first();
+
+        if (!$contrato) {
+            return response()->json([
+                'success' => false,
+                'message' => 'La evidencia no pertenece a este proyecto'
+            ], 404);
+        }
+
+        // Validar el estado
+        $request->validate([
+            'estado' => 'required|in:pendiente,aprobada,rechazada',
+            'observaciones' => 'nullable|string'
+        ]);
+
+        $nuevoEstado = $request->input('estado');
+        $observaciones = $request->input('observaciones');
+
+        // Cambiar el estado según lo solicitado
+        if ($nuevoEstado === 'aprobada') {
+            $result = $this->service->aprobar($evidencia, $observaciones);
+        } elseif ($nuevoEstado === 'rechazada') {
+            $result = $this->service->rechazar($evidencia, $observaciones);
+        } else {
+            // Volver a pendiente
+            $evidencia->estado = 'pendiente';
+            $evidencia->observaciones_admin = $observaciones;
+            $evidencia->revisado_at = null;
+            $evidencia->revisado_por = null;
+            $evidencia->save();
+
+            $result = [
+                'success' => true,
+                'evidencia' => $evidencia->fresh(),
+                'message' => 'Estado cambiado a pendiente'
+            ];
+        }
+
+        return response()->json($result);
+    }
+
+    /**
      * Verifica si el usuario es gestor del proyecto.
      */
     private function esGestorDelProyecto(\Modules\Proyectos\Models\Proyecto $proyecto): bool
