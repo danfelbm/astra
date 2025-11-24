@@ -351,14 +351,11 @@ class EvidenciaController extends UserController
     /**
      * Cambia el estado de una evidencia directamente (solo gestores).
      */
-    public function cambiarEstadoDesdeProyecto(Request $request, \Modules\Proyectos\Models\Proyecto $proyecto, \Modules\Proyectos\Models\Evidencia $evidencia): JsonResponse
+    public function cambiarEstadoDesdeProyecto(Request $request, \Modules\Proyectos\Models\Proyecto $proyecto, \Modules\Proyectos\Models\Evidencia $evidencia): RedirectResponse
     {
         // Verificar que el usuario es gestor del proyecto
         if (!$this->esGestorDelProyecto($proyecto)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'No tienes permisos para gestionar evidencias de este proyecto'
-            ], 403);
+            abort(403, 'No tienes permisos para gestionar evidencias de este proyecto');
         }
 
         // Verificar que la evidencia pertenece a un contrato del proyecto
@@ -369,10 +366,7 @@ class EvidenciaController extends UserController
             ->first();
 
         if (!$contrato) {
-            return response()->json([
-                'success' => false,
-                'message' => 'La evidencia no pertenece a este proyecto'
-            ], 404);
+            return back()->withErrors(['error' => 'La evidencia no pertenece a este proyecto']);
         }
 
         // Validar el estado
@@ -387,8 +381,10 @@ class EvidenciaController extends UserController
         // Cambiar el estado según lo solicitado
         if ($nuevoEstado === 'aprobada') {
             $result = $this->service->aprobar($evidencia, $observaciones);
+            return back()->with('success', $result['message'] ?? 'Evidencia aprobada exitosamente');
         } elseif ($nuevoEstado === 'rechazada') {
             $result = $this->service->rechazar($evidencia, $observaciones);
+            return back()->with('success', $result['message'] ?? 'Evidencia rechazada');
         } else {
             // Volver a pendiente
             $evidencia->estado = 'pendiente';
@@ -397,14 +393,8 @@ class EvidenciaController extends UserController
             $evidencia->revisado_por = null;
             $evidencia->save();
 
-            $result = [
-                'success' => true,
-                'evidencia' => $evidencia->fresh(),
-                'message' => 'Estado cambiado a pendiente'
-            ];
+            return back()->with('success', 'Estado cambiado a pendiente');
         }
-
-        return response()->json($result);
     }
 
     /**

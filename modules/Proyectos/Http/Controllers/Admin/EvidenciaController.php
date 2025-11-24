@@ -115,7 +115,7 @@ class EvidenciaController extends AdminController
     /**
      * Cambia el estado de una evidencia directamente (solo admin).
      */
-    public function cambiarEstadoDesdeProyecto(Request $request, Proyecto $proyecto, Evidencia $evidencia): JsonResponse
+    public function cambiarEstadoDesdeProyecto(Request $request, Proyecto $proyecto, Evidencia $evidencia): RedirectResponse
     {
         // Verificar que la evidencia pertenece a un contrato del proyecto
         $contrato = Contrato::where('proyecto_id', $proyecto->id)
@@ -125,10 +125,7 @@ class EvidenciaController extends AdminController
             ->first();
 
         if (!$contrato) {
-            return response()->json([
-                'success' => false,
-                'message' => 'La evidencia no pertenece a este proyecto'
-            ], 404);
+            return back()->withErrors(['error' => 'La evidencia no pertenece a este proyecto']);
         }
 
         // Validar el estado
@@ -143,8 +140,10 @@ class EvidenciaController extends AdminController
         // Cambiar el estado según lo solicitado
         if ($nuevoEstado === 'aprobada') {
             $result = $this->service->aprobar($evidencia, $observaciones);
+            return back()->with('success', $result['message'] ?? 'Evidencia aprobada exitosamente');
         } elseif ($nuevoEstado === 'rechazada') {
             $result = $this->service->rechazar($evidencia, $observaciones);
+            return back()->with('success', $result['message'] ?? 'Evidencia rechazada');
         } else {
             // Volver a pendiente
             $evidencia->estado = 'pendiente';
@@ -153,13 +152,7 @@ class EvidenciaController extends AdminController
             $evidencia->revisado_por = null;
             $evidencia->save();
 
-            $result = [
-                'success' => true,
-                'evidencia' => $evidencia->fresh(),
-                'message' => 'Estado cambiado a pendiente'
-            ];
+            return back()->with('success', 'Estado cambiado a pendiente');
         }
-
-        return response()->json($result);
     }
 }

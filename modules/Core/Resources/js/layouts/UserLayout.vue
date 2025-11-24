@@ -8,6 +8,7 @@ import UpdateLocationModal from "../components/modals/UpdateLocationModal.vue";
 import type { BreadcrumbItemType } from '@/types';
 import { computed } from 'vue';
 import { Link, usePage } from '@inertiajs/vue3';
+import { useFlashMessages } from '../composables/useFlashMessages';
 import 'vue-sonner/style.css';
 
 interface Props {
@@ -21,6 +22,9 @@ withDefaults(defineProps<Props>(), {
 // Obtener datos del usuario actual
 const page = usePage();
 const user = computed(() => page.props.auth?.user);
+
+// Activar sistema de mensajes flash
+useFlashMessages();
 
 // Para usuarios regulares, la información de ubicación es más importante
 const locationDataIncomplete = computed(() => {

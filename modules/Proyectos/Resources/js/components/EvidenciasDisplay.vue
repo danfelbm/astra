@@ -229,13 +229,8 @@ const cambiarEstadoDirecto = (evidencia: Evidencia, nuevoEstado: string) => {
         observaciones: null
     }, {
         preserveScroll: true,
-        onSuccess: () => {
-            const mensajes = {
-                'pendiente': 'Estado cambiado a Pendiente',
-                'aprobada': 'Evidencia aprobada',
-                'rechazada': 'Evidencia rechazada'
-            };
-            toast.success(mensajes[nuevoEstado] || 'Estado actualizado');
+        onSuccess: (page) => {
+            // El mensaje flash viene desde el backend
             router.reload({ only: ['proyecto'] });
         },
         onError: (errors) => {
