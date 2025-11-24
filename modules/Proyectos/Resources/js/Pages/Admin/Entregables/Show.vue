@@ -9,9 +9,8 @@ import { Progress } from '@modules/Core/Resources/js/components/ui/progress';
 import { Avatar, AvatarFallback, AvatarImage } from '@modules/Core/Resources/js/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@modules/Core/Resources/js/components/ui/tabs';
 import { Alert, AlertDescription, AlertTitle } from '@modules/Core/Resources/js/components/ui/alert';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@modules/Core/Resources/js/components/ui/table';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@modules/Core/Resources/js/components/ui/accordion';
 import EvidenciaFilters from '@modules/Proyectos/Resources/js/components/EvidenciaFilters.vue';
+import EvidenciasTable from '@modules/Proyectos/Resources/js/components/EvidenciasTable.vue';
 import {
   ArrowLeft,
   Edit,
@@ -27,8 +26,6 @@ import {
   Target,
   Activity,
   Image,
-  ExternalLink,
-  Download,
   Tag
 } from 'lucide-vue-next';
 import { format, parseISO, differenceInDays } from 'date-fns';
@@ -629,129 +626,12 @@ const { route } = window as any;
             :evidencias="evidenciasDelEntregable"
           />
 
-          <!-- Evidencias agrupadas por contrato -->
-          <div v-if="evidenciasAgrupadasPorContrato.length > 0">
-            <Accordion type="multiple" class="space-y-4" collapsible>
-              <AccordionItem
-                v-for="grupo in evidenciasAgrupadasPorContrato"
-                :key="grupo.contrato.id"
-                :value="`contrato-${grupo.contrato.id}`"
-                class="border rounded-lg bg-card"
-              >
-                <AccordionTrigger class="px-4 py-3 hover:no-underline hover:bg-gray-50 dark:hover:bg-gray-800 rounded-t-lg">
-                  <div class="flex items-center justify-between w-full pr-4">
-                    <div class="flex items-center gap-3">
-                      <FileText class="h-5 w-5 text-gray-500" />
-                      <div class="text-left">
-                        <div class="font-semibold">
-                          {{ grupo.contrato.nombre }}
-                        </div>
-                        <div class="text-sm text-gray-500">
-                          Contrato #{{ grupo.contrato.id }}
-                        </div>
-                      </div>
-                    </div>
-                    <div class="flex items-center gap-3">
-                      <Badge variant="secondary">
-                        {{ grupo.evidencias.length }} evidencia(s)
-                      </Badge>
-                      <Link
-                        :href="`/admin/contratos/${grupo.contrato.id}`"
-                        @click.stop
-                        class="text-blue-600 hover:text-blue-800 flex items-center gap-1"
-                      >
-                        Ver contrato
-                        <ExternalLink class="h-3 w-3" />
-                      </Link>
-                    </div>
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent class="px-4 pb-4">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Tipo</TableHead>
-                        <TableHead>Obligación</TableHead>
-                        <TableHead>Descripción</TableHead>
-                        <TableHead>Usuario</TableHead>
-                        <TableHead>Estado</TableHead>
-                        <TableHead>Fecha</TableHead>
-                        <TableHead class="text-right">Acciones</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      <TableRow
-                        v-for="evidencia in grupo.evidencias"
-                        :key="evidencia.id"
-                        class="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
-                      >
-                        <Link
-                          :href="`/admin/contratos/${grupo.contrato.id}/evidencias/${evidencia.id}`"
-                          class="contents"
-                        >
-                          <TableCell>
-                            <Badge variant="outline">{{ evidencia.tipo_evidencia }}</Badge>
-                          </TableCell>
-                          <TableCell>{{ evidencia.obligacion_titulo }}</TableCell>
-                          <TableCell>
-                            <span class="text-sm text-gray-600">{{ evidencia.descripcion || '-' }}</span>
-                          </TableCell>
-                          <TableCell>
-                            <span class="text-sm">{{ evidencia.usuario?.name || '-' }}</span>
-                          </TableCell>
-                          <TableCell>
-                            <Badge
-                              :class="{
-                                'bg-yellow-100 text-yellow-800': evidencia.estado === 'pendiente',
-                                'bg-green-100 text-green-800': evidencia.estado === 'aprobada',
-                                'bg-red-100 text-red-800': evidencia.estado === 'rechazada'
-                              }"
-                            >
-                              {{ evidencia.estado }}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>{{ formatDate(evidencia.created_at) }}</TableCell>
-                          <TableCell class="text-right">
-                            <a
-                              v-if="evidencia.archivo_url"
-                              :href="evidencia.archivo_url"
-                              target="_blank"
-                              class="inline-flex items-center text-blue-600 hover:text-blue-800"
-                              @click.stop
-                            >
-                              <Download class="h-4 w-4" />
-                            </a>
-                          </TableCell>
-                        </Link>
-                      </TableRow>
-                    </TableBody>
-                  </Table>
-                </AccordionContent>
-              </AccordionItem>
-            </Accordion>
-          </div>
-
-          <!-- Estado vacío -->
-          <Card v-else-if="evidenciasDelEntregable.length === 0">
-            <CardContent class="py-8">
-              <div class="text-center">
-                <Image class="mx-auto h-12 w-12 text-gray-400" />
-                <p class="mt-2 text-sm text-gray-600">No hay evidencias asociadas</p>
-                <p class="text-xs text-gray-500 mt-1">Las evidencias se asocian desde los contratos</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <!-- Sin resultados después de filtrar -->
-          <Card v-else>
-            <CardContent class="py-8">
-              <div class="text-center">
-                <Image class="mx-auto h-12 w-12 text-gray-400" />
-                <p class="mt-2 text-sm text-gray-600">No hay evidencias que coincidan con los filtros</p>
-                <p class="text-xs text-gray-500 mt-1">Intenta ajustar los criterios de búsqueda</p>
-              </div>
-            </CardContent>
-          </Card>
+          <!-- Tabla de evidencias (componente reutilizable) -->
+          <EvidenciasTable
+            mode="grouped"
+            :evidencias-agrupadas="evidenciasAgrupadasPorContrato"
+            :format-date="formatDate"
+          />
         </TabsContent>
 
         <!-- Tab Actividad -->
