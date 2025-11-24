@@ -87,18 +87,6 @@ watch(searchFilter, () => {
 watch(estadoFilter, () => {
     applyFilters();
 });
-
-// Estadísticas
-const getEstadisticas = () => {
-    const total = props.proyectos.total;
-    const enProgreso = props.proyectos.data.filter(p => p.estado === 'en_progreso').length;
-    const completados = props.proyectos.data.filter(p => p.estado === 'completado').length;
-    const pendientes = props.proyectos.data.filter(p => p.estado === 'planificacion').length;
-
-    return { total, enProgreso, completados, pendientes };
-};
-
-const stats = getEstadisticas();
 </script>
 
 <template>
@@ -122,57 +110,6 @@ const stats = getEstadisticas();
                         Nuevo Proyecto
                     </Button>
                 </Link>
-            </div>
-
-            <!-- Estadísticas rápidas -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                <Card>
-                    <CardContent class="p-4">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <p class="text-sm text-gray-600 dark:text-gray-400">Total</p>
-                                <p class="text-2xl font-bold">{{ stats.total }}</p>
-                            </div>
-                            <FolderOpen class="h-8 w-8 text-gray-400" />
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardContent class="p-4">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <p class="text-sm text-gray-600 dark:text-gray-400">En Progreso</p>
-                                <p class="text-2xl font-bold text-yellow-600">{{ stats.enProgreso }}</p>
-                            </div>
-                            <div class="h-8 w-8 rounded-full bg-yellow-100 dark:bg-yellow-900"></div>
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardContent class="p-4">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <p class="text-sm text-gray-600 dark:text-gray-400">Completados</p>
-                                <p class="text-2xl font-bold text-green-600">{{ stats.completados }}</p>
-                            </div>
-                            <div class="h-8 w-8 rounded-full bg-green-100 dark:bg-green-900"></div>
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardContent class="p-4">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <p class="text-sm text-gray-600 dark:text-gray-400">Pendientes</p>
-                                <p class="text-2xl font-bold text-blue-600">{{ stats.pendientes }}</p>
-                            </div>
-                            <div class="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900"></div>
-                        </div>
-                    </CardContent>
-                </Card>
             </div>
 
             <!-- Filtros -->

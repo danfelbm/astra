@@ -566,7 +566,7 @@ const getInitials = (name: string) => {
                                     <span class="text-gray-600 dark:text-gray-400">Progreso</span>
                                     <span class="font-medium">{{ proyecto.porcentaje_completado }}%</span>
                                 </div>
-                                <Progress :value="proyecto.porcentaje_completado" class="h-2" />
+                                <Progress :model-value="proyecto.porcentaje_completado" class="h-2" />
                             </div>
 
                             <!-- Fechas -->

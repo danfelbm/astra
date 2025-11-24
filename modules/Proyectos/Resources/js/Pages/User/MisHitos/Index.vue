@@ -284,7 +284,7 @@ const hitosAgrupados = computed(() => {
                                 <div>
                                     <p class="text-sm text-muted-foreground">Progreso</p>
                                     <div class="flex items-center gap-2">
-                                        <Progress :value="hito.porcentaje_completado" class="flex-1" />
+                                        <Progress :model-value="hito.porcentaje_completado" class="flex-1" />
                                         <span class="text-sm font-medium">{{ hito.porcentaje_completado }}%</span>
                                     </div>
                                 </div>

@@ -463,6 +463,7 @@ class Hito extends Model
 
     /**
      * Calcula y actualiza el porcentaje completado basado en los entregables.
+     * También dispara el recálculo del progreso del proyecto padre.
      */
     public function calcularPorcentajeCompletado(): void
     {
@@ -481,6 +482,10 @@ class Hito extends Model
         }
 
         $this->save();
+
+        // Notificar al proyecto para que recalcule su progreso
+        // Como porcentaje_completado es un accessor, se calculará automáticamente
+        // la próxima vez que se acceda al proyecto
     }
 
     /**

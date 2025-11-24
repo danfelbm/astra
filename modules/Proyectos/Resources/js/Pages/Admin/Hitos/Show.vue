@@ -430,7 +430,7 @@ const actividadesFiltradas = computed(() => {
                     </CardHeader>
                     <CardContent>
                         <div class="text-2xl font-bold">{{ hito.porcentaje_completado }}%</div>
-                        <Progress :value="hito.porcentaje_completado" class="mt-2 h-1" />
+                        <Progress :model-value="hito.porcentaje_completado" class="mt-2 h-1" />
                     </CardContent>
                 </Card>
 
