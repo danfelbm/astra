@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@modules/Core/Resources/js/components/ui/card';
 import { Button } from '@modules/Core/Resources/js/components/ui/button';
 import { Badge } from '@modules/Core/Resources/js/components/ui/badge';
@@ -32,17 +32,55 @@ const emit = defineEmits<Emits>();
 // Estado del modal
 const mostrarModal = ref(false);
 
-// Gestores seleccionados
+// Caché local de usuarios seleccionados (para casos donde props.gestores está vacío)
+const usuariosLocales = ref<Map<number, User>>(new Map());
+
+// Mantener sincronizada la caché local con props.gestores
+watch(
+    () => props.gestores,
+    (newGestores) => {
+        if (newGestores && newGestores.length > 0) {
+            newGestores.forEach(gestor => {
+                usuariosLocales.value.set(gestor.id, gestor);
+            });
+        }
+    },
+    { immediate: true, deep: true }
+);
+
+// Gestores seleccionados - combina props.gestores y usuariosLocales
 const gestoresSeleccionados = computed<User[]>(() => {
-    if (!props.gestores || props.gestores.length === 0) {
-        return [];
+    const result: User[] = [];
+
+    for (const id of props.modelValue) {
+        // Primero buscar en props.gestores
+        let usuario = props.gestores?.find(g => g.id === id);
+
+        // Si no está en props, buscar en caché local
+        if (!usuario) {
+            usuario = usuariosLocales.value.get(id);
+        }
+
+        if (usuario) {
+            result.push(usuario);
+        }
     }
-    return props.gestores.filter(g => props.modelValue.includes(g.id));
+
+    return result;
 });
 
-// Añadir gestores
-const handleAnadirGestores = ({ userIds }: { userIds: number[] }) => {
-    const nuevosGestores = [...new Set([...props.modelValue, ...userIds])];
+// Añadir gestores - ahora captura los objetos User completos
+const handleAnadirGestores = ({ userIds, users }: { userIds: number[]; users?: User[] }) => {
+    // Almacenar los usuarios completos en la caché local
+    if (users && users.length > 0) {
+        users.forEach(user => {
+            usuariosLocales.value.set(user.id, user);
+        });
+    }
+
+    // Filtrar IDs inválidos y añadir los nuevos IDs (evitando duplicados)
+    const idsValidos = userIds.filter(id => id && id > 0);
+    const nuevosGestores = [...new Set([...props.modelValue.filter(id => id && id > 0), ...idsValidos])];
     emit('update:modelValue', nuevosGestores);
     mostrarModal.value = false;
 };
@@ -51,6 +89,7 @@ const handleAnadirGestores = ({ userIds }: { userIds: number[] }) => {
 const eliminarGestor = (gestorId: number) => {
     const gestoresActualizados = props.modelValue.filter(id => id !== gestorId);
     emit('update:modelValue', gestoresActualizados);
+    // Nota: No eliminamos de usuariosLocales por si el usuario quiere volver a añadir el mismo gestor
 };
 </script>
 
