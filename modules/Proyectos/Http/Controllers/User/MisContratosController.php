@@ -25,10 +25,16 @@ class MisContratosController extends UserController
     {
         $user = auth()->user();
 
-        // Obtener proyectos donde el usuario es responsable o participante
-        $proyectosIds = Proyecto::where('responsable_id', $user->id)
-            ->orWhereHas('participantes', function ($query) use ($user) {
-                $query->where('user_id', $user->id);
+        // Obtener proyectos donde el usuario tiene alguna relación
+        $proyectosIds = Proyecto::where(function ($query) use ($user) {
+                $query->where('responsable_id', $user->id)
+                      ->orWhere('created_by', $user->id)
+                      ->orWhereHas('gestores', function ($q) use ($user) {
+                          $q->where('user_id', $user->id);
+                      })
+                      ->orWhereHas('contratos', function ($q) use ($user) {
+                          $q->where('responsable_id', $user->id);
+                      });
             })
             ->pluck('id');
 
@@ -176,10 +182,16 @@ class MisContratosController extends UserController
     {
         $user = auth()->user();
 
-        // Obtener proyectos del usuario
-        $proyectosIds = Proyecto::where('responsable_id', $user->id)
-            ->orWhereHas('participantes', function ($query) use ($user) {
-                $query->where('user_id', $user->id);
+        // Obtener proyectos donde el usuario tiene alguna relación
+        $proyectosIds = Proyecto::where(function ($query) use ($user) {
+                $query->where('responsable_id', $user->id)
+                      ->orWhere('created_by', $user->id)
+                      ->orWhereHas('gestores', function ($q) use ($user) {
+                          $q->where('user_id', $user->id);
+                      })
+                      ->orWhereHas('contratos', function ($q) use ($user) {
+                          $q->where('responsable_id', $user->id);
+                      });
             })
             ->pluck('id');
 
@@ -206,10 +218,16 @@ class MisContratosController extends UserController
     {
         $user = auth()->user();
 
-        // Obtener proyectos del usuario
-        $proyectosIds = Proyecto::where('responsable_id', $user->id)
-            ->orWhereHas('participantes', function ($query) use ($user) {
-                $query->where('user_id', $user->id);
+        // Obtener proyectos donde el usuario tiene alguna relación
+        $proyectosIds = Proyecto::where(function ($query) use ($user) {
+                $query->where('responsable_id', $user->id)
+                      ->orWhere('created_by', $user->id)
+                      ->orWhereHas('gestores', function ($q) use ($user) {
+                          $q->where('user_id', $user->id);
+                      })
+                      ->orWhereHas('contratos', function ($q) use ($user) {
+                          $q->where('responsable_id', $user->id);
+                      });
             })
             ->pluck('id');
 
