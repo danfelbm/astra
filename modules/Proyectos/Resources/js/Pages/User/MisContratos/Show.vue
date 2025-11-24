@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed } from 'vue';
-import { Link, usePage } from '@inertiajs/vue3';
+import { ref, computed, watch } from 'vue';
+import { Link, router, usePage } from '@inertiajs/vue3';
 import { type BreadcrumbItemType } from '@/types';
 import UserLayout from '@modules/Core/Resources/js/layouts/UserLayout.vue';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@modules/Core/Resources/js/components/ui/card';
@@ -135,6 +135,29 @@ const formatCurrency = (amount: number) => {
     }).format(amount);
 };
 
+// Tabs válidos para validación
+const validTabs = ['general', 'partes', 'financiera', 'obligaciones', 'campos', 'observaciones'];
+
+// Estado para el tab activo - leer de URL query params
+const getInitialTab = (): string => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const tabFromUrl = urlParams.get('tab');
+    return tabFromUrl && validTabs.includes(tabFromUrl) ? tabFromUrl : 'general';
+};
+
+const activeTab = ref(getInitialTab());
+
+// Sincronizar tab con URL usando query params
+watch(activeTab, (newTab) => {
+    const url = `/miembro/mis-contratos/${props.contrato.id}?tab=${newTab}`;
+    router.get(url, {}, {
+        preserveState: true,
+        preserveScroll: true,
+        replace: true,
+        only: []
+    });
+});
+
 </script>
 
 <template>
@@ -196,7 +219,7 @@ const formatCurrency = (amount: number) => {
         </Alert>
 
         <!-- Contenido principal -->
-        <Tabs default-value="general" class="space-y-4">
+        <Tabs v-model="activeTab" class="space-y-4">
             <TabsList>
                 <TabsTrigger value="general">Información General</TabsTrigger>
                 <TabsTrigger value="partes">Partes Involucradas</TabsTrigger>

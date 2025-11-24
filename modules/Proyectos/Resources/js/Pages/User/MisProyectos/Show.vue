@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import UserLayout from "@modules/Core/Resources/js/layouts/UserLayout.vue";
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@modules/Core/Resources/js/components/ui/card";
 import { Button } from "@modules/Core/Resources/js/components/ui/button";
 import { Badge } from "@modules/Core/Resources/js/components/ui/badge";
@@ -8,7 +8,7 @@ import { Progress } from "@modules/Core/Resources/js/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@modules/Core/Resources/js/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@modules/Core/Resources/js/components/ui/avatar";
 import { Separator } from "@modules/Core/Resources/js/components/ui/separator";
-import { ref, computed, defineAsyncComponent } from 'vue';
+import { ref, computed, watch, defineAsyncComponent } from 'vue';
 import {
     ArrowLeft,
     Edit,
@@ -100,8 +100,28 @@ interface Props {
 
 const props = defineProps<Props>();
 
-// Estado para el tab activo
-const activeTab = ref('general');
+// Tabs válidos para validación
+const validTabs = ['general', 'usuarios', 'evidencias', 'hitos'];
+
+// Estado para el tab activo - leer de URL query params
+const getInitialTab = (): string => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const tabFromUrl = urlParams.get('tab');
+    return tabFromUrl && validTabs.includes(tabFromUrl) ? tabFromUrl : 'general';
+};
+
+const activeTab = ref(getInitialTab());
+
+// Sincronizar tab con URL usando query params
+watch(activeTab, (newTab) => {
+    const url = `/miembro/mis-proyectos/${props.proyecto.id}?tab=${newTab}`;
+    router.get(url, {}, {
+        preserveState: true,
+        preserveScroll: true,
+        replace: true,
+        only: []
+    });
+});
 
 // Computed para verificar si el usuario es gestor del proyecto
 const esGestorDelProyecto = computed(() => {
