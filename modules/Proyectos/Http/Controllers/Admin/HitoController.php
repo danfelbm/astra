@@ -170,12 +170,16 @@ class HitoController extends AdminController
         $camposPersonalizados = $this->campoPersonalizadoRepository->getActivosParaHitos();
         $valoresCamposPersonalizados = $hito->getCamposPersonalizadosValues();
 
+        // Obtener actividades del hito
+        $actividades = $hito->getActivityLogs(50);
+
         return Inertia::render('Modules/Proyectos/Admin/Hitos/Show', [
             'proyecto' => $proyecto,
             'hito' => $hito,
             'estadisticas' => $estadisticas,
             'camposPersonalizados' => $camposPersonalizados,
             'valoresCamposPersonalizados' => $valoresCamposPersonalizados,
+            'actividades' => $actividades,
             'canEdit' => auth()->user()->can('hitos.edit'),
             'canDelete' => auth()->user()->can('hitos.delete'),
             'canManageEntregables' => auth()->user()->can('hitos.manage_deliverables'),
