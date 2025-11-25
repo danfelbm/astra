@@ -1,6 +1,6 @@
-l<script setup lang="ts">
+<script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
-import { useForm, router, Head } from '@inertiajs/vue3';
+import { useForm, Head } from '@inertiajs/vue3';
 import UserLayout from '@modules/Core/Resources/js/layouts/UserLayout.vue';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@modules/Core/Resources/js/components/ui/card';
 import { Button } from '@modules/Core/Resources/js/components/ui/button';
@@ -16,7 +16,7 @@ import FileUploadField from '@modules/Core/Resources/js/components/forms/FileUpl
 import { useAutoSave } from '@modules/Core/Resources/js/composables/useAutoSave';
 import { useFileUpload } from '@modules/Core/Resources/js/composables/useFileUpload';
 import { toast } from 'vue-sonner';
-import { ArrowLeft, Save, CheckCircle, Clock, AlertCircle, Trash2, Camera, Mic, Upload, FileText, Image, Video, Music } from 'lucide-vue-next';
+import { Save, CheckCircle, Clock, AlertCircle, Trash2, Camera, FileText, Image, Video, Music } from 'lucide-vue-next';
 import type { Contrato } from '@modules/Proyectos/Resources/js/types/contratos';
 import type { ObligacionContrato } from '@modules/Proyectos/Resources/js/types/obligaciones';
 import type { Entregable } from '@modules/Proyectos/Resources/js/types/hitos';
@@ -539,21 +539,7 @@ onUnmounted(() => {
     <Head :title="`Subir Evidencia - ${contrato.nombre}`" />
 
     <UserLayout :breadcrumbs="breadcrumbs">
-        <div class="flex h-full flex-1 flex-col gap-4 rounded-xl p-4 pb-24">
-            <!-- Header -->
-            <div class="flex items-center justify-between">
-                <div>
-                    <h1 class="text-3xl font-bold">Subir Evidencia</h1>
-                    <p class="text-muted-foreground">
-                        Adjunta las evidencias del cumplimiento de las obligaciones del contrato
-                    </p>
-                </div>
-                <Button variant="outline" @click="router.visit(`/miembro/mis-contratos/${contrato.id}`)">
-                    <ArrowLeft class="mr-2 h-4 w-4" />
-                    Volver
-                </Button>
-            </div>
-
+        <div class="flex h-full flex-1 flex-col gap-4 rounded-xl p-0 sm:p-4 pb-24">
             <!-- Indicador de autoguardado -->
             <div class="flex items-center justify-end gap-2 text-sm text-muted-foreground">
                 <div v-if="isSaving" class="flex items-center gap-1.5">
@@ -578,7 +564,7 @@ onUnmounted(() => {
                         Selecciona la obligación, el tipo de evidencia y adjunta el archivo correspondiente
                     </CardDescription>
                 </CardHeader>
-                <CardContent class="space-y-6">
+                <CardContent class="space-y-6 sm:mb-16">
                     <!-- Selección de Obligación -->
                     <div class="space-y-2">
                         <Label htmlFor="obligacion">Obligación *</Label>
@@ -737,12 +723,11 @@ onUnmounted(() => {
                                 <div class="flex-1">
                                     <Label
                                         :for="`entregable-${entregable.id}`"
-                                        class="text-sm font-normal cursor-pointer"
+                                        class="text-sm font-normal cursor-pointer flex flex-col items-start sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-2"
                                     >
-                                        {{ entregable.nombre }}
-                                        <span class="text-muted-foreground text-xs block">
-                                            Hito: {{ entregable.hito }}
-                                            {{ entregable.fecha_fin ? ` • Vence: ${entregable.fecha_fin}` : '' }}
+                                        <span>{{ entregable.nombre }}</span>
+                                        <span class="text-muted-foreground text-xs">
+                                            Hito: {{ entregable.hito }}{{ entregable.fecha_fin ? ` • Vence: ${entregable.fecha_fin}` : '' }}
                                         </span>
                                     </Label>
                                 </div>

@@ -55,7 +55,7 @@ const hasAdminAccess = computed(() => {
         
         <!-- Contenido principal usando AppContent -->
         <AppContent variant="header">
-            <div class="container mx-auto px-4 py-6">
+            <div class="container mx-auto px-2 py-4 sm:px-4 sm:py-6">
                 
                 <!-- Mensaje de acceso a admin si corresponde -->
                 <div
