@@ -9,7 +9,7 @@ import ObligacionTree from '@modules/Proyectos/Resources/js/components/Obligacio
 import ObligacionTable from '@modules/Proyectos/Resources/js/components/ObligacionTable.vue';
 import ObligacionFilters from '@modules/Proyectos/Resources/js/components/ObligacionFilters.vue';
 import Pagination from '@modules/Core/Resources/js/components/ui/pagination/Pagination.vue';
-import { Plus, Download, TreePine, List } from 'lucide-vue-next';
+import { Plus, Download, TreePine, List, FileText, X } from 'lucide-vue-next';
 import { usePermissions } from '@modules/Core/Resources/js/composables/usePermissions';
 import { toast } from 'vue-sonner';
 import { debounce } from 'lodash';
@@ -17,6 +17,15 @@ import type { ObligacionContrato, ObligacionEstadisticas } from '@modules/Proyec
 
 // Props
 interface Contrato {
+  id: number;
+  nombre: string;
+  proyecto?: {
+    id: number;
+    nombre: string;
+  };
+}
+
+interface Proyecto {
   id: number;
   nombre: string;
 }
@@ -30,7 +39,7 @@ interface Props {
   estadisticas: ObligacionEstadisticas;
   filters: any;
   contrato?: Contrato;
-  contratos?: Contrato[];
+  proyectos?: Proyecto[];
   estadisticasResponsables?: any;
   canCreate?: boolean;
   canEdit?: boolean;
@@ -74,6 +83,13 @@ const aplicarFiltros = debounce(() => {
 const limpiarFiltros = () => {
   filters.value = { search: '', contrato_id: props.contrato?.id || null };
   aplicarFiltros();
+};
+
+// Limpiar filtro de contrato y navegar a la vista general
+const limpiarFiltroContrato = () => {
+  router.get(route('admin.obligaciones.index'), { search: filters.value.search }, {
+    preserveState: false
+  });
 };
 
 const crearObligacion = () => {
@@ -172,10 +188,34 @@ const exportarObligaciones = () => {
         </div>
       </div>
 
+      <!-- Filtro de contrato activo (cuando viene de URL) -->
+      <Card v-if="contrato" class="border-blue-200 bg-blue-50">
+        <CardContent class="py-3">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <FileText class="h-4 w-4 text-blue-600" />
+              <span class="text-sm text-blue-800">
+                Filtrando por contrato: <span class="font-medium">{{ contrato.nombre }}</span>
+                <span v-if="contrato.proyecto" class="text-blue-600"> ({{ contrato.proyecto.nombre }})</span>
+              </span>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              class="h-8 text-blue-700 hover:text-blue-900 hover:bg-blue-100"
+              @click="limpiarFiltroContrato"
+            >
+              <X class="h-4 w-4 mr-1" />
+              Quitar filtro
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       <!-- Filtros -->
       <ObligacionFilters
         v-model="filters"
-        :contratos="contratos || []"
+        :proyectos="proyectos || []"
         :show-contrato-filter="!contrato"
         @filter="aplicarFiltros"
         @clear="limpiarFiltros"
