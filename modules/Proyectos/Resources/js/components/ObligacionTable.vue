@@ -1,0 +1,137 @@
+<script setup lang="ts">
+import { Link } from '@inertiajs/vue3';
+import { Badge } from '@modules/Core/Resources/js/components/ui/badge';
+import { Button } from '@modules/Core/Resources/js/components/ui/button';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from '@modules/Core/Resources/js/components/ui/table';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
+} from '@modules/Core/Resources/js/components/ui/dropdown-menu';
+import { MoreVertical, Eye, Pencil, Trash2, AlertCircle } from 'lucide-vue-next';
+import { usePermissions } from '@modules/Core/Resources/js/composables/usePermissions';
+import type { ObligacionContrato } from '@modules/Proyectos/Resources/js/types/obligaciones';
+
+// Props
+interface Props {
+  /** Lista de obligaciones a mostrar */
+  obligaciones: ObligacionContrato[];
+  /** Si el usuario puede editar */
+  canEdit?: boolean;
+  /** Si el usuario puede eliminar */
+  canDelete?: boolean;
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  canEdit: false,
+  canDelete: false
+});
+
+const emit = defineEmits<{
+  'view': [obligacion: ObligacionContrato];
+  'edit': [obligacion: ObligacionContrato];
+  'delete': [obligacion: ObligacionContrato];
+}>();
+
+const { hasPermission } = usePermissions();
+</script>
+
+<template>
+  <div>
+    <!-- Tabla de obligaciones -->
+    <div v-if="obligaciones && obligaciones.length > 0">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Título</TableHead>
+            <TableHead>Descripción</TableHead>
+            <TableHead>Archivos</TableHead>
+            <TableHead class="text-right">Acciones</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          <TableRow
+            v-for="obligacion in obligaciones"
+            :key="obligacion.id"
+          >
+            <TableCell class="font-medium">
+              <div>
+                <Link
+                  :href="`/admin/obligaciones/${obligacion.id}`"
+                  class="hover:text-blue-600 hover:underline"
+                >
+                  {{ obligacion.titulo }}
+                </Link>
+                <Badge v-if="obligacion.tiene_hijos" variant="outline" class="ml-2 text-xs">
+                  {{ obligacion.total_hijos }} hijos
+                </Badge>
+              </div>
+            </TableCell>
+            <TableCell>
+              <span class="text-sm text-gray-600">
+                {{ obligacion.descripcion ?
+                    (obligacion.descripcion.length > 100 ?
+                     obligacion.descripcion.substring(0, 100) + '...' :
+                     obligacion.descripcion) :
+                    'Sin descripción' }}
+              </span>
+            </TableCell>
+            <TableCell>
+              <span v-if="obligacion.archivos_adjuntos?.length" class="text-sm">
+                {{ obligacion.archivos_adjuntos.length }} archivo(s)
+              </span>
+              <span v-else class="text-sm text-gray-400">Sin archivos</span>
+            </TableCell>
+            <TableCell class="text-right">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" class="h-8 w-8">
+                    <MoreVertical class="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem @click="emit('view', obligacion)">
+                    <Eye class="h-4 w-4 mr-2" />
+                    Ver
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    v-if="canEdit || hasPermission('obligaciones.edit')"
+                    @click="emit('edit', obligacion)"
+                  >
+                    <Pencil class="h-4 w-4 mr-2" />
+                    Editar
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    v-if="canDelete || hasPermission('obligaciones.delete')"
+                    class="text-red-600"
+                    @click="emit('delete', obligacion)"
+                  >
+                    <Trash2 class="h-4 w-4 mr-2" />
+                    Eliminar
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </TableCell>
+          </TableRow>
+        </TableBody>
+      </Table>
+    </div>
+
+    <!-- Estado vacío -->
+    <div v-else class="text-center py-8 text-gray-500">
+      <AlertCircle class="h-12 w-12 mx-auto mb-4 text-gray-300" />
+      <p>No se encontraron obligaciones</p>
+      <p class="text-sm mt-1">Crea una nueva obligación para comenzar</p>
+    </div>
+  </div>
+</template>
