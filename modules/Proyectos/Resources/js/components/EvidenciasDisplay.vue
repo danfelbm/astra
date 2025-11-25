@@ -331,22 +331,26 @@ const cambiarEstadoDirecto = (evidencia: Evidencia, nuevoEstado: string) => {
                                 <TableCell class="text-right">
                                     <div class="flex items-center justify-end gap-2">
                                         <!-- Botón de ver detalles -->
-                                        <Link
-                                            :href="getEvidenciaRoute(evidencia.contrato_id, evidencia.id)"
-                                            class="inline-flex items-center text-blue-600 hover:text-blue-800"
-                                        >
-                                            <Eye class="h-4 w-4" />
-                                        </Link>
+                                        <Button variant="ghost" size="sm" as-child class="h-8 px-2">
+                                            <Link :href="getEvidenciaRoute(evidencia.contrato_id, evidencia.id)">
+                                                <Eye class="h-4 w-4" />
+                                                <span class="ml-1">Ver</span>
+                                            </Link>
+                                        </Button>
 
                                         <!-- Botón de descargar archivo -->
-                                        <a
+                                        <Button
                                             v-if="evidencia.archivo_url"
-                                            :href="evidencia.archivo_url"
-                                            target="_blank"
-                                            class="inline-flex items-center text-blue-600 hover:text-blue-800"
+                                            variant="ghost"
+                                            size="sm"
+                                            as-child
+                                            class="h-8 px-2"
                                         >
-                                            <Download class="h-4 w-4" />
-                                        </a>
+                                            <a :href="evidencia.archivo_url" target="_blank">
+                                                <Download class="h-4 w-4" />
+                                                <span class="ml-1">Descargar</span>
+                                            </a>
+                                        </Button>
 
                                         <!-- Dropdown de estados para Admin y User gestores -->
                                         <template v-if="(modo === 'admin') || (modo === 'user' && puedeGestionarEstado)">

@@ -39,38 +39,39 @@ const hasLocation = computed(() => {
 
 <template>
     <div class="border-b border-sidebar-border/60 bg-muted/20 dark:bg-muted/10">
-        <div class="mx-auto flex h-10 items-center justify-between px-4 md:max-w-7xl">
+        <div class="mx-auto flex h-10 items-center justify-between gap-2 px-2 sm:px-4 md:max-w-7xl">
             <!-- Información de ubicación (izquierda) -->
-            <div class="flex items-center gap-2 text-sm text-muted-foreground">
-                <MapPin class="h-4 w-4 text-muted-foreground/70" />
-                <span v-if="hasLocation" class="hidden sm:inline">
+            <div class="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-muted-foreground min-w-0 flex-1">
+                <MapPin class="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground/70 flex-shrink-0" />
+                <span v-if="hasLocation" class="hidden md:inline truncate">
                     {{ locationText }}
                 </span>
-                <span v-if="hasLocation" class="sm:hidden">
+                <span v-if="hasLocation" class="md:hidden truncate">
                     {{ municipio?.nombre || departamento?.nombre || 'Sin ubicación' }}
                 </span>
-                <span v-if="!hasLocation" class="text-muted-foreground/50">
-                    Sin ubicación definida
+                <span v-if="!hasLocation" class="text-muted-foreground/50 truncate">
+                    Sin ubicación
                 </span>
-                <Link 
-                    href="/settings/update-data" 
-                    class="ml-1 text-xs text-primary hover:text-primary/80 hover:underline transition-colors"
+                <Link
+                    href="/settings/update-data"
+                    class="ml-1 text-xs text-primary hover:text-primary/80 hover:underline transition-colors flex-shrink-0 hidden sm:inline"
                 >
-                    (actualizar estos datos)
+                    (actualizar)
                 </Link>
             </div>
-            
+
             <!-- Información de ayuda (derecha) -->
-            <div class="flex items-center gap-2 text-sm text-muted-foreground">
-                <HelpCircle class="h-4 w-4 text-muted-foreground/70" />
-                <span class="hidden md:inline">
+            <div class="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-muted-foreground flex-shrink-0">
+                <HelpCircle class="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground/70" />
+                <span class="hidden lg:inline">
                     pedir ayuda
                 </span>
-                <a 
+                <a
                     href="mailto:soporte@colombiahumana.co"
-                    class="font-medium text-foreground hover:text-primary transition-colors underline underline-offset-4 decoration-1 hover:decoration-primary"
+                    class="font-medium text-foreground hover:text-primary transition-colors underline underline-offset-4 decoration-1 hover:decoration-primary truncate max-w-[120px] sm:max-w-none"
                 >
-                    soporte@colombiahumana.co
+                    <span class="hidden sm:inline">soporte@colombiahumana.co</span>
+                    <span class="sm:hidden">soporte</span>
                 </a>
             </div>
         </div>
