@@ -447,6 +447,10 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
             ->name('buscar')
             ->middleware('can:obligaciones.view');
 
+        Route::get('/posibles-padres', [ObligacionContratoController::class, 'getPosiblesPadres'])
+            ->name('posibles-padres')
+            ->middleware('can:obligaciones.view');
+
         Route::get('/exportar', [ObligacionContratoController::class, 'exportar'])
             ->name('exportar')
             ->middleware('can:obligaciones.export');
