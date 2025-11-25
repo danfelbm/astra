@@ -20,6 +20,7 @@ class ContratoService
 
     /**
      * Crea un nuevo contrato con sus campos personalizados.
+     * Si existe un borrador del usuario, lo convierte en el contrato oficial.
      */
     public function create(array $data): array
     {
@@ -55,12 +56,33 @@ class ContratoService
                 $data['contraparte_telefono'] = null;
             }
 
-            // Agregar información de auditoría
-            $data['created_by'] = auth()->id();
-            $data['updated_by'] = auth()->id();
+            // Buscar borrador existente del usuario para convertirlo en contrato oficial
+            $borrador = Contrato::where('created_by', auth()->id())
+                ->where('estado', 'borrador')
+                ->where('tenant_id', auth()->user()->tenant_id)
+                ->latest()
+                ->first();
 
-            // Crear el contrato
-            $contrato = $this->repository->create($data);
+            if ($borrador) {
+                // Convertir borrador en contrato oficial actualizando sus datos
+                $data['updated_by'] = auth()->id();
+                $data['estado'] = 'activo'; // Cambiar estado de borrador a activo
+
+                // Actualizar el borrador existente con los nuevos datos
+                $borrador->fill($data);
+                $borrador->save();
+
+                $contrato = $borrador;
+                $accion = 'convertido desde borrador';
+            } else {
+                // No hay borrador, crear contrato nuevo
+                $data['created_by'] = auth()->id();
+                $data['updated_by'] = auth()->id();
+                $data['estado'] = 'activo';
+
+                $contrato = $this->repository->create($data);
+                $accion = 'creado';
+            }
 
             // Guardar campos personalizados si existen
             if (!empty($camposPersonalizados)) {
@@ -78,7 +100,7 @@ class ContratoService
             activity()
                 ->performedOn($contrato)
                 ->causedBy(auth()->user())
-                ->log("Contrato '{$contrato->nombre}' creado");
+                ->log("Contrato '{$contrato->nombre}' {$accion}");
 
             return [
                 'success' => true,
