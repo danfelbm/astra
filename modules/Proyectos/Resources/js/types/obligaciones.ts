@@ -13,7 +13,7 @@ export interface ObligacionContrato {
   orden: number;
   nivel: number;
   path?: string;
-  responsable_id?: number;
+  // responsable_id eliminado - se obtiene desde contrato
   porcentaje_cumplimiento?: number;
   notas_cumplimiento?: string;
   cumplido_at?: string;
@@ -30,7 +30,7 @@ export interface ObligacionContrato {
   contrato?: any;
   padre?: ObligacionContrato;
   hijos?: ObligacionContrato[];
-  responsable?: any;
+  // responsable eliminado - se obtiene desde contrato
   cumplido_por_usuario?: any;
   creador?: any;
   actualizador?: any;
@@ -98,16 +98,7 @@ export interface ObligacionEstadisticas {
   promedio_progreso?: number;
 }
 
-// Estadísticas por responsable
-export interface EstadisticasResponsable {
-  responsable_id: number;
-  responsable?: any;
-  total: number;
-  pendientes: number;
-  en_progreso: number;
-  cumplidas: number;
-  vencidas: number;
-}
+// EstadisticasResponsable eliminado - columna responsable_id deprecada
 
 // Timeline agrupado por mes
 export interface TimelineGroup {
@@ -184,7 +175,7 @@ export interface TreeConfig {
   checkable: boolean;
   showActions: boolean;
   showProgress: boolean;
-  showResponsable: boolean;
+  // showResponsable eliminado - se obtiene desde contrato
   showDates: boolean;
   maxDepth?: number;
   defaultExpanded: boolean;

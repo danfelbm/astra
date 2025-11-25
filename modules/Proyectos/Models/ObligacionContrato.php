@@ -38,7 +38,7 @@ class ObligacionContrato extends Model
         'orden',
         'nivel',
         'path',
-        'responsable_id',
+        // responsable_id eliminado - se obtiene desde contrato
         'porcentaje_cumplimiento',
         'notas_cumplimiento',
         'cumplido_at',
@@ -349,11 +349,15 @@ class ObligacionContrato extends Model
 
     /**
      * Verifica si el usuario puede completar esta obligación.
+     * Usa el responsable del contrato asociado.
      */
     public function puedeSerCompletadaPor(User $user): bool
     {
-        // Si es el responsable
-        if ($this->responsable_id === $user->id) {
+        // Obtener responsable desde el contrato
+        $responsableId = $this->contrato?->responsable_id;
+
+        // Si es el responsable del contrato
+        if ($responsableId && $responsableId === $user->id) {
             return true;
         }
 
@@ -362,8 +366,8 @@ class ObligacionContrato extends Model
             return true;
         }
 
-        // Si tiene permisos de completar propias y es el responsable
-        if ($user->can('obligaciones.complete_own') && $this->responsable_id === $user->id) {
+        // Si tiene permisos de completar propias y es el responsable del contrato
+        if ($user->can('obligaciones.complete_own') && $responsableId === $user->id) {
             return true;
         }
 

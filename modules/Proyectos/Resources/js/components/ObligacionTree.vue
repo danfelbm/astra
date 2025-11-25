@@ -265,22 +265,32 @@ const handleDropRoot = (event: DragEvent) => {
 
 // Utilidades
 const construirArbol = (items: ObligacionContrato[]): ObligacionContrato[] => {
+  if (!items || items.length === 0) return [];
+
   const mapa = new Map<number, ObligacionContrato>();
   const raices: ObligacionContrato[] = [];
 
+  // Obtener todos los IDs presentes en el array
+  const idsPresentes = new Set(items.map(item => item.id));
+
   items.forEach(item => {
-    mapa.set(item.id, { ...item, hijos: [] });
+    mapa.set(item.id, { ...item, hijos: item.hijos ? [...item.hijos] : [] });
   });
 
   items.forEach(item => {
     const nodo = mapa.get(item.id)!;
-    if (item.parent_id === null) {
+    // Es raíz si: parent_id es null O su padre no está en el conjunto de items
+    // Esto permite mostrar sub-árboles (ej: solo los hijos de una obligación)
+    if (item.parent_id === null || !idsPresentes.has(item.parent_id)) {
       raices.push(nodo);
     } else {
       const padre = mapa.get(item.parent_id);
       if (padre) {
         padre.hijos = padre.hijos || [];
-        padre.hijos.push(nodo);
+        // Solo añadir si no está ya (evitar duplicados cuando hijos vienen pre-cargados)
+        if (!padre.hijos.some(h => h.id === nodo.id)) {
+          padre.hijos.push(nodo);
+        }
       }
     }
   });

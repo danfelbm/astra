@@ -180,26 +180,7 @@ class ObligacionContratoRepository
         ];
     }
 
-    /**
-     * Obtiene estadísticas por responsable.
-     */
-    public function getEstadisticasPorResponsable(?int $contratoId = null): Collection
-    {
-        $query = ObligacionContrato::query()
-                                  ->select('responsable_id')
-                                  ->selectRaw('COUNT(*) as total')
-                                  ->selectRaw('COUNT(CASE WHEN estado = "pendiente" THEN 1 END) as pendientes')
-                                  ->selectRaw('COUNT(CASE WHEN estado = "en_progreso" THEN 1 END) as en_progreso')
-                                  ->selectRaw('COUNT(CASE WHEN estado = "cumplida" THEN 1 END) as cumplidas')
-                                  ->selectRaw('COUNT(CASE WHEN estado = "vencida" OR (fecha_vencimiento < NOW() AND estado NOT IN ("cumplida", "cancelada")) THEN 1 END) as vencidas')
-                                  ->groupBy('responsable_id');
-
-        if ($contratoId) {
-            $query->where('contrato_id', $contratoId);
-        }
-
-        return $query->get();
-    }
+    // Método getEstadisticasPorResponsable eliminado - columna responsable_id deprecada
 
     /**
      * Obtiene obligaciones vencidas o próximas a vencer.
