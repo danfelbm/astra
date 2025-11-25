@@ -464,10 +464,6 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
 
     // Rutas para obligaciones dentro del contexto de un contrato
     Route::prefix('contratos/{contrato}/obligaciones')->name('contratos.obligaciones.')->group(function () {
-        Route::get('/arbol', [ObligacionContratoController::class, 'arbol'])
-            ->name('arbol')
-            ->middleware('can:obligaciones.view');
-
         Route::get('/timeline', [ObligacionContratoController::class, 'timeline'])
             ->name('timeline')
             ->middleware('can:obligaciones.view');

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import { router, Link } from '@inertiajs/vue3';
 import { type BreadcrumbItem } from '@/types';
 import AdminLayout from '@modules/Core/Resources/js/layouts/AdminLayout.vue';
@@ -65,16 +65,33 @@ const breadcrumbs: BreadcrumbItem[] = props.contrato
 
 const { hasPermission } = usePermissions();
 
-// Estado
-const vistaActual = ref<'arbol' | 'tabla'>('tabla');
+// Estado - leer vista desde URL (similar a tab en contratos)
+const getInitialVista = (): 'arbol' | 'tabla' => {
+  const urlParams = new URLSearchParams(window.location.search);
+  const vistaFromUrl = urlParams.get('vista');
+  return vistaFromUrl === 'arbol' ? 'arbol' : 'tabla';
+};
+
+const vistaActual = ref<'arbol' | 'tabla'>(getInitialVista());
 const filters = ref({
   search: props.filters?.search || '',
   contrato_id: props.filters?.contrato_id || props.contrato?.id || null
 });
 
+// Sincronizar vista con URL
+watch(vistaActual, (newVista) => {
+  const params = { ...filters.value, vista: newVista };
+  router.get(route('admin.obligaciones.index'), params, {
+    preserveState: true,
+    preserveScroll: true,
+    replace: true,
+    only: []
+  });
+});
+
 // Métodos
 const aplicarFiltros = debounce(() => {
-  router.get(route('admin.obligaciones.index'), filters.value, {
+  router.get(route('admin.obligaciones.index'), { ...filters.value, vista: vistaActual.value }, {
     preserveState: true,
     preserveScroll: true
   });
@@ -87,7 +104,7 @@ const limpiarFiltros = () => {
 
 // Limpiar filtro de contrato y navegar a la vista general
 const limpiarFiltroContrato = () => {
-  router.get(route('admin.obligaciones.index'), { search: filters.value.search }, {
+  router.get(route('admin.obligaciones.index'), { search: filters.value.search, vista: vistaActual.value }, {
     preserveState: false
   });
 };
@@ -220,14 +237,6 @@ const exportarObligaciones = () => {
         @filter="aplicarFiltros"
         @clear="limpiarFiltros"
       />
-
-      <!-- Estadística simplificada -->
-      <Card>
-        <CardContent class="pt-6">
-          <div class="text-2xl font-bold">{{ obligaciones?.data?.length || 0 }}</div>
-          <p class="text-sm text-gray-600">Total Obligaciones</p>
-        </CardContent>
-      </Card>
 
       <!-- Vista de árbol o tabla -->
       <Card class="flex-1">
