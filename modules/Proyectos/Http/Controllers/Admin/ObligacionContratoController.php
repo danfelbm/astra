@@ -351,6 +351,27 @@ class ObligacionContratoController extends AdminController
     }
 
     /**
+     * Obtiene los posibles padres para un contrato específico.
+     * Usado para carga dinámica en el formulario de creación.
+     */
+    public function getPosiblesPadres(Request $request): JsonResponse
+    {
+        $request->validate([
+            'contrato_id' => 'required|integer|exists:contratos,id',
+        ]);
+
+        $posiblesPadres = ObligacionContrato::where('contrato_id', $request->contrato_id)
+            ->select('id', 'titulo', 'nivel', 'parent_id')
+            ->orderBy('orden')
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'posiblesPadres' => $posiblesPadres
+        ]);
+    }
+
+    /**
      * Busca obligaciones para autocompletar.
      */
     public function buscar(Request $request): JsonResponse
