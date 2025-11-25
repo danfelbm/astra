@@ -17,7 +17,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from '@modules/Core/Resources/js/components/ui/dropdown-menu';
-import { MoreVertical, Eye, Pencil, Trash2, AlertCircle } from 'lucide-vue-next';
+import { MoreVertical, Eye, Pencil, Trash2, AlertCircle, CornerDownRight } from 'lucide-vue-next';
 import { usePermissions } from '@modules/Core/Resources/js/composables/usePermissions';
 import type { ObligacionContrato } from '@modules/Proyectos/Resources/js/types/obligaciones';
 
@@ -64,16 +64,25 @@ const { hasPermission } = usePermissions();
             :key="obligacion.id"
           >
             <TableCell class="font-medium">
-              <div>
-                <Link
-                  :href="`/admin/obligaciones/${obligacion.id}`"
-                  class="hover:text-blue-600 hover:underline"
-                >
-                  {{ obligacion.titulo }}
-                </Link>
-                <Badge v-if="obligacion.tiene_hijos" variant="outline" class="ml-2 text-xs">
-                  {{ obligacion.total_hijos }} hijos
-                </Badge>
+              <div class="flex items-center">
+                <!-- Indicador visual de jerarquía -->
+                <span v-if="obligacion.nivel > 0" class="flex items-center text-muted-foreground mr-2" :style="{ paddingLeft: `${(obligacion.nivel - 1) * 12}px` }">
+                  <CornerDownRight class="h-4 w-4" />
+                </span>
+                <div>
+                  <Link
+                    :href="`/admin/obligaciones/${obligacion.id}`"
+                    class="hover:text-blue-600 hover:underline"
+                  >
+                    {{ obligacion.titulo }}
+                  </Link>
+                  <Badge v-if="obligacion.padre" variant="secondary" class="ml-2 text-xs">
+                    Hija
+                  </Badge>
+                  <Badge v-if="obligacion.tiene_hijos" variant="outline" class="ml-1 text-xs">
+                    {{ obligacion.total_hijos }} hijos
+                  </Badge>
+                </div>
               </div>
             </TableCell>
             <TableCell>

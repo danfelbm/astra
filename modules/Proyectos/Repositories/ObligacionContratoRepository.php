@@ -52,8 +52,9 @@ class ObligacionContratoRepository
             $query->proximasVencer();
         }
 
-        // Filtro solo raíces (sin padre) si no se especifica un contrato específico
-        if (!$request->ver_todas) {
+        // Filtro solo raíces (sin padre) si se especifica explícitamente
+        // Por defecto muestra todas las obligaciones
+        if ($request->solo_raices === 'true' || $request->solo_raices === true) {
             $query->raiz();
         }
 
