@@ -1,60 +1,26 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref } from 'vue';
 import { router, Link } from '@inertiajs/vue3';
 import { type BreadcrumbItem } from '@/types';
 import AdminLayout from '@modules/Core/Resources/js/layouts/AdminLayout.vue';
 import { Button } from '@modules/Core/Resources/js/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@modules/Core/Resources/js/components/ui/card';
-import { Input } from '@modules/Core/Resources/js/components/ui/input';
-import { Label } from '@modules/Core/Resources/js/components/ui/label';
-import { Badge } from '@modules/Core/Resources/js/components/ui/badge';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from '@modules/Core/Resources/js/components/ui/select';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow
-} from '@modules/Core/Resources/js/components/ui/table';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger
-} from '@modules/Core/Resources/js/components/ui/dropdown-menu';
 import ObligacionTree from '@modules/Proyectos/Resources/js/components/ObligacionTree.vue';
+import ObligacionTable from '@modules/Proyectos/Resources/js/components/ObligacionTable.vue';
+import ObligacionFilters from '@modules/Proyectos/Resources/js/components/ObligacionFilters.vue';
 import Pagination from '@modules/Core/Resources/js/components/ui/pagination/Pagination.vue';
-import {
-  Plus,
-  Download,
-  Search,
-  AlertCircle,
-  Clock,
-  TreePine,
-  List,
-  MoreVertical,
-  Eye,
-  Pencil,
-  Check,
-  Trash2
-} from 'lucide-vue-next';
+import { Plus, Download, TreePine, List } from 'lucide-vue-next';
 import { usePermissions } from '@modules/Core/Resources/js/composables/usePermissions';
-import { useObligaciones } from '@modules/Proyectos/Resources/js/composables/useObligaciones';
 import { toast } from 'vue-sonner';
-import { format, parseISO } from 'date-fns';
-import { es } from 'date-fns/locale';
 import { debounce } from 'lodash';
 import type { ObligacionContrato, ObligacionEstadisticas } from '@modules/Proyectos/Resources/js/types/obligaciones';
 
 // Props
+interface Contrato {
+  id: number;
+  nombre: string;
+}
+
 interface Props {
   obligaciones: {
     data: ObligacionContrato[];
@@ -63,7 +29,8 @@ interface Props {
   };
   estadisticas: ObligacionEstadisticas;
   filters: any;
-  contrato?: any;
+  contrato?: Contrato;
+  contratos?: Contrato[];
   estadisticasResponsables?: any;
   canCreate?: boolean;
   canEdit?: boolean;
@@ -93,30 +60,19 @@ const { hasPermission } = usePermissions();
 const vistaActual = ref<'arbol' | 'tabla'>('tabla');
 const filters = ref({
   search: props.filters?.search || '',
-  contrato_id: props.filters?.contrato_id || props.contrato?.id || ''
+  contrato_id: props.filters?.contrato_id || props.contrato?.id || null
 });
 
 // Métodos
-const aplicarFiltros = () => {
+const aplicarFiltros = debounce(() => {
   router.get(route('admin.obligaciones.index'), filters.value, {
     preserveState: true,
     preserveScroll: true
   });
-};
+}, 300);
 
-const debouncedSearch = debounce(() => {
-  aplicarFiltros();
-}, 500);
-
-const toggleFiltroVencidas = () => {
-  filters.value.vencidas = !filters.value.vencidas;
-  filters.value.proximas_vencer = false;
-  aplicarFiltros();
-};
-
-const toggleFiltroProximas = () => {
-  filters.value.proximas_vencer = !filters.value.proximas_vencer;
-  filters.value.vencidas = false;
+const limpiarFiltros = () => {
+  filters.value = { search: '', contrato_id: props.contrato?.id || null };
   aplicarFiltros();
 };
 
@@ -178,17 +134,6 @@ const moverObligacion = (obligacion: ObligacionContrato, newParentId: number | n
 const exportarObligaciones = () => {
   window.open(route('admin.obligaciones.exportar', filters.value), '_blank');
 };
-
-const formatDate = (dateString: string | undefined) => {
-  if (!dateString) return 'Sin fecha';
-  try {
-    return format(parseISO(dateString), 'dd MMM yyyy', { locale: es });
-  } catch {
-    return dateString;
-  }
-};
-
-// Funciones de variantes eliminadas - ya no se usan estados ni prioridades
 </script>
 
 <template>
@@ -228,25 +173,13 @@ const formatDate = (dateString: string | undefined) => {
       </div>
 
       <!-- Filtros -->
-      <Card>
-        <CardContent class="pt-6">
-          <!-- Búsqueda -->
-          <div>
-            <Label for="search">Buscar</Label>
-            <div class="relative">
-              <Search class="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
-              <Input
-                id="search"
-                v-model="filters.search"
-                type="text"
-                placeholder="Buscar obligaciones por título o descripción..."
-                class="pl-8"
-                @input="debouncedSearch"
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <ObligacionFilters
+        v-model="filters"
+        :contratos="contratos || []"
+        :show-contrato-filter="!contrato"
+        @filter="aplicarFiltros"
+        @clear="limpiarFiltros"
+      />
 
       <!-- Estadística simplificada -->
       <Card>
@@ -300,93 +233,23 @@ const formatDate = (dateString: string | undefined) => {
           </div>
 
           <!-- Vista de tabla -->
-          <div v-else-if="vistaActual === 'tabla' && obligaciones.data && obligaciones.data.length > 0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Título</TableHead>
-                  <TableHead>Descripción</TableHead>
-                  <TableHead>Archivos</TableHead>
-                  <TableHead class="text-right">Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <TableRow
-                  v-for="obligacion in obligaciones.data"
-                  :key="obligacion.id"
-                >
-                  <TableCell class="font-medium">
-                    <div>
-                      <span>{{ obligacion.titulo }}</span>
-                      <Badge v-if="obligacion.tiene_hijos" variant="outline" class="ml-2 text-xs">
-                        {{ obligacion.total_hijos }} hijos
-                      </Badge>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <span class="text-sm text-gray-600">
-                      {{ obligacion.descripcion ?
-                          (obligacion.descripcion.length > 100 ?
-                           obligacion.descripcion.substring(0, 100) + '...' :
-                           obligacion.descripcion) :
-                          'Sin descripción' }}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <span v-if="obligacion.archivos_adjuntos?.length" class="text-sm">
-                      {{ obligacion.archivos_adjuntos.length }} archivo(s)
-                    </span>
-                    <span v-else class="text-sm text-gray-400">Sin archivos</span>
-                  </TableCell>
-                  <TableCell class="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" class="h-8 w-8">
-                          <MoreVertical class="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem @click="verObligacion(obligacion)">
-                          <Eye class="h-4 w-4 mr-2" />
-                          Ver
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          v-if="canEdit || hasPermission('obligaciones.edit')"
-                          @click="editarObligacion(obligacion)"
-                        >
-                          <Pencil class="h-4 w-4 mr-2" />
-                          Editar
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          v-if="canDelete || hasPermission('obligaciones.delete')"
-                          class="text-red-600"
-                          @click="eliminarObligacion(obligacion)"
-                        >
-                          <Trash2 class="h-4 w-4 mr-2" />
-                          Eliminar
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
+          <div v-else-if="vistaActual === 'tabla'">
+            <ObligacionTable
+              :obligaciones="obligaciones.data || []"
+              :can-edit="canEdit"
+              :can-delete="canDelete"
+              @view="verObligacion"
+              @edit="editarObligacion"
+              @delete="eliminarObligacion"
+            />
 
             <!-- Paginación -->
-            <div v-if="obligaciones.links" class="mt-4 flex justify-center">
+            <div v-if="obligaciones.links && obligaciones.data?.length" class="mt-4 flex justify-center">
               <Pagination
                 :links="obligaciones.links"
                 :meta="obligaciones.meta"
               />
             </div>
-          </div>
-
-          <!-- Mensaje cuando no hay obligaciones -->
-          <div v-else class="text-center py-8 text-gray-500">
-            <AlertCircle class="h-12 w-12 mx-auto mb-4 text-gray-300" />
-            <p>No se encontraron obligaciones</p>
-            <p class="text-sm mt-1">Crea una nueva obligación para comenzar</p>
           </div>
         </CardContent>
       </Card>

@@ -113,11 +113,34 @@ import {
 import InputError from '@modules/Core/Resources/js/components/InputError.vue';
 import FileAttachmentManager from '@modules/Core/Resources/js/components/forms/FileAttachmentManager.vue';
 import { Loader2 } from 'lucide-vue-next';
-import type { ObligacionContrato, ObligacionFormProps, ObligacionFormData } from '@modules/Proyectos/Resources/js/types/obligaciones';
+import type { ObligacionContrato, ObligacionFormData } from '@modules/Proyectos/Resources/js/types/obligaciones';
 
-const props = withDefaults(defineProps<ObligacionFormProps>(), {
+// Interfaz de Props extendida
+interface Props {
+  /** Obligación a editar (null para crear) */
+  obligacion?: ObligacionContrato;
+  /** ID del contrato */
+  contratoId?: number;
+  /** Lista de contratos disponibles */
+  contratos?: Array<{ id: number; nombre: string }>;
+  /** ID del padre (para crear sub-obligación) */
+  parentId?: number | null;
+  /** Lista de posibles padres para el selector */
+  posiblesPadres?: Array<{ id: number; titulo: string; nivel: number; parent_id?: number | null }>;
+  /** Lista de usuarios para asignar responsable */
+  usuarios?: Array<{ id: number; name: string; email: string }>;
+  /** Si está cargando */
+  loading?: boolean;
+  /** Errores de validación */
+  errors?: Record<string, string[]>;
+}
+
+const props = withDefaults(defineProps<Props>(), {
   loading: false,
-  errors: () => ({})
+  errors: () => ({}),
+  posiblesPadres: () => [],
+  contratos: () => [],
+  usuarios: () => []
 });
 
 const emit = defineEmits<{
@@ -127,7 +150,7 @@ const emit = defineEmits<{
 
 // Estado del formulario
 const form = ref<ObligacionFormData>({
-  contrato_id: props.contratoId,
+  contrato_id: props.contratoId || props.obligacion?.contrato_id || 0,
   parent_id: props.parentId || props.obligacion?.parent_id || null,
   titulo: props.obligacion?.titulo || '',
   descripcion: props.obligacion?.descripcion || '',
@@ -135,7 +158,8 @@ const form = ref<ObligacionFormData>({
   archivos_eliminar: [],
 });
 
-const obligacionesPadre = ref<ObligacionContrato[]>([]); // Cargar desde API para mostrar jerarquía
+// Usar posiblesPadres del prop
+const obligacionesPadre = computed(() => props.posiblesPadres || []);
 
 // Computed para archivos existentes filtrados (excluyendo los marcados para eliminar)
 const archivosExistentesFiltrados = computed(() => {
