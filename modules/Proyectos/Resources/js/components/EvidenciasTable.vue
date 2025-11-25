@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { Link } from '@inertiajs/vue3';
+import { Link, router } from '@inertiajs/vue3';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@modules/Core/Resources/js/components/ui/card';
 import { Badge } from '@modules/Core/Resources/js/components/ui/badge';
+import { Button } from '@modules/Core/Resources/js/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@modules/Core/Resources/js/components/ui/table';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@modules/Core/Resources/js/components/ui/accordion';
-import { FileText, ExternalLink, Download, Image } from 'lucide-vue-next';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@modules/Core/Resources/js/components/ui/select';
+import { FileText, ExternalLink, Download, Image, Eye } from 'lucide-vue-next';
+import { toast } from 'vue-sonner';
 
 // Interfaces
 interface Evidencia {
@@ -65,11 +68,19 @@ interface Props {
   cardTitle?: string;
   /** Descripción del card (opcional, solo para modo simple) */
   cardDescription?: string;
+  /** Modo de operación: 'admin' o 'user' */
+  modo?: 'admin' | 'user';
+  /** Si el usuario puede gestionar el estado de evidencias */
+  puedeGestionarEstado?: boolean;
+  /** ID del proyecto (requerido para cambio de estado) */
+  proyectoId?: number;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   cardTitle: 'Evidencias Asociadas',
-  cardDescription: 'Evidencias cargadas para esta obligación'
+  cardDescription: 'Evidencias cargadas para esta obligación',
+  modo: 'admin',
+  puedeGestionarEstado: false
 });
 
 // Computed para obtener clases de estado
@@ -88,6 +99,31 @@ const hayEvidencias = computed(() => {
   }
   return props.evidencias && props.evidencias.length > 0;
 });
+
+// Función para cambiar estado directamente desde dropdown
+const cambiarEstadoDirecto = (evidencia: Evidencia, nuevoEstado: string) => {
+  if (nuevoEstado === evidencia.estado || !props.proyectoId) return;
+
+  // Determinar el endpoint según el modo
+  const endpoint = props.modo === 'admin'
+    ? `/admin/proyectos/${props.proyectoId}/evidencias/${evidencia.id}/cambiar-estado`
+    : `/miembro/mis-proyectos/${props.proyectoId}/evidencias/${evidencia.id}/cambiar-estado`;
+
+  router.post(endpoint, {
+    estado: nuevoEstado,
+    observaciones: null
+  }, {
+    preserveScroll: true,
+    onSuccess: () => {
+      // El mensaje flash viene desde el backend
+      router.reload();
+    },
+    onError: (errors) => {
+      toast.error('Error al cambiar el estado');
+      console.error(errors);
+    }
+  });
+};
 </script>
 
 <template>
@@ -145,40 +181,48 @@ const hayEvidencias = computed(() => {
               <TableRow
                 v-for="evidencia in grupo.evidencias"
                 :key="evidencia.id"
-                class="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
+                class="hover:bg-gray-50 dark:hover:bg-gray-800"
               >
-                <Link
-                  :href="`/admin/contratos/${grupo.contrato.id}/evidencias/${evidencia.id}`"
-                  class="contents"
-                >
-                  <TableCell>
-                    <Badge variant="outline">{{ evidencia.tipo_evidencia }}</Badge>
-                  </TableCell>
-                  <TableCell>{{ evidencia.obligacion_titulo }}</TableCell>
-                  <TableCell>
-                    <span class="text-sm text-gray-600">{{ evidencia.descripcion || '-' }}</span>
-                  </TableCell>
-                  <TableCell>
-                    <span class="text-sm">{{ evidencia.usuario?.name || '-' }}</span>
-                  </TableCell>
-                  <TableCell>
-                    <Badge :class="getEstadoBadgeClasses(evidencia.estado)">
-                      {{ evidencia.estado }}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{{ formatDate(evidencia.created_at) }}</TableCell>
-                  <TableCell class="text-right">
-                    <a
+                <TableCell>
+                  <Badge variant="outline">{{ evidencia.tipo_evidencia }}</Badge>
+                </TableCell>
+                <TableCell>{{ evidencia.obligacion_titulo }}</TableCell>
+                <TableCell>
+                  <span class="text-sm text-gray-600">{{ evidencia.descripcion || '-' }}</span>
+                </TableCell>
+                <TableCell>
+                  <span class="text-sm">{{ evidencia.usuario?.name || '-' }}</span>
+                </TableCell>
+                <TableCell>
+                  <Badge :class="getEstadoBadgeClasses(evidencia.estado)">
+                    {{ evidencia.estado }}
+                  </Badge>
+                </TableCell>
+                <TableCell>{{ formatDate(evidencia.created_at) }}</TableCell>
+                <TableCell class="text-right">
+                  <div class="flex items-center justify-end gap-2">
+                    <!-- Botón de ver detalles -->
+                    <Button variant="ghost" size="sm" as-child class="h-8 px-2">
+                      <Link :href="`/admin/contratos/${grupo.contrato.id}/evidencias/${evidencia.id}`">
+                        <Eye class="h-4 w-4" />
+                        <span class="ml-1">Ver</span>
+                      </Link>
+                    </Button>
+                    <!-- Botón de descargar archivo -->
+                    <Button
                       v-if="evidencia.archivo_url"
-                      :href="evidencia.archivo_url"
-                      target="_blank"
-                      class="inline-flex items-center text-blue-600 hover:text-blue-800"
-                      @click.stop
+                      variant="ghost"
+                      size="sm"
+                      as-child
+                      class="h-8 px-2"
                     >
-                      <Download class="h-4 w-4" />
-                    </a>
-                  </TableCell>
-                </Link>
+                      <a :href="evidencia.archivo_url" target="_blank">
+                        <Download class="h-4 w-4" />
+                        <span class="ml-1">Descargar</span>
+                      </a>
+                    </Button>
+                  </div>
+                </TableCell>
               </TableRow>
             </TableBody>
           </Table>
@@ -213,52 +257,82 @@ const hayEvidencias = computed(() => {
             <TableRow
               v-for="evidencia in evidencias"
               :key="evidencia.id"
-              class="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
+              class="hover:bg-gray-50 dark:hover:bg-gray-800"
             >
-              <Link
-                :href="`/admin/contratos/${contrato?.id}/evidencias/${evidencia.id}`"
-                class="contents"
-              >
-                <TableCell>
-                  <Badge variant="outline">{{ evidencia.tipo_evidencia }}</Badge>
-                </TableCell>
-                <TableCell>
-                  <span class="text-sm text-gray-600">{{ evidencia.descripcion || '-' }}</span>
-                </TableCell>
-                <TableCell>
-                  <div v-if="evidencia.entregables && evidencia.entregables.length > 0" class="flex flex-wrap gap-1">
-                    <Badge
-                      v-for="entregable in evidencia.entregables"
-                      :key="entregable.id"
-                      variant="secondary"
-                      class="text-xs"
-                    >
-                      {{ entregable.nombre }}
-                    </Badge>
-                  </div>
-                  <span v-else class="text-sm text-gray-500">-</span>
-                </TableCell>
-                <TableCell>
-                  <span class="text-sm">{{ evidencia.usuario?.name || '-' }}</span>
-                </TableCell>
-                <TableCell>
-                  <Badge :class="getEstadoBadgeClasses(evidencia.estado)">
-                    {{ evidencia.estado }}
-                  </Badge>
-                </TableCell>
-                <TableCell>{{ formatDate(evidencia.created_at) }}</TableCell>
-                <TableCell class="text-right">
-                  <a
-                    v-if="evidencia.archivo_url"
-                    :href="evidencia.archivo_url"
-                    target="_blank"
-                    class="inline-flex items-center text-blue-600 hover:text-blue-800"
-                    @click.stop
+              <TableCell>
+                <Badge variant="outline">{{ evidencia.tipo_evidencia }}</Badge>
+              </TableCell>
+              <TableCell>
+                <span class="text-sm text-gray-600">{{ evidencia.descripcion || '-' }}</span>
+              </TableCell>
+              <TableCell>
+                <div v-if="evidencia.entregables && evidencia.entregables.length > 0" class="flex flex-wrap gap-1">
+                  <Badge
+                    v-for="entregable in evidencia.entregables"
+                    :key="entregable.id"
+                    variant="secondary"
+                    class="text-xs"
                   >
-                    <Download class="h-4 w-4" />
-                  </a>
-                </TableCell>
-              </Link>
+                    {{ entregable.nombre }}
+                  </Badge>
+                </div>
+                <span v-else class="text-sm text-gray-500">-</span>
+              </TableCell>
+              <TableCell>
+                <span class="text-sm">{{ evidencia.usuario?.name || '-' }}</span>
+              </TableCell>
+              <TableCell>
+                <Badge :class="getEstadoBadgeClasses(evidencia.estado)">
+                  {{ evidencia.estado }}
+                </Badge>
+              </TableCell>
+              <TableCell>{{ formatDate(evidencia.created_at) }}</TableCell>
+              <TableCell class="text-right">
+                <div class="flex items-center justify-end gap-2">
+                  <!-- Botón de ver detalles -->
+                  <Button variant="ghost" size="sm" as-child class="h-8 px-2">
+                    <Link :href="`/admin/contratos/${contrato?.id}/evidencias/${evidencia.id}`">
+                      <Eye class="h-4 w-4" />
+                      <span class="ml-1">Ver</span>
+                    </Link>
+                  </Button>
+                  <!-- Botón de descargar archivo -->
+                  <Button
+                    v-if="evidencia.archivo_url"
+                    variant="ghost"
+                    size="sm"
+                    as-child
+                    class="h-8 px-2"
+                  >
+                    <a :href="evidencia.archivo_url" target="_blank">
+                      <Download class="h-4 w-4" />
+                      <span class="ml-1">Descargar</span>
+                    </a>
+                  </Button>
+                  <!-- Dropdown de estados para Admin y User gestores -->
+                  <template v-if="(modo === 'admin' && proyectoId) || (modo === 'user' && puedeGestionarEstado && proyectoId)">
+                    <Select
+                      :model-value="evidencia.estado"
+                      @update:model-value="(value) => cambiarEstadoDirecto(evidencia, value)"
+                    >
+                      <SelectTrigger class="h-8 w-32">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pendiente">
+                          <span class="text-yellow-600">Pendiente</span>
+                        </SelectItem>
+                        <SelectItem value="aprobada">
+                          <span class="text-green-600">Aprobada</span>
+                        </SelectItem>
+                        <SelectItem value="rechazada">
+                          <span class="text-red-600">Rechazada</span>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </template>
+                </div>
+              </TableCell>
             </TableRow>
           </TableBody>
         </Table>

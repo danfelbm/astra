@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import AdminLayout from '@modules/Core/Resources/js/layouts/AdminLayout.vue';
 import { Button } from '@modules/Core/Resources/js/components/ui/button';
@@ -73,8 +73,28 @@ const props = defineProps<Props>();
 
 const { hasPermission } = usePermissions();
 
-// Estado para el tab activo
-const activeTab = ref('general');
+// Tabs válidos para validación
+const validTabs = ['general', 'hijos', 'evidencias', 'actividad'];
+
+// Estado para el tab activo - leer de URL query params
+const getInitialTab = (): string => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const tabFromUrl = urlParams.get('tab');
+    return tabFromUrl && validTabs.includes(tabFromUrl) ? tabFromUrl : 'general';
+};
+
+const activeTab = ref(getInitialTab());
+
+// Sincronizar tab con URL usando query params
+watch(activeTab, (newTab) => {
+    const url = `/admin/obligaciones/${props.obligacion.id}?tab=${newTab}`;
+    router.get(url, {}, {
+        preserveState: true,
+        preserveScroll: true,
+        replace: true,
+        only: []
+    });
+});
 
 // Estado para filtros de evidencias
 const filtrosEvidencias = ref({
@@ -363,8 +383,11 @@ const formatDateShort = (dateString: string | undefined) => {
           <!-- Tabla de evidencias (componente reutilizable) -->
           <EvidenciasTable
             mode="simple"
+            modo="admin"
             :evidencias="evidenciasFiltradas"
             :contrato="contrato"
+            :proyecto-id="contrato.proyecto?.id"
+            :puede-gestionar-estado="true"
             :format-date="formatDateShort"
             card-title="Evidencias Asociadas"
             card-description="Evidencias cargadas para esta obligación"

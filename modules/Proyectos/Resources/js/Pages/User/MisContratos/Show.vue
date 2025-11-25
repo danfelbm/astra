@@ -496,7 +496,7 @@ watch(activeTab, (newTab) => {
                         >
                             <div class="flex items-start justify-between mb-3">
                                 <div class="flex-1">
-                                    <h4 class="font-semibold">{{ obligacion.nombre }}</h4>
+                                    <h4 class="font-semibold">{{ obligacion.titulo }}</h4>
                                     <p v-if="obligacion.descripcion" class="text-sm text-muted-foreground mt-1">
                                         {{ obligacion.descripcion }}
                                     </p>
