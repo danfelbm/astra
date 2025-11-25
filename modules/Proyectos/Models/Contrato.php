@@ -177,7 +177,7 @@ class Contrato extends Model
             'cancelado' => 'Cancelado'
         ];
 
-        return $labels[$this->estado] ?? $this->estado;
+        return $labels[$this->estado ?? ''] ?? $this->estado ?? 'Sin estado';
     }
 
     /**
@@ -193,7 +193,7 @@ class Contrato extends Model
             'otro' => 'Otro'
         ];
 
-        return $labels[$this->tipo] ?? $this->tipo;
+        return $labels[$this->tipo ?? ''] ?? $this->tipo ?? 'Sin tipo';
     }
 
     /**
@@ -208,7 +208,7 @@ class Contrato extends Model
             'cancelado' => 'red'
         ];
 
-        return $colors[$this->estado] ?? 'gray';
+        return $colors[$this->estado ?? ''] ?? 'gray';
     }
 
     /**
