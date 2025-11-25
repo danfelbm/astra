@@ -1,22 +1,21 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { ref, computed } from 'vue';
 import { Card, CardContent } from '@modules/Core/Resources/js/components/ui/card';
 import { Input } from '@modules/Core/Resources/js/components/ui/input';
 import { Label } from '@modules/Core/Resources/js/components/ui/label';
 import { Button } from '@modules/Core/Resources/js/components/ui/button';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from '@modules/Core/Resources/js/components/ui/select';
-import { Search, X, Filter } from 'lucide-vue-next';
+import { Search, X, FileText } from 'lucide-vue-next';
+import AddContratosModal from '@modules/Proyectos/Resources/js/components/modals/AddContratosModal.vue';
+import type { Proyecto } from '@modules/Proyectos/Resources/js/types/contratos';
 
 // Interfaces
-interface Contrato {
+interface ContratoSeleccionado {
   id: number;
   nombre: string;
+  proyecto?: {
+    id: number;
+    nombre: string;
+  };
 }
 
 interface Filters {
@@ -27,25 +26,33 @@ interface Filters {
 interface Props {
   /** Filtros actuales */
   modelValue: Filters;
-  /** Lista de contratos para el selector */
-  contratos?: Contrato[];
+  /** Lista de proyectos para el modal de contratos */
+  proyectos?: Proyecto[];
   /** Si está cargando */
   loading?: boolean;
   /** Mostrar filtro de contrato */
   showContratoFilter?: boolean;
+  /** Contrato seleccionado actualmente (para mostrar nombre) */
+  contratoSeleccionado?: ContratoSeleccionado | null;
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  contratos: () => [],
+  proyectos: () => [],
   loading: false,
-  showContratoFilter: true
+  showContratoFilter: true,
+  contratoSeleccionado: null
 });
 
 const emit = defineEmits<{
   'update:modelValue': [value: Filters];
+  'update:contratoSeleccionado': [value: ContratoSeleccionado | null];
   'filter': [];
   'clear': [];
 }>();
+
+// Estado del modal de contratos
+const showContratoModal = ref(false);
+const contratoLocal = ref<ContratoSeleccionado | null>(props.contratoSeleccionado);
 
 // Computed para v-model bidireccional
 const filters = computed({
@@ -65,10 +72,23 @@ const updateSearch = (value: string) => {
   emit('filter');
 };
 
-const updateContrato = (value: string | number | null) => {
-  // Convertir 'all' a null
-  const contratoId = value === 'all' ? null : value;
-  filters.value = { ...filters.value, contrato_id: contratoId };
+// Handler para cuando se selecciona un contrato desde el modal
+const handleContratoSelect = (data: { contratoIds: number[]; contratos?: any[] }) => {
+  if (data.contratoIds.length > 0) {
+    filters.value = { ...filters.value, contrato_id: data.contratoIds[0] };
+    if (data.contratos && data.contratos.length > 0) {
+      contratoLocal.value = data.contratos[0];
+      emit('update:contratoSeleccionado', data.contratos[0]);
+    }
+    emit('filter');
+  }
+};
+
+// Limpiar contrato seleccionado
+const limpiarContrato = () => {
+  filters.value = { ...filters.value, contrato_id: null };
+  contratoLocal.value = null;
+  emit('update:contratoSeleccionado', null);
   emit('filter');
 };
 
@@ -77,6 +97,8 @@ const clearFilters = () => {
     search: '',
     contrato_id: null
   };
+  contratoLocal.value = null;
+  emit('update:contratoSeleccionado', null);
   emit('clear');
 };
 </script>
@@ -102,29 +124,73 @@ const clearFilters = () => {
           </div>
         </div>
 
-        <!-- Filtro por contrato -->
-        <div v-if="showContratoFilter && contratos.length > 0" class="w-full sm:w-64">
-          <Label for="contrato_id" class="sr-only">Contrato</Label>
-          <Select
-            :model-value="filters.contrato_id?.toString() || 'all'"
+        <!-- Filtro por contrato (usando modal) -->
+        <div v-if="showContratoFilter" class="w-full sm:w-auto">
+          <Label for="contrato_filter" class="sr-only">Contrato</Label>
+
+          <!-- Mostrar contrato seleccionado (con nombre conocido) -->
+          <div v-if="contratoLocal" class="flex items-center gap-2 px-3 py-2 bg-muted rounded-lg">
+            <FileText class="h-4 w-4 text-muted-foreground flex-shrink-0" />
+            <div class="flex-1 min-w-0">
+              <p class="font-medium text-sm truncate">{{ contratoLocal.nombre }}</p>
+              <p v-if="contratoLocal.proyecto" class="text-xs text-muted-foreground truncate">
+                {{ contratoLocal.proyecto.nombre }}
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              class="h-6 w-6 p-0 flex-shrink-0"
+              @click="limpiarContrato"
+            >
+              <X class="h-4 w-4" />
+            </Button>
+          </div>
+
+          <!-- Filtro activo desde URL (sin nombre conocido) -->
+          <div v-else-if="filters.contrato_id" class="flex items-center gap-2 px-3 py-2 bg-muted rounded-lg">
+            <FileText class="h-4 w-4 text-muted-foreground flex-shrink-0" />
+            <div class="flex-1 min-w-0">
+              <p class="font-medium text-sm">Contrato #{{ filters.contrato_id }}</p>
+              <p class="text-xs text-muted-foreground">Filtro activo</p>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              class="h-6 w-6 p-0 flex-shrink-0"
+              @click="limpiarContrato"
+            >
+              <X class="h-4 w-4" />
+            </Button>
+          </div>
+
+          <!-- Botón para abrir modal -->
+          <Button
+            v-else
+            type="button"
+            variant="outline"
+            @click="showContratoModal = true"
             :disabled="loading"
-            @update:model-value="updateContrato"
+            class="w-full sm:w-auto"
           >
-            <SelectTrigger id="contrato_id">
-              <Filter class="h-4 w-4 mr-2 text-gray-400" />
-              <SelectValue placeholder="Todos los contratos" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos los contratos</SelectItem>
-              <SelectItem
-                v-for="contrato in contratos"
-                :key="contrato.id"
-                :value="contrato.id.toString()"
-              >
-                {{ contrato.nombre }}
-              </SelectItem>
-            </SelectContent>
-          </Select>
+            <FileText class="h-4 w-4 mr-2" />
+            Filtrar por Contrato
+          </Button>
+
+          <!-- Modal de selección de contratos -->
+          <AddContratosModal
+            v-model="showContratoModal"
+            title="Filtrar por Contrato"
+            description="Selecciona el contrato para filtrar las obligaciones"
+            search-endpoint="/admin/contratos/search"
+            :proyectos="proyectos"
+            :excluded-ids="[]"
+            :max-selection="1"
+            submit-button-text="Aplicar Filtro"
+            @submit="handleContratoSelect"
+          />
         </div>
 
         <!-- Botón limpiar filtros -->

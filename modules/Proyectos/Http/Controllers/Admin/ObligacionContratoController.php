@@ -37,16 +37,14 @@ class ObligacionContratoController extends AdminController
             $contrato = Contrato::with('proyecto')->find($request->contrato_id);
         }
 
-        // Obtener lista de contratos para el filtro (solo si no hay contrato específico)
-        $contratos = $contrato ? [] : Contrato::select('id', 'nombre')
-            ->orderBy('nombre')
-            ->get();
+        // Obtener lista de proyectos para el filtro del modal (solo si no hay contrato específico)
+        $proyectos = $contrato ? [] : Proyecto::activos()->orderBy('nombre')->get(['id', 'nombre']);
 
         return Inertia::render('Modules/Proyectos/Admin/Obligaciones/Index', [
             'obligaciones' => $this->repository->getAllPaginated($request),
             'filters' => $request->only(['search', 'contrato_id']),
             'contrato' => $contrato,
-            'contratos' => $contratos,
+            'proyectos' => $proyectos,
             'canCreate' => auth()->user()->can('obligaciones.create'),
             'canEdit' => auth()->user()->can('obligaciones.edit'),
             'canDelete' => auth()->user()->can('obligaciones.delete'),
