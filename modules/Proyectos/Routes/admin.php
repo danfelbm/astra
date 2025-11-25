@@ -270,6 +270,11 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
             ->name('vencidos')
             ->middleware('can:contratos.view');
 
+        // Ruta para búsqueda de contratos en modal (DEBE estar ANTES de /{contrato})
+        Route::get('/search', [ContratoController::class, 'searchContratos'])
+            ->name('search')
+            ->middleware('can:contratos.view');
+
         Route::get('/{contrato}', [ContratoController::class, 'show'])
             ->name('show')
             ->middleware('can:contratos.view');

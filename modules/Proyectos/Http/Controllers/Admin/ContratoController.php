@@ -609,4 +609,59 @@ class ContratoController extends AdminController
                 ->with('error', 'Error al eliminar borrador');
         }
     }
+
+    /**
+     * Busca contratos para el modal selector.
+     * Soporta búsqueda por nombre, proyecto y contraparte.
+     * Filtros: proyecto_id, estados, excluded_ids
+     */
+    public function searchContratos(Request $request): \Illuminate\Http\JsonResponse
+    {
+        // Verificar permisos
+        abort_unless(auth()->user()->can('contratos.view'), 403, 'No tienes permisos para ver contratos');
+
+        $query = Contrato::query()
+            ->with(['proyecto:id,nombre'])
+            ->select('id', 'nombre', 'proyecto_id', 'estado', 'tipo',
+                     'fecha_inicio', 'fecha_fin', 'monto_total', 'moneda');
+
+        // Búsqueda por texto
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('nombre', 'like', "%{$search}%")
+                  ->orWhere('contraparte_nombre', 'like', "%{$search}%")
+                  ->orWhereHas('proyecto', fn($q2) =>
+                      $q2->where('nombre', 'like', "%{$search}%")
+                  );
+            });
+        }
+
+        // Filtro por proyecto
+        if ($request->filled('proyecto_id')) {
+            $query->where('proyecto_id', $request->proyecto_id);
+        }
+
+        // Filtro por estados (array)
+        if ($request->has('estados') && is_array($request->estados)) {
+            $query->whereIn('estado', $request->estados);
+        }
+
+        // Excluir IDs
+        if ($request->has('excluded_ids') && is_array($request->excluded_ids)) {
+            $query->whereNotIn('id', $request->excluded_ids);
+        }
+
+        // Ordenar y paginar
+        $contratos = $query->orderBy('nombre')
+            ->paginate($request->get('per_page', 15));
+
+        return response()->json([
+            'contratos' => $contratos->items(),
+            'current_page' => $contratos->currentPage(),
+            'last_page' => $contratos->lastPage(),
+            'per_page' => $contratos->perPage(),
+            'total' => $contratos->total(),
+        ]);
+    }
 }

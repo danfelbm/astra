@@ -16,6 +16,7 @@ import type { ObligacionFormData } from '@modules/Proyectos/Resources/js/types/o
 interface Props {
   contrato?: any;
   contratos?: any[];
+  proyectos?: any[];
   parent?: any;
   posiblesPadres?: any[];
   usuarios?: any[];
@@ -218,6 +219,7 @@ const getEstadoVariant = (estado: string) => {
         <ObligacionForm
           :contratoId="contrato?.id"
           :contratos="contratos"
+          :proyectos="proyectos"
           :parentId="parent?.id"
           :posiblesPadres="posiblesPadres"
           :usuarios="usuarios"

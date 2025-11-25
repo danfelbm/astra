@@ -7,29 +7,54 @@
       </CardHeader>
       <CardContent class="space-y-4">
         <!-- Selector de contrato (solo si no viene de un contrato específico) -->
-        <div v-if="!contratoId && contratos && contratos.length > 0">
+        <div v-if="!contratoId">
           <Label for="contrato_id" required>Contrato</Label>
-          <Select v-model="form.contrato_id">
-            <SelectTrigger id="contrato_id" :class="{ 'border-red-500': errors?.contrato_id }">
-              <SelectValue placeholder="Seleccionar contrato" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem
-                v-for="contrato in contratos"
-                :key="contrato.id"
-                :value="contrato.id"
-              >
-                {{ contrato.nombre }}
-                <span v-if="contrato.proyecto" class="text-muted-foreground ml-1">
-                  ({{ contrato.proyecto.nombre }})
-                </span>
-              </SelectItem>
-            </SelectContent>
-          </Select>
+
+          <!-- Mostrar contrato seleccionado -->
+          <div v-if="contratoSeleccionado" class="p-3 bg-muted rounded-lg flex items-center justify-between mb-2">
+            <div class="flex items-center gap-2">
+              <FileText class="h-4 w-4 text-muted-foreground" />
+              <div>
+                <p class="font-medium">{{ contratoSeleccionado.nombre }}</p>
+                <p v-if="contratoSeleccionado.proyecto" class="text-sm text-muted-foreground">
+                  {{ contratoSeleccionado.proyecto.nombre }}
+                </p>
+              </div>
+            </div>
+            <Button type="button" variant="ghost" size="sm" @click="limpiarContrato">
+              <X class="h-4 w-4" />
+            </Button>
+          </div>
+
+          <!-- Botón para abrir modal -->
+          <Button
+            type="button"
+            variant="outline"
+            @click="showContratoModal = true"
+            class="w-full"
+            :class="{ 'border-red-500': errors?.contrato_id }"
+          >
+            <FileText class="h-4 w-4 mr-2" />
+            {{ contratoSeleccionado ? 'Cambiar Contrato' : 'Seleccionar Contrato' }}
+          </Button>
+
           <InputError v-if="errors?.contrato_id" :message="errors.contrato_id[0]" />
           <p class="text-xs text-muted-foreground mt-1">
             Selecciona el contrato al que pertenecerá esta obligación
           </p>
+
+          <!-- Modal de selección de contratos -->
+          <AddContratosModal
+            v-model="showContratoModal"
+            title="Seleccionar Contrato"
+            description="Selecciona el contrato para esta obligación"
+            search-endpoint="/admin/contratos/search"
+            :proyectos="proyectos"
+            :excluded-ids="contratoSeleccionado ? [contratoSeleccionado.id] : []"
+            :max-selection="1"
+            submit-button-text="Seleccionar"
+            @submit="handleContratoSelect"
+          />
         </div>
 
         <!-- Título -->
@@ -148,8 +173,10 @@ import {
 } from '@modules/Core/Resources/js/components/ui/select';
 import InputError from '@modules/Core/Resources/js/components/InputError.vue';
 import FileAttachmentManager from '@modules/Core/Resources/js/components/forms/FileAttachmentManager.vue';
-import { Loader2 } from 'lucide-vue-next';
+import { Loader2, FileText, X } from 'lucide-vue-next';
 import type { ObligacionContrato, ObligacionFormData } from '@modules/Proyectos/Resources/js/types/obligaciones';
+import type { Proyecto } from '@modules/Proyectos/Resources/js/types/contratos';
+import AddContratosModal from '@modules/Proyectos/Resources/js/components/modals/AddContratosModal.vue';
 
 // Interfaz de Props extendida
 interface Props {
@@ -157,8 +184,10 @@ interface Props {
   obligacion?: ObligacionContrato;
   /** ID del contrato */
   contratoId?: number;
-  /** Lista de contratos disponibles */
+  /** Lista de contratos disponibles (para selector simple) */
   contratos?: Array<{ id: number; nombre: string; proyecto?: { id: number; nombre: string } }>;
+  /** Lista de proyectos para filtrar en el modal de contratos */
+  proyectos?: Proyecto[];
   /** ID del padre (para crear sub-obligación) */
   parentId?: number | null;
   /** Lista de posibles padres para el selector */
@@ -176,6 +205,7 @@ const props = withDefaults(defineProps<Props>(), {
   errors: () => ({}),
   posiblesPadres: () => [],
   contratos: () => [],
+  proyectos: () => [],
   usuarios: () => []
 });
 
@@ -193,6 +223,37 @@ const form = ref<ObligacionFormData>({
   archivos: [],
   archivos_eliminar: [],
 });
+
+// Estado para el modal de selección de contratos
+const showContratoModal = ref(false);
+const contratoSeleccionado = ref<{ id: number; nombre: string; proyecto?: { id: number; nombre: string } } | null>(
+  // Inicializar con el contrato de la obligación si existe
+  props.obligacion?.contrato
+    ? { id: props.obligacion.contrato.id, nombre: props.obligacion.contrato.nombre, proyecto: props.obligacion.contrato.proyecto }
+    : props.contratos?.find(c => c.id === form.value.contrato_id) || null
+);
+
+// Handler para cuando se selecciona un contrato desde el modal
+const handleContratoSelect = (data: { contratoIds: number[]; contratos?: any[] }) => {
+  if (data.contratoIds.length > 0) {
+    form.value.contrato_id = data.contratoIds[0];
+    if (data.contratos && data.contratos.length > 0) {
+      contratoSeleccionado.value = data.contratos[0];
+    }
+    // Limpiar parent_id ya que cambió el contrato
+    form.value.parent_id = null;
+    // Cargar posibles padres del nuevo contrato
+    cargarPosiblesPadres(data.contratoIds[0]);
+  }
+};
+
+// Limpiar contrato seleccionado
+const limpiarContrato = () => {
+  form.value.contrato_id = 0;
+  contratoSeleccionado.value = null;
+  form.value.parent_id = null;
+  posiblesPadresDinamicos.value = [];
+};
 
 // Estado para posibles padres cargados dinámicamente
 const posiblesPadresDinamicos = ref<Array<{ id: number; titulo: string; nivel: number; parent_id?: number | null }>>([]);

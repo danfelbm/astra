@@ -6,6 +6,7 @@ use Modules\Core\Http\Controllers\AdminController;
 use Modules\Core\Models\User;
 use Modules\Proyectos\Models\ObligacionContrato;
 use Modules\Proyectos\Models\Contrato;
+use Modules\Proyectos\Models\Proyecto;
 use Modules\Proyectos\Services\ObligacionContratoService;
 use Modules\Proyectos\Repositories\ObligacionContratoRepository;
 use Modules\Proyectos\Http\Requests\Admin\StoreObligacionContratoRequest;
@@ -99,6 +100,7 @@ class ObligacionContratoController extends AdminController
 
         $usuarios = User::select('id', 'name', 'email')->orderBy('name')->get();
         $contratos = Contrato::activos()->with('proyecto')->orderBy('nombre')->get();
+        $proyectos = Proyecto::activos()->orderBy('nombre')->get(['id', 'nombre']);
 
         // Si hay contrato, obtener posibles padres
         $posiblesPadres = [];
@@ -112,6 +114,7 @@ class ObligacionContratoController extends AdminController
         return Inertia::render('Modules/Proyectos/Admin/Obligaciones/Create', [
             'contrato' => $contrato,
             'contratos' => $contratos,
+            'proyectos' => $proyectos,
             'parent' => $parent,
             'posiblesPadres' => $posiblesPadres,
             'usuarios' => $usuarios,
