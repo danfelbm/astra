@@ -30,7 +30,7 @@ export function useObligaciones(contratoId?: number) {
         search: '',
         estado: undefined,
         prioridad: undefined,
-        responsable_id: undefined,
+        // responsable_id eliminado - se obtiene desde contrato
         vencidas: false,
         proximas_vencer: false,
         ver_todas: false,
@@ -44,14 +44,8 @@ export function useObligaciones(contratoId?: number) {
         parent_id: null,
         titulo: '',
         descripcion: '',
-        fecha_vencimiento: '',
-        estado: 'pendiente',
-        prioridad: 'media',
-        responsable_id: undefined,
-        orden: 1,
         archivos: [],
-        archivos_eliminar: [],
-        notas_cumplimiento: ''
+        archivos_eliminar: []
     });
 
     // Computed
@@ -79,9 +73,7 @@ export function useObligaciones(contratoId?: number) {
             resultado = resultado.filter(o => o.prioridad === filters.value.prioridad);
         }
 
-        if (filters.value.responsable_id) {
-            resultado = resultado.filter(o => o.responsable_id === filters.value.responsable_id);
-        }
+        // Filtro por responsable_id eliminado - se obtiene desde contrato
 
         if (filters.value.vencidas) {
             resultado = resultado.filter(o => o.esta_vencida);
