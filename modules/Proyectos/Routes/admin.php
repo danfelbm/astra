@@ -406,6 +406,11 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
             ->name('store')
             ->middleware('can:obligaciones.create');
 
+        // Ruta para cargar posibles padres dinámicamente (DEBE estar ANTES de /{obligacion})
+        Route::get('/posibles-padres', [ObligacionContratoController::class, 'getPosiblesPadres'])
+            ->name('posibles-padres')
+            ->middleware('can:obligaciones.view');
+
         Route::get('/{obligacion}', [ObligacionContratoController::class, 'show'])
             ->name('show')
             ->middleware('can:obligaciones.view');
@@ -445,10 +450,6 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
 
         Route::get('/buscar/autocompletar', [ObligacionContratoController::class, 'buscar'])
             ->name('buscar')
-            ->middleware('can:obligaciones.view');
-
-        Route::get('/posibles-padres', [ObligacionContratoController::class, 'getPosiblesPadres'])
-            ->name('posibles-padres')
             ->middleware('can:obligaciones.view');
 
         Route::get('/exportar', [ObligacionContratoController::class, 'exportar'])

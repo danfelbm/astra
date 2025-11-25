@@ -238,7 +238,11 @@ watch(() => form.value.contrato_id, (newContratoId) => {
   if (!props.contratoId && newContratoId) {
     // Limpiar parent_id al cambiar de contrato
     form.value.parent_id = null;
-    cargarPosiblesPadres(newContratoId);
+    // Convertir a número ya que Select puede devolver string
+    const contratoIdNum = typeof newContratoId === 'string' ? parseInt(newContratoId, 10) : newContratoId;
+    if (contratoIdNum && !isNaN(contratoIdNum)) {
+      cargarPosiblesPadres(contratoIdNum);
+    }
   }
 });
 
