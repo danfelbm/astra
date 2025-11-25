@@ -4,11 +4,10 @@
       'obligacion-item group',
       selected && 'bg-blue-50 border-blue-300',
       isDragOver && 'bg-gray-100 border-dashed',
-      'border rounded-lg p-2 mb-1 transition-all cursor-pointer hover:shadow-sm'
+      'border rounded-lg p-2 mb-1 transition-all hover:shadow-sm'
     ]"
     :style="{ marginLeft: `${nivel * 24}px` }"
     :draggable="draggable && editable"
-    @click="handleSelect"
     @dragstart="handleDragStart"
     @dragover="handleDragOver"
     @drop="handleDrop"
@@ -55,7 +54,6 @@
 
             <!-- Metadatos -->
             <div class="flex items-center gap-3 mt-2 text-xs text-gray-500">
-
               <!-- Contador de hijos -->
               <div v-if="obligacion.tiene_hijos" class="flex items-center gap-1">
                 <Layers class="h-3 w-3" />
@@ -70,64 +68,50 @@
             </div>
           </div>
 
-          <!-- Acciones -->
+          <!-- Acciones (siempre visibles) -->
           <div
             v-if="editable"
-            class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+            class="flex items-center gap-1 shrink-0"
           >
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    v-if="hasPermission('obligaciones.create')"
-                    variant="ghost"
-                    size="icon"
-                    class="h-7 w-7"
-                    @click.stop="$emit('add-child')"
-                  >
-                    <Plus class="h-3 w-3" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Añadir hijo</TooltipContent>
-              </Tooltip>
-
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    v-if="hasPermission('obligaciones.edit')"
-                    variant="ghost"
-                    size="icon"
-                    class="h-7 w-7"
-                    @click.stop="$emit('edit')"
-                  >
-                    <Pencil class="h-3 w-3" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Editar</TooltipContent>
-              </Tooltip>
-
-
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    v-if="hasPermission('obligaciones.delete')"
-                    variant="ghost"
-                    size="icon"
-                    class="h-7 w-7 text-red-600 hover:text-red-700"
-                    @click.stop="handleDelete"
-                  >
-                    <Trash2 class="h-3 w-3" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Eliminar</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            <!-- Botón Añadir hijo -->
+            <Button
+              v-if="hasPermission('obligaciones.create')"
+              variant="ghost"
+              size="sm"
+              class="h-7 px-2 text-xs"
+              @click.stop="$emit('add-child')"
+            >
+              <Plus class="h-3 w-3 mr-1" />
+              Añadir
+            </Button>
+            <!-- Botón Editar -->
+            <Button
+              v-if="hasPermission('obligaciones.edit')"
+              variant="ghost"
+              size="sm"
+              class="h-7 px-2 text-xs"
+              @click.stop="$emit('edit')"
+            >
+              <Pencil class="h-3 w-3 mr-1" />
+              Editar
+            </Button>
+            <!-- Botón Eliminar -->
+            <Button
+              v-if="hasPermission('obligaciones.delete')"
+              variant="ghost"
+              size="sm"
+              class="h-7 px-2 text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
+              @click.stop="handleDelete"
+            >
+              <Trash2 class="h-3 w-3 mr-1" />
+              Eliminar
+            </Button>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Hijos (recursivo) -->
+    <!-- Hijos (slot) -->
     <div v-if="expanded && obligacion.hijos?.length" class="mt-2">
       <slot name="children" />
     </div>
@@ -137,13 +121,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { Button } from '@modules/Core/Resources/js/components/ui/button';
-import { Badge } from '@modules/Core/Resources/js/components/ui/badge';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger
-} from '@modules/Core/Resources/js/components/ui/tooltip';
 import {
   ChevronRight,
   Circle,
@@ -179,8 +156,6 @@ const { hasPermission } = usePermissions();
 // Estado local
 const isDragOver = ref(false);
 const draggable = computed(() => props.editable && hasPermission('obligaciones.edit'));
-
-// Computed eliminados - campos de estado deprecados
 
 // Métodos
 const handleSelect = () => {
@@ -224,7 +199,6 @@ const handleDragLeave = () => {
   if (!draggable.value) return;
   isDragOver.value = false;
 };
-
 </script>
 
 <style scoped>

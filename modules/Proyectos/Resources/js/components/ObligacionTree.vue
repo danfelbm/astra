@@ -94,7 +94,51 @@
               @drag-start="handleDragStart"
               @drag-over="handleDragOver"
               @drop="handleDrop"
-            />
+            >
+              <!-- Nivel 3: nietos -->
+              <template v-if="hijo.hijos?.length" #children>
+                <ObligacionItem
+                  v-for="nieto in hijo.hijos"
+                  :key="nieto.id"
+                  :obligacion="nieto"
+                  :nivel="2"
+                  :expanded="expandedNodes.includes(nieto.id)"
+                  :selected="selectedNode === nieto.id"
+                  :editable="editable"
+                  :draggable="draggable"
+                  @toggle="toggleNode(nieto.id)"
+                  @select="selectNode(nieto.id)"
+                  @edit="$emit('edit', nieto)"
+                  @delete="$emit('delete', nieto)"
+                  @add-child="$emit('add-child', nieto)"
+                  @drag-start="handleDragStart"
+                  @drag-over="handleDragOver"
+                  @drop="handleDrop"
+                >
+                  <!-- Nivel 4: bisnietos -->
+                  <template v-if="nieto.hijos?.length" #children>
+                    <ObligacionItem
+                      v-for="bisnieto in nieto.hijos"
+                      :key="bisnieto.id"
+                      :obligacion="bisnieto"
+                      :nivel="3"
+                      :expanded="expandedNodes.includes(bisnieto.id)"
+                      :selected="selectedNode === bisnieto.id"
+                      :editable="editable"
+                      :draggable="draggable"
+                      @toggle="toggleNode(bisnieto.id)"
+                      @select="selectNode(bisnieto.id)"
+                      @edit="$emit('edit', bisnieto)"
+                      @delete="$emit('delete', bisnieto)"
+                      @add-child="$emit('add-child', bisnieto)"
+                      @drag-start="handleDragStart"
+                      @drag-over="handleDragOver"
+                      @drop="handleDrop"
+                    />
+                  </template>
+                </ObligacionItem>
+              </template>
+            </ObligacionItem>
           </template>
         </ObligacionItem>
       </TransitionGroup>
