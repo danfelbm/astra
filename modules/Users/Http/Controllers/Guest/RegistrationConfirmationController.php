@@ -30,7 +30,7 @@ class RegistrationConfirmationController extends GuestController
      */
     public function index(): Response
     {
-        return Inertia::render('Modules/Users/Guest/Users/RegistrationConfirmation', [
+        return Inertia::render('Modules/Users/Guest/RegistrationConfirmation', [
             'layout' => $this->getLayout(),
         ]);
     }
@@ -233,7 +233,7 @@ class RegistrationConfirmationController extends GuestController
                 ->with('error', 'No tienes permiso para acceder a esta página.');
         }
 
-        return Inertia::render('Modules/Users/Guest/Users/UpdateDataForm', [
+        return Inertia::render('Modules/Users/Guest/UpdateDataForm', [
             'layout' => $this->getLayout(),
             'verification' => [
                 'id' => $verificationRequest->id,
