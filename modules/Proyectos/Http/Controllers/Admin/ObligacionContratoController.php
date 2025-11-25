@@ -53,27 +53,6 @@ class ObligacionContratoController extends AdminController
     }
 
     /**
-     * Muestra el árbol de obligaciones para un contrato.
-     */
-    public function arbol(Request $request, int $contratoId): Response
-    {
-        // Verificar permisos
-        abort_unless(auth()->user()->can('obligaciones.view'), 403, 'No tienes permisos para ver obligaciones');
-
-        $contrato = Contrato::with('proyecto')->findOrFail($contratoId);
-        $obligaciones = $this->repository->getArbolPorContrato($contratoId);
-
-        return Inertia::render('Modules/Proyectos/Admin/Obligaciones/Arbol', [
-            'contrato' => $contrato,
-            'obligaciones' => $obligaciones,
-            // Estadísticas eliminadas - campos deprecados
-            'canCreate' => auth()->user()->can('obligaciones.create'),
-            'canEdit' => auth()->user()->can('obligaciones.edit'),
-            'canDelete' => auth()->user()->can('obligaciones.delete'),
-        ]);
-    }
-
-    /**
      * Muestra el formulario para crear una obligación.
      */
     public function create(Request $request): Response
@@ -135,7 +114,10 @@ class ObligacionContratoController extends AdminController
         // Redirigir según el contexto
         if ($request->vista === 'arbol') {
             return redirect()
-                ->route('admin.contratos.obligaciones.arbol', $resultado['obligacion']->contrato_id)
+                ->route('admin.obligaciones.index', [
+                    'contrato_id' => $resultado['obligacion']->contrato_id,
+                    'vista' => 'arbol'
+                ])
                 ->with('success', $resultado['message']);
         }
 
@@ -257,7 +239,10 @@ class ObligacionContratoController extends AdminController
         }
 
         return redirect()
-            ->route('admin.contratos.obligaciones.arbol', $contratoId)
+            ->route('admin.obligaciones.index', [
+                'contrato_id' => $contratoId,
+                'vista' => 'arbol'
+            ])
             ->with('success', $resultado['message']);
     }
 

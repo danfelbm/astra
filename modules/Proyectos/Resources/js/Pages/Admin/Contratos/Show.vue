@@ -737,7 +737,7 @@ const getObligacionEstadoVariant = (estado: string): string => {
                                             </Link>
                                             <Link
                                                 v-if="hasPermission('obligaciones.view')"
-                                                :href="route('admin.contratos.obligaciones.arbol', contrato.id)"
+                                                :href="route('admin.obligaciones.index', { contrato_id: contrato.id, vista: 'arbol' })"
                                             >
                                                 <Button size="sm" variant="outline">
                                                     <TreePine class="h-4 w-4 mr-1" />
@@ -814,7 +814,7 @@ const getObligacionEstadoVariant = (estado: string): string => {
 
                                         <div class="text-center mt-4">
                                             <Link
-                                                :href="route('admin.contratos.obligaciones.arbol', contrato.id)"
+                                                :href="route('admin.obligaciones.index', { contrato_id: contrato.id, vista: 'arbol' })"
                                                 class="inline-flex items-center text-sm text-blue-600 hover:text-blue-800"
                                             >
                                                 Ver árbol completo de obligaciones
