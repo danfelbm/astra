@@ -38,7 +38,7 @@ const hasLocation = computed(() => {
 </script>
 
 <template>
-    <div class="border-b border-sidebar-border/60 bg-muted/20 dark:bg-muted/10">
+    <div class="border-b border-border bg-muted/20 dark:bg-muted/10">
         <div class="mx-auto flex h-10 items-center justify-between gap-2 px-2 sm:px-4 md:max-w-7xl">
             <!-- Información de ubicación (izquierda) -->
             <div class="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-muted-foreground min-w-0 flex-1">
