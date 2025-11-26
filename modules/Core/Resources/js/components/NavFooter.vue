@@ -17,9 +17,9 @@ defineProps<Props>();
             <SidebarMenu>
                 <SidebarMenuItem v-for="item in items" :key="item.title">
                     <!-- Enlaces internos usando Inertia -->
-                    <SidebarMenuButton 
-                        v-if="item.isInternal" 
-                        class="text-neutral-600 hover:text-neutral-800 dark:text-neutral-300 dark:hover:text-neutral-100 cursor-pointer" 
+                    <SidebarMenuButton
+                        v-if="item.isInternal"
+                        class="text-sidebar-foreground/70 hover:text-sidebar-foreground cursor-pointer"
                         as-child
                     >
                         <Link :href="item.url || item.href">
@@ -29,9 +29,9 @@ defineProps<Props>();
                     </SidebarMenuButton>
                     
                     <!-- Enlaces externos -->
-                    <SidebarMenuButton 
-                        v-else 
-                        class="text-neutral-600 hover:text-neutral-800 dark:text-neutral-300 dark:hover:text-neutral-100" 
+                    <SidebarMenuButton
+                        v-else
+                        class="text-sidebar-foreground/70 hover:text-sidebar-foreground"
                         as-child
                     >
                         <a :href="item.href || item.url" target="_blank" rel="noopener noreferrer">
