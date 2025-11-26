@@ -29,6 +29,7 @@ class CampoPersonalizadoController extends AdminController
         abort_unless(auth()->user()->can('proyectos.manage_fields'), 403, 'No tienes permisos para ver campos personalizados');
 
         $campos = CampoPersonalizado::query()
+            ->withCount('valores')
             ->when($request->search, function ($query, $search) {
                 $query->where('nombre', 'like', "%{$search}%")
                       ->orWhere('descripcion', 'like', "%{$search}%");
@@ -142,24 +143,27 @@ class CampoPersonalizadoController extends AdminController
 
     /**
      * Elimina un campo personalizado.
+     * Soporta eliminación forzada con query param ?force_delete=true
      */
-    public function destroy(CampoPersonalizado $campo): RedirectResponse
+    public function destroy(CampoPersonalizado $campo, Request $request): RedirectResponse
     {
         // Verificar permisos
         abort_unless(auth()->user()->can('proyectos.manage_fields'), 403, 'No tienes permisos para eliminar campos personalizados');
 
-        // Verificar si tiene valores asociados
-        if ($campo->valores()->exists()) {
+        // Obtener flag de eliminación forzada del query string
+        $forceDelete = $request->boolean('force_delete', false);
+
+        try {
+            $result = $this->service->deleteWithValues($campo, $forceDelete);
+
+            return redirect()
+                ->route('admin.campos-personalizados.index')
+                ->with('success', $result['message']);
+        } catch (\Exception $e) {
             return redirect()
                 ->back()
-                ->with('error', 'No se puede eliminar el campo porque tiene valores asociados a proyectos');
+                ->with('error', $e->getMessage());
         }
-
-        $campo->delete();
-
-        return redirect()
-            ->route('admin.campos-personalizados.index')
-            ->with('success', 'Campo personalizado eliminado exitosamente');
     }
 
     /**

@@ -71,7 +71,7 @@ class CampoPersonalizadoService
     }
 
     /**
-     * Elimina un campo personalizado.
+     * Elimina un campo personalizado (sin valores asociados).
      */
     public function delete(CampoPersonalizado $campo): bool
     {
@@ -93,6 +93,73 @@ class CampoPersonalizadoService
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Error al eliminar campo personalizado: ' . $e->getMessage());
+            throw $e;
+        }
+    }
+
+    /**
+     * Elimina un campo personalizado junto con todos sus valores asociados.
+     *
+     * @param CampoPersonalizado $campo Campo a eliminar
+     * @param bool $force Si es true, elimina aunque tenga valores asociados
+     * @return array{success: bool, message: string, deleted_values_count: int}
+     * @throws \Exception Si force=false y tiene valores
+     */
+    public function deleteWithValues(CampoPersonalizado $campo, bool $force = false): array
+    {
+        DB::beginTransaction();
+        try {
+            $valoresCount = $campo->valores()->count();
+
+            // Si no es forzado y tiene valores, lanzar excepción
+            if (!$force && $valoresCount > 0) {
+                throw new \Exception(
+                    "No se puede eliminar el campo porque tiene {$valoresCount} valores asociados"
+                );
+            }
+
+            // Guardar información para el log antes de eliminar
+            $campoNombre = $campo->nombre;
+            $campoSlug = $campo->slug;
+            $campoId = $campo->id;
+
+            // Registrar actividad ANTES de eliminar (con contexto completo)
+            if ($valoresCount > 0) {
+                activity()
+                    ->performedOn($campo)
+                    ->withProperties([
+                        'campo_id' => $campoId,
+                        'campo_nombre' => $campoNombre,
+                        'campo_slug' => $campoSlug,
+                        'valores_eliminados' => $valoresCount,
+                        'force_delete' => true,
+                        'user_id' => auth()->id(),
+                        'user_email' => auth()->user()?->email,
+                    ])
+                    ->log("Campo personalizado '{$campoNombre}' eliminado con {$valoresCount} valores asociados (eliminación forzada)");
+            }
+
+            // Eliminar campo (CASCADE en BD eliminará automáticamente los valores)
+            $campo->delete();
+
+            // Reordenar campos restantes
+            $this->reordenarCampos();
+
+            DB::commit();
+
+            return [
+                'success' => true,
+                'message' => $valoresCount > 0
+                    ? "Campo '{$campoNombre}' eliminado junto con {$valoresCount} valores asociados"
+                    : "Campo '{$campoNombre}' eliminado exitosamente",
+                'deleted_values_count' => $valoresCount,
+            ];
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error al eliminar campo personalizado: ' . $e->getMessage(), [
+                'campo_id' => $campo->id ?? null,
+                'force' => $force,
+            ]);
             throw $e;
         }
     }

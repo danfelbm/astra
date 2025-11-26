@@ -39,8 +39,9 @@ import {
     Radio,
     File
 } from 'lucide-vue-next';
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
 import { toast } from 'vue-sonner';
+import ConfirmModal from '@modules/Core/Resources/js/components/modals/ConfirmModal.vue';
 
 // Tipos de datos
 interface CampoPersonalizado {
@@ -57,6 +58,7 @@ interface CampoPersonalizado {
     aplicar_para?: string[];
     created_at: string;
     updated_at: string;
+    valores_count?: number; // Conteo de valores asociados (vía withCount)
 }
 
 interface PaginatedData {
@@ -88,7 +90,6 @@ interface Props {
 const props = defineProps<Props>();
 
 // Variables computed para compatibilidad con props antiguos
-import { computed } from 'vue';
 const tiposCampo = computed(() => props.tiposCampo || props.tipos || {});
 const tipos = tiposCampo; // Para retrocompatibilidad
 
@@ -135,19 +136,40 @@ watch([tipoFilter, activoFilter], () => {
     applyFilters();
 });
 
-// Función para eliminar campo
-const deleteCampo = (campo: CampoPersonalizado) => {
-    if (confirm(`¿Estás seguro de eliminar el campo "${campo.nombre}"?\n\nEsto eliminará también todos los valores asociados en los proyectos.`)) {
-        router.delete(`/admin/campos-personalizados/${campo.id}`, {
-            preserveScroll: true,
-            onSuccess: () => {
-                toast.success('Campo personalizado eliminado exitosamente');
-            },
-            onError: () => {
-                toast.error('No se puede eliminar el campo porque tiene valores asociados');
-            }
-        });
+// Estado para el modal de confirmación de eliminación
+const showDeleteDialog = ref(false);
+const campoToDelete = ref<CampoPersonalizado | null>(null);
+
+// Abre el diálogo de confirmación de eliminación
+const openDeleteDialog = (campo: CampoPersonalizado) => {
+    campoToDelete.value = campo;
+    showDeleteDialog.value = true;
+};
+
+// Descripción dinámica basada en el conteo de valores
+const getDeleteDescription = computed(() => {
+    if (!campoToDelete.value) return '';
+
+    const count = campoToDelete.value.valores_count || 0;
+
+    if (count === 0) {
+        return `Se eliminará el campo "${campoToDelete.value.nombre}".`;
     }
+
+    return `Se eliminará el campo "${campoToDelete.value.nombre}" junto con ${count} valor${count !== 1 ? 'es' : ''} asociado${count !== 1 ? 's' : ''} en proyectos, contratos, hitos y entregables.`;
+});
+
+// Ejecuta la eliminación del campo
+const deleteCampo = () => {
+    if (!campoToDelete.value) return;
+
+    router.delete(`/admin/campos-personalizados/${campoToDelete.value.id}?force_delete=true`, {
+        preserveScroll: true,
+    });
+
+    // Limpiar estado después de enviar
+    showDeleteDialog.value = false;
+    campoToDelete.value = null;
 };
 
 // Función para cambiar estado activo
@@ -417,7 +439,7 @@ const getTipoColor = (tipo: string) => {
                                         <Button
                                             variant="destructive"
                                             size="sm"
-                                            @click="deleteCampo(campo)"
+                                            @click="openDeleteDialog(campo)"
                                         >
                                             <Trash2 class="h-4 w-4" />
                                         </Button>
@@ -466,5 +488,14 @@ const getTipoColor = (tipo: string) => {
                 Mostrando {{ campos.data.length }} de {{ campos.total }} campos
             </div>
         </div>
+
+        <!-- Modal de confirmación para eliminar -->
+        <ConfirmModal
+            v-model:open="showDeleteDialog"
+            variant="destructive"
+            title="¿Eliminar campo personalizado?"
+            :description="getDeleteDescription"
+            @confirm="deleteCampo"
+        />
     </AdminLayout>
 </template>
