@@ -543,7 +543,8 @@ const getInitials = (name: string) => {
                                 size="sm"
                                 @click="editingTags = true"
                             >
-                                <Edit class="h-4 w-4" />
+                                <Edit class="mr-1 h-4 w-4" />
+                                Editar
                             </Button>
                         </CardHeader>
                         <CardContent>
