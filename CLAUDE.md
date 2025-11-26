@@ -1023,6 +1023,91 @@ public function test_admin_can_manage_module() {
 - **Database replication**: Read replicas para consultas
 - **Queue distribution**: Múltiples workers por tipo de job
 - **Session storage**: Redis para sesiones distribuidas
+
+## Componentes Reutilizables del Core
+
+### ConfirmModal - Modal de Confirmación Genérico
+
+**Ubicación:** `modules/Core/Resources/js/components/modals/ConfirmModal.vue`
+
+Componente para confirmaciones con variantes visuales (destructive, warning, info, default).
+
+**Uso con trigger integrado:**
+```vue
+<ConfirmModal
+  variant="destructive"
+  title="¿Eliminar elemento?"
+  description="Esta acción no se puede deshacer."
+  @confirm="handleDelete"
+>
+  <template #trigger>
+    <Button variant="destructive" size="sm">
+      <Trash2 class="h-4 w-4" />
+    </Button>
+  </template>
+</ConfirmModal>
+```
+
+**Uso con v-model:open (sin trigger):**
+```vue
+<script setup>
+const showDialog = ref(false);
+</script>
+
+<template>
+  <Button @click="showDialog = true">Eliminar</Button>
+
+  <ConfirmModal
+    v-model:open="showDialog"
+    variant="destructive"
+    title="¿Eliminar?"
+    :description="`Se eliminará ${item.nombre}`"
+    @confirm="handleDelete"
+  />
+</template>
+```
+
+**Props:**
+- `open` (boolean): Estado del modal (v-model:open)
+- `title` (string, requerido): Título del modal
+- `description` (string): Descripción/mensaje
+- `variant` ('destructive' | 'warning' | 'info' | 'default'): Estilo visual
+- `confirmText` (string): Texto del botón confirmar (default según variante)
+- `cancelText` (string): Texto del botón cancelar (default: "Cancelar")
+- `loading` (boolean): Estado de carga
+
+**Eventos:** `@confirm`, `@cancel`, `@update:open`
+
+**Slots:** `#trigger`, `#description`
+
+### useConfirm - Composable para Confirmaciones Programáticas
+
+**Ubicación:** `modules/Core/Resources/js/composables/useConfirm.ts`
+
+Para reemplazar `window.confirm()` con modales modernos.
+
+**Uso:**
+```typescript
+import { useConfirm } from '@modules/Core/Resources/js/composables/useConfirm';
+
+const { confirm, ConfirmProvider } = useConfirm();
+
+const handleDelete = async () => {
+  const confirmed = await confirm({
+    title: '¿Eliminar elemento?',
+    description: 'Esta acción no se puede deshacer.',
+    variant: 'destructive'
+  });
+
+  if (confirmed) {
+    router.delete(`/items/${id}`);
+  }
+};
+
+// En template (una vez por página):
+// <ConfirmProvider />
+```
+
 ## Sessions System Behaviors
 
 @CLAUDE.sessions.md
