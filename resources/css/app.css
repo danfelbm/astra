@@ -34,13 +34,14 @@ html {
         --chart-4: 43 74% 66%;
         --chart-5: 27 87% 67%;
         --radius: 0.5rem;
-        --sidebar-background: 0 0% 98%;
-        --sidebar-foreground: 240 5.3% 26.1%;
-        --sidebar-primary: 0 0% 10%;
-        --sidebar-primary-foreground: 0 0% 98%;
-        --sidebar-accent: 0 0% 94%;
-        --sidebar-accent-foreground: 0 0% 30%;
-        --sidebar-border: 0 0% 91%;
+        /* Sidebar siempre oscuro (estilo dark mode) */
+        --sidebar-background: 0 0% 7%;
+        --sidebar-foreground: 0 0% 95.9%;
+        --sidebar-primary: 217 91% 60%;
+        --sidebar-primary-foreground: 0 0% 100%;
+        --sidebar-accent: 0 0% 15.9%;
+        --sidebar-accent-foreground: 240 4.8% 95.9%;
+        --sidebar-border: 0 0% 15.9%;
         --sidebar-ring: 217.2 91.2% 59.8%;
     }
 
@@ -103,22 +104,21 @@ html {
         margin-left: 16rem; /* var(--sidebar-width) = 16rem = 256px */
     }
     
-    /* When sidebar is collapsed - negative margin to adjust properly */
+    /* When sidebar is collapsed */
     [data-state="collapsed"][data-variant="inset"] ~ .sidebar-inset-fix {
-        margin-left: -0.6rem; /* negative margin for collapsed state */
+        margin-left: 0;
     }
     
     /* Responsive behavior */
     @media (min-width: 768px) {
         [data-variant="inset"] ~ .sidebar-inset-fix {
-            margin: 0.5rem;
-            margin-left: calc(16rem + 0.5rem); /* sidebar width + margin */
-            border-radius: 0.75rem;
-            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+            margin-left: 16rem; /* sidebar width */
+            border-radius: 0;
+            box-shadow: none;
         }
-        
+
         [data-state="collapsed"][data-variant="inset"] ~ .sidebar-inset-fix {
-            margin-left: 0.5rem; /* just the base margin when collapsed on desktop */
+            margin-left: 0; /* sin margin cuando collapsed */
         }
     }
 }
@@ -188,14 +188,15 @@ html {
     --chart-4: oklch(0.828 0.189 84.429);
     --chart-5: oklch(0.769 0.188 70.08);
     --radius: 0.625rem;
-    --sidebar: oklch(0.985 0 0);
-    --sidebar-foreground: oklch(0.145 0 0);
-    --sidebar-primary: oklch(0.205 0 0);
+    /* Sidebar siempre oscuro (estilo dark mode) */
+    --sidebar: oklch(0.205 0 0);
+    --sidebar-foreground: oklch(0.985 0 0);
+    --sidebar-primary: oklch(0.488 0.243 264.376);
     --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.97 0 0);
-    --sidebar-accent-foreground: oklch(0.205 0 0);
-    --sidebar-border: oklch(0.922 0 0);
-    --sidebar-ring: oklch(0.708 0 0);
+    --sidebar-accent: oklch(0.269 0 0);
+    --sidebar-accent-foreground: oklch(0.985 0 0);
+    --sidebar-border: oklch(0.269 0 0);
+    --sidebar-ring: oklch(0.439 0 0);
 }
 
 .dark {
