@@ -9,10 +9,10 @@ const props = defineProps<{
 
 <template>
     <ul
-        data-sidebar="menu-badge"
+        data-sidebar="menu-sub"
         :class="
             cn(
-                'mx-3.5 flex min-w-0 translate-x-px flex-col gap-1 border-l border-sidebar-border px-2.5 py-0.5',
+                'mx-3.5 flex min-w-0 translate-x-px flex-col gap-1 border-l border-sidebar-border px-2.5 py-0.5 overflow-hidden',
                 'group-data-[collapsible=icon]:hidden',
                 props.class,
             )

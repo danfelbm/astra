@@ -81,9 +81,9 @@ props.items.forEach(item => {
                                         as-child 
                                         :is-active="isActiveUrl(subItem.url)"
                                     >
-                                        <Link :href="subItem.url">
-                                            <component :is="subItem.icon" class="h-4 w-4" />
-                                            <span>{{ subItem.title }}</span>
+                                        <Link :href="subItem.url" class="flex items-center gap-2 w-full min-w-0 overflow-hidden">
+                                            <component :is="subItem.icon" class="h-4 w-4 shrink-0" />
+                                            <span class="block truncate flex-1 min-w-0">{{ subItem.title }}</span>
                                         </Link>
                                     </SidebarMenuSubButton>
                                 </SidebarMenuSubItem>

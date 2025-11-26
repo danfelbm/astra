@@ -96,30 +96,8 @@ html {
 @layer components {
     /* Sidebar inset layout corrections */
     .sidebar-inset-fix {
-        transition: margin-left 200ms ease-linear;
-    }
-    
-    /* When sidebar is expanded (default state) - should have left margin of sidebar width */
-    [data-variant="inset"] ~ .sidebar-inset-fix {
-        margin-left: 16rem; /* var(--sidebar-width) = 16rem = 256px */
-    }
-    
-    /* When sidebar is collapsed */
-    [data-state="collapsed"][data-variant="inset"] ~ .sidebar-inset-fix {
         margin-left: 0;
-    }
-    
-    /* Responsive behavior */
-    @media (min-width: 768px) {
-        [data-variant="inset"] ~ .sidebar-inset-fix {
-            margin-left: 16rem; /* sidebar width */
-            border-radius: 0;
-            box-shadow: none;
-        }
-
-        [data-state="collapsed"][data-variant="inset"] ~ .sidebar-inset-fix {
-            margin-left: 0; /* sin margin cuando collapsed */
-        }
+        transition: margin-left 200ms ease-linear;
     }
 }
 
