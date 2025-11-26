@@ -294,7 +294,7 @@ const filterByEstado = (estado: string) => {
             <!-- Lista de Hitos -->
             <div v-if="hitosData.data.length > 0">
                 <!-- Vista en Grid (Plana) -->
-                <div v-if="!vistaJerarquica" class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                <div v-if="!vistaJerarquica" class="grid gap-4 md:grid-cols-2">
                     <HitoCard
                         v-for="hito in hitosData.data"
                         :key="hito.id"
