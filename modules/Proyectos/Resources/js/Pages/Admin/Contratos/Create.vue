@@ -17,7 +17,7 @@ import { Link } from '@inertiajs/vue3';
 import { useToast } from '@modules/Core/Resources/js/composables/useToast';
 import { useFileUpload } from '@modules/Core/Resources/js/composables/useFileUpload';
 import { useAutoSave } from '@modules/Core/Resources/js/composables/useAutoSave';
-import CampoPersonalizadoInput from '@modules/Proyectos/Resources/js/components/CampoPersonalizadoInput.vue';
+import CamposPersonalizadosForm from '@modules/Proyectos/Resources/js/components/CamposPersonalizadosForm.vue';
 import ContratoUserSelect from '@modules/Proyectos/Resources/js/components/ContratoUserSelect.vue';
 import ParticipantesManager from '@modules/Proyectos/Resources/js/components/ParticipantesManager.vue';
 import AddUsersModal from '@modules/Core/Resources/js/components/modals/AddUsersModal.vue';
@@ -188,27 +188,6 @@ const monedas = [
     { value: 'CLP', label: 'CLP - Peso Chileno' },
     { value: 'PEN', label: 'PEN - Sol Peruano' },
 ];
-
-const camposAgrupados = computed(() => {
-    const grupos = {
-        informacion: [] as CampoPersonalizado[],
-        financiero: [] as CampoPersonalizado[],
-        otros: [] as CampoPersonalizado[],
-    };
-
-    props.camposPersonalizados.forEach(campo => {
-        // Agrupar por tipo o lógica personalizada
-        if (campo.slug.includes('financ') || campo.slug.includes('monto') || campo.slug.includes('precio')) {
-            grupos.financiero.push(campo);
-        } else if (campo.slug.includes('info') || campo.slug.includes('descrip')) {
-            grupos.informacion.push(campo);
-        } else {
-            grupos.otros.push(campo);
-        }
-    });
-
-    return grupos;
-});
 
 // Métodos
 const handleFileChange = (event: Event) => {
@@ -663,14 +642,14 @@ onUnmounted(() => {
                                 </div>
 
                                 <!-- Campos personalizados de información -->
-                                <div v-if="camposAgrupados.informacion.length > 0" class="space-y-4 pt-4 border-t">
-                                    <h3 class="font-medium">Información Complementaria</h3>
-                                    <div v-for="campo in camposAgrupados.informacion" :key="campo.id">
-                                        <CampoPersonalizadoInput
-                                            :campo="campo"
-                                            v-model="form.campos_personalizados[campo.id]"
-                                        />
-                                    </div>
+                                <div class="pt-4 border-t">
+                                    <h3 class="font-medium mb-4">Información Complementaria</h3>
+                                    <CamposPersonalizadosForm
+                                        :campos="camposPersonalizados"
+                                        v-model="form.campos_personalizados"
+                                        :show-card="false"
+                                        grupo="informacion"
+                                    />
                                 </div>
                             </CardContent>
                         </Card>
@@ -796,14 +775,14 @@ onUnmounted(() => {
                                 </div>
 
                                 <!-- Campos personalizados financieros -->
-                                <div v-if="camposAgrupados.financiero.length > 0" class="space-y-4 pt-4 border-t">
-                                    <h3 class="font-medium">Campos Financieros Personalizados</h3>
-                                    <div v-for="campo in camposAgrupados.financiero" :key="campo.id">
-                                        <CampoPersonalizadoInput
-                                            :campo="campo"
-                                            v-model="form.campos_personalizados[campo.id]"
-                                        />
-                                    </div>
+                                <div class="pt-4 border-t">
+                                    <h3 class="font-medium mb-4">Campos Financieros Personalizados</h3>
+                                    <CamposPersonalizadosForm
+                                        :campos="camposPersonalizados"
+                                        v-model="form.campos_personalizados"
+                                        :show-card="false"
+                                        grupo="financiero"
+                                    />
                                 </div>
                             </CardContent>
                         </Card>
@@ -1072,14 +1051,14 @@ onUnmounted(() => {
                                 </div>
 
                                 <!-- Otros campos personalizados -->
-                                <div v-if="camposAgrupados.otros.length > 0" class="space-y-4 pt-4 border-t">
-                                    <h3 class="font-medium">Campos Personalizados</h3>
-                                    <div v-for="campo in camposAgrupados.otros" :key="campo.id">
-                                        <CampoPersonalizadoInput
-                                            :campo="campo"
-                                            v-model="form.campos_personalizados[campo.id]"
-                                        />
-                                    </div>
+                                <div class="pt-4 border-t">
+                                    <h3 class="font-medium mb-4">Campos Personalizados</h3>
+                                    <CamposPersonalizadosForm
+                                        :campos="camposPersonalizados"
+                                        v-model="form.campos_personalizados"
+                                        :show-card="false"
+                                        grupo="otros"
+                                    />
                                 </div>
                             </CardContent>
                         </Card>

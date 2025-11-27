@@ -34,7 +34,9 @@ import {
     Milestone,
     Info,
     UserPlus,
-    Activity
+    Activity,
+    Eye,
+    Download
 } from 'lucide-vue-next';
 import { toast } from 'vue-sonner';
 import EtiquetaDisplay from '@modules/Proyectos/Resources/js/components/EtiquetaDisplay.vue';
@@ -52,6 +54,7 @@ import type { Hito } from '@modules/Proyectos/Resources/js/types/hitos';
 import HitoCard from '@modules/Proyectos/Resources/js/components/HitoCard.vue';
 import HitosGrid from '@modules/Proyectos/Resources/js/components/HitosGrid.vue';
 import EntregableItem from '@modules/Proyectos/Resources/js/components/EntregableItem.vue';
+import CamposPersonalizadosDisplay from '@modules/Proyectos/Resources/js/components/CamposPersonalizadosDisplay.vue';
 
 // Interfaces
 interface User {
@@ -594,27 +597,10 @@ const getInitials = (name: string) => {
                     </Card>
 
                     <!-- Campos Personalizados -->
-                    <Card v-if="proyecto.campos_personalizados && proyecto.campos_personalizados.length > 0">
-                        <CardHeader>
-                            <CardTitle>Campos Personalizados</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div class="space-y-4">
-                                <div
-                                    v-for="campo in proyecto.campos_personalizados"
-                                    :key="campo.id"
-                                    class="py-2 border-b last:border-b-0"
-                                >
-                                    <p class="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
-                                        {{ campo.campo_personalizado?.nombre }}
-                                    </p>
-                                    <p class="text-gray-900 dark:text-gray-100">
-                                        {{ campo.valor_formateado || campo.valor || '-' }}
-                                    </p>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
+                    <CamposPersonalizadosDisplay
+                        v-if="proyecto.campos_personalizados && proyecto.campos_personalizados.length > 0"
+                        :valores="proyecto.campos_personalizados"
+                    />
 
                     <!-- Responsable -->
                     <Card>

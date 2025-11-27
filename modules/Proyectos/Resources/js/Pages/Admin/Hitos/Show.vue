@@ -21,7 +21,8 @@ import {
 } from "@modules/Core/Resources/js/components/ui/alert-dialog";
 import {
     ArrowLeft, Edit, Trash2, Plus, Calendar, User, Target,
-    Clock, CheckCircle, XCircle, AlertCircle, Copy, FileText, Tag
+    Clock, CheckCircle, XCircle, AlertCircle, Copy, FileText, Tag,
+    Eye, Download
 } from 'lucide-vue-next';
 import { toast } from 'vue-sonner';
 import { format, parseISO } from 'date-fns';
@@ -32,6 +33,7 @@ import EntregablesTable from '@modules/Proyectos/Resources/js/components/Entrega
 import EntregablesFilters from '@modules/Proyectos/Resources/js/components/EntregablesFilters.vue';
 import ActivityFilters from '@modules/Proyectos/Resources/js/components/ActivityFilters.vue';
 import ActivityLog from '@modules/Proyectos/Resources/js/components/ActivityLog.vue';
+import CamposPersonalizadosDisplay from '@modules/Proyectos/Resources/js/components/CamposPersonalizadosDisplay.vue';
 
 interface Usuario {
     id: number;
@@ -613,33 +615,13 @@ const actividadesFiltradas = computed(() => {
                     </Card>
 
                     <!-- Campos Personalizados -->
-                    <Card v-if="camposPersonalizados && camposPersonalizados.length > 0">
-                        <CardHeader>
-                            <CardTitle>Campos Personalizados</CardTitle>
-                            <CardDescription>
-                                Información adicional específica del hito
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <div class="grid gap-4 md:grid-cols-2">
-                                <div v-for="campo in camposPersonalizados" :key="campo.id">
-                                    <h3 class="font-semibold mb-1">
-                                        {{ campo.nombre }}
-                                        <span v-if="campo.es_requerido" class="text-red-500">*</span>
-                                    </h3>
-                                    <p class="text-sm text-muted-foreground">
-                                        {{ formatCampoPersonalizado(campo, valoresCamposPersonalizados?.[campo.id]) }}
-                                    </p>
-                                    <p v-if="campo.descripcion" class="text-xs text-muted-foreground mt-1">
-                                        {{ campo.descripcion }}
-                                    </p>
-                                </div>
-                            </div>
-                            <div v-if="!camposPersonalizados || camposPersonalizados.length === 0" class="text-center py-4">
-                                <p class="text-sm text-muted-foreground">No hay campos personalizados configurados</p>
-                            </div>
-                        </CardContent>
-                    </Card>
+                    <CamposPersonalizadosDisplay
+                        v-if="camposPersonalizados && camposPersonalizados.length > 0"
+                        :campos="camposPersonalizados"
+                        :valores-campos="valoresCamposPersonalizados"
+                        descripcion="Información adicional específica del hito"
+                        :columns="2"
+                    />
 
                     <!-- Metadata -->
                     <Card>

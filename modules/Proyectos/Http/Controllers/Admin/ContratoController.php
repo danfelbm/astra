@@ -183,7 +183,7 @@ class ContratoController extends AdminController
         // Preparar valores de campos personalizados
         $valoresCampos = [];
         foreach ($contrato->camposPersonalizados as $valor) {
-            $valoresCampos[$valor->campo_personalizado_contrato_id] = $valor->valor;
+            $valoresCampos[$valor->campo_personalizado_id] = $valor->valor;
         }
 
         // 🔧 FIX: Asegurar que las relaciones se serialicen correctamente para Inertia

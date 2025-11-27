@@ -15,6 +15,7 @@ import {
 } from 'lucide-vue-next';
 import { useToast } from '@modules/Core/Resources/js/composables/useToast';
 import { useFileUpload } from '@modules/Core/Resources/js/composables/useFileUpload';
+import CamposPersonalizadosDisplay from '@modules/Proyectos/Resources/js/components/CamposPersonalizadosDisplay.vue';
 
 // Tipos
 interface User {
@@ -695,19 +696,10 @@ const getObligacionEstadoVariant = (estado: string): string => {
                         </TabsContent>
 
                         <TabsContent value="campos" v-if="contrato.campos_personalizados?.length">
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>Campos Adicionales</CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    <div class="space-y-4">
-                                        <div v-for="campo in contrato.campos_personalizados" :key="campo.campo.id">
-                                            <h4 class="text-sm font-medium text-gray-600">{{ campo.campo.nombre }}</h4>
-                                            <p class="mt-1">{{ campo.valor_formateado || campo.valor || '-' }}</p>
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
+                            <CamposPersonalizadosDisplay
+                                :valores="contrato.campos_personalizados"
+                                titulo="Campos Adicionales"
+                            />
                         </TabsContent>
 
                         <!-- Tab de Obligaciones -->

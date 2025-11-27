@@ -28,11 +28,14 @@ import {
   Target,
   Activity,
   Image,
-  Tag
+  Tag,
+  Eye,
+  Download
 } from 'lucide-vue-next';
 import { format, parseISO, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { BreadcrumbItem } from '@/types';
+import CamposPersonalizadosDisplay from '@modules/Proyectos/Resources/js/components/CamposPersonalizadosDisplay.vue';
 
 interface Usuario {
   id: number;
@@ -568,33 +571,13 @@ const { route } = window as any;
           </Card>
 
           <!-- Campos Personalizados -->
-          <Card v-if="camposPersonalizados && camposPersonalizados.length > 0">
-            <CardHeader>
-              <CardTitle>Campos Personalizados</CardTitle>
-              <CardDescription>
-                Información adicional específica del entregable
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div class="grid gap-4 md:grid-cols-2">
-                <div v-for="campo in camposPersonalizados" :key="campo.id">
-                  <h4 class="text-sm font-medium text-muted-foreground mb-1">
-                    {{ campo.nombre }}
-                    <span v-if="campo.es_requerido" class="text-red-500">*</span>
-                  </h4>
-                  <p class="text-sm">
-                    {{ formatCampoPersonalizado(campo, valoresCamposPersonalizados?.[campo.id]) }}
-                  </p>
-                  <p v-if="campo.descripcion" class="text-xs text-muted-foreground mt-1">
-                    {{ campo.descripcion }}
-                  </p>
-                </div>
-              </div>
-              <div v-if="!camposPersonalizados || camposPersonalizados.length === 0" class="text-center py-4">
-                <p class="text-sm text-muted-foreground">No hay campos personalizados configurados</p>
-              </div>
-            </CardContent>
-          </Card>
+          <CamposPersonalizadosDisplay
+            v-if="camposPersonalizados && camposPersonalizados.length > 0"
+            :campos="camposPersonalizados"
+            :valores-campos="valoresCamposPersonalizados"
+            descripcion="Información adicional específica del entregable"
+            :columns="2"
+          />
 
           <!-- Etiquetas -->
           <Card v-if="entregable.etiquetas && entregable.etiquetas.length > 0">
