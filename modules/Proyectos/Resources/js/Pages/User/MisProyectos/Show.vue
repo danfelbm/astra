@@ -28,11 +28,13 @@ import {
     Image,
     Milestone,
     UserPlus,
+    Info,
 } from 'lucide-vue-next';
 import EtiquetaDisplay from "@modules/Proyectos/Resources/js/components/EtiquetaDisplay.vue";
 import ContratoCard from "@modules/Proyectos/Resources/js/components/ContratoCard.vue";
 import HitoCard from "@modules/Proyectos/Resources/js/components/HitoCard.vue";
 import EvidenciasDisplay from "@modules/Proyectos/Resources/js/components/EvidenciasDisplay.vue";
+import CamposPersonalizadosDisplay from "@modules/Proyectos/Resources/js/components/CamposPersonalizadosDisplay.vue";
 import type { Etiqueta } from '@modules/Proyectos/Resources/js/types/etiquetas';
 import type { Contrato } from '@modules/Proyectos/Resources/js/types/contratos';
 import type { Hito } from '@modules/Proyectos/Resources/js/types/hitos';
@@ -211,18 +213,14 @@ const getInitials = (name: string) => {
         .slice(0, 2);
 };
 
-// Formatear valor de campo personalizado
-const formatCampoValor = (campo: CampoPersonalizado) => {
-    if (!campo.valor) return '-';
+// Navegar a la vista de detalle del hito
+const navigateToHito = (hito: Hito) => {
+    router.visit(`/miembro/mis-hitos/${hito.id}`);
+};
 
-    switch (campo.campo_personalizado.tipo) {
-        case 'checkbox':
-            return campo.valor === '1' || campo.valor === true ? 'Sí' : 'No';
-        case 'date':
-            return formatDate(campo.valor);
-        default:
-            return campo.valor;
-    }
+// Navegar a ver entregables del hito (usa la misma vista de detalle que muestra los entregables)
+const navigateToEntregables = (hito: Hito) => {
+    router.visit(`/miembro/mis-hitos/${hito.id}`);
 };
 </script>
 
@@ -394,28 +392,12 @@ const formatCampoValor = (campo: CampoPersonalizado) => {
                         </CardContent>
                     </Card>
 
-                    <!-- Campos Personalizados -->
-                    <Card v-if="proyecto.campos_personalizados && proyecto.campos_personalizados.length > 0">
-                        <CardHeader>
-                            <CardTitle>Información Adicional</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div class="space-y-3">
-                                <div
-                                    v-for="campo in proyecto.campos_personalizados"
-                                    :key="campo.id"
-                                    class="flex justify-between py-2 border-b last:border-b-0"
-                                >
-                                    <span class="text-sm text-gray-600 dark:text-gray-400">
-                                        {{ campo.campo_personalizado.nombre }}
-                                    </span>
-                                    <span class="font-medium text-right">
-                                        {{ formatCampoValor(campo) }}
-                                    </span>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
+                    <!-- Campos Personalizados (componente reutilizable) -->
+                    <CamposPersonalizadosDisplay
+                        v-if="proyecto.campos_personalizados && proyecto.campos_personalizados.length > 0"
+                        :valores="proyecto.campos_personalizados"
+                        titulo="Información Adicional"
+                    />
                 </div>
 
                 <!-- Sidebar de información -->
@@ -590,6 +572,8 @@ const formatCampoValor = (campo: CampoPersonalizado) => {
                                     :hito="hito"
                                     :show-entregables="true"
                                     :show-actions="true"
+                                    @view="navigateToHito"
+                                    @view-entregables="navigateToEntregables"
                                 />
                             </div>
                         </CardContent>
