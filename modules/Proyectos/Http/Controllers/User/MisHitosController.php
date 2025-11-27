@@ -442,4 +442,230 @@ class MisHitosController extends UserController
             ->back()
             ->with('error', $result['message']);
     }
+
+    /**
+     * Muestra el formulario para crear un nuevo entregable dentro de un hito.
+     */
+    public function createEntregable(Request $request, Proyecto $proyecto, Hito $hito): Response
+    {
+        // Solo gestores y responsable del proyecto pueden crear entregables
+        abort_unless($this->puedeGestionarHitosDelProyecto($proyecto), 403, 'Solo el responsable o gestores del proyecto pueden crear entregables');
+        abort_unless($hito->proyecto_id === $proyecto->id, 404, 'El hito no pertenece a este proyecto');
+
+        // Obtener posibles responsables: participantes del proyecto
+        $usuarios = $proyecto->participantes()
+            ->get(['users.id', 'users.name', 'users.email'])
+            ->map(fn($user) => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email
+            ]);
+
+        // Obtener campos personalizados para entregables
+        $camposPersonalizados = $this->campoPersonalizadoRepository->getActivosParaEntregables();
+
+        // Obtener categorías de etiquetas disponibles
+        $categorias = CategoriaEtiqueta::with('etiquetas')
+            ->where('activo', true)
+            ->orderBy('orden')
+            ->get();
+
+        // Estados y prioridades disponibles
+        $estados = [
+            ['value' => 'pendiente', 'label' => 'Pendiente'],
+            ['value' => 'en_progreso', 'label' => 'En Progreso'],
+        ];
+
+        $prioridades = [
+            ['value' => 'baja', 'label' => 'Baja', 'color' => 'blue'],
+            ['value' => 'media', 'label' => 'Media', 'color' => 'yellow'],
+            ['value' => 'alta', 'label' => 'Alta', 'color' => 'red'],
+        ];
+
+        return Inertia::render('Modules/Proyectos/User/MisEntregables/Create', [
+            'proyecto' => [
+                'id' => $proyecto->id,
+                'nombre' => $proyecto->nombre,
+            ],
+            'hito' => $hito,
+            'usuarios' => $usuarios,
+            'camposPersonalizados' => $camposPersonalizados,
+            'categorias' => $categorias,
+            'estados' => $estados,
+            'prioridades' => $prioridades,
+            'siguienteOrden' => ($hito->entregables()->max('orden') ?? 0) + 1,
+        ]);
+    }
+
+    /**
+     * Guarda un nuevo entregable en la base de datos desde el área de usuario.
+     */
+    public function storeEntregable(Request $request, Proyecto $proyecto, Hito $hito): RedirectResponse
+    {
+        // Solo gestores y responsable del proyecto pueden crear entregables
+        abort_unless($this->puedeGestionarHitosDelProyecto($proyecto), 403, 'Solo el responsable o gestores del proyecto pueden crear entregables');
+        abort_unless($hito->proyecto_id === $proyecto->id, 404, 'El hito no pertenece a este proyecto');
+
+        // Validar datos
+        $validated = $request->validate([
+            'nombre' => 'required|string|max:255',
+            'descripcion' => 'nullable|string|max:5000',
+            'fecha_inicio' => 'nullable|date',
+            'fecha_fin' => 'nullable|date|after_or_equal:fecha_inicio',
+            'estado' => 'nullable|in:pendiente,en_progreso',
+            'prioridad' => 'nullable|in:baja,media,alta',
+            'responsable_id' => 'required|exists:users,id',
+            'usuarios' => 'nullable|array',
+            'usuarios.*.user_id' => 'required|exists:users,id',
+            'usuarios.*.rol' => 'required|in:colaborador,revisor',
+            'orden' => 'nullable|integer|min:0',
+            'campos_personalizados' => 'nullable|array',
+            'etiquetas' => 'nullable|array',
+            'etiquetas.*' => 'exists:etiquetas,id',
+        ]);
+
+        // Añadir hito_id a los datos
+        $data = array_merge($validated, [
+            'hito_id' => $hito->id,
+            'estado' => $validated['estado'] ?? 'pendiente',
+            'prioridad' => $validated['prioridad'] ?? 'media',
+        ]);
+
+        // Usar el servicio para crear el entregable
+        $result = $this->entregableService->create($data);
+
+        // Asignar usuarios si existen
+        if ($result['success'] && !empty($validated['usuarios'])) {
+            $result['entregable']->asignarUsuarios($validated['usuarios']);
+        }
+
+        if ($result['success']) {
+            return redirect()
+                ->route('user.mis-proyectos.show', ['proyecto' => $proyecto->id, 'tab' => 'hitos'])
+                ->with('success', $result['message']);
+        }
+
+        return redirect()
+            ->back()
+            ->with('error', $result['message']);
+    }
+
+    /**
+     * Muestra el formulario para editar un entregable desde el área de usuario.
+     */
+    public function editEntregable(Request $request, Proyecto $proyecto, Hito $hito, Entregable $entregable): Response
+    {
+        // Solo gestores y responsable del proyecto pueden editar entregables
+        abort_unless($this->puedeGestionarHitosDelProyecto($proyecto), 403, 'Solo el responsable o gestores del proyecto pueden editar entregables');
+        abort_unless($hito->proyecto_id === $proyecto->id, 404, 'El hito no pertenece a este proyecto');
+        abort_unless($entregable->hito_id === $hito->id, 404, 'El entregable no pertenece a este hito');
+
+        $entregable->load(['responsable:id,name,email', 'usuarios:id,name,email', 'etiquetas.categoria']);
+
+        // Obtener posibles responsables: participantes del proyecto
+        $usuarios = $proyecto->participantes()
+            ->get(['users.id', 'users.name', 'users.email'])
+            ->map(fn($user) => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email
+            ]);
+
+        // Preparar usuarios asignados para el formulario
+        $usuariosAsignados = $entregable->usuarios->map(fn($user) => [
+            'user_id' => $user->id,
+            'rol' => $user->pivot->rol ?? 'colaborador',
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+            ]
+        ])->values()->toArray();
+
+        // Obtener campos personalizados y valores actuales
+        $camposPersonalizados = $this->campoPersonalizadoRepository->getActivosParaEntregables();
+        $valoresCamposPersonalizados = $entregable->getCamposPersonalizadosValues();
+
+        // Obtener categorías de etiquetas disponibles
+        $categorias = CategoriaEtiqueta::with('etiquetas')
+            ->where('activo', true)
+            ->orderBy('orden')
+            ->get();
+
+        // Estados y prioridades disponibles
+        $estados = [
+            ['value' => 'pendiente', 'label' => 'Pendiente'],
+            ['value' => 'en_progreso', 'label' => 'En Progreso'],
+            ['value' => 'completado', 'label' => 'Completado'],
+        ];
+
+        $prioridades = [
+            ['value' => 'baja', 'label' => 'Baja', 'color' => 'blue'],
+            ['value' => 'media', 'label' => 'Media', 'color' => 'yellow'],
+            ['value' => 'alta', 'label' => 'Alta', 'color' => 'red'],
+        ];
+
+        return Inertia::render('Modules/Proyectos/User/MisEntregables/Edit', [
+            'proyecto' => [
+                'id' => $proyecto->id,
+                'nombre' => $proyecto->nombre,
+            ],
+            'hito' => $hito,
+            'entregable' => $entregable,
+            'usuarios' => $usuarios,
+            'usuariosAsignados' => $usuariosAsignados,
+            'camposPersonalizados' => $camposPersonalizados,
+            'valoresCamposPersonalizados' => $valoresCamposPersonalizados,
+            'categorias' => $categorias,
+            'estados' => $estados,
+            'prioridades' => $prioridades,
+        ]);
+    }
+
+    /**
+     * Actualiza un entregable desde el área de usuario.
+     */
+    public function updateEntregable(Request $request, Proyecto $proyecto, Hito $hito, Entregable $entregable): RedirectResponse
+    {
+        // Solo gestores y responsable del proyecto pueden editar entregables
+        abort_unless($this->puedeGestionarHitosDelProyecto($proyecto), 403, 'Solo el responsable o gestores del proyecto pueden editar entregables');
+        abort_unless($hito->proyecto_id === $proyecto->id, 404, 'El hito no pertenece a este proyecto');
+        abort_unless($entregable->hito_id === $hito->id, 404, 'El entregable no pertenece a este hito');
+
+        // Validar datos
+        $validated = $request->validate([
+            'nombre' => 'required|string|max:255',
+            'descripcion' => 'nullable|string|max:5000',
+            'fecha_inicio' => 'nullable|date',
+            'fecha_fin' => 'nullable|date|after_or_equal:fecha_inicio',
+            'estado' => 'nullable|in:pendiente,en_progreso,completado',
+            'prioridad' => 'nullable|in:baja,media,alta',
+            'responsable_id' => 'required|exists:users,id',
+            'usuarios' => 'nullable|array',
+            'usuarios.*.user_id' => 'required|exists:users,id',
+            'usuarios.*.rol' => 'required|in:colaborador,revisor',
+            'orden' => 'nullable|integer|min:0',
+            'campos_personalizados' => 'nullable|array',
+            'etiquetas' => 'nullable|array',
+            'etiquetas.*' => 'exists:etiquetas,id',
+        ]);
+
+        // Usar el servicio para actualizar el entregable
+        $result = $this->entregableService->update($entregable, $validated);
+
+        // Actualizar usuarios asignados si existen
+        if ($result['success'] && isset($validated['usuarios'])) {
+            $result['entregable']->asignarUsuarios($validated['usuarios']);
+        }
+
+        if ($result['success']) {
+            return redirect()
+                ->route('user.mis-proyectos.show', ['proyecto' => $proyecto->id, 'tab' => 'hitos'])
+                ->with('success', $result['message']);
+        }
+
+        return redirect()
+            ->back()
+            ->with('error', $result['message']);
+    }
 }

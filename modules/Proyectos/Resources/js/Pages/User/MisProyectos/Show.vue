@@ -262,6 +262,16 @@ const handleUpdateEntregableStatus = (entregable: Entregable, estado: string) =>
         }
     });
 };
+
+// Handler para añadir un entregable a un hito (solo gestores)
+const handleAddEntregable = (hito: Hito) => {
+    router.visit(`/miembro/mis-proyectos/${props.proyecto.id}/hitos/${hito.id}/entregables/create`);
+};
+
+// Handler para editar un entregable (solo gestores)
+const handleEditEntregable = (entregable: Entregable, hito: Hito) => {
+    router.visit(`/miembro/mis-proyectos/${props.proyecto.id}/hitos/${hito.id}/entregables/${entregable.id}/edit`);
+};
 </script>
 
 <template>
@@ -476,10 +486,13 @@ const handleUpdateEntregableStatus = (entregable: Entregable, estado: string) =>
                                     :show-actions="true"
                                     :expand-entregables-inline="true"
                                     :can-edit="esGestorDelProyecto"
+                                    :can-manage-deliverables="esGestorDelProyecto"
                                     :can-complete-entregables="esGestorDelProyecto"
                                     :can-edit-entregables="esGestorDelProyecto"
                                     @view="navigateToHito"
                                     @edit="handleEditHito"
+                                    @add-entregable="handleAddEntregable"
+                                    @edit-entregable="handleEditEntregable"
                                     @complete-entregable="handleCompleteEntregable"
                                     @update-entregable-status="handleUpdateEntregableStatus"
                                 />

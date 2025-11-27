@@ -130,6 +130,14 @@
     <Collapsible v-if="expandEntregablesInline" v-model:open="isEntregablesExpanded">
       <CollapsibleContent>
         <div class="border-t px-4 py-4 bg-muted/30">
+          <!-- Botón para añadir entregable (solo si puede gestionar) -->
+          <div v-if="canManageDeliverables" class="mb-4 flex justify-end">
+            <Button variant="outline" size="sm" @click="emit('add-entregable', hito)">
+              <Plus class="h-4 w-4 mr-1" />
+              Añadir Entregable
+            </Button>
+          </div>
+
           <EntregablesList
             v-if="hito.entregables && hito.entregables.length > 0"
             :entregables="hito.entregables"
@@ -139,10 +147,15 @@
             view-mode="list"
             @complete="handleCompleteEntregable"
             @update-status="handleUpdateEntregableStatus"
+            @edit="handleEditEntregable"
           />
           <div v-else class="text-center py-4 text-muted-foreground text-sm">
             <ListTodo class="h-8 w-8 mx-auto mb-2 opacity-50" />
             <p>No hay entregables asignados a este hito</p>
+            <Button v-if="canManageDeliverables" variant="outline" size="sm" class="mt-3" @click="emit('add-entregable', hito)">
+              <Plus class="h-4 w-4 mr-1" />
+              Crear primer entregable
+            </Button>
           </div>
         </div>
       </CollapsibleContent>
@@ -212,6 +225,7 @@ const emit = defineEmits<{
   'view-entregables': [hito: Hito];
   'complete-entregable': [entregable: Entregable];
   'update-entregable-status': [entregable: Entregable, estado: string];
+  'edit-entregable': [entregable: Entregable, hito: Hito];
 }>();
 
 // Handler para el botón de entregables
@@ -232,6 +246,11 @@ const handleCompleteEntregable = (entregable: Entregable) => {
 
 const handleUpdateEntregableStatus = (entregable: Entregable, estado: string) => {
   emit('update-entregable-status', entregable, estado);
+};
+
+// Handler para editar entregable
+const handleEditEntregable = (entregable: Entregable) => {
+  emit('edit-entregable', entregable, props.hito);
 };
 
 // Computed

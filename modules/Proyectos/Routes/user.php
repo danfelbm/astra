@@ -80,6 +80,22 @@ Route::middleware(['auth', 'verified', 'user'])->prefix('miembro')->name('user.'
 
             Route::put('/{hito}', [\Modules\Proyectos\Http\Controllers\User\MisHitosController::class, 'update'])
                 ->name('update');
+
+            // Rutas para gestión de entregables dentro del contexto de un hito
+            // Acceso controlado en controlador: solo gestores/responsable del proyecto
+            Route::prefix('{hito}/entregables')->name('entregables.')->group(function () {
+                Route::get('/create', [\Modules\Proyectos\Http\Controllers\User\MisHitosController::class, 'createEntregable'])
+                    ->name('create');
+
+                Route::post('/', [\Modules\Proyectos\Http\Controllers\User\MisHitosController::class, 'storeEntregable'])
+                    ->name('store');
+
+                Route::get('/{entregable}/edit', [\Modules\Proyectos\Http\Controllers\User\MisHitosController::class, 'editEntregable'])
+                    ->name('edit');
+
+                Route::put('/{entregable}', [\Modules\Proyectos\Http\Controllers\User\MisHitosController::class, 'updateEntregable'])
+                    ->name('update');
+            });
         });
     });
 
