@@ -18,7 +18,12 @@ import { getInitials } from "@modules/Core/Resources/js/composables/useInitials"
 import { usePermissions } from "@modules/Core/Resources/js/composables/usePermissions";
 import type { BreadcrumbItemType, NavItem } from '@/types';
 import { Link, usePage } from '@inertiajs/vue3';
-import { CheckSquare, FileText, FolderOpen, LayoutGrid, Menu, User, Users } from 'lucide-vue-next';
+import { CheckSquare, FileText, FolderOpen, LayoutGrid, Menu, User, Users, Milestone, ChevronDown } from 'lucide-vue-next';
+import {
+    Collapsible,
+    CollapsibleContent,
+    CollapsibleTrigger,
+} from './ui/collapsible';
 import { computed } from 'vue';
 
 interface Props {
@@ -37,8 +42,14 @@ const isCurrentRoute = (url: string) => {
     return page.url === url;
 };
 
+// Interfaz extendida para items con children
+interface ExtendedNavItem extends NavItem {
+    permission?: string | string[];
+    children?: Array<NavItem & { permission?: string | string[] }>;
+}
+
 // Definir todos los elementos del menú con sus permisos requeridos
-const allNavItems: Array<NavItem & { permission?: string | string[] }> = [
+const allNavItems: ExtendedNavItem[] = [
     {
         title: 'Dashboard',
         href: '/miembro/dashboard',
@@ -70,10 +81,23 @@ const allNavItems: Array<NavItem & { permission?: string | string[] }> = [
         permission: 'asambleas.view_public',
     },
     {
-        title: 'Mis Proyectos',
+        title: 'Proyectos',
         href: '/miembro/mis-proyectos',
         icon: FolderOpen,
         permission: 'proyectos.view_own',
+        children: [
+            {
+                title: 'Mis Proyectos',
+                href: '/miembro/mis-proyectos',
+                icon: FolderOpen,
+            },
+            {
+                title: 'Mis Hitos',
+                href: '/miembro/mis-hitos',
+                icon: Milestone,
+                permission: 'hitos.view_own',
+            },
+        ],
     },
     {
         title: 'Mis Contratos',
@@ -126,20 +150,55 @@ const mainNavItems = computed(() => {
                                 <AppLogoIcon class="size-6 fill-current text-black dark:text-white" />
                             </SheetHeader>
                             <nav class="-mx-3 space-y-1 py-6">
-                                <Link
-                                    v-for="item in mainNavItems"
-                                    :key="item.title"
-                                    :href="item.href"
-                                    :class="[
-                                        'flex items-center gap-x-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-accent',
-                                        isCurrentRoute(item.href) 
-                                            ? 'bg-accent text-accent-foreground font-semibold' 
-                                            : 'text-muted-foreground hover:text-accent-foreground'
-                                    ]"
-                                >
-                                    <component v-if="item.icon" :is="item.icon" class="h-5 w-5" />
-                                    {{ item.title }}
-                                </Link>
+                                <template v-for="item in mainNavItems" :key="item.title">
+                                    <!-- Item con children: usar collapsible -->
+                                    <Collapsible v-if="item.children && item.children.length > 0" class="space-y-1">
+                                        <CollapsibleTrigger
+                                            :class="[
+                                                'flex items-center justify-between w-full gap-x-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-accent',
+                                                page.url.startsWith('/miembro/mis-proyectos') || page.url.startsWith('/miembro/mis-hitos')
+                                                    ? 'bg-accent text-accent-foreground font-semibold'
+                                                    : 'text-muted-foreground hover:text-accent-foreground'
+                                            ]"
+                                        >
+                                            <span class="flex items-center gap-x-3">
+                                                <component v-if="item.icon" :is="item.icon" class="h-5 w-5" />
+                                                {{ item.title }}
+                                            </span>
+                                            <ChevronDown class="h-4 w-4" />
+                                        </CollapsibleTrigger>
+                                        <CollapsibleContent class="pl-8 space-y-1">
+                                            <Link
+                                                v-for="child in item.children"
+                                                :key="child.href"
+                                                :href="child.href"
+                                                :class="[
+                                                    'flex items-center gap-x-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-accent',
+                                                    isCurrentRoute(child.href)
+                                                        ? 'bg-accent text-accent-foreground font-semibold'
+                                                        : 'text-muted-foreground hover:text-accent-foreground'
+                                                ]"
+                                            >
+                                                <component v-if="child.icon" :is="child.icon" class="h-4 w-4" />
+                                                {{ child.title }}
+                                            </Link>
+                                        </CollapsibleContent>
+                                    </Collapsible>
+                                    <!-- Item sin children: enlace directo -->
+                                    <Link
+                                        v-else
+                                        :href="item.href"
+                                        :class="[
+                                            'flex items-center gap-x-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-accent',
+                                            isCurrentRoute(item.href)
+                                                ? 'bg-accent text-accent-foreground font-semibold'
+                                                : 'text-muted-foreground hover:text-accent-foreground'
+                                        ]"
+                                    >
+                                        <component v-if="item.icon" :is="item.icon" class="h-5 w-5" />
+                                        {{ item.title }}
+                                    </Link>
+                                </template>
                             </nav>
                         </SheetContent>
                     </Sheet>
@@ -154,14 +213,50 @@ const mainNavItems = computed(() => {
                     <NavigationMenu class="ml-10">
                         <NavigationMenuList class="space-x-1">
                             <NavigationMenuItem v-for="item in mainNavItems" :key="item.href">
-                                <NavigationMenuLink :as-child="true">
-                                    <Link 
+                                <!-- Item con children: usar dropdown -->
+                                <DropdownMenu v-if="item.children && item.children.length > 0">
+                                    <DropdownMenuTrigger :as-child="true">
+                                        <Button
+                                            variant="ghost"
+                                            :class="[
+                                                navigationMenuTriggerStyle(),
+                                                'flex items-center gap-2 px-3 py-2',
+                                                page.url.startsWith('/miembro/mis-proyectos') || page.url.startsWith('/miembro/mis-hitos')
+                                                    ? 'bg-accent text-accent-foreground'
+                                                    : 'hover:bg-accent/50'
+                                            ]"
+                                        >
+                                            <component v-if="item.icon" :is="item.icon" class="h-4 w-4" />
+                                            {{ item.title }}
+                                            <ChevronDown class="h-3 w-3 ml-1" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="start">
+                                        <DropdownMenuItem
+                                            v-for="child in item.children"
+                                            :key="child.href"
+                                            :as-child="true"
+                                        >
+                                            <Link
+                                                :href="child.href"
+                                                class="flex items-center gap-2 w-full"
+                                                :class="{ 'font-semibold': isCurrentRoute(child.href) }"
+                                            >
+                                                <component v-if="child.icon" :is="child.icon" class="h-4 w-4" />
+                                                {{ child.title }}
+                                            </Link>
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                                <!-- Item sin children: enlace directo -->
+                                <NavigationMenuLink v-else :as-child="true">
+                                    <Link
                                         :href="item.href"
                                         :class="[
                                             navigationMenuTriggerStyle(),
                                             'flex items-center gap-2 px-3 py-2',
-                                            isCurrentRoute(item.href) 
-                                                ? 'bg-accent text-accent-foreground' 
+                                            isCurrentRoute(item.href)
+                                                ? 'bg-accent text-accent-foreground'
                                                 : 'hover:bg-accent/50'
                                         ]"
                                     >

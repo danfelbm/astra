@@ -39,7 +39,8 @@ import ProyectoEstadoCard from "@modules/Proyectos/Resources/js/components/Proye
 import ProyectoInfoCard from "@modules/Proyectos/Resources/js/components/ProyectoInfoCard.vue";
 import type { Etiqueta } from '@modules/Proyectos/Resources/js/types/etiquetas';
 import type { Contrato } from '@modules/Proyectos/Resources/js/types/contratos';
-import type { Hito } from '@modules/Proyectos/Resources/js/types/hitos';
+import type { Hito, Entregable } from '@modules/Proyectos/Resources/js/types/hitos';
+import { toast } from 'vue-sonner';
 
 // Interfaces
 interface User {
@@ -220,9 +221,32 @@ const navigateToHito = (hito: Hito) => {
     router.visit(`/miembro/mis-hitos/${hito.id}`);
 };
 
-// Navegar a ver entregables del hito (usa la misma vista de detalle que muestra los entregables)
-const navigateToEntregables = (hito: Hito) => {
-    router.visit(`/miembro/mis-hitos/${hito.id}`);
+// Handler para completar un entregable (usa la ruta existente de mis-hitos)
+const handleCompleteEntregable = (entregable: Entregable) => {
+    router.post(`/miembro/mis-hitos/${entregable.hito_id}/entregables/${entregable.id}/completar`, {}, {
+        preserveScroll: true,
+        onSuccess: () => {
+            toast.success('Entregable marcado como completado');
+        },
+        onError: () => {
+            toast.error('Error al completar el entregable');
+        }
+    });
+};
+
+// Handler para actualizar estado de un entregable (usa la ruta existente de mis-hitos)
+const handleUpdateEntregableStatus = (entregable: Entregable, estado: string) => {
+    router.put(`/miembro/mis-hitos/${entregable.hito_id}/entregables/${entregable.id}/estado`, {
+        estado
+    }, {
+        preserveScroll: true,
+        onSuccess: () => {
+            toast.success('Estado del entregable actualizado');
+        },
+        onError: () => {
+            toast.error('Error al actualizar el estado');
+        }
+    });
 };
 </script>
 
@@ -425,10 +449,13 @@ const navigateToEntregables = (hito: Hito) => {
                                     v-for="hito in proyecto.hitos"
                                     :key="hito.id"
                                     :hito="hito"
-                                    :show-entregables="true"
                                     :show-actions="true"
+                                    :expand-entregables-inline="true"
+                                    :can-complete-entregables="esGestorDelProyecto"
+                                    :can-edit-entregables="esGestorDelProyecto"
                                     @view="navigateToHito"
-                                    @view-entregables="navigateToEntregables"
+                                    @complete-entregable="handleCompleteEntregable"
+                                    @update-entregable-status="handleUpdateEntregableStatus"
                                 />
                             </div>
                         </CardContent>

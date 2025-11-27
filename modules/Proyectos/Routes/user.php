@@ -77,10 +77,6 @@ Route::middleware(['auth', 'verified', 'user'])->prefix('miembro')->name('user.'
             ->name('timeline')
             ->middleware('can:hitos.view_own');
 
-        Route::get('/{hito}', [\Modules\Proyectos\Http\Controllers\User\MisHitosController::class, 'show'])
-            ->name('show')
-            ->middleware('can:hitos.view_own');
-
         Route::post('/{hito}/entregables/{entregable}/completar', [\Modules\Proyectos\Http\Controllers\User\MisHitosController::class, 'completarEntregable'])
             ->name('completar-entregable')
             ->middleware('can:hitos.complete_own');

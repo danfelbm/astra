@@ -93,9 +93,14 @@
             <Eye class="h-4 w-4" />
             <span class="ml-1.5">Ver detalles</span>
           </Button>
-          <Button variant="ghost" size="sm" @click="$emit('view-entregables', hito)" class="h-8 px-2">
+          <Button variant="ghost" size="sm" @click="handleEntregablesClick" class="h-8 px-2">
             <ListTodo class="h-4 w-4" />
             <span class="ml-1.5">Entregables</span>
+            <component
+              v-if="expandEntregablesInline"
+              :is="isEntregablesExpanded ? ChevronUp : ChevronDown"
+              class="h-3 w-3 ml-1"
+            />
           </Button>
         </div>
         <!-- Acciones secundarias -->
@@ -119,11 +124,33 @@
         </div>
       </div>
     </CardFooter>
+
+    <!-- Sección expandible de entregables (solo si expandEntregablesInline=true) -->
+    <Collapsible v-if="expandEntregablesInline" v-model:open="isEntregablesExpanded">
+      <CollapsibleContent>
+        <div class="border-t px-4 py-4 bg-muted/30">
+          <EntregablesList
+            v-if="hito.entregables && hito.entregables.length > 0"
+            :entregables="hito.entregables"
+            :can-edit="canEditEntregables"
+            :can-delete="false"
+            :can-complete="canCompleteEntregables"
+            view-mode="list"
+            @complete="handleCompleteEntregable"
+            @update-status="handleUpdateEntregableStatus"
+          />
+          <div v-else class="text-center py-4 text-muted-foreground text-sm">
+            <ListTodo class="h-8 w-8 mx-auto mb-2 opacity-50" />
+            <p>No hay entregables asignados a este hito</p>
+          </div>
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
   </Card>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@modules/Core/Resources/js/components/ui/card';
@@ -131,6 +158,8 @@ import { Button } from '@modules/Core/Resources/js/components/ui/button';
 import { Badge } from '@modules/Core/Resources/js/components/ui/badge';
 import { Progress } from '@modules/Core/Resources/js/components/ui/progress';
 import { Avatar, AvatarFallback } from '@modules/Core/Resources/js/components/ui/avatar';
+import { Collapsible, CollapsibleContent } from '@modules/Core/Resources/js/components/ui/collapsible';
+import EntregablesList from './EntregablesList.vue';
 import {
   CalendarDays,
   CalendarCheck,
@@ -141,8 +170,10 @@ import {
   ListTodo,
   Plus,
   Trash2,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-vue-next';
-import type { Hito } from '@modules/Proyectos/Resources/js/types/hitos';
+import type { Hito, Entregable } from '@modules/Proyectos/Resources/js/types/hitos';
 
 // Props
 const props = withDefaults(defineProps<{
@@ -152,23 +183,55 @@ const props = withDefaults(defineProps<{
   canManageDeliverables?: boolean;
   showActions?: boolean;
   compact?: boolean;
+  // Props para expansión inline de entregables (usado en vista User)
+  expandEntregablesInline?: boolean;
+  canCompleteEntregables?: boolean;
+  canEditEntregables?: boolean;
 }>(), {
   canEdit: false,
   canDelete: false,
   canManageDeliverables: false,
   showActions: true,
   compact: false,
+  expandEntregablesInline: false,
+  canCompleteEntregables: false,
+  canEditEntregables: false,
 });
 
+// Estado para expansión de entregables
+const isEntregablesExpanded = ref(false);
+
 // Emits
-defineEmits<{
+const emit = defineEmits<{
   view: [hito: Hito];
   edit: [hito: Hito];
   delete: [hito: Hito];
   duplicate: [hito: Hito];
   'add-entregable': [hito: Hito];
   'view-entregables': [hito: Hito];
+  'complete-entregable': [entregable: Entregable];
+  'update-entregable-status': [entregable: Entregable, estado: string];
 }>();
+
+// Handler para el botón de entregables
+const handleEntregablesClick = () => {
+  if (props.expandEntregablesInline) {
+    // Expandir/colapsar inline
+    isEntregablesExpanded.value = !isEntregablesExpanded.value;
+  } else {
+    // Emitir evento para navegación (comportamiento original)
+    emit('view-entregables', props.hito);
+  }
+};
+
+// Handlers para acciones de entregables
+const handleCompleteEntregable = (entregable: Entregable) => {
+  emit('complete-entregable', entregable);
+};
+
+const handleUpdateEntregableStatus = (entregable: Entregable, estado: string) => {
+  emit('update-entregable-status', entregable, estado);
+};
 
 // Computed
 const estadoLabel = computed(() => {

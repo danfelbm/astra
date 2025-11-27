@@ -10,12 +10,13 @@ import { Input } from '@modules/Core/Resources/js/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@modules/Core/Resources/js/components/ui/select';
 import { Progress } from '@modules/Core/Resources/js/components/ui/progress';
 import { Calendar, Clock, Target, Users, CheckCircle, XCircle, AlertCircle, ArrowRight } from 'lucide-vue-next';
-import type { Hito } from '@modules/Proyectos/Resources/js/types/hitos';
+import type { Hito, Entregable } from '@modules/Proyectos/Resources/js/types/hitos';
 import HitoCard from '@modules/Proyectos/Resources/js/components/HitoCard.vue';
 import HitoTimeline from '@modules/Proyectos/Resources/js/components/HitoTimeline.vue';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { PageProps } from '@/types';
+import { toast } from 'vue-sonner';
 
 interface Props {
     hitos: {
@@ -98,9 +99,32 @@ const getEstadoIcon = (estado: string) => {
     }
 };
 
-// Función para ver detalle del hito
-const verHito = (hito: Hito) => {
-    router.visit(route('user.mis-hitos.show', hito.id));
+// Handler para completar un entregable
+const handleCompleteEntregable = (entregable: Entregable) => {
+    router.post(`/miembro/mis-hitos/${entregable.hito_id}/entregables/${entregable.id}/completar`, {}, {
+        preserveScroll: true,
+        onSuccess: () => {
+            toast.success('Entregable marcado como completado');
+        },
+        onError: () => {
+            toast.error('Error al completar el entregable');
+        }
+    });
+};
+
+// Handler para actualizar estado de un entregable
+const handleUpdateEntregableStatus = (entregable: Entregable, estado: string) => {
+    router.put(`/miembro/mis-hitos/${entregable.hito_id}/entregables/${entregable.id}/estado`, {
+        estado
+    }, {
+        preserveScroll: true,
+        onSuccess: () => {
+            toast.success('Estado del entregable actualizado');
+        },
+        onError: () => {
+            toast.error('Error al actualizar el estado');
+        }
+    });
 };
 
 // Función para formatear fecha
@@ -262,61 +286,19 @@ const hitosAgrupados = computed(() => {
 
                 <!-- Vista de Lista -->
                 <TabsContent value="lista" class="space-y-4">
-                    <Card v-for="hito in hitos.data" :key="hito.id" class="hover:shadow-lg transition-shadow cursor-pointer" @click="verHito(hito)">
-                        <CardHeader>
-                            <div class="flex items-start justify-between">
-                                <div class="space-y-1">
-                                    <CardTitle class="flex items-center gap-2">
-                                        {{ hito.nombre }}
-                                        <Badge :class="getEstadoColor(hito.estado)">
-                                            {{ hito.estado }}
-                                        </Badge>
-                                    </CardTitle>
-                                    <CardDescription>
-                                        {{ hito.proyecto?.nombre || 'Sin proyecto' }}
-                                    </CardDescription>
-                                </div>
-                                <ArrowRight class="h-5 w-5 text-muted-foreground" />
-                            </div>
-                        </CardHeader>
-                        <CardContent>
-                            <div class="grid gap-4 md:grid-cols-4">
-                                <div>
-                                    <p class="text-sm text-muted-foreground">Progreso</p>
-                                    <div class="flex items-center gap-2">
-                                        <Progress :model-value="hito.porcentaje_completado" class="flex-1" />
-                                        <span class="text-sm font-medium">{{ hito.porcentaje_completado }}%</span>
-                                    </div>
-                                </div>
-                                <div>
-                                    <p class="text-sm text-muted-foreground">Fecha Inicio</p>
-                                    <p class="text-sm font-medium">{{ formatDate(hito.fecha_inicio) }}</p>
-                                </div>
-                                <div>
-                                    <p class="text-sm text-muted-foreground">Fecha Fin</p>
-                                    <p class="text-sm font-medium">{{ formatDate(hito.fecha_fin) }}</p>
-                                </div>
-                                <div>
-                                    <p class="text-sm text-muted-foreground">Tiempo Restante</p>
-                                    <p class="text-sm font-medium" :class="{ 'text-red-600': hito.estado !== 'completado' && getDiasRestantes(hito.fecha_fin)?.includes('Vencido') }">
-                                        {{ getDiasRestantes(hito.fecha_fin) || 'Sin fecha límite' }}
-                                    </p>
-                                </div>
-                            </div>
-                            <div class="mt-4 flex items-center gap-4 text-sm text-muted-foreground">
-                                <span class="flex items-center gap-1">
-                                    <Users class="h-4 w-4" />
-                                    {{ hito.responsable?.name || 'Sin responsable' }}
-                                </span>
-                                <span>
-                                    {{ hito.entregables?.length || 0 }} entregables
-                                </span>
-                                <span>
-                                    {{ hito.entregables?.filter(e => e.estado === 'completado').length || 0 }} completados
-                                </span>
-                            </div>
-                        </CardContent>
-                    </Card>
+                    <div class="space-y-4">
+                        <HitoCard
+                            v-for="hito in hitos.data"
+                            :key="hito.id"
+                            :hito="hito"
+                            :show-actions="true"
+                            :expand-entregables-inline="true"
+                            :can-complete-entregables="true"
+                            :can-edit-entregables="true"
+                            @complete-entregable="handleCompleteEntregable"
+                            @update-entregable-status="handleUpdateEntregableStatus"
+                        />
+                    </div>
 
                     <!-- Mensaje si no hay hitos -->
                     <Card v-if="hitos.data.length === 0">
@@ -329,12 +311,17 @@ const hitosAgrupados = computed(() => {
 
                 <!-- Vista de Tarjetas -->
                 <TabsContent value="tarjetas" class="space-y-4">
-                    <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    <div class="grid gap-4 md:grid-cols-2">
                         <HitoCard
                             v-for="hito in hitos.data"
                             :key="hito.id"
                             :hito="hito"
-                            @click="verHito(hito)"
+                            :show-actions="true"
+                            :expand-entregables-inline="true"
+                            :can-complete-entregables="true"
+                            :can-edit-entregables="true"
+                            @complete-entregable="handleCompleteEntregable"
+                            @update-entregable-status="handleUpdateEntregableStatus"
                         />
                     </div>
 

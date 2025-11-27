@@ -525,4 +525,27 @@ class Entregable extends Model
 
         return false;
     }
+
+    /**
+     * Verifica si el usuario puede editar este entregable.
+     */
+    public function puedeSerEditadoPor(User $user): bool
+    {
+        // Si es el responsable principal
+        if ($this->responsable_id === $user->id) {
+            return true;
+        }
+
+        // Si es un usuario asignado
+        if ($this->usuarios()->where('user_id', $user->id)->exists()) {
+            return true;
+        }
+
+        // Si tiene permisos de editar entregables
+        if ($user->can('entregables.edit')) {
+            return true;
+        }
+
+        return false;
+    }
 }

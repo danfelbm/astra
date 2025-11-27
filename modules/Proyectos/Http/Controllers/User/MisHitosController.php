@@ -35,7 +35,7 @@ class MisHitosController extends UserController
         $user = auth()->user();
 
         // Obtener hitos donde el usuario es responsable o tiene entregables asignados
-        $hitos = $this->hitoRepository->getMisHitos($user->id, $request->all());
+        $hitos = $this->hitoRepository->getMisHitos($request);
 
         // Obtener estadísticas del usuario
         $estadisticas = [

@@ -13,14 +13,6 @@ import {
     TableRow,
 } from '@modules/Core/Resources/js/components/ui/table';
 import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
-} from '@modules/Core/Resources/js/components/ui/dropdown-menu';
-import {
     AlertDialog,
     AlertDialogAction,
     AlertDialogCancel,
@@ -32,7 +24,7 @@ import {
 } from '@modules/Core/Resources/js/components/ui/alert-dialog';
 import {
     Calendar, Clock, CheckCircle, AlertCircle, XCircle,
-    User, Edit, Trash2, MoreHorizontal, FileText,
+    User, Edit, Trash2, FileText,
     Flag, Users, ChevronDown, ChevronRight
 } from 'lucide-vue-next';
 import type { Entregable } from '@modules/Proyectos/Resources/js/types/hitos';
@@ -241,35 +233,26 @@ const handleStatusChange = (entregable: Entregable, estado: string) => {
                                     </div>
                                 </div>
 
-                                <!-- Acciones -->
-                                <DropdownMenu v-if="canEdit || canDelete || canComplete">
-                                    <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" size="sm" class="h-8 w-8 p-0">
-                                            <MoreHorizontal class="h-4 w-4" />
-                                        </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                        <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-                                        <DropdownMenuSeparator />
-                                        <DropdownMenuItem v-if="canComplete" @click="handleComplete(entregable)">
-                                            <CheckCircle class="h-4 w-4 mr-2" />
-                                            Marcar como completado
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem v-if="canEdit" @click="handleStatusChange(entregable, 'en_progreso')">
-                                            <Clock class="h-4 w-4 mr-2" />
-                                            Marcar en progreso
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem v-if="canEdit" @click="handleEdit(entregable)">
-                                            <Edit class="h-4 w-4 mr-2" />
-                                            Editar
-                                        </DropdownMenuItem>
-                                        <DropdownMenuSeparator v-if="canDelete" />
-                                        <DropdownMenuItem v-if="canDelete" @click="handleDelete(entregable)" class="text-red-600">
-                                            <Trash2 class="h-4 w-4 mr-2" />
-                                            Eliminar
-                                        </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
+                            </div>
+
+                            <!-- Acciones como botones en fila -->
+                            <div v-if="canEdit || canDelete || canComplete" class="flex items-center gap-1 mt-3 pt-3 border-t">
+                                <Button v-if="canComplete" variant="outline" size="sm" class="h-7 text-xs" @click="handleComplete(entregable)">
+                                    <CheckCircle class="h-3 w-3 mr-1" />
+                                    Completar
+                                </Button>
+                                <Button v-if="canEdit" variant="outline" size="sm" class="h-7 text-xs" @click="handleStatusChange(entregable, 'en_progreso')">
+                                    <Clock class="h-3 w-3 mr-1" />
+                                    En progreso
+                                </Button>
+                                <Button v-if="canEdit" variant="ghost" size="sm" class="h-7 text-xs" @click="handleEdit(entregable)">
+                                    <Edit class="h-3 w-3 mr-1" />
+                                    Editar
+                                </Button>
+                                <Button v-if="canDelete" variant="ghost" size="sm" class="h-7 text-xs text-red-600 hover:text-red-700 hover:bg-red-50" @click="handleDelete(entregable)">
+                                    <Trash2 class="h-3 w-3 mr-1" />
+                                    Eliminar
+                                </Button>
                             </div>
                         </CardContent>
                     </Card>
@@ -333,31 +316,22 @@ const handleStatusChange = (entregable: Entregable, estado: string) => {
                                     </div>
                                 </div>
 
-                                <!-- Acciones -->
-                                <DropdownMenu v-if="canEdit || canDelete || canComplete">
-                                    <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" size="sm" class="h-8 w-8 p-0">
-                                            <MoreHorizontal class="h-4 w-4" />
-                                        </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                        <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-                                        <DropdownMenuSeparator />
-                                        <DropdownMenuItem v-if="canComplete" @click="handleComplete(entregable)">
-                                            <CheckCircle class="h-4 w-4 mr-2" />
-                                            Marcar como completado
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem v-if="canEdit" @click="handleEdit(entregable)">
-                                            <Edit class="h-4 w-4 mr-2" />
-                                            Editar
-                                        </DropdownMenuItem>
-                                        <DropdownMenuSeparator v-if="canDelete" />
-                                        <DropdownMenuItem v-if="canDelete" @click="handleDelete(entregable)" class="text-red-600">
-                                            <Trash2 class="h-4 w-4 mr-2" />
-                                            Eliminar
-                                        </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
+                            </div>
+
+                            <!-- Acciones como botones en fila -->
+                            <div v-if="canEdit || canDelete || canComplete" class="flex items-center gap-1 mt-3 pt-3 border-t">
+                                <Button v-if="canComplete" variant="outline" size="sm" class="h-7 text-xs" @click="handleComplete(entregable)">
+                                    <CheckCircle class="h-3 w-3 mr-1" />
+                                    Completar
+                                </Button>
+                                <Button v-if="canEdit" variant="ghost" size="sm" class="h-7 text-xs" @click="handleEdit(entregable)">
+                                    <Edit class="h-3 w-3 mr-1" />
+                                    Editar
+                                </Button>
+                                <Button v-if="canDelete" variant="ghost" size="sm" class="h-7 text-xs text-red-600 hover:text-red-700 hover:bg-red-50" @click="handleDelete(entregable)">
+                                    <Trash2 class="h-3 w-3 mr-1" />
+                                    Eliminar
+                                </Button>
                             </div>
                         </CardContent>
                     </Card>
@@ -401,27 +375,18 @@ const handleStatusChange = (entregable: Entregable, estado: string) => {
                                     </div>
                                 </div>
 
-                                <!-- Acciones -->
-                                <DropdownMenu v-if="canEdit || canDelete">
-                                    <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" size="sm" class="h-8 w-8 p-0">
-                                            <MoreHorizontal class="h-4 w-4" />
-                                        </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                        <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-                                        <DropdownMenuSeparator />
-                                        <DropdownMenuItem v-if="canEdit" @click="handleStatusChange(entregable, 'pendiente')">
-                                            <AlertCircle class="h-4 w-4 mr-2" />
-                                            Reabrir
-                                        </DropdownMenuItem>
-                                        <DropdownMenuSeparator v-if="canDelete" />
-                                        <DropdownMenuItem v-if="canDelete" @click="handleDelete(entregable)" class="text-red-600">
-                                            <Trash2 class="h-4 w-4 mr-2" />
-                                            Eliminar
-                                        </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
+                            </div>
+
+                            <!-- Acciones como botones en fila -->
+                            <div v-if="canEdit || canDelete" class="flex items-center gap-1 mt-3 pt-3 border-t">
+                                <Button v-if="canEdit" variant="outline" size="sm" class="h-7 text-xs" @click="handleStatusChange(entregable, 'pendiente')">
+                                    <AlertCircle class="h-3 w-3 mr-1" />
+                                    Reabrir
+                                </Button>
+                                <Button v-if="canDelete" variant="ghost" size="sm" class="h-7 text-xs text-red-600 hover:text-red-700 hover:bg-red-50" @click="handleDelete(entregable)">
+                                    <Trash2 class="h-3 w-3 mr-1" />
+                                    Eliminar
+                                </Button>
                             </div>
                         </CardContent>
                     </Card>
