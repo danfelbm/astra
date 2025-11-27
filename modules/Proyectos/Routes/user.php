@@ -65,6 +65,22 @@ Route::middleware(['auth', 'verified', 'user'])->prefix('miembro')->name('user.'
 
         Route::post('/{proyecto}/evidencias/{evidencia}/cambiar-estado', [\Modules\Proyectos\Http\Controllers\User\EvidenciaController::class, 'cambiarEstadoDesdeProyecto'])
             ->name('evidencias.cambiar-estado');
+
+        // Rutas para gestión de hitos dentro del contexto de un proyecto
+        // Acceso controlado en controlador: solo gestores/responsable del proyecto
+        Route::prefix('{proyecto}/hitos')->name('hitos.')->group(function () {
+            Route::get('/create', [\Modules\Proyectos\Http\Controllers\User\MisHitosController::class, 'create'])
+                ->name('create');
+
+            Route::post('/', [\Modules\Proyectos\Http\Controllers\User\MisHitosController::class, 'store'])
+                ->name('store');
+
+            Route::get('/{hito}/edit', [\Modules\Proyectos\Http\Controllers\User\MisHitosController::class, 'edit'])
+                ->name('edit');
+
+            Route::put('/{hito}', [\Modules\Proyectos\Http\Controllers\User\MisHitosController::class, 'update'])
+                ->name('update');
+        });
     });
 
     // Rutas para Mis Hitos

@@ -89,7 +89,8 @@
       <div class="w-full flex items-center justify-between gap-2">
         <!-- Acciones primarias -->
         <div class="flex items-center gap-1">
-          <Button variant="ghost" size="sm" @click="$emit('view', hito)" class="h-8 px-2">
+          <!-- Ver detalles solo si NO es expansión inline (Admin) -->
+          <Button v-if="!expandEntregablesInline" variant="ghost" size="sm" @click="$emit('view', hito)" class="h-8 px-2">
             <Eye class="h-4 w-4" />
             <span class="ml-1.5">Ver detalles</span>
           </Button>

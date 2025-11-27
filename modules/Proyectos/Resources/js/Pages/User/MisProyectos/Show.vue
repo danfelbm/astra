@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import UserLayout from "@modules/Core/Resources/js/layouts/UserLayout.vue";
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@modules/Core/Resources/js/components/ui/card";
 import { Button } from "@modules/Core/Resources/js/components/ui/button";
 import { Badge } from "@modules/Core/Resources/js/components/ui/badge";
@@ -29,6 +29,7 @@ import {
     Milestone,
     UserPlus,
     Info,
+    Plus,
 } from 'lucide-vue-next';
 import EtiquetaDisplay from "@modules/Proyectos/Resources/js/components/EtiquetaDisplay.vue";
 import ContratoCard from "@modules/Proyectos/Resources/js/components/ContratoCard.vue";
@@ -128,16 +129,24 @@ watch(activeTab, (newTab) => {
     });
 });
 
+// Obtener usuario actual
+const page = usePage();
+const currentUserId = computed(() => (page.props.auth as any)?.user?.id);
+
 // Computed para verificar si el usuario es gestor del proyecto
 const esGestorDelProyecto = computed(() => {
-    const userId = props.proyecto.responsable?.id;
+    const userId = currentUserId.value;
+    if (!userId) return false;
+
     // Es el responsable del proyecto
     if (props.proyecto.responsable?.id === userId) {
         return true;
     }
     // Es gestor del proyecto (verificar en participantes con rol gestor)
     if (props.proyecto.participantes) {
-        return props.proyecto.participantes.some(p => p.pivot?.rol === 'gestor');
+        return props.proyecto.participantes.some(
+            p => p.id === userId && p.pivot?.rol === 'gestor'
+        );
     }
     return false;
 });
@@ -219,6 +228,11 @@ const getInitials = (name: string) => {
 // Navegar a la vista de detalle del hito
 const navigateToHito = (hito: Hito) => {
     router.visit(`/miembro/mis-hitos/${hito.id}`);
+};
+
+// Navegar a editar hito (solo para gestores)
+const handleEditHito = (hito: Hito) => {
+    router.visit(`/miembro/mis-proyectos/${props.proyecto.id}/hitos/${hito.id}/edit`);
 };
 
 // Handler para completar un entregable (usa la ruta existente de mis-hitos)
@@ -436,6 +450,16 @@ const handleUpdateEntregableStatus = (entregable: Entregable, estado: string) =>
 
                 <!-- Tab de Hitos y Entregables -->
                 <TabsContent value="hitos" class="space-y-4 mt-6">
+                    <!-- Botón de crear hito (solo para gestores) -->
+                    <div v-if="esGestorDelProyecto" class="flex justify-end">
+                        <Link :href="`/miembro/mis-proyectos/${proyecto.id}/hitos/create`">
+                            <Button>
+                                <Plus class="mr-2 h-4 w-4" />
+                                Crear Hito
+                            </Button>
+                        </Link>
+                    </div>
+
                     <Card v-if="proyecto.hitos && proyecto.hitos.length > 0">
                         <CardHeader>
                             <CardTitle>Hitos y Entregables</CardTitle>
@@ -451,9 +475,11 @@ const handleUpdateEntregableStatus = (entregable: Entregable, estado: string) =>
                                     :hito="hito"
                                     :show-actions="true"
                                     :expand-entregables-inline="true"
+                                    :can-edit="esGestorDelProyecto"
                                     :can-complete-entregables="esGestorDelProyecto"
                                     :can-edit-entregables="esGestorDelProyecto"
                                     @view="navigateToHito"
+                                    @edit="handleEditHito"
                                     @complete-entregable="handleCompleteEntregable"
                                     @update-entregable-status="handleUpdateEntregableStatus"
                                 />
@@ -465,6 +491,12 @@ const handleUpdateEntregableStatus = (entregable: Entregable, estado: string) =>
                             <div class="text-center">
                                 <Milestone class="mx-auto h-12 w-12 text-gray-400" />
                                 <p class="mt-2 text-sm text-gray-600">No hay hitos definidos</p>
+                                <Link v-if="esGestorDelProyecto" :href="`/miembro/mis-proyectos/${proyecto.id}/hitos/create`" class="mt-4 inline-block">
+                                    <Button variant="outline">
+                                        <Plus class="mr-2 h-4 w-4" />
+                                        Crear primer hito
+                                    </Button>
+                                </Link>
                             </div>
                         </CardContent>
                     </Card>

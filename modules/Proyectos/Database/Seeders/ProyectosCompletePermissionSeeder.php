@@ -66,6 +66,7 @@ class ProyectosCompletePermissionSeeder extends Seeder
                 'contratos.download' => 'Descargar archivos de contratos',
 
                 // ===== HITOS =====
+                // Nota: crear/editar hitos en área user se controla por rol en proyecto (gestor/responsable)
                 'hitos.view' => 'Ver hitos',
                 'hitos.create' => 'Crear hitos',
                 'hitos.edit' => 'Editar hitos',
@@ -217,12 +218,14 @@ class ProyectosCompletePermissionSeeder extends Seeder
                 'contratos.view_own',
                 'contratos.view_public',
 
-                // Hitos
+                // Hitos (crear/editar controlado por rol en proyecto)
                 'hitos.view_own',
                 'hitos.complete_own',
+                'hitos.update_progress',
 
                 // Entregables
                 'entregables.view',
+                'entregables.complete',
             ];
 
             // COMBINAR permisos existentes con los nuevos del módulo

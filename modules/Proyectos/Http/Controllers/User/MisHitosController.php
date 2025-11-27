@@ -5,9 +5,13 @@ namespace Modules\Proyectos\Http\Controllers\User;
 use Modules\Core\Http\Controllers\UserController;
 use Modules\Core\Traits\HasAdvancedFilters;
 use Modules\Proyectos\Models\Hito;
+use Modules\Proyectos\Models\Proyecto;
 use Modules\Proyectos\Models\Entregable;
+use Modules\Proyectos\Models\CategoriaEtiqueta;
 use Modules\Proyectos\Services\EntregableService;
+use Modules\Proyectos\Services\HitoService;
 use Modules\Proyectos\Repositories\HitoRepository;
+use Modules\Proyectos\Repositories\CampoPersonalizadoRepository;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Response;
@@ -19,7 +23,9 @@ class MisHitosController extends UserController
 
     public function __construct(
         private EntregableService $entregableService,
-        private HitoRepository $hitoRepository
+        private HitoService $hitoService,
+        private HitoRepository $hitoRepository,
+        private CampoPersonalizadoRepository $campoPersonalizadoRepository
     ) {
         parent::__construct();
     }
@@ -227,5 +233,213 @@ class MisHitosController extends UserController
             'month' => $request->get('month', date('m')),
             'canView' => auth()->user()->can('hitos.view_own'),
         ]);
+    }
+
+    /**
+     * Verifica si el usuario puede gestionar hitos del proyecto (es responsable o gestor).
+     */
+    private function puedeGestionarHitosDelProyecto(Proyecto $proyecto): bool
+    {
+        $userId = auth()->id();
+        return $proyecto->responsable_id === $userId ||
+               $proyecto->gestores()->where('user_id', $userId)->exists();
+    }
+
+    /**
+     * Muestra el formulario para crear un nuevo hito dentro de un proyecto.
+     */
+    public function create(Request $request, Proyecto $proyecto): Response
+    {
+        // Solo gestores y responsable del proyecto pueden crear hitos
+        abort_unless($this->puedeGestionarHitosDelProyecto($proyecto), 403, 'Solo el responsable o gestores del proyecto pueden crear hitos');
+
+        $proyecto->load(['responsable']);
+
+        // Obtener posibles responsables: participantes del proyecto
+        $responsables = $proyecto->participantes()
+            ->get(['users.id', 'users.name', 'users.email'])
+            ->map(fn($user) => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email
+            ]);
+
+        // Obtener hitos disponibles como padres
+        $hitosDisponibles = $proyecto->hitos()
+            ->with('parent:id,nombre')
+            ->orderBy('orden')
+            ->get()
+            ->map(fn($h) => [
+                'id' => $h->id,
+                'nombre' => $h->nombre,
+                'ruta_completa' => $h->ruta_completa ?? $h->nombre,
+                'nivel' => $h->nivel ?? 0
+            ]);
+
+        // Obtener campos personalizados para hitos
+        $camposPersonalizados = $this->campoPersonalizadoRepository->getActivosParaHitos();
+
+        // Obtener categorías de etiquetas disponibles
+        $categorias = CategoriaEtiqueta::with('etiquetas')
+            ->where('activo', true)
+            ->orderBy('orden')
+            ->get();
+
+        return Inertia::render('Modules/Proyectos/User/MisHitos/Create', [
+            'proyecto' => $proyecto,
+            'responsables' => $responsables,
+            'hitosDisponibles' => $hitosDisponibles,
+            'camposPersonalizados' => $camposPersonalizados,
+            'categorias' => $categorias,
+            'estados' => [
+                ['value' => 'pendiente', 'label' => 'Pendiente'],
+                ['value' => 'en_progreso', 'label' => 'En Progreso'],
+            ],
+            'siguienteOrden' => ($proyecto->hitos()->max('orden') ?? 0) + 1
+        ]);
+    }
+
+    /**
+     * Guarda un nuevo hito en la base de datos desde el área de usuario.
+     */
+    public function store(Request $request, Proyecto $proyecto): RedirectResponse
+    {
+        // Solo gestores y responsable del proyecto pueden crear hitos
+        abort_unless($this->puedeGestionarHitosDelProyecto($proyecto), 403, 'Solo el responsable o gestores del proyecto pueden crear hitos');
+
+        // Validar datos
+        $validated = $request->validate([
+            'nombre' => 'required|string|max:255',
+            'descripcion' => 'nullable|string|max:5000',
+            'fecha_inicio' => 'nullable|date',
+            'fecha_fin' => 'nullable|date|after_or_equal:fecha_inicio',
+            'estado' => 'nullable|in:pendiente,en_progreso',
+            'responsable_id' => 'nullable|exists:users,id',
+            'parent_id' => 'nullable|exists:hitos,id',
+            'orden' => 'nullable|integer|min:0',
+            'campos_personalizados' => 'nullable|array',
+            'etiquetas' => 'nullable|array',
+            'etiquetas.*' => 'exists:etiquetas,id',
+        ]);
+
+        // Añadir proyecto_id a los datos
+        $data = array_merge($validated, [
+            'proyecto_id' => $proyecto->id,
+            'estado' => $validated['estado'] ?? 'pendiente'
+        ]);
+
+        // Usar el servicio para crear el hito
+        $result = $this->hitoService->create($data);
+
+        if ($result['success']) {
+            return redirect()
+                ->route('user.mis-proyectos.show', ['proyecto' => $proyecto->id, 'tab' => 'hitos'])
+                ->with('success', $result['message']);
+        }
+
+        return redirect()
+            ->back()
+            ->with('error', $result['message']);
+    }
+
+    /**
+     * Muestra el formulario para editar un hito desde el área de usuario.
+     */
+    public function edit(Request $request, Proyecto $proyecto, Hito $hito): Response
+    {
+        // Solo gestores y responsable del proyecto pueden editar hitos
+        abort_unless($this->puedeGestionarHitosDelProyecto($proyecto), 403, 'Solo el responsable o gestores del proyecto pueden editar hitos');
+        abort_unless($hito->proyecto_id === $proyecto->id, 404, 'El hito no pertenece a este proyecto');
+
+        $hito->load(['responsable:id,name,email', 'etiquetas.categoria']);
+
+        // Obtener posibles responsables: participantes del proyecto
+        $responsables = $proyecto->participantes()
+            ->get(['users.id', 'users.name', 'users.email'])
+            ->map(fn($user) => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email
+            ]);
+
+        // Obtener hitos disponibles como padres (excepto el hito actual y sus descendientes)
+        $hitosDisponibles = $proyecto->hitos()
+            ->where('id', '!=', $hito->id)
+            ->with('parent:id,nombre')
+            ->orderBy('orden')
+            ->get()
+            ->filter(function($h) use ($hito) {
+                return !$hito->esAncestroDe($h);
+            })
+            ->map(fn($h) => [
+                'id' => $h->id,
+                'nombre' => $h->nombre,
+                'ruta_completa' => $h->ruta_completa ?? $h->nombre,
+                'nivel' => $h->nivel ?? 0
+            ])
+            ->values();
+
+        // Obtener campos personalizados y valores actuales
+        $camposPersonalizados = $this->campoPersonalizadoRepository->getActivosParaHitos();
+        $valoresCamposPersonalizados = $hito->getCamposPersonalizadosValues();
+
+        // Obtener categorías de etiquetas disponibles
+        $categorias = CategoriaEtiqueta::with('etiquetas')
+            ->where('activo', true)
+            ->orderBy('orden')
+            ->get();
+
+        return Inertia::render('Modules/Proyectos/User/MisHitos/Edit', [
+            'proyecto' => $proyecto,
+            'hito' => $hito,
+            'responsables' => $responsables,
+            'hitosDisponibles' => $hitosDisponibles,
+            'camposPersonalizados' => $camposPersonalizados,
+            'valoresCamposPersonalizados' => $valoresCamposPersonalizados,
+            'categorias' => $categorias,
+            'estados' => [
+                ['value' => 'pendiente', 'label' => 'Pendiente'],
+                ['value' => 'en_progreso', 'label' => 'En Progreso'],
+                ['value' => 'completado', 'label' => 'Completado'],
+            ]
+        ]);
+    }
+
+    /**
+     * Actualiza un hito desde el área de usuario.
+     */
+    public function update(Request $request, Proyecto $proyecto, Hito $hito): RedirectResponse
+    {
+        // Solo gestores y responsable del proyecto pueden editar hitos
+        abort_unless($this->puedeGestionarHitosDelProyecto($proyecto), 403, 'Solo el responsable o gestores del proyecto pueden editar hitos');
+        abort_unless($hito->proyecto_id === $proyecto->id, 404, 'El hito no pertenece a este proyecto');
+
+        // Validar datos
+        $validated = $request->validate([
+            'nombre' => 'required|string|max:255',
+            'descripcion' => 'nullable|string|max:5000',
+            'fecha_inicio' => 'nullable|date',
+            'fecha_fin' => 'nullable|date|after_or_equal:fecha_inicio',
+            'estado' => 'nullable|in:pendiente,en_progreso,completado',
+            'responsable_id' => 'nullable|exists:users,id',
+            'parent_id' => 'nullable|exists:hitos,id',
+            'orden' => 'nullable|integer|min:0',
+            'campos_personalizados' => 'nullable|array',
+            'etiquetas' => 'nullable|array',
+            'etiquetas.*' => 'exists:etiquetas,id',
+        ]);
+
+        // Usar el servicio para actualizar el hito
+        $result = $this->hitoService->update($hito, $validated);
+
+        if ($result['success']) {
+            return redirect()
+                ->route('user.mis-proyectos.show', ['proyecto' => $proyecto->id, 'tab' => 'hitos'])
+                ->with('success', $result['message']);
+        }
+
+        return redirect()
+            ->back()
+            ->with('error', $result['message']);
     }
 }
