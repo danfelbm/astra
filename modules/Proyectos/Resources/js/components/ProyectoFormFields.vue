@@ -41,40 +41,45 @@ interface CampoPersonalizado {
 }
 
 interface Proyecto {
-    id: number;
-    nombre: string;
+    id?: number;
+    nombre?: string;
     descripcion?: string;
-    fecha_inicio: string;
+    fecha_inicio?: string;
     fecha_fin?: string;
-    estado: string;
-    prioridad: string;
+    estado?: string;
+    prioridad?: string;
     responsable_id?: number;
     responsable?: User;
     etiquetas?: Etiqueta[];
-    created_at: string;
-    updated_at: string;
+    created_at?: string;
+    updated_at?: string;
 }
 
 interface Props {
-    proyecto: Proyecto;
+    proyecto?: Proyecto;
     camposPersonalizados: CampoPersonalizado[];
-    valoresCampos: Record<number | string, any>;
+    valoresCampos?: Record<number | string, any>;
     categorias?: CategoriaEtiqueta[];
     gestores?: User[];
     submitUrl: string;
     cancelUrl: string;
+    mode?: 'create' | 'edit';
     showResponsable?: boolean;
     showGestores?: boolean;
+    showInfoAlert?: boolean;
     searchUsersEndpoint?: string;
     estados?: Record<string, string>;
     prioridades?: Record<string, string>;
 }
 
 const props = withDefaults(defineProps<Props>(), {
+    mode: 'edit',
     showResponsable: false,
     showGestores: false,
+    showInfoAlert: true,
     estados: () => ({}),
-    prioridades: () => ({})
+    prioridades: () => ({}),
+    valoresCampos: () => ({})
 });
 
 // Emits
@@ -89,7 +94,7 @@ const formatDateForInput = (dateString: string | undefined): string => {
     return dateString.split(' ')[0];
 };
 
-// Preparar valores iniciales
+// Preparar valores iniciales de campos personalizados
 const valoresIniciales: Record<number, any> = {};
 if (props.valoresCampos) {
     props.camposPersonalizados.forEach(campo => {
@@ -98,16 +103,19 @@ if (props.valoresCampos) {
     });
 }
 
-// Formulario
+// Determinar si estamos en modo creación
+const isCreateMode = props.mode === 'create';
+
+// Formulario con valores por defecto para creación
 const form = useForm({
-    nombre: props.proyecto.nombre,
-    descripcion: props.proyecto.descripcion || '',
-    fecha_inicio: formatDateForInput(props.proyecto.fecha_inicio),
-    fecha_fin: formatDateForInput(props.proyecto.fecha_fin),
-    estado: props.proyecto.estado,
-    prioridad: props.proyecto.prioridad,
-    responsable_id: props.proyecto.responsable_id || null,
-    etiquetas: props.proyecto.etiquetas?.map(e => e.id) || [],
+    nombre: props.proyecto?.nombre || '',
+    descripcion: props.proyecto?.descripcion || '',
+    fecha_inicio: formatDateForInput(props.proyecto?.fecha_inicio),
+    fecha_fin: formatDateForInput(props.proyecto?.fecha_fin),
+    estado: props.proyecto?.estado || 'planificacion',
+    prioridad: props.proyecto?.prioridad || 'media',
+    responsable_id: props.proyecto?.responsable_id || null,
+    etiquetas: props.proyecto?.etiquetas?.map(e => e.id) || [],
     gestores: props.gestores?.map(g => g.id) || [],
     campos_personalizados: valoresIniciales
 });
@@ -119,7 +127,7 @@ const processing = ref(false);
 const showResponsableModal = ref(false);
 
 // Ref para el responsable seleccionado
-const responsableSeleccionado = ref<User | null>(props.proyecto.responsable || null);
+const responsableSeleccionado = ref<User | null>(props.proyecto?.responsable || null);
 
 // Estados y prioridades por defecto
 const estadosDefault = {
@@ -146,24 +154,31 @@ const prioridadesToUse = computed(() => {
     return Object.keys(props.prioridades).length > 0 ? props.prioridades : prioridadesDefault;
 });
 
-// Función para actualizar
+// Función para enviar formulario (crear o actualizar)
 const submit = () => {
     processing.value = true;
 
-    form.put(props.submitUrl, {
+    const options = {
         preserveScroll: true,
         onSuccess: () => {
-            toast.success('Proyecto actualizado exitosamente');
+            toast.success(isCreateMode ? 'Proyecto creado exitosamente' : 'Proyecto actualizado exitosamente');
             emit('success');
         },
-        onError: (errors) => {
-            toast.error('Error al actualizar el proyecto');
+        onError: (errors: Record<string, string>) => {
+            toast.error(isCreateMode ? 'Error al crear el proyecto' : 'Error al actualizar el proyecto');
             console.error(errors);
         },
         onFinish: () => {
             processing.value = false;
         }
-    });
+    };
+
+    // Usar POST para crear, PUT para actualizar
+    if (isCreateMode) {
+        form.post(props.submitUrl, options);
+    } else {
+        form.put(props.submitUrl, options);
+    }
 };
 
 // Función para cancelar
@@ -374,8 +389,8 @@ const handleResponsableSelect = (data: { userIds: number[]; extraData: Record<st
             @update="updateCamposPersonalizados"
         />
 
-        <!-- Nota informativa para usuarios sin permisos de responsable -->
-        <Alert v-if="!showResponsable">
+        <!-- Nota informativa para usuarios sin permisos de responsable (solo en modo edición) -->
+        <Alert v-if="!showResponsable && !isCreateMode && showInfoAlert">
             <AlertCircle class="h-4 w-4" />
             <AlertDescription>
                 Los cambios se guardarán inmediatamente. Si necesitas cambiar el responsable del proyecto,
@@ -400,7 +415,12 @@ const handleResponsableSelect = (data: { userIds: number[]; extraData: Record<st
                     :disabled="processing || form.processing"
                 >
                     <Save class="mr-2 h-4 w-4" />
-                    {{ processing ? 'Actualizando...' : 'Actualizar Proyecto' }}
+                    <template v-if="isCreateMode">
+                        {{ processing ? 'Guardando...' : 'Guardar Proyecto' }}
+                    </template>
+                    <template v-else>
+                        {{ processing ? 'Actualizando...' : 'Actualizar Proyecto' }}
+                    </template>
                 </Button>
             </CardContent>
         </Card>

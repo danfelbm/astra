@@ -35,6 +35,8 @@ import ContratoCard from "@modules/Proyectos/Resources/js/components/ContratoCar
 import HitoCard from "@modules/Proyectos/Resources/js/components/HitoCard.vue";
 import EvidenciasDisplay from "@modules/Proyectos/Resources/js/components/EvidenciasDisplay.vue";
 import CamposPersonalizadosDisplay from "@modules/Proyectos/Resources/js/components/CamposPersonalizadosDisplay.vue";
+import ProyectoEstadoCard from "@modules/Proyectos/Resources/js/components/ProyectoEstadoCard.vue";
+import ProyectoInfoCard from "@modules/Proyectos/Resources/js/components/ProyectoInfoCard.vue";
 import type { Etiqueta } from '@modules/Proyectos/Resources/js/types/etiquetas';
 import type { Contrato } from '@modules/Proyectos/Resources/js/types/contratos';
 import type { Hito } from '@modules/Proyectos/Resources/js/types/hitos';
@@ -262,6 +264,13 @@ const navigateToEntregables = (hito: Hito) => {
                         <Info class="mr-2 h-4 w-4" />
                         General
                     </TabsTrigger>
+                    <TabsTrigger value="hitos">
+                        <Milestone class="mr-2 h-4 w-4" />
+                        Hitos y Entregables
+                        <Badge v-if="totales?.hitos" class="ml-2 h-5 px-1.5" variant="secondary">
+                            {{ totales.hitos }}
+                        </Badge>
+                    </TabsTrigger>
                     <TabsTrigger value="usuarios">
                         <UsersIcon class="mr-2 h-4 w-4" />
                         Personas
@@ -276,190 +285,36 @@ const navigateToEntregables = (hito: Hito) => {
                             {{ totales.evidencias }}
                         </Badge>
                     </TabsTrigger>
-                    <TabsTrigger value="hitos">
-                        <Milestone class="mr-2 h-4 w-4" />
-                        Hitos y Entregables
-                        <Badge v-if="totales?.hitos" class="ml-2 h-5 px-1.5" variant="secondary">
-                            {{ totales.hitos }}
-                        </Badge>
-                    </TabsTrigger>
                 </TabsList>
 
                 <!-- Tab de Información General -->
                 <TabsContent value="general" class="space-y-4 mt-6">
-                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <!-- Columna principal -->
-                <div class="lg:col-span-2 space-y-6">
-                    <!-- Estado y Progreso -->
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Estado del Proyecto</CardTitle>
-                        </CardHeader>
-                        <CardContent class="space-y-4">
-                            <!-- Estado y Prioridad -->
-                            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                                <div class="flex items-center gap-3">
-                                    <component
-                                        :is="getEstadoIcon(proyecto.estado)"
-                                        class="h-5 w-5 text-gray-500"
-                                    />
-                                    <span class="font-medium">Estado:</span>
-                                    <Badge :class="getEstadoColor(proyecto.estado)">
-                                        {{ proyecto.estado_label }}
-                                    </Badge>
-                                </div>
-                                <div class="flex items-center gap-3">
-                                    <Flag class="h-5 w-5 text-gray-500" />
-                                    <span class="font-medium">Prioridad:</span>
-                                    <Badge :class="getPrioridadColor(proyecto.prioridad)">
-                                        {{ proyecto.prioridad_label }}
-                                    </Badge>
-                                </div>
-                            </div>
+                    <!-- Información del Proyecto (componente reutilizable) -->
+                    <ProyectoInfoCard
+                        :responsable="proyecto.responsable"
+                        :creador="proyecto.creador"
+                        :created-at="proyecto.created_at"
+                        :updated-at="proyecto.updated_at"
+                    />
 
-                            <!-- Etiquetas -->
-                            <div v-if="proyecto.etiquetas && proyecto.etiquetas.length > 0" class="flex items-center gap-3">
-                                <Tag class="h-5 w-5 text-gray-500" />
-                                <span class="font-medium">Etiquetas:</span>
-                                <EtiquetaDisplay
-                                    :etiquetas="proyecto.etiquetas"
-                                    :max-visible="5"
-                                    size="sm"
-                                />
-                            </div>
+                    <!-- Estado del Proyecto (componente reutilizable) -->
+                    <ProyectoEstadoCard
+                        :estado="proyecto.estado"
+                        :estado-label="proyecto.estado_label"
+                        :prioridad="proyecto.prioridad"
+                        :prioridad-label="proyecto.prioridad_label"
+                        :porcentaje-completado="proyecto.porcentaje_completado"
+                        :fecha-inicio="proyecto.fecha_inicio"
+                        :fecha-fin="proyecto.fecha_fin"
+                        :duracion-dias="proyecto.duracion_dias"
+                    />
 
-                            <!-- Barra de progreso -->
-                            <div class="space-y-2">
-                                <div class="flex justify-between text-sm">
-                                    <span class="text-gray-600 dark:text-gray-400">Progreso del proyecto</span>
-                                    <span class="font-medium">{{ proyecto.porcentaje_completado }}%</span>
-                                </div>
-                                <Progress :model-value="proyecto.porcentaje_completado" class="h-3" />
-                                <p class="text-xs text-gray-500">
-                                    Calculado según hitos y entregables completados
-                                </p>
-                            </div>
-
-                            <!-- Alerta de tiempo -->
-                            <div
-                                v-if="diasRestantes && diasRestantes.urgente"
-                                class="p-3 rounded-lg bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800"
-                            >
-                                <div class="flex items-center gap-2">
-                                    <AlertCircle class="h-5 w-5 text-orange-600 dark:text-orange-400" />
-                                    <span class="text-sm font-medium text-orange-900 dark:text-orange-100">
-                                        {{ diasRestantes.texto }}
-                                    </span>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    <!-- Fechas -->
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Cronograma</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                                <div class="flex items-start gap-3">
-                                    <Calendar class="h-5 w-5 text-gray-500 mt-0.5" />
-                                    <div>
-                                        <p class="text-sm text-gray-600 dark:text-gray-400 mb-1">Fecha de inicio</p>
-                                        <p class="font-medium">{{ formatDate(proyecto.fecha_inicio) }}</p>
-                                    </div>
-                                </div>
-                                <div v-if="proyecto.fecha_fin" class="flex items-start gap-3">
-                                    <Calendar class="h-5 w-5 text-gray-500 mt-0.5" />
-                                    <div>
-                                        <p class="text-sm text-gray-600 dark:text-gray-400 mb-1">Fecha de fin</p>
-                                        <p class="font-medium">{{ formatDate(proyecto.fecha_fin) }}</p>
-                                        <p v-if="diasRestantes" class="text-xs mt-1" :class="diasRestantes.urgente ? 'text-orange-600' : 'text-gray-500'">
-                                            {{ diasRestantes.texto }}
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Duración total -->
-                            <div v-if="proyecto.duracion_dias" class="mt-4 pt-4 border-t flex items-center gap-3">
-                                <Clock class="h-5 w-5 text-gray-500" />
-                                <div>
-                                    <span class="text-sm text-gray-600 dark:text-gray-400">Duración estimada:</span>
-                                    <span class="font-medium ml-2">{{ proyecto.duracion_dias }} días</span>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    <!-- Campos Personalizados (componente reutilizable) -->
+                    <!-- Información Adicional (Campos Personalizados) -->
                     <CamposPersonalizadosDisplay
                         v-if="proyecto.campos_personalizados && proyecto.campos_personalizados.length > 0"
                         :valores="proyecto.campos_personalizados"
                         titulo="Información Adicional"
                     />
-                </div>
-
-                <!-- Sidebar de información -->
-                <div class="space-y-6">
-                    <!-- Responsable -->
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Información del Proyecto</CardTitle>
-                        </CardHeader>
-                        <CardContent class="space-y-4">
-                            <!-- Responsable -->
-                            <div>
-                                <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">Responsable</p>
-                                <div v-if="proyecto.responsable" class="flex items-center gap-3">
-                                    <div class="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
-                                        <User class="h-5 w-5 text-gray-500" />
-                                    </div>
-                                    <div>
-                                        <p class="font-medium">{{ proyecto.responsable.name }}</p>
-                                        <p class="text-xs text-gray-500">{{ proyecto.responsable.email }}</p>
-                                    </div>
-                                </div>
-                                <p v-else class="text-gray-500">Sin asignar</p>
-                            </div>
-
-                            <!-- Creador -->
-                            <div v-if="proyecto.creador">
-                                <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">Creado por</p>
-                                <p class="font-medium">{{ proyecto.creador.name }}</p>
-                                <p class="text-xs text-gray-500">{{ formatDate(proyecto.created_at) }}</p>
-                            </div>
-
-                            <!-- Última actualización -->
-                            <div>
-                                <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">Última actualización</p>
-                                <p class="text-sm">{{ formatDate(proyecto.updated_at) }}</p>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    <!-- Acciones -->
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Acciones</CardTitle>
-                        </CardHeader>
-                        <CardContent class="space-y-2">
-                            <Link href="/miembro/mis-proyectos" class="block">
-                                <Button variant="outline" class="w-full justify-start">
-                                    <ArrowLeft class="mr-2 h-4 w-4" />
-                                    Volver al listado
-                                </Button>
-                            </Link>
-                            <Link v-if="canEdit" :href="`/miembro/mis-proyectos/${proyecto.id}/edit`" class="block">
-                                <Button variant="outline" class="w-full justify-start">
-                                    <Edit class="mr-2 h-4 w-4" />
-                                    Editar proyecto
-                                </Button>
-                            </Link>
-                        </CardContent>
-                    </Card>
-                </div>
-                    </div>
                 </TabsContent>
 
                 <!-- Tab de Usuarios del Proyecto -->

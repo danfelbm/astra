@@ -104,22 +104,20 @@ const formatDate = (date: string) => {
             </Alert>
 
             <!-- Formulario reutilizable -->
-            <div class="max-w-4xl">
-                <ProyectoFormFields
-                    :proyecto="proyecto"
-                    :campos-personalizados="camposPersonalizados"
-                    :valores-campos="valoresCampos"
-                    :categorias="categorias"
-                    :submit-url="`/miembro/mis-proyectos/${proyecto.id}`"
-                    :cancel-url="`/miembro/mis-proyectos/${proyecto.id}`"
-                    :estados="estados"
-                    :prioridades="prioridades"
-                    :show-responsable="false"
-                    :show-gestores="false"
-                    @cancel="handleCancel"
-                    @success="handleSuccess"
-                />
-            </div>
+            <ProyectoFormFields
+                :proyecto="proyecto"
+                :campos-personalizados="camposPersonalizados"
+                :valores-campos="valoresCampos"
+                :categorias="categorias"
+                :submit-url="`/miembro/mis-proyectos/${proyecto.id}`"
+                :cancel-url="`/miembro/mis-proyectos/${proyecto.id}`"
+                :estados="estados"
+                :prioridades="prioridades"
+                :show-responsable="false"
+                :show-gestores="false"
+                @cancel="handleCancel"
+                @success="handleSuccess"
+            />
         </div>
     </UserLayout>
 </template>
