@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { Card, CardContent, CardHeader, CardTitle } from '@modules/Core/Resources/js/components/ui/card';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@modules/Core/Resources/js/components/ui/card';
 import { Badge } from '@modules/Core/Resources/js/components/ui/badge';
 import { Button } from '@modules/Core/Resources/js/components/ui/button';
-import { Calendar, DollarSign, User, AlertCircle, FileText, Edit, Eye } from 'lucide-vue-next';
+import { Calendar, DollarSign, User, AlertCircle, FileText, Edit, Eye, ArrowRight } from 'lucide-vue-next';
 import { Link, router } from '@inertiajs/vue3';
 
 interface Contrato {
@@ -262,6 +262,14 @@ const contratoUrl = computed(() => {
                 </div>
             </div>
         </CardContent>
+
+        <!-- Botón Ver detalles cosmético para modo user -->
+        <CardFooter v-if="viewMode === 'user'" class="pt-0">
+            <Button variant="outline" class="w-full group" @click.stop>
+                Ver detalles
+                <ArrowRight class="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+            </Button>
+        </CardFooter>
     </Card>
     </Link>
 

@@ -3,8 +3,8 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from "@modules/Core/Resources/js/components/ui/badge";
 import { Button } from "@modules/Core/Resources/js/components/ui/button";
 import { Progress } from "@modules/Core/Resources/js/components/ui/progress";
-import { Calendar, User, Flag, Clock, ArrowRight, Tag } from 'lucide-vue-next';
-import { Link } from '@inertiajs/vue3';
+import { Calendar, User, Flag, Clock, ArrowRight, Tag, FileUp } from 'lucide-vue-next';
+import { Link, router } from '@inertiajs/vue3';
 import EtiquetaDisplay from "@modules/Proyectos/Resources/js/components/EtiquetaDisplay.vue";
 import type { Etiqueta } from '@modules/Proyectos/Resources/js/types/etiquetas';
 
@@ -31,11 +31,22 @@ interface Props {
     proyecto: Proyecto;
     showActions?: boolean;
     linkUrl?: string;
+    evidenciaUrl?: string | null;
+    clickable?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
-    showActions: true
+    showActions: true,
+    evidenciaUrl: null,
+    clickable: false
 });
+
+// Navegar al detalle del proyecto
+const navigateToDetail = () => {
+    if (props.clickable && props.linkUrl) {
+        router.visit(props.linkUrl);
+    }
+};
 
 // Función para obtener color del badge de estado
 const getEstadoColor = (estado: string) => {
@@ -81,7 +92,13 @@ const getDiasRestantes = (fechaFin: string) => {
 </script>
 
 <template>
-    <Card class="hover:shadow-lg transition-shadow duration-300">
+    <Card
+        :class="[
+            'hover:shadow-lg transition-all duration-300',
+            clickable ? 'cursor-pointer hover:border-primary' : ''
+        ]"
+        @click="navigateToDetail"
+    >
         <CardHeader>
             <div class="flex justify-between items-start">
                 <div class="flex-1">
@@ -159,16 +176,24 @@ const getDiasRestantes = (fechaFin: string) => {
             </div>
         </CardContent>
 
-        <CardFooter v-if="showActions" class="pt-0">
-            <Link 
-                :href="linkUrl || `/admin/proyectos/${proyecto.id}`"
-                class="w-full"
+        <CardFooter v-if="showActions" class="pt-0 flex flex-col gap-2">
+            <Button
+                variant="outline"
+                class="w-full group"
+                @click.stop="linkUrl ? router.visit(linkUrl) : router.visit(`/admin/proyectos/${proyecto.id}`)"
             >
-                <Button variant="outline" class="w-full group">
-                    Ver detalles
-                    <ArrowRight class="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
-                </Button>
-            </Link>
+                Ver detalles
+                <ArrowRight class="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+            </Button>
+            <Button
+                v-if="evidenciaUrl"
+                variant="outline"
+                class="w-full"
+                @click.stop="router.visit(evidenciaUrl)"
+            >
+                <FileUp class="mr-2 h-4 w-4" />
+                Subir evidencia
+            </Button>
         </CardFooter>
     </Card>
 </template>

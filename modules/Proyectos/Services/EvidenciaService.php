@@ -78,6 +78,10 @@ class EvidenciaService
                 ])
                 ->log('Evidencia creada');
 
+            // Limpiar borrador del cache del servidor
+            $cacheKey = "evidencia_draft_{$contrato->id}_" . auth()->id();
+            cache()->forget($cacheKey);
+
             DB::commit();
 
             return [

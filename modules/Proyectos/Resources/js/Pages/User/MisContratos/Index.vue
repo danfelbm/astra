@@ -262,8 +262,7 @@ const cambiarProyecto = (proyectoId: number) => {
                         v-for="contrato in contratos.data"
                         :key="contrato.id"
                         :contrato="contrato"
-                        :show-actions="false"
-                        @click="router.visit(route('user.mis-contratos.show', contrato.id))"
+                        view-mode="user"
                     />
                 </div>
             </TabsContent>
@@ -280,8 +279,7 @@ const cambiarProyecto = (proyectoId: number) => {
                         v-for="contrato in contratosPorEstado.activos"
                         :key="contrato.id"
                         :contrato="contrato"
-                        :show-actions="false"
-                        @click="router.visit(route('user.mis-contratos.show', contrato.id))"
+                        view-mode="user"
                     />
                 </div>
             </TabsContent>
@@ -298,8 +296,7 @@ const cambiarProyecto = (proyectoId: number) => {
                         v-for="contrato in contratosPorEstado.finalizados"
                         :key="contrato.id"
                         :contrato="contrato"
-                        :show-actions="false"
-                        @click="router.visit(route('user.mis-contratos.show', contrato.id))"
+                        view-mode="user"
                     />
                 </div>
             </TabsContent>
@@ -316,8 +313,7 @@ const cambiarProyecto = (proyectoId: number) => {
                         v-for="contrato in contratosPorEstado.borradores"
                         :key="contrato.id"
                         :contrato="contrato"
-                        :show-actions="false"
-                        @click="router.visit(route('user.mis-contratos.show', contrato.id))"
+                        view-mode="user"
                     />
                 </div>
             </TabsContent>
@@ -334,8 +330,7 @@ const cambiarProyecto = (proyectoId: number) => {
                         v-for="contrato in contratosPorEstado.cancelados"
                         :key="contrato.id"
                         :contrato="contrato"
-                        :show-actions="false"
-                        @click="router.visit(route('user.mis-contratos.show', contrato.id))"
+                        view-mode="user"
                     />
                 </div>
             </TabsContent>

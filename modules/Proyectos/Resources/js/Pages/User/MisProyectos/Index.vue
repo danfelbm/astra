@@ -12,7 +12,7 @@ import {
     SelectValue
 } from "@modules/Core/Resources/js/components/ui/select";
 import ProyectoCard from "@modules/Proyectos/Resources/js/components/ProyectoCard.vue";
-import { Plus, Search, Filter, FolderOpen, FileUp } from 'lucide-vue-next';
+import { Plus, Search, Filter, FolderOpen } from 'lucide-vue-next';
 import { ref, watch } from 'vue';
 import type { Etiqueta } from '@modules/Proyectos/Resources/js/types/etiquetas';
 
@@ -171,22 +171,16 @@ watch(estadoFilter, () => {
 
             <!-- Grid de proyectos -->
             <div v-if="proyectos.data.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <div v-for="proyecto in proyectos.data" :key="proyecto.id" class="flex flex-col gap-2">
-                    <ProyectoCard
-                        :proyecto="proyecto"
-                        :link-url="`/miembro/mis-proyectos/${proyecto.id}`"
-                    />
-                    <!-- Botón Subir evidencia si el usuario tiene contrato asociado al proyecto -->
-                    <Link
-                        v-if="canCreateEvidencia && getContratoIdParaProyecto(proyecto.id)"
-                        :href="`/miembro/mis-contratos/${getContratoIdParaProyecto(proyecto.id)}/evidencias/create`"
-                    >
-                        <Button variant="outline" class="w-full">
-                            <FileUp class="mr-2 h-4 w-4" />
-                            Subir evidencia
-                        </Button>
-                    </Link>
-                </div>
+                <ProyectoCard
+                    v-for="proyecto in proyectos.data"
+                    :key="proyecto.id"
+                    :proyecto="proyecto"
+                    :link-url="`/miembro/mis-proyectos/${proyecto.id}`"
+                    :evidencia-url="canCreateEvidencia && getContratoIdParaProyecto(proyecto.id)
+                        ? `/miembro/mis-contratos/${getContratoIdParaProyecto(proyecto.id)}/evidencias/create`
+                        : null"
+                    :clickable="true"
+                />
             </div>
 
             <!-- Mensaje cuando no hay proyectos -->
