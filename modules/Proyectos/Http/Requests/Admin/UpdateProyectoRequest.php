@@ -4,6 +4,7 @@ namespace Modules\Proyectos\Http\Requests\Admin;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Modules\Proyectos\Models\CampoPersonalizado;
+use Modules\Proyectos\Rules\ValidNomenclaturaPatron;
 
 class UpdateProyectoRequest extends FormRequest
 {
@@ -34,7 +35,7 @@ class UpdateProyectoRequest extends FormRequest
             'etiquetas.*' => 'exists:etiquetas,id',
             'gestores' => 'nullable|array',
             'gestores.*' => 'exists:users,id',
-            'nomenclatura_archivos' => 'nullable|string|max:255',
+            'nomenclatura_archivos' => ['nullable', 'string', 'max:255', new ValidNomenclaturaPatron],
         ];
 
         // Agregar reglas dinámicas para campos personalizados
