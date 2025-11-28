@@ -11,6 +11,7 @@ use Modules\Proyectos\Models\CategoriaEtiqueta;
 use Modules\Proyectos\Http\Requests\Admin\StoreProyectoRequest;
 use Modules\Proyectos\Http\Requests\Admin\UpdateProyectoRequest;
 use Modules\Proyectos\Services\ProyectoService;
+use Modules\Proyectos\Services\NomenclaturaService;
 use Modules\Proyectos\Repositories\ProyectoRepository;
 use Modules\Core\Models\User;
 use Illuminate\Http\Request;
@@ -25,7 +26,8 @@ class ProyectoController extends AdminController
 
     public function __construct(
         private ProyectoService $service,
-        private ProyectoRepository $repository
+        private ProyectoRepository $repository,
+        private NomenclaturaService $nomenclaturaService
     ) {
         parent::__construct();
     }
@@ -70,6 +72,7 @@ class ProyectoController extends AdminController
             'categorias' => $categorias,
             'estados' => config('proyectos.estados'),
             'prioridades' => config('proyectos.prioridades'),
+            'tokensNomenclatura' => $this->nomenclaturaService->getTokensParaFrontend(),
         ]);
     }
 
@@ -235,6 +238,7 @@ class ProyectoController extends AdminController
             'estados' => config('proyectos.estados'),
             'prioridades' => config('proyectos.prioridades'),
             'gestores' => $proyecto->gestores,
+            'tokensNomenclatura' => $this->nomenclaturaService->getTokensParaFrontend(),
         ]);
     }
 

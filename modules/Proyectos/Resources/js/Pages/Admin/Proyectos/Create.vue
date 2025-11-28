@@ -17,11 +17,17 @@ interface CampoPersonalizado {
     descripcion?: string;
 }
 
+interface TokenNomenclatura {
+    token: string;
+    descripcion: string;
+}
+
 interface Props {
     camposPersonalizados: CampoPersonalizado[];
     categorias?: CategoriaEtiqueta[];
     estados?: Record<string, string>;
     prioridades?: Record<string, string>;
+    tokensNomenclatura?: TokenNomenclatura[];
 }
 
 const props = defineProps<Props>();
@@ -66,6 +72,7 @@ const handleSuccess = () => {
                 :categorias="categorias"
                 :estados="estados"
                 :prioridades="prioridades"
+                :tokens-nomenclatura="tokensNomenclatura"
                 submit-url="/admin/proyectos"
                 cancel-url="/admin/proyectos"
                 :search-users-endpoint="route('admin.proyectos.search-users')"

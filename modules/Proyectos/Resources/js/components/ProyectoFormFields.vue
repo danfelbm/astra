@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, nextTick } from 'vue';
 import { useForm } from '@inertiajs/vue3';
 import { Card, CardContent, CardHeader, CardTitle } from "@modules/Core/Resources/js/components/ui/card";
 import { Button } from "@modules/Core/Resources/js/components/ui/button";
@@ -18,7 +18,9 @@ import CamposPersonalizadosForm from "./CamposPersonalizadosForm.vue";
 import EtiquetaSelector from "./EtiquetaSelector.vue";
 import GestoresManager from "./GestoresManager.vue";
 import AddUsersModal from "@modules/Core/Resources/js/components/modals/AddUsersModal.vue";
-import { Save, X, AlertCircle, Tag, UserPlus } from 'lucide-vue-next';
+import { Save, X, AlertCircle, Tag, UserPlus, FileText, Info } from 'lucide-vue-next';
+import { Badge } from "@modules/Core/Resources/js/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@modules/Core/Resources/js/components/ui/tooltip";
 import type { CategoriaEtiqueta, Etiqueta } from "../types/etiquetas";
 import { toast } from 'vue-sonner';
 
@@ -51,8 +53,14 @@ interface Proyecto {
     responsable_id?: number;
     responsable?: User;
     etiquetas?: Etiqueta[];
+    nomenclatura_archivos?: string;
     created_at?: string;
     updated_at?: string;
+}
+
+interface TokenNomenclatura {
+    token: string;
+    descripcion: string;
 }
 
 interface Props {
@@ -61,6 +69,7 @@ interface Props {
     valoresCampos?: Record<number | string, any>;
     categorias?: CategoriaEtiqueta[];
     gestores?: User[];
+    tokensNomenclatura?: TokenNomenclatura[];
     submitUrl: string;
     cancelUrl: string;
     mode?: 'create' | 'edit';
@@ -79,7 +88,8 @@ const props = withDefaults(defineProps<Props>(), {
     showInfoAlert: true,
     estados: () => ({}),
     prioridades: () => ({}),
-    valoresCampos: () => ({})
+    valoresCampos: () => ({}),
+    tokensNomenclatura: () => ([])
 });
 
 // Emits
@@ -117,7 +127,62 @@ const form = useForm({
     responsable_id: props.proyecto?.responsable_id || null,
     etiquetas: props.proyecto?.etiquetas?.map(e => e.id) || [],
     gestores: props.gestores?.map(g => g.id) || [],
-    campos_personalizados: valoresIniciales
+    campos_personalizados: valoresIniciales,
+    nomenclatura_archivos: props.proyecto?.nomenclatura_archivos || ''
+});
+
+// Ref para el input de nomenclatura (para insertar tokens)
+const nomenclaturaInput = ref<HTMLInputElement | null>(null);
+
+// Función para insertar un token en el input de nomenclatura
+const insertarToken = (token: string) => {
+    const input = nomenclaturaInput.value;
+    if (!input) {
+        // Si no hay referencia al input, solo agregar al final
+        form.nomenclatura_archivos += token;
+        return;
+    }
+
+    const start = input.selectionStart ?? form.nomenclatura_archivos.length;
+    const end = input.selectionEnd ?? form.nomenclatura_archivos.length;
+    const text = form.nomenclatura_archivos;
+
+    // Insertar el token en la posición del cursor
+    form.nomenclatura_archivos = text.slice(0, start) + token + text.slice(end);
+
+    // Mover el cursor después del token insertado
+    nextTick(() => {
+        if (input) {
+            const newPos = start + token.length;
+            input.setSelectionRange(newPos, newPos);
+            input.focus();
+        }
+    });
+};
+
+// Generar preview del nombre de archivo
+const previewNombreArchivo = computed(() => {
+    const patron = form.nomenclatura_archivos || '{original}';
+
+    // Simular reemplazos para el preview
+    let preview = patron
+        .replace('{proyecto}', 'mi-proyecto')
+        .replace('{proyecto_id}', '42')
+        .replace('{hito}', 'fase-1')
+        .replace('{hito_id}', '15')
+        .replace('{entregable}', 'documento-final')
+        .replace('{entregable_id}', '78')
+        .replace('{original}', 'mi-archivo');
+
+    // Procesar tokens de fecha
+    const hoy = new Date();
+    preview = preview
+        .replace('{fecha}', hoy.toISOString().split('T')[0])
+        .replace(/\{fecha:Ymd\}/g, hoy.toISOString().split('T')[0].replace(/-/g, ''))
+        .replace(/\{fecha:d-m-Y\}/g, `${String(hoy.getDate()).padStart(2, '0')}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${hoy.getFullYear()}`);
+
+    // Agregar uid y extensión (siempre se agregan automáticamente)
+    return preview + '_a1b2c3.pdf';
 });
 
 // Estado de procesamiento
@@ -379,6 +444,70 @@ const handleResponsableSelect = (data: { userIds: number[]; extraData: Record<st
             v-model="form.gestores"
             :gestores="gestores"
         />
+
+        <!-- Configuración de Nomenclatura de Archivos -->
+        <Card v-if="tokensNomenclatura && tokensNomenclatura.length > 0">
+            <CardHeader>
+                <CardTitle class="flex items-center gap-2">
+                    <FileText class="h-5 w-5" />
+                    Nomenclatura de Archivos
+                </CardTitle>
+            </CardHeader>
+            <CardContent class="space-y-4">
+                <p class="text-sm text-muted-foreground">
+                    Define cómo se nombrarán los archivos de evidencias subidos a este proyecto.
+                    Haz clic en los tokens para insertarlos en el patrón.
+                </p>
+
+                <!-- Tokens disponibles -->
+                <div class="flex flex-wrap gap-2">
+                    <TooltipProvider>
+                        <Tooltip v-for="tokenInfo in tokensNomenclatura" :key="tokenInfo.token">
+                            <TooltipTrigger as-child>
+                                <Badge
+                                    variant="outline"
+                                    class="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors"
+                                    @click="insertarToken(tokenInfo.token)"
+                                >
+                                    {{ tokenInfo.token }}
+                                </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>{{ tokenInfo.descripcion }}</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+                </div>
+
+                <!-- Input para el patrón -->
+                <div>
+                    <Label for="nomenclatura_archivos">Patrón de nomenclatura</Label>
+                    <Input
+                        id="nomenclatura_archivos"
+                        ref="nomenclaturaInput"
+                        v-model="form.nomenclatura_archivos"
+                        type="text"
+                        placeholder="{proyecto_id}-{hito_id}-{entregable_id}_{fecha:Ymd}_{original}"
+                        :class="{ 'border-red-500': form.errors.nomenclatura_archivos }"
+                    />
+                    <p v-if="form.errors.nomenclatura_archivos" class="mt-1 text-sm text-red-600">
+                        {{ form.errors.nomenclatura_archivos }}
+                    </p>
+                </div>
+
+                <!-- Preview del nombre -->
+                <div class="p-3 bg-muted rounded-lg">
+                    <div class="flex items-center gap-2 mb-1">
+                        <Info class="h-4 w-4 text-muted-foreground" />
+                        <span class="text-sm font-medium">Vista previa:</span>
+                    </div>
+                    <code class="text-sm text-primary break-all">{{ previewNombreArchivo }}</code>
+                    <p class="text-xs text-muted-foreground mt-2">
+                        El identificador único (_a1b2c3) y la extensión (.pdf) se agregan automáticamente.
+                    </p>
+                </div>
+            </CardContent>
+        </Card>
 
         <!-- Campos Personalizados -->
         <CamposPersonalizadosForm

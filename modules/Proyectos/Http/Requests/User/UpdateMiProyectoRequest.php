@@ -39,6 +39,7 @@ class UpdateMiProyectoRequest extends FormRequest
             'etiquetas' => 'nullable|array|max:10',
             'etiquetas.*' => 'exists:etiquetas,id',
             'campos_personalizados' => 'nullable|array',
+            'nomenclatura_archivos' => 'nullable|string|max:255',
         ];
 
         // Agregar reglas dinámicas para campos personalizados

@@ -8,6 +8,7 @@ use Modules\Proyectos\Models\Contrato;
 use Modules\Proyectos\Models\CampoPersonalizado;
 use Modules\Proyectos\Http\Requests\User\UpdateMiProyectoRequest;
 use Modules\Proyectos\Services\ProyectoService;
+use Modules\Proyectos\Services\NomenclaturaService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -16,7 +17,8 @@ use Illuminate\Http\RedirectResponse;
 class MisProyectosController extends UserController
 {
     public function __construct(
-        private ProyectoService $service
+        private ProyectoService $service,
+        private NomenclaturaService $nomenclaturaService
     ) {
         parent::__construct();
     }
@@ -117,6 +119,7 @@ class MisProyectosController extends UserController
             'categorias' => $categorias,
             'estados' => ['planificacion' => 'Planificación', 'en_progreso' => 'En Progreso'],
             'prioridades' => config('proyectos.prioridades'),
+            'tokensNomenclatura' => $this->nomenclaturaService->getTokensParaFrontend(),
         ]);
     }
 
@@ -273,6 +276,7 @@ class MisProyectosController extends UserController
             'categorias' => $categorias,
             'estados' => config('proyectos.estados'),
             'prioridades' => config('proyectos.prioridades'),
+            'tokensNomenclatura' => $this->nomenclaturaService->getTokensParaFrontend(),
         ]);
     }
 

@@ -8,6 +8,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
+use Modules\Proyectos\Models\Proyecto;
+use Modules\Proyectos\Models\Entregable;
+use Modules\Proyectos\Services\NomenclaturaService;
 
 class FileUploadController extends Controller
 {
@@ -24,6 +27,10 @@ class FileUploadController extends Controller
             'module' => 'required|string|in:votaciones,convocatorias,postulaciones,candidaturas,user-updates,evidencias,contratos,campanas',
             'folder' => 'nullable|string', // Folder personalizado opcional
             'max_size' => 'nullable|integer', // Tamaño máximo en bytes
+            // Parámetros de contexto para nomenclatura de evidencias
+            'proyecto_id' => 'nullable|integer|exists:proyectos,id',
+            'hito_id' => 'nullable|integer',
+            'entregable_id' => 'nullable|integer',
         ]);
 
         if ($validator->fails()) {
@@ -35,7 +42,7 @@ class FileUploadController extends Controller
 
         $uploadedFiles = [];
         $files = $request->file('files');
-        
+
         // Asegurarse de que files sea un array
         if (!is_array($files)) {
             $files = [$files];
@@ -45,22 +52,62 @@ class FileUploadController extends Controller
         $fieldId = $request->input('field_id');
         $customFolder = $request->input('folder'); // Folder personalizado
 
+        // Contexto para nomenclatura de evidencias
+        $proyectoId = $request->input('proyecto_id');
+        $hitoId = $request->input('hito_id');
+        $entregableId = $request->input('entregable_id');
+
+        // Cargar proyecto y servicio de nomenclatura si es evidencia con contexto
+        $proyecto = null;
+        $nomenclaturaService = null;
+        if ($module === 'evidencias' && $proyectoId) {
+            $proyecto = Proyecto::find($proyectoId);
+            $nomenclaturaService = app(NomenclaturaService::class);
+
+            // Obtener hito_id del entregable si no se proporcionó directamente
+            if (!$hitoId && $entregableId) {
+                $entregable = Entregable::find($entregableId);
+                if ($entregable) {
+                    $hitoId = $entregable->hito_id;
+                }
+            }
+        }
+
         foreach ($files as $file) {
             try {
-                // Generar nombre único para el archivo
                 $originalName = $file->getClientOriginalName();
                 $extension = $file->getClientOriginalExtension();
-                $fileName = Str::slug(pathinfo($originalName, PATHINFO_FILENAME)) . '_' . uniqid() . '.' . $extension;
 
-                // Determinar la ruta de almacenamiento
-                // Si se proporciona folder personalizado, usarlo; sino usar la estructura por defecto
-                $path = $customFolder
-                    ? "{$customFolder}/" . date('Y/m')
-                    : "uploads/{$module}/{$fieldId}/" . date('Y/m');
-                
+                // Determinar nombre y ruta según contexto
+                if ($nomenclaturaService && $proyecto) {
+                    // Usar nomenclatura configurada del proyecto
+                    $contexto = [
+                        'proyecto_id' => $proyectoId,
+                        'proyecto' => $proyecto,
+                        'hito_id' => $hitoId,
+                        'entregable_id' => $entregableId,
+                        'original' => $originalName,
+                        'extension' => $extension,
+                    ];
+
+                    $patron = $proyecto->nomenclatura_archivos;
+                    $fileName = $nomenclaturaService->generarNombreCompleto($patron, $contexto);
+
+                    // Usar estructura de carpetas por proyecto/hito/entregable
+                    $path = $nomenclaturaService->generarRuta($proyectoId, $hitoId, $entregableId);
+                } else {
+                    // Comportamiento original: nombre con slug + uniqid
+                    $fileName = Str::slug(pathinfo($originalName, PATHINFO_FILENAME)) . '_' . uniqid() . '.' . $extension;
+
+                    // Determinar la ruta de almacenamiento
+                    $path = $customFolder
+                        ? "{$customFolder}/" . date('Y/m')
+                        : "uploads/{$module}/{$fieldId}/" . date('Y/m');
+                }
+
                 // Almacenar el archivo
                 $storedPath = $file->storeAs($path, $fileName, 'public');
-                
+
                 // Agregar información del archivo subido
                 $uploadedFiles[] = [
                     'id' => uniqid(),
@@ -71,7 +118,7 @@ class FileUploadController extends Controller
                     'mime_type' => $file->getMimeType(),
                     'uploaded_at' => now()->toISOString(),
                 ];
-                
+
             } catch (\Exception $e) {
                 return response()->json([
                     'success' => false,

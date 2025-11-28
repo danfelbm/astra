@@ -16,10 +16,14 @@ interface UploadProgress {
 }
 
 interface UploadOptions {
-    module: 'votaciones' | 'convocatorias' | 'postulaciones' | 'candidaturas' | 'user-updates' | 'evidencias' | 'contratos';
+    module: 'votaciones' | 'convocatorias' | 'postulaciones' | 'candidaturas' | 'user-updates' | 'evidencias' | 'contratos' | 'campanas';
     fieldId: string;
     folder?: string;
     maxSize?: number;
+    // Parámetros de contexto para nomenclatura de evidencias
+    proyectoId?: number;
+    hitoId?: number;
+    entregableId?: number;
     onProgress?: (fileName: string, progress: number) => void;
     onSuccess?: (files: UploadedFile[]) => void;
     onError?: (error: any) => void;
@@ -65,6 +69,17 @@ export function useFileUpload() {
 
         if (options.maxSize) {
             formData.append('max_size', options.maxSize.toString());
+        }
+
+        // Agregar parámetros de contexto para nomenclatura de evidencias
+        if (options.proyectoId) {
+            formData.append('proyecto_id', options.proyectoId.toString());
+        }
+        if (options.hitoId) {
+            formData.append('hito_id', options.hitoId.toString());
+        }
+        if (options.entregableId) {
+            formData.append('entregable_id', options.entregableId.toString());
         }
 
         try {

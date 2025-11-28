@@ -29,8 +29,14 @@ interface Proyecto {
     prioridad: string;
     responsable_id?: number;
     etiquetas?: Etiqueta[];
+    nomenclatura_archivos?: string;
     created_at: string;
     updated_at: string;
+}
+
+interface TokenNomenclatura {
+    token: string;
+    descripcion: string;
 }
 
 interface Props {
@@ -40,6 +46,7 @@ interface Props {
     estados: Record<string, string>;
     prioridades: Record<string, string>;
     categorias?: CategoriaEtiqueta[];
+    tokensNomenclatura?: TokenNomenclatura[];
 }
 
 const props = defineProps<Props>();
@@ -109,6 +116,7 @@ const formatDate = (date: string) => {
                 :campos-personalizados="camposPersonalizados"
                 :valores-campos="valoresCampos"
                 :categorias="categorias"
+                :tokens-nomenclatura="tokensNomenclatura"
                 :submit-url="`/miembro/mis-proyectos/${proyecto.id}`"
                 :cancel-url="`/miembro/mis-proyectos/${proyecto.id}`"
                 :estados="estados"

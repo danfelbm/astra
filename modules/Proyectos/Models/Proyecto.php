@@ -37,7 +37,8 @@ class Proyecto extends Model
         'tenant_id',
         'created_by',
         'updated_by',
-        'activo'
+        'activo',
+        'nomenclatura_archivos'
     ];
 
     /**

@@ -4,7 +4,9 @@ namespace Modules\Proyectos\Services;
 
 use Modules\Proyectos\Models\Evidencia;
 use Modules\Proyectos\Models\Contrato;
+use Modules\Proyectos\Models\Proyecto;
 use Modules\Proyectos\Repositories\EvidenciaRepository;
+use Modules\Proyectos\Services\NomenclaturaService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
@@ -12,7 +14,8 @@ use Illuminate\Support\Facades\Log;
 class EvidenciaService
 {
     public function __construct(
-        private EvidenciaRepository $repository
+        private EvidenciaRepository $repository,
+        private NomenclaturaService $nomenclaturaService
     ) {}
 
     /**
@@ -333,8 +336,13 @@ class EvidenciaService
 
     /**
      * Procesa y guarda un archivo capturado (desde cámara/micrófono).
+     *
+     * @param string $base64Data Datos en base64 de la captura
+     * @param string $tipo Tipo de evidencia (imagen, video, audio)
+     * @param array $contexto Contexto opcional con proyecto_id, hito_id, entregable_id
+     * @return array Resultado con path, nombre y metadata
      */
-    public function procesarCaptura(string $base64Data, string $tipo): array
+    public function procesarCaptura(string $base64Data, string $tipo, array $contexto = []): array
     {
         try {
             // Extraer el tipo MIME y los datos
@@ -345,9 +353,32 @@ class EvidenciaService
                 // Determinar extensión por tipo MIME
                 $extension = $this->getExtensionByMimeType($mimeType);
 
-                // Generar nombre único
-                $fileName = uniqid('captura_') . '.' . $extension;
-                $path = "evidencias/{$tipo}/" . date('Y/m/d') . '/' . $fileName;
+                // Verificar si hay contexto de proyecto para usar nomenclatura
+                $proyecto = null;
+                if (!empty($contexto['proyecto_id'])) {
+                    $proyecto = Proyecto::find($contexto['proyecto_id']);
+                }
+
+                if ($proyecto) {
+                    // Usar nomenclatura configurada del proyecto
+                    $contexto['original'] = 'captura';
+                    $contexto['extension'] = $extension;
+                    $contexto['proyecto'] = $proyecto;
+
+                    $patron = $proyecto->nomenclatura_archivos;
+                    $fileName = $this->nomenclaturaService->generarNombreCompleto($patron, $contexto);
+
+                    // Usar estructura de carpetas por proyecto/hito/entregable
+                    $path = $this->nomenclaturaService->generarRuta(
+                        $contexto['proyecto_id'],
+                        $contexto['hito_id'] ?? null,
+                        $contexto['entregable_id'] ?? null
+                    ) . '/' . $fileName;
+                } else {
+                    // Comportamiento original
+                    $fileName = uniqid('captura_') . '.' . $extension;
+                    $path = "evidencias/{$tipo}/" . date('Y/m/d') . '/' . $fileName;
+                }
 
                 // Guardar archivo
                 Storage::disk('public')->put($path, $data);
@@ -369,7 +400,8 @@ class EvidenciaService
         } catch (\Exception $e) {
             Log::error('Error al procesar captura', [
                 'error' => $e->getMessage(),
-                'tipo' => $tipo
+                'tipo' => $tipo,
+                'contexto' => $contexto
             ]);
 
             return [

@@ -34,6 +34,7 @@ class UpdateProyectoRequest extends FormRequest
             'etiquetas.*' => 'exists:etiquetas,id',
             'gestores' => 'nullable|array',
             'gestores.*' => 'exists:users,id',
+            'nomenclatura_archivos' => 'nullable|string|max:255',
         ];
 
         // Agregar reglas dinámicas para campos personalizados

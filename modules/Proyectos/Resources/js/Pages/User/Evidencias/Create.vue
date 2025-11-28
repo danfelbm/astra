@@ -352,9 +352,15 @@ const processCapturedBlob = async (blob: Blob) => {
     try {
         toast.info('Subiendo archivo capturado...');
 
+        // Obtener el primer entregable seleccionado para el contexto
+        const primerEntregableId = form.entregable_ids.length > 0 ? form.entregable_ids[0] : undefined;
+
         const uploadedFiles = await uploadFiles([file], {
             module: 'evidencias',
             fieldId: form.tipo_evidencia || 'archivo',
+            // Pasar contexto para nomenclatura de archivos
+            proyectoId: props.contrato.proyecto_id,
+            entregableId: primerEntregableId,
             onProgress: (fileName: string, progress: number) => {
                 // El componente FileUploadField manejará el progreso visualmente
             },
@@ -418,6 +424,9 @@ const handleFilesSelected = async (files: File[]) => {
         try {
             let totalSubidos = 0;
 
+            // Obtener el primer entregable seleccionado para el contexto
+            const primerEntregableId = form.entregable_ids.length > 0 ? form.entregable_ids[0] : undefined;
+
             for (const [tipo, archivos] of Object.entries(archivosPorTipoTemp)) {
                 if (archivos.length === 0) continue;
 
@@ -426,6 +435,9 @@ const handleFilesSelected = async (files: File[]) => {
                 const uploadedFiles = await uploadFiles(archivos, {
                     module: 'evidencias',
                     fieldId: tipo, // Usar el tipo como fieldId
+                    // Pasar contexto para nomenclatura de archivos
+                    proyectoId: props.contrato.proyecto_id,
+                    entregableId: primerEntregableId,
                     onProgress: (fileName: string, progress: number) => {
                         // El componente FileUploadField manejará el progreso visualmente
                     },

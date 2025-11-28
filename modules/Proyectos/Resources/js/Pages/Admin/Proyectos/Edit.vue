@@ -36,8 +36,14 @@ interface Proyecto {
     responsable_id?: number;
     responsable?: User;
     etiquetas?: Etiqueta[];
+    nomenclatura_archivos?: string;
     created_at: string;
     updated_at: string;
+}
+
+interface TokenNomenclatura {
+    token: string;
+    descripcion: string;
 }
 
 interface Props {
@@ -46,6 +52,7 @@ interface Props {
     valoresCampos: Record<number, any>;
     categorias?: CategoriaEtiqueta[];
     gestores?: User[];
+    tokensNomenclatura?: TokenNomenclatura[];
 }
 
 const props = defineProps<Props>();
@@ -106,6 +113,7 @@ const handleSuccess = () => {
                 :valores-campos="valoresCampos"
                 :categorias="categorias"
                 :gestores="gestores"
+                :tokens-nomenclatura="tokensNomenclatura"
                 :submit-url="`/admin/proyectos/${proyecto.id}`"
                 :cancel-url="`/admin/proyectos/${proyecto.id}`"
                 :search-users-endpoint="route('admin.proyectos.search-users')"
