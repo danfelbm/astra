@@ -12,7 +12,7 @@ import {
     SelectValue
 } from "@modules/Core/Resources/js/components/ui/select";
 import ProyectoCard from "@modules/Proyectos/Resources/js/components/ProyectoCard.vue";
-import { Plus, Search, Filter, FolderOpen } from 'lucide-vue-next';
+import { Search, Filter, FolderOpen } from 'lucide-vue-next';
 import { ref, watch } from 'vue';
 import type { Etiqueta } from '@modules/Proyectos/Resources/js/types/etiquetas';
 
@@ -60,7 +60,6 @@ interface Props {
         search?: string;
         estado?: string;
     };
-    canCreate?: boolean;
     canCreateEvidencia?: boolean;
     contratosDelUsuario?: Record<number, ContratoUsuario>;
 }
@@ -119,12 +118,6 @@ watch(estadoFilter, () => {
                         Gestiona y da seguimiento a tus proyectos asignados
                     </p>
                 </div>
-                <Link v-if="canCreate" href="/miembro/mis-proyectos/create">
-                    <Button>
-                        <Plus class="mr-2 h-4 w-4" />
-                        Nuevo Proyecto
-                    </Button>
-                </Link>
             </div>
 
             <!-- Filtros -->
@@ -192,12 +185,6 @@ watch(estadoFilter, () => {
                 <p class="text-gray-500 text-center max-w-md">
                     No tienes proyectos asignados que coincidan con los filtros seleccionados.
                 </p>
-                <Link v-if="canCreate" href="/miembro/mis-proyectos/create">
-                    <Button class="mt-4">
-                        <Plus class="mr-2 h-4 w-4" />
-                        Crear mi primer proyecto
-                    </Button>
-                </Link>
             </div>
 
             <!-- Paginación -->
