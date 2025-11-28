@@ -51,8 +51,8 @@ interface Props {
 
 const props = defineProps<Props>();
 
-// Endpoint de búsqueda de usuarios - usamos el mismo del admin ya que funciona
-const searchUsersEndpoint = '/admin/proyectos-search-users';
+// Helper para obtener route
+const { route } = window as any;
 </script>
 
 <template>
@@ -86,7 +86,7 @@ const searchUsersEndpoint = '/admin/proyectos-search-users';
         :prioridades="prioridades"
         :submit-url="`/miembro/mis-proyectos/${proyecto.id}/hitos/${hito.id}/entregables/${entregable.id}`"
         :cancel-url="`/miembro/mis-proyectos/${proyecto.id}?tab=hitos`"
-        :search-users-endpoint="searchUsersEndpoint"
+        :search-users-endpoint="route('admin.proyectos.search-users')"
       />
     </div>
   </UserLayout>

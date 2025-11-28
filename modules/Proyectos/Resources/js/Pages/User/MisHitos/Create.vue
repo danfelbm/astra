@@ -48,6 +48,9 @@ interface Props {
 
 const props = defineProps<Props>();
 
+// Helper para obtener route
+const { route } = window as any;
+
 // Handler para submit del formulario
 const handleSubmit = (form: any) => {
     form.post(`/miembro/mis-proyectos/${props.proyecto.id}/hitos`, {
@@ -92,6 +95,7 @@ const handleCancel = () => {
                 :estados="estados"
                 :siguiente-orden="siguienteOrden"
                 :show-parent-selector="true"
+                :search-users-endpoint="route('admin.proyectos.search-users')"
                 @submit="handleSubmit"
                 @cancel="handleCancel"
             />
