@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@modules/Core/Resources/js/components/ui/checkbox';
 import { Progress } from '@modules/Core/Resources/js/components/ui/progress';
 import FileUploadField from '@modules/Core/Resources/js/components/forms/FileUploadField.vue';
+import EntregableSelector from '@modules/Proyectos/Resources/js/components/EntregableSelector.vue';
 import { useAutoSave } from '@modules/Core/Resources/js/composables/useAutoSave';
 import { useFileUpload } from '@modules/Core/Resources/js/composables/useFileUpload';
 import { toast } from 'vue-sonner';
@@ -705,40 +706,14 @@ onUnmounted(() => {
                                 </CardDescription>
                             </CardHeader>
                             <CardContent>
-                                <div class="space-y-3">
-                                    <div v-if="entregablesDisponibles.length === 0" class="text-sm text-muted-foreground">
-                                        No hay entregables disponibles en este proyecto
-                                    </div>
-                                    <div v-else>
-                                        <div
-                                            v-for="entregable in entregablesDisponibles"
-                                            :key="entregable.id"
-                                            class="flex items-start space-x-3"
-                                        >
-                                            <Checkbox
-                                                :id="`entregable-${entregable.id}`"
-                                                :checked="form.entregable_ids.includes(entregable.id)"
-                                                @update:checked="(checked) => {
-                                                    if (checked) {
-                                                        form.entregable_ids.push(entregable.id);
-                                                    } else {
-                                                        const index = form.entregable_ids.indexOf(entregable.id);
-                                                        if (index > -1) form.entregable_ids.splice(index, 1);
-                                                    }
-                                                }"
-                                            />
-                                            <div class="flex-1">
-                                                <Label
-                                                    :for="`entregable-${entregable.id}`"
-                                                    class="text-sm font-medium cursor-pointer"
-                                                >
-                                                    {{ entregable.nombre }}
-                                                </Label>
-                                                <p class="text-xs text-muted-foreground">{{ entregable.hito }}</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
+                                <EntregableSelector
+                                    v-model="form.entregable_ids"
+                                    :entregables="entregables"
+                                    label=""
+                                    description=""
+                                    height="12rem"
+                                    :disabled="form.processing"
+                                />
                             </CardContent>
                         </Card>
 

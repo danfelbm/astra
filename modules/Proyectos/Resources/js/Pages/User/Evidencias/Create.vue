@@ -13,6 +13,7 @@ import { Progress } from '@modules/Core/Resources/js/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@modules/Core/Resources/js/components/ui/tabs';
 import { Badge } from '@modules/Core/Resources/js/components/ui/badge';
 import FileUploadField from '@modules/Core/Resources/js/components/forms/FileUploadField.vue';
+import EntregableSelector from '@modules/Proyectos/Resources/js/components/EntregableSelector.vue';
 import { useAutoSave } from '@modules/Core/Resources/js/composables/useAutoSave';
 import { useFileUpload } from '@modules/Core/Resources/js/composables/useFileUpload';
 import { toast } from 'vue-sonner';
@@ -698,42 +699,13 @@ onUnmounted(() => {
                     </div>
 
                     <!-- Entregables Relacionados -->
-                    <div class="space-y-2">
-                        <Label>Entregables Relacionados</Label>
-                        <CardDescription>
-                            Selecciona los entregables del proyecto que se relacionan con esta evidencia
-                        </CardDescription>
-                        <div class="space-y-2 max-h-60 overflow-y-auto border rounded-lg p-4">
-                            <div
-                                v-for="entregable in entregables"
-                                :key="entregable.id"
-                                class="flex items-start space-x-3"
-                            >
-                                <Checkbox
-                                    :id="`entregable-${entregable.id}`"
-                                    :checked="form.entregable_ids.includes(entregable.id)"
-                                    @update:checked="(checked) => {
-                                        if (checked) {
-                                            form.entregable_ids.push(entregable.id);
-                                        } else {
-                                            form.entregable_ids = form.entregable_ids.filter(id => id !== entregable.id);
-                                        }
-                                    }"
-                                />
-                                <div class="flex-1">
-                                    <Label
-                                        :for="`entregable-${entregable.id}`"
-                                        class="text-sm font-normal cursor-pointer flex flex-col items-start sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-2"
-                                    >
-                                        <span>{{ entregable.nombre }}</span>
-                                        <span class="text-muted-foreground text-xs">
-                                            Hito: {{ entregable.hito }}{{ entregable.fecha_fin ? ` • Vence: ${entregable.fecha_fin}` : '' }}
-                                        </span>
-                                    </Label>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                    <EntregableSelector
+                        v-model="form.entregable_ids"
+                        :entregables="entregables"
+                        label="Entregables Relacionados"
+                        description="Selecciona los entregables del proyecto que se relacionan con esta evidencia"
+                        :disabled="form.processing"
+                    />
 
                     <!-- Descripción -->
                     <div class="space-y-2">
