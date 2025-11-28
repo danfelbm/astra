@@ -4,6 +4,7 @@ namespace Modules\Proyectos\Http\Controllers\User;
 
 use Modules\Core\Http\Controllers\Base\UserController;
 use Modules\Proyectos\Models\Proyecto;
+use Modules\Proyectos\Models\Contrato;
 use Modules\Proyectos\Models\CampoPersonalizado;
 use Modules\Proyectos\Http\Requests\User\UpdateMiProyectoRequest;
 use Modules\Proyectos\Services\ProyectoService;
@@ -66,6 +67,23 @@ class MisProyectosController extends UserController
             'proyectos_ids' => $proyectos->pluck('id')->toArray(),
         ]);
 
+        // Obtener los contratos del usuario para cada proyecto
+        // Un usuario puede tener contrato si es responsable, contraparte o participante del contrato
+        $userId = auth()->id();
+        $proyectoIds = $proyectos->pluck('id')->toArray();
+
+        $contratosDelUsuario = Contrato::whereIn('proyecto_id', $proyectoIds)
+            ->where(function ($q) use ($userId) {
+                $q->where('responsable_id', $userId)
+                  ->orWhere('contraparte_user_id', $userId)
+                  ->orWhereHas('participantes', function ($query) use ($userId) {
+                      $query->where('user_id', $userId);
+                  });
+            })
+            ->whereIn('estado', ['activo', 'finalizado'])
+            ->get(['id', 'proyecto_id'])
+            ->keyBy('proyecto_id');
+
         return Inertia::render('Modules/Proyectos/User/MisProyectos/Index', [
             'proyectos' => $proyectos,
             'filters' => $request->only(['search', 'estado', 'prioridad']),
@@ -73,6 +91,8 @@ class MisProyectosController extends UserController
             'prioridades' => config('proyectos.prioridades'),
             'canCreate' => auth()->user()->can('proyectos.create_own'),
             'canEdit' => auth()->user()->can('proyectos.edit_own'),
+            'contratosDelUsuario' => $contratosDelUsuario,
+            'canCreateEvidencia' => auth()->user()->can('evidencias.create_own'),
         ]);
     }
 
