@@ -38,7 +38,7 @@ class Entregable extends Model
         'responsable_id',
         'completado_at',
         'completado_por',
-        'notas_completado',
+        'observaciones_estado',
         'tenant_id',
         'created_by',
         'updated_by'
@@ -375,13 +375,17 @@ class Entregable extends Model
     /**
      * Marca el entregable como completado.
      */
-    public function marcarComoCompletado(int $userId = null, string $notas = null): void
+    public function marcarComoCompletado(int $userId = null, string $observaciones = null): void
     {
+        $estadoAnterior = $this->estado;
         $this->estado = 'completado';
         $this->completado_at = now();
         $this->completado_por = $userId ?? auth()->id();
-        $this->notas_completado = $notas;
+        $this->observaciones_estado = $observaciones;
         $this->save();
+
+        // Registrar en audit log con observaciones
+        $this->logStateChange('estado', $estadoAnterior, 'completado', $observaciones);
 
         // Actualizar el porcentaje del hito
         $this->hito->calcularPorcentajeCompletado();
@@ -390,16 +394,64 @@ class Entregable extends Model
     /**
      * Marca el entregable como en progreso.
      */
-    public function marcarComoEnProgreso(): void
+    public function marcarComoEnProgreso(string $observaciones = null): void
     {
-        if ($this->estado === 'pendiente') {
+        $estadoAnterior = $this->estado;
+
+        if ($estadoAnterior === 'pendiente' || $estadoAnterior === 'completado') {
             $this->estado = 'en_progreso';
+            $this->observaciones_estado = $observaciones;
             $this->save();
+
+            // Registrar en audit log
+            $this->logStateChange('estado', $estadoAnterior, 'en_progreso', $observaciones);
 
             // Si el hito está pendiente, también lo ponemos en progreso
             if ($this->hito->estado === 'pendiente') {
                 $this->hito->update(['estado' => 'en_progreso']);
             }
+        }
+    }
+
+    /**
+     * Cambia el estado del entregable con observaciones opcionales.
+     * Método genérico para cualquier cambio de estado.
+     */
+    public function cambiarEstado(string $nuevoEstado, int $userId = null, string $observaciones = null): void
+    {
+        $estadoAnterior = $this->estado;
+
+        // Si ya está en el mismo estado, no hacer nada
+        if ($estadoAnterior === $nuevoEstado) {
+            return;
+        }
+
+        $this->estado = $nuevoEstado;
+        $this->observaciones_estado = $observaciones;
+
+        // Si se marca como completado, registrar quién y cuándo
+        if ($nuevoEstado === 'completado') {
+            $this->completado_at = now();
+            $this->completado_por = $userId ?? auth()->id();
+        }
+
+        // Si se reabre (de completado a pendiente), limpiar datos de completado
+        if ($estadoAnterior === 'completado' && $nuevoEstado === 'pendiente') {
+            $this->completado_at = null;
+            $this->completado_por = null;
+        }
+
+        $this->save();
+
+        // Registrar en audit log con observaciones
+        $this->logStateChange('estado', $estadoAnterior, $nuevoEstado, $observaciones);
+
+        // Actualizar el porcentaje del hito
+        $this->hito->calcularPorcentajeCompletado();
+
+        // Si el hito está pendiente y pasamos a en_progreso, actualizar hito
+        if ($nuevoEstado === 'en_progreso' && $this->hito->estado === 'pendiente') {
+            $this->hito->update(['estado' => 'en_progreso']);
         }
     }
 

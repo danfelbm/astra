@@ -223,8 +223,8 @@ const emit = defineEmits<{
   duplicate: [hito: Hito];
   'add-entregable': [hito: Hito];
   'view-entregables': [hito: Hito];
-  'complete-entregable': [entregable: Entregable];
-  'update-entregable-status': [entregable: Entregable, estado: string];
+  'complete-entregable': [entregable: Entregable, observaciones: string];
+  'update-entregable-status': [entregable: Entregable, estado: string, observaciones: string];
   'edit-entregable': [entregable: Entregable, hito: Hito];
 }>();
 
@@ -239,13 +239,13 @@ const handleEntregablesClick = () => {
   }
 };
 
-// Handlers para acciones de entregables
-const handleCompleteEntregable = (entregable: Entregable) => {
-  emit('complete-entregable', entregable);
+// Handlers para acciones de entregables (ahora incluyen observaciones)
+const handleCompleteEntregable = (entregable: Entregable, observaciones: string) => {
+  emit('complete-entregable', entregable, observaciones);
 };
 
-const handleUpdateEntregableStatus = (entregable: Entregable, estado: string) => {
-  emit('update-entregable-status', entregable, estado);
+const handleUpdateEntregableStatus = (entregable: Entregable, estado: string, observaciones: string) => {
+  emit('update-entregable-status', entregable, estado, observaciones);
 };
 
 // Handler para editar entregable

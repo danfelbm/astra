@@ -391,6 +391,10 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
                 ->name('completar')
                 ->middleware('can:entregables.complete');
 
+            Route::post('/{entregable}/actualizar-estado', [\Modules\Proyectos\Http\Controllers\Admin\EntregableController::class, 'actualizarEstado'])
+                ->name('actualizar-estado')
+                ->middleware('can:entregables.edit');
+
             Route::post('/reordenar', [\Modules\Proyectos\Http\Controllers\Admin\EntregableController::class, 'reordenar'])
                 ->name('reordenar')
                 ->middleware('can:entregables.edit');

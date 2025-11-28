@@ -235,9 +235,11 @@ const handleEditHito = (hito: Hito) => {
     router.visit(`/miembro/mis-proyectos/${props.proyecto.id}/hitos/${hito.id}/edit`);
 };
 
-// Handler para completar un entregable (usa la ruta existente de mis-hitos)
-const handleCompleteEntregable = (entregable: Entregable) => {
-    router.post(`/miembro/mis-hitos/${entregable.hito_id}/entregables/${entregable.id}/completar`, {}, {
+// Handler para completar un entregable (incluye observaciones)
+const handleCompleteEntregable = (entregable: Entregable, observaciones: string) => {
+    router.post(`/miembro/mis-hitos/${entregable.hito_id}/entregables/${entregable.id}/completar`, {
+        notas: observaciones
+    }, {
         preserveScroll: true,
         onSuccess: () => {
             toast.success('Entregable marcado como completado');
@@ -248,10 +250,11 @@ const handleCompleteEntregable = (entregable: Entregable) => {
     });
 };
 
-// Handler para actualizar estado de un entregable (usa la ruta existente de mis-hitos)
-const handleUpdateEntregableStatus = (entregable: Entregable, estado: string) => {
+// Handler para actualizar estado de un entregable (incluye observaciones)
+const handleUpdateEntregableStatus = (entregable: Entregable, estado: string, observaciones: string) => {
     router.put(`/miembro/mis-hitos/${entregable.hito_id}/entregables/${entregable.id}/estado`, {
-        estado
+        estado,
+        observaciones
     }, {
         preserveScroll: true,
         onSuccess: () => {

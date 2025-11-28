@@ -164,13 +164,13 @@ const toggleSelection = (id: number) => {
   }
 };
 
-const marcarComoCompletado = (entregable: Entregable) => {
+const marcarComoCompletado = (entregable: Entregable, observaciones: string) => {
   if (!props.canComplete) return;
 
   router.post(
     `/admin/proyectos/${props.proyecto.id}/hitos/${props.hito.id}/entregables/${entregable.id}/completar`,
     {
-      notas_completado: `Completado por ${usePage().props.auth.user.name}`,
+      notas: observaciones,
     },
     {
       onSuccess: () => {
@@ -201,13 +201,14 @@ const eliminarEntregable = (entregable: Entregable) => {
   }
 };
 
-const marcarEnProgreso = (entregable: Entregable) => {
+const marcarEnProgreso = (entregable: Entregable, observaciones: string) => {
   if (!props.canEdit) return;
 
   router.post(
     `/admin/proyectos/${props.proyecto.id}/hitos/${props.hito.id}/entregables/${entregable.id}/actualizar-estado`,
     {
       estado: 'en_progreso',
+      observaciones: observaciones,
     },
     {
       onSuccess: () => {

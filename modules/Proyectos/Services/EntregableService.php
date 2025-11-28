@@ -62,22 +62,35 @@ class EntregableService
 
     /**
      * Actualiza un entregable con campos personalizados.
+     * Si el estado cambia, usa el método cambiarEstado para registrar en audit log.
      */
     public function update(Entregable $entregable, array $data): array
     {
         DB::beginTransaction();
         try {
-            // Separar campos personalizados y etiquetas
+            // Separar campos personalizados, etiquetas y observaciones
             $camposPersonalizados = $data['campos_personalizados'] ?? [];
             $etiquetas = $data['etiquetas'] ?? null;
-            unset($data['campos_personalizados'], $data['etiquetas']);
+            $observacionesEstado = $data['observaciones_estado'] ?? null;
+            unset($data['campos_personalizados'], $data['etiquetas'], $data['observaciones_estado']);
 
             // Validar campos personalizados requeridos
             if (!empty($camposPersonalizados)) {
                 $this->validarCamposPersonalizadosRequeridos($camposPersonalizados);
             }
 
-            // Actualizar el entregable
+            // Detectar si el estado cambia
+            $estadoAnterior = $entregable->estado;
+            $estadoNuevo = $data['estado'] ?? $estadoAnterior;
+            $estadoCambio = $estadoAnterior !== $estadoNuevo;
+
+            // Si el estado cambia, usar el método cambiarEstado para audit log
+            if ($estadoCambio) {
+                unset($data['estado']); // No actualizar estado con el repositorio
+                $entregable->cambiarEstado($estadoNuevo, auth()->id(), $observacionesEstado);
+            }
+
+            // Actualizar el resto de campos del entregable
             $entregable = $this->repository->update($entregable, $data);
 
             // Guardar campos personalizados si existen

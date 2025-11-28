@@ -385,6 +385,32 @@ class EntregableController extends AdminController
     }
 
     /**
+     * Actualiza el estado de un entregable con observaciones.
+     * Usa el método genérico cambiarEstado que registra en audit log.
+     */
+    public function actualizarEstado(Request $request, Proyecto $proyecto, Hito $hito, Entregable $entregable): RedirectResponse
+    {
+        // Verificar permisos
+        abort_unless(auth()->user()->can('entregables.edit'), 403, 'No tienes permisos para actualizar el estado de entregables');
+
+        $request->validate([
+            'estado' => 'required|in:pendiente,en_progreso,completado,cancelado',
+            'observaciones' => 'nullable|string|max:1000'
+        ]);
+
+        // Usar el método genérico que registra en audit log
+        $entregable->cambiarEstado(
+            $request->estado,
+            auth()->id(),
+            $request->observaciones
+        );
+
+        return redirect()
+            ->back()
+            ->with('success', 'Estado del entregable actualizado');
+    }
+
+    /**
      * Actualiza el orden de los entregables.
      */
     public function reordenar(Request $request, Proyecto $proyecto, Hito $hito): RedirectResponse

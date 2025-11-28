@@ -72,7 +72,7 @@ export interface Entregable {
     responsable_id?: number;
     completado_at?: string;
     completado_por?: number;
-    notas_completado?: string;
+    observaciones_estado?: string;
     tenant_id?: number;
     created_by?: number;
     updated_by?: number;
@@ -82,7 +82,7 @@ export interface Entregable {
     // Relaciones
     hito?: Hito;
     responsable?: User;
-    completado_por_user?: User;
+    completado_por_usuario?: User;
     usuarios?: UsuarioEntregable[];
 
     // Atributos computados

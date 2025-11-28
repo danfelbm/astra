@@ -88,6 +88,9 @@ const emit = defineEmits<{
 
 const { toast } = useToast();
 
+// Estado original para detectar cambios (modo edit)
+const estadoOriginal = props.entregable?.estado || 'pendiente';
+
 // Inicializar form según el modo
 const form = useForm({
   nombre: props.entregable?.nombre || '',
@@ -102,6 +105,21 @@ const form = useForm({
   etiquetas: props.entregable?.etiquetas?.map((e: any) => e.id) ?? [] as number[],
   orden: props.entregable?.orden || props.siguienteOrden || 1,
   notas: '',
+  observaciones_estado: '',
+});
+
+// Detectar si el estado cambió (solo en modo edit)
+const estadoCambio = computed(() => {
+  if (props.mode === 'create') return false;
+  return form.estado !== estadoOriginal;
+});
+
+// Label para el cambio de estado
+const cambioEstadoLabel = computed(() => {
+  if (!estadoCambio.value) return '';
+  const estadoAnteriorLabel = props.estados.find(e => e.value === estadoOriginal)?.label || estadoOriginal;
+  const estadoNuevoLabel = props.estados.find(e => e.value === form.estado)?.label || form.estado;
+  return `${estadoAnteriorLabel} → ${estadoNuevoLabel}`;
 });
 
 // Estado local
@@ -396,6 +414,24 @@ const estadoInfo = computed(() => {
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          <!-- Campo de observaciones cuando cambia el estado (solo en modo edit) -->
+          <div v-if="estadoCambio" class="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+            <Label for="observaciones_estado" class="text-blue-800 dark:text-blue-200">
+              Observaciones del cambio de estado
+              <span class="text-sm font-normal ml-2">({{ cambioEstadoLabel }})</span>
+            </Label>
+            <Textarea
+              id="observaciones_estado"
+              v-model="form.observaciones_estado"
+              placeholder="Describe el motivo del cambio de estado..."
+              rows="3"
+              class="mt-2"
+            />
+            <p class="text-xs text-blue-600 dark:text-blue-300 mt-1">
+              Las observaciones quedarán registradas en el historial de cambios.
+            </p>
           </div>
         </CardContent>
       </Card>

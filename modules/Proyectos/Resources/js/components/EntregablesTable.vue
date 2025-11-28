@@ -20,6 +20,7 @@ import {
   Clock,
 } from 'lucide-vue-next';
 import type { Entregable, EstadoEntregable, PrioridadEntregable } from '@modules/Proyectos/Resources/js/types/hitos';
+import StatusChangeModal from './StatusChangeModal.vue';
 
 // Props
 interface Props {
@@ -39,18 +40,24 @@ const props = withDefaults(defineProps<Props>(), {
   showCheckbox: true,
 });
 
-// Emits
+// Emits (actualizados para incluir observaciones)
 const emit = defineEmits<{
   'view': [entregable: Entregable];
   'edit': [entregable: Entregable];
   'delete': [entregable: Entregable];
-  'complete': [entregable: Entregable];
-  'mark-in-progress': [entregable: Entregable];
+  'complete': [entregable: Entregable, observaciones: string];
+  'mark-in-progress': [entregable: Entregable, observaciones: string];
   'selection-change': [selectedIds: number[]];
 }>();
 
 // Estado local
 const selectedEntregables = ref<number[]>([]);
+
+// Estado para el modal de cambio de estado
+const statusChangeModalOpen = ref(false);
+const entregableToChange = ref<Entregable | null>(null);
+const nuevoEstadoPendiente = ref<'pendiente' | 'en_progreso' | 'completado' | 'cancelado'>('pendiente');
+const statusChangeLoading = ref(false);
 
 // Computed
 const entregablesConInfo = computed(() => {
@@ -137,16 +144,37 @@ const handleEdit = (entregable: Entregable) => {
   emit('edit', entregable);
 };
 
+// Abre el modal para completar
 const handleComplete = (entregable: Entregable) => {
-  emit('complete', entregable);
+  entregableToChange.value = entregable;
+  nuevoEstadoPendiente.value = 'completado';
+  statusChangeModalOpen.value = true;
 };
 
 const handleDelete = (entregable: Entregable) => {
   emit('delete', entregable);
 };
 
+// Abre el modal para marcar en progreso
 const handleMarkInProgress = (entregable: Entregable) => {
-  emit('mark-in-progress', entregable);
+  entregableToChange.value = entregable;
+  nuevoEstadoPendiente.value = 'en_progreso';
+  statusChangeModalOpen.value = true;
+};
+
+// Confirma el cambio de estado con observaciones
+const confirmStatusChange = (observaciones: string) => {
+  if (!entregableToChange.value) return;
+
+  if (nuevoEstadoPendiente.value === 'completado') {
+    emit('complete', entregableToChange.value, observaciones);
+  } else if (nuevoEstadoPendiente.value === 'en_progreso') {
+    emit('mark-in-progress', entregableToChange.value, observaciones);
+  }
+
+  // Cerrar modal y limpiar estado
+  statusChangeModalOpen.value = false;
+  entregableToChange.value = null;
 };
 </script>
 
@@ -319,4 +347,14 @@ const handleMarkInProgress = (entregable: Entregable) => {
       </TableRow>
     </TableBody>
   </Table>
+
+  <!-- Modal de Cambio de Estado -->
+  <StatusChangeModal
+    v-model:open="statusChangeModalOpen"
+    :entregable-nombre="entregableToChange?.nombre"
+    :estado-actual="entregableToChange?.estado as 'pendiente' | 'en_progreso' | 'completado' | 'cancelado'"
+    :nuevo-estado="nuevoEstadoPendiente"
+    :loading="statusChangeLoading"
+    @confirm="confirmStatusChange"
+  />
 </template>

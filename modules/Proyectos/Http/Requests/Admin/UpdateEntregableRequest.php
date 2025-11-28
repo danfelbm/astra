@@ -35,7 +35,8 @@ class UpdateEntregableRequest extends FormRequest
             'campos_personalizados' => ['nullable', 'array'],
             'etiquetas' => ['nullable', 'array', 'max:10'],
             'etiquetas.*' => ['exists:etiquetas,id'],
-            'notas_completado' => ['nullable', 'string', 'max:1000'],
+            'notas' => ['nullable', 'string', 'max:1000'],
+            'observaciones_estado' => ['nullable', 'string', 'max:1000'],
         ];
     }
 

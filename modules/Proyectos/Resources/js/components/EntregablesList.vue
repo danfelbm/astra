@@ -30,6 +30,7 @@ import {
 import type { Entregable } from '@modules/Proyectos/Resources/js/types/hitos';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import StatusChangeModal from './StatusChangeModal.vue';
 
 interface Props {
     entregables: Entregable[];
@@ -49,8 +50,8 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<{
     'edit': [entregable: Entregable];
     'delete': [entregable: Entregable];
-    'complete': [entregable: Entregable];
-    'update-status': [entregable: Entregable, estado: string];
+    'complete': [entregable: Entregable, observaciones: string];
+    'update-status': [entregable: Entregable, estado: string, observaciones: string];
 }>();
 
 // Estado local
@@ -58,6 +59,12 @@ const selectedEntregables = ref<number[]>([]);
 const expandedEntregables = ref<number[]>([]);
 const deleteConfirmDialog = ref(false);
 const entregableToDelete = ref<Entregable | null>(null);
+
+// Estado para el modal de cambio de estado
+const statusChangeModalOpen = ref(false);
+const entregableToChange = ref<Entregable | null>(null);
+const nuevoEstadoPendiente = ref<'pendiente' | 'en_progreso' | 'completado' | 'cancelado'>('pendiente');
+const statusChangeLoading = ref(false);
 
 // Computed
 const entregablesAgrupados = computed(() => {
@@ -154,12 +161,33 @@ const confirmDelete = () => {
     entregableToDelete.value = null;
 };
 
+// Abre el modal para completar
 const handleComplete = (entregable: Entregable) => {
-    emit('complete', entregable);
+    entregableToChange.value = entregable;
+    nuevoEstadoPendiente.value = 'completado';
+    statusChangeModalOpen.value = true;
 };
 
+// Abre el modal para cambio de estado
 const handleStatusChange = (entregable: Entregable, estado: string) => {
-    emit('update-status', entregable, estado);
+    entregableToChange.value = entregable;
+    nuevoEstadoPendiente.value = estado as 'pendiente' | 'en_progreso' | 'completado' | 'cancelado';
+    statusChangeModalOpen.value = true;
+};
+
+// Confirma el cambio de estado con observaciones
+const confirmStatusChange = (observaciones: string) => {
+    if (!entregableToChange.value) return;
+
+    if (nuevoEstadoPendiente.value === 'completado') {
+        emit('complete', entregableToChange.value, observaciones);
+    } else {
+        emit('update-status', entregableToChange.value, nuevoEstadoPendiente.value, observaciones);
+    }
+
+    // Cerrar modal y limpiar estado
+    statusChangeModalOpen.value = false;
+    entregableToChange.value = null;
 };
 </script>
 
@@ -369,8 +397,8 @@ const handleStatusChange = (entregable: Entregable, estado: string) => {
                                             <User class="h-3 w-3" />
                                             <span>Por: {{ entregable.completado_por_usuario.name }}</span>
                                         </div>
-                                        <p v-if="entregable.notas_completado" class="italic mt-2">
-                                            "{{ entregable.notas_completado }}"
+                                        <p v-if="entregable.observaciones_estado" class="italic mt-2">
+                                            "{{ entregable.observaciones_estado }}"
                                         </p>
                                     </div>
                                 </div>
@@ -418,5 +446,15 @@ const handleStatusChange = (entregable: Entregable, estado: string) => {
                 </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
+
+        <!-- Modal de Cambio de Estado -->
+        <StatusChangeModal
+            v-model:open="statusChangeModalOpen"
+            :entregable-nombre="entregableToChange?.nombre"
+            :estado-actual="entregableToChange?.estado as 'pendiente' | 'en_progreso' | 'completado' | 'cancelado'"
+            :nuevo-estado="nuevoEstadoPendiente"
+            :loading="statusChangeLoading"
+            @confirm="confirmStatusChange"
+        />
     </div>
 </template>

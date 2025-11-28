@@ -182,6 +182,7 @@ class MisHitosController extends UserController
 
     /**
      * Actualiza el estado de un entregable asignado al usuario.
+     * Usa el método genérico cambiarEstado que registra en audit log.
      */
     public function actualizarEstadoEntregable(Request $request, Hito $hito, Entregable $entregable): RedirectResponse
     {
@@ -193,21 +194,15 @@ class MisHitosController extends UserController
 
         $request->validate([
             'estado' => 'required|in:pendiente,en_progreso,completado',
-            'notas' => 'nullable|string|max:1000'
+            'observaciones' => 'nullable|string|max:1000'
         ]);
 
-        $entregable->estado = $request->estado;
-
-        if ($request->estado === 'completado') {
-            $entregable->completado_at = now();
-            $entregable->completado_por = $user->id;
-            $entregable->notas_completado = $request->notas;
-        }
-
-        $entregable->save();
-
-        // Actualizar porcentaje del hito
-        $hito->calcularPorcentajeCompletado();
+        // Usar el método genérico que registra en audit log
+        $entregable->cambiarEstado(
+            $request->estado,
+            $user->id,
+            $request->observaciones
+        );
 
         return redirect()
             ->back()
