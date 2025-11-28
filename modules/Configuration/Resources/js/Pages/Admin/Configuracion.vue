@@ -944,7 +944,8 @@ const saveWelcomeConfiguration = () => {
                                             <div class="flex items-center gap-2">
                                                 <span class="text-sm font-medium text-muted-foreground">Card #{{ index + 1 }}</span>
                                                 <Switch
-                                                    v-model:checked="card.enabled"
+                                                    :model-value="card.enabled"
+                                                    @update:model-value="(val) => card.enabled = val"
                                                     :disabled="!props.canEdit"
                                                 />
                                                 <span class="text-xs text-muted-foreground">

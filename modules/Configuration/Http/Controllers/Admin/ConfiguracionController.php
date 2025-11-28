@@ -143,6 +143,22 @@ class ConfiguracionController extends AdminController
             'cards.*.buttonLink' => 'required|string|max:500',
         ]);
 
+        // Convertir valores booleanos correctamente (igual que en updateWelcome)
+        $validatedData['cards'] = array_map(function ($card) {
+            // Convertir enabled a boolean (manejar true/false/1/0/"1"/"0")
+            if (is_bool($card['enabled'])) {
+                $card['enabled'] = $card['enabled'];
+            } elseif ($card['enabled'] === '1' || $card['enabled'] === 1 || $card['enabled'] === 'true') {
+                $card['enabled'] = true;
+            } else {
+                $card['enabled'] = false;
+            }
+
+            $card['order'] = (int) $card['order'];
+
+            return $card;
+        }, $validatedData['cards']);
+
         // Guardar configuración del dashboard
         ConfiguracionService::configurarDashboardUser([
             'hero_html' => $validatedData['hero_html'],

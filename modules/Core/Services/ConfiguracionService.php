@@ -529,9 +529,27 @@ class ConfiguracionService
             ]
         ]);
 
+        $cards = self::obtener('dashboard.user.cards', $cardsDefault);
+
+        // Si es string, decodificar JSON
+        if (is_string($cards)) {
+            $cards = json_decode($cards, true);
+        }
+
+        // Convertir valores a tipos correctos (igual que en obtenerConfiguracionWelcome)
+        $cards = array_map(function ($card) {
+            // Convertir enabled a boolean (manejar cualquier formato)
+            $card['enabled'] = is_bool($card['enabled'])
+                ? $card['enabled']
+                : (bool) filter_var($card['enabled'], FILTER_VALIDATE_BOOLEAN);
+
+            $card['order'] = (int) $card['order'];
+            return $card;
+        }, $cards);
+
         return [
             'hero_html' => self::obtener('dashboard.user.hero_html', $heroDefault),
-            'cards' => json_decode(self::obtener('dashboard.user.cards', $cardsDefault), true)
+            'cards' => $cards
         ];
     }
 
