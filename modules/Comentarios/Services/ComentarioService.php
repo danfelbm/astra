@@ -46,19 +46,26 @@ class ComentarioService
                 $evento = $esRespuesta ? 'respuesta_agregada' : 'comentario_agregado';
                 $userName = auth()->user()->name ?? 'Usuario';
 
-                // Descripción legible para humanos
+                // Obtener nombre del tipo de entidad y nombre específico
+                $tipoEntidad = class_basename($commentable); // "Hito" o "Entregable"
+                $nombreEntidad = $commentable->nombre ?? "#{$commentable->getKey()}";
+
+                // Descripción legible para humanos con contexto de entidad
                 if ($esRespuesta) {
                     $parentComentario = Comentario::with('autor:id,name')->find($data['parent_id']);
                     $autorPadre = $parentComentario?->autor?->name ?? 'otro usuario';
-                    $descripcion = "{$userName} respondió a un comentario de {$autorPadre}";
+                    $descripcion = "{$userName} respondió a un comentario de {$autorPadre} en {$tipoEntidad} '{$nombreEntidad}'";
                 } else {
-                    $descripcion = "{$userName} agregó un comentario";
+                    $descripcion = "{$userName} agregó un comentario en {$tipoEntidad} '{$nombreEntidad}'";
                 }
 
                 $commentable->logCustomActivity($descripcion, [
                     'comentario_id' => $comentario->id,
                     'parent_id' => $data['parent_id'] ?? null,
                     'contenido_preview' => $comentario->contenido_truncado,
+                    'entidad_tipo' => $tipoEntidad,
+                    'entidad_nombre' => $nombreEntidad,
+                    'entidad_url' => $this->getEntidadUrl($commentable),
                 ], $evento);
             }
 
@@ -164,11 +171,22 @@ class ComentarioService
         try {
             // Registrar actividad antes de eliminar
             $commentable = $comentario->commentable;
-            if ($commentable && method_exists($commentable, 'logAction')) {
-                $commentable->logAction('comentario_eliminado', "Comentario eliminado", [
-                    'comentario_id' => $comentario->id,
-                    'contenido_preview' => $comentario->contenido_truncado,
-                ]);
+            if ($commentable && method_exists($commentable, 'logCustomActivity')) {
+                $userName = auth()->user()->name ?? 'Usuario';
+                $tipoEntidad = class_basename($commentable);
+                $nombreEntidad = $commentable->nombre ?? "#{$commentable->getKey()}";
+
+                $commentable->logCustomActivity(
+                    "{$userName} eliminó un comentario en {$tipoEntidad} '{$nombreEntidad}'",
+                    [
+                        'comentario_id' => $comentario->id,
+                        'contenido_preview' => $comentario->contenido_truncado,
+                        'entidad_tipo' => $tipoEntidad,
+                        'entidad_nombre' => $nombreEntidad,
+                        'entidad_url' => $this->getEntidadUrl($commentable),
+                    ],
+                    'comentario_eliminado'
+                );
             }
 
             // Soft delete (las respuestas se eliminan en cascada por la FK)
@@ -281,4 +299,18 @@ class ComentarioService
     //         // Notification::send($usuario, new MencionEnComentario($comentario));
     //     }
     // }
+
+    /**
+     * Genera la URL administrativa de una entidad commentable.
+     */
+    private function getEntidadUrl(Model $commentable): ?string
+    {
+        $tipoEntidad = class_basename($commentable);
+
+        return match ($tipoEntidad) {
+            'Hito' => "/admin/proyectos/{$commentable->proyecto_id}/hitos/{$commentable->id}",
+            'Entregable' => "/admin/proyectos/{$commentable->hito->proyecto_id}/hitos/{$commentable->hito_id}/entregables/{$commentable->id}",
+            default => null,
+        };
+    }
 }

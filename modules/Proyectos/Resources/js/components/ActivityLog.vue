@@ -1,9 +1,12 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { ref, computed, watch } from 'vue';
+import { Link } from '@inertiajs/vue3';
 import { Avatar, AvatarFallback, AvatarImage } from '@modules/Core/Resources/js/components/ui/avatar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@modules/Core/Resources/js/components/ui/card';
+import { Button } from '@modules/Core/Resources/js/components/ui/button';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { ChevronDown } from 'lucide-vue-next';
 
 interface Usuario {
   id: number;
@@ -12,16 +15,24 @@ interface Usuario {
   avatar?: string;
 }
 
+interface ActividadProperties {
+  entidad_tipo?: string;
+  entidad_nombre?: string;
+  entidad_url?: string;
+  comentario_id?: number;
+  contenido_preview?: string;
+  [key: string]: any;
+}
+
 interface Actividad {
   id: number;
   description: string;
-  causer: Usuario;
+  causer: Usuario | null;
   created_at: string;
-  subject_type?: string; // Para identificar el tipo de modelo (Proyecto, Hito, Entregable)
-  properties?: {
-    attributes?: any;
-    old?: any;
-  };
+  subject_type?: string;
+  subject_id?: number;
+  event?: string;
+  properties?: ActividadProperties;
 }
 
 interface Props {
@@ -30,14 +41,44 @@ interface Props {
   description?: string;
   emptyMessage?: string;
   showCard?: boolean;
+  perPage?: number;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   title: 'Historial de Actividad',
   description: 'Registro completo de cambios y eventos',
   emptyMessage: 'No hay actividad registrada',
-  showCard: true
+  showCard: true,
+  perPage: 20
 });
+
+// Estado de paginación local
+const currentPage = ref(1);
+
+// Calcular actividades paginadas
+const paginatedActivities = computed(() => {
+  const start = 0;
+  const end = currentPage.value * props.perPage;
+  return props.activities.slice(start, end);
+});
+
+// Verificar si hay más actividades para cargar
+const hasMore = computed(() => {
+  return paginatedActivities.value.length < props.activities.length;
+});
+
+// Total de actividades
+const totalActivities = computed(() => props.activities.length);
+
+// Cargar más actividades
+const loadMore = () => {
+  currentPage.value++;
+};
+
+// Reset paginación cuando cambian las actividades (por filtros)
+watch(() => props.activities, () => {
+  currentPage.value = 1;
+}, { deep: true });
 
 // Formatear fecha de manera relativa
 const formatRelativeDate = (dateString: string) => {
@@ -77,18 +118,49 @@ const getModelName = (subjectType?: string) => {
   const parts = subjectType.split('\\');
   return parts[parts.length - 1];
 };
+
+// Parsear descripción para extraer partes clicables
+const parseDescription = (activity: Actividad) => {
+  const description = activity.description || '';
+  const props = activity.properties;
+
+  // Si hay entidad_url y entidad_nombre, hacerlos clicables
+  if (props?.entidad_url && props?.entidad_nombre && props?.entidad_tipo) {
+    // El patrón busca "en TipoEntidad 'NombreEntidad'"
+    const pattern = new RegExp(`(.*)(en ${props.entidad_tipo} ')([^']+)('.*)`);
+    const match = description.match(pattern);
+
+    if (match) {
+      return {
+        before: match[1] + `en ${props.entidad_tipo} '`,
+        linkText: match[3],
+        linkUrl: props.entidad_url,
+        after: match[4]
+      };
+    }
+  }
+
+  return { text: description };
+};
 </script>
 
 <template>
   <Card v-if="showCard">
     <CardHeader>
-      <CardTitle>{{ title }}</CardTitle>
-      <CardDescription>{{ description }}</CardDescription>
+      <div class="flex items-center justify-between">
+        <div>
+          <CardTitle>{{ title }}</CardTitle>
+          <CardDescription>{{ description }}</CardDescription>
+        </div>
+        <span v-if="totalActivities > 0" class="text-xs text-muted-foreground">
+          {{ paginatedActivities.length }} de {{ totalActivities }}
+        </span>
+      </div>
     </CardHeader>
     <CardContent>
       <div v-if="activities && activities.length > 0" class="space-y-4">
         <div
-          v-for="activity in activities"
+          v-for="activity in paginatedActivities"
           :key="activity.id"
           class="flex gap-3 pb-4 border-b last:border-0 dark:border-gray-700"
         >
@@ -100,8 +172,20 @@ const getModelName = (subjectType?: string) => {
           </Avatar>
           <div class="flex-1 min-w-0">
             <p class="text-sm">
-              <span class="font-medium">{{ activity.causer?.name || 'Sistema' }}</span>
-              {{ activity.description }}
+              <!-- Descripción con link clicable -->
+              <template v-if="parseDescription(activity).linkUrl">
+                <span>{{ parseDescription(activity).before }}</span>
+                <Link
+                  :href="parseDescription(activity).linkUrl"
+                  class="font-medium text-primary hover:underline"
+                >
+                  {{ parseDescription(activity).linkText }}
+                </Link>
+                <span>{{ parseDescription(activity).after }}</span>
+              </template>
+              <template v-else>
+                {{ activity.description }}
+              </template>
             </p>
             <div class="flex items-center gap-2 mt-1">
               <p class="text-xs text-muted-foreground">
@@ -112,6 +196,19 @@ const getModelName = (subjectType?: string) => {
               </span>
             </div>
           </div>
+        </div>
+
+        <!-- Botón cargar más -->
+        <div v-if="hasMore" class="pt-2 text-center">
+          <Button
+            variant="ghost"
+            size="sm"
+            @click="loadMore"
+            class="text-muted-foreground"
+          >
+            <ChevronDown class="h-4 w-4 mr-1" />
+            Cargar más ({{ totalActivities - paginatedActivities.length }} restantes)
+          </Button>
         </div>
       </div>
       <div v-else class="text-center py-8">
@@ -124,7 +221,7 @@ const getModelName = (subjectType?: string) => {
   <div v-else>
     <div v-if="activities && activities.length > 0" class="space-y-4">
       <div
-        v-for="activity in activities"
+        v-for="activity in paginatedActivities"
         :key="activity.id"
         class="flex gap-3 pb-4 border-b last:border-0 dark:border-gray-700"
       >
@@ -136,8 +233,20 @@ const getModelName = (subjectType?: string) => {
         </Avatar>
         <div class="flex-1 min-w-0">
           <p class="text-sm">
-            <span class="font-medium">{{ activity.causer?.name || 'Sistema' }}</span>
-            {{ activity.description }}
+            <!-- Descripción con link clicable -->
+            <template v-if="parseDescription(activity).linkUrl">
+              <span>{{ parseDescription(activity).before }}</span>
+              <Link
+                :href="parseDescription(activity).linkUrl"
+                class="font-medium text-primary hover:underline"
+              >
+                {{ parseDescription(activity).linkText }}
+              </Link>
+              <span>{{ parseDescription(activity).after }}</span>
+            </template>
+            <template v-else>
+              {{ activity.description }}
+            </template>
           </p>
           <div class="flex items-center gap-2 mt-1">
             <p class="text-xs text-muted-foreground">
@@ -148,6 +257,19 @@ const getModelName = (subjectType?: string) => {
             </span>
           </div>
         </div>
+      </div>
+
+      <!-- Botón cargar más -->
+      <div v-if="hasMore" class="pt-2 text-center">
+        <Button
+          variant="ghost"
+          size="sm"
+          @click="loadMore"
+          class="text-muted-foreground"
+        >
+          <ChevronDown class="h-4 w-4 mr-1" />
+          Cargar más ({{ totalActivities - paginatedActivities.length }} restantes)
+        </Button>
       </div>
     </div>
     <div v-else class="text-center py-8">
