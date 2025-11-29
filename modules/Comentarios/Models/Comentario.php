@@ -43,6 +43,18 @@ class Comentario extends Model
     ];
 
     /**
+     * Atributos computados a incluir en JSON.
+     */
+    protected $appends = [
+        'fecha_relativa',
+        'es_editable',
+        'es_eliminable',
+        'tiempo_restante_edicion',
+        'reacciones_resumen',
+        'contenido_truncado',
+    ];
+
+    /**
      * Emojis permitidos para reacciones.
      */
     public const EMOJIS = [
@@ -82,27 +94,18 @@ class Comentario extends Model
     }
 
     /**
-     * Respuestas directas a este comentario.
+     * Respuestas a este comentario (auto-recursivas para cargar jerarquía completa).
      */
     public function respuestas(): HasMany
     {
         return $this->hasMany(self::class, 'parent_id')
-            ->orderBy('created_at', 'asc');
-    }
-
-    /**
-     * Respuestas recursivas (todas las respuestas y sub-respuestas).
-     * Usado para cargar jerarquía completa.
-     */
-    public function respuestasRecursivas(): HasMany
-    {
-        return $this->respuestas()
             ->with([
                 'autor:id,name,email',
                 'reacciones',
                 'comentarioCitado.autor:id,name,email',
-                'respuestasRecursivas',
-            ]);
+                'respuestas', // Recursivo
+            ])
+            ->orderBy('created_at', 'asc');
     }
 
     /**
@@ -184,10 +187,11 @@ class Comentario extends Model
      */
     public function getContenidoPlainAttribute(): string
     {
-        if ($this->attributes['contenido_plain']) {
+        // Verificar si existe el atributo antes de acceder
+        if (isset($this->attributes['contenido_plain']) && $this->attributes['contenido_plain']) {
             return $this->attributes['contenido_plain'];
         }
-        return strip_tags($this->contenido);
+        return strip_tags($this->contenido ?? '');
     }
 
     /**

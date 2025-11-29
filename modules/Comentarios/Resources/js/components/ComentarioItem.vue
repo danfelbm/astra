@@ -42,6 +42,7 @@ const emit = defineEmits<{
     edit: [comentario: Comentario, contenido: string];
     delete: [comentario: Comentario];
     toggleReaccion: [comentarioId: number, emoji: EmojiKey];
+    submitReply: [contenido: string, parentId: number];
 }>();
 
 // Estado local
@@ -101,10 +102,10 @@ const handleReply = () => {
     showReplyForm.value = true;
 };
 
-// Enviar respuesta
+// Enviar respuesta desde formulario inline
 const handleReplySubmit = (contenido: string, parentId: number | null, quotedId: number | null) => {
-    emit('reply', props.comentario);
-    // El submit real lo maneja el padre (ComentariosPanel)
+    // Emitir evento con contenido y parentId para que el padre maneje el submit real
+    emit('submitReply', contenido, props.comentario.id);
     showReplyForm.value = false;
 };
 
@@ -298,9 +299,10 @@ const handleToggleReaccion = (emoji: EmojiKey) => {
                 :can-react="canReact"
                 @reply="emit('reply', $event)"
                 @quote="emit('quote', $event)"
-                @edit="emit('edit', $event, $event)"
+                @edit="(c, contenido) => emit('edit', c, contenido)"
                 @delete="emit('delete', $event)"
-                @toggle-reaccion="emit('toggleReaccion', $event, $event)"
+                @toggle-reaccion="(id, emoji) => emit('toggleReaccion', id, emoji)"
+                @submit-reply="(contenido, parentId) => emit('submitReply', contenido, parentId)"
             />
         </div>
     </div>

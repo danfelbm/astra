@@ -146,6 +146,20 @@ const handleToggleReaccion = async (comentarioId: number, emoji: EmojiKey) => {
     }
 };
 
+// Manejar submit de respuesta desde formulario inline
+const handleSubmitReply = async (contenido: string, parentId: number) => {
+    const result = await crear({
+        contenido,
+        parent_id: parentId,
+        quoted_comentario_id: null,
+    });
+    if (result.success) {
+        toast.success('Respuesta enviada');
+    } else {
+        toast.error(result.message || 'Error al enviar respuesta');
+    }
+};
+
 // Resetear formulario
 const resetForm = () => {
     formMode.value = 'create';
@@ -233,6 +247,7 @@ const handleFormCancel = () => {
                     @edit="handleEdit"
                     @delete="handleDelete"
                     @toggle-reaccion="handleToggleReaccion"
+                    @submit-reply="handleSubmitReply"
                 />
 
                 <!-- Cargar más -->

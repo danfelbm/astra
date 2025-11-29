@@ -41,11 +41,25 @@ class ComentarioService
             $this->procesarMenciones($comentario);
 
             // Registrar actividad (usando el trait HasAuditLog del modelo si existe)
-            if (method_exists($commentable, 'logAction')) {
-                $commentable->logAction('comentario_agregado', "Nuevo comentario agregado", [
+            if (method_exists($commentable, 'logCustomActivity')) {
+                $esRespuesta = !empty($data['parent_id']);
+                $evento = $esRespuesta ? 'respuesta_agregada' : 'comentario_agregado';
+                $userName = auth()->user()->name ?? 'Usuario';
+
+                // Descripción legible para humanos
+                if ($esRespuesta) {
+                    $parentComentario = Comentario::with('autor:id,name')->find($data['parent_id']);
+                    $autorPadre = $parentComentario?->autor?->name ?? 'otro usuario';
+                    $descripcion = "{$userName} respondió a un comentario de {$autorPadre}";
+                } else {
+                    $descripcion = "{$userName} agregó un comentario";
+                }
+
+                $commentable->logCustomActivity($descripcion, [
                     'comentario_id' => $comentario->id,
+                    'parent_id' => $data['parent_id'] ?? null,
                     'contenido_preview' => $comentario->contenido_truncado,
-                ]);
+                ], $evento);
             }
 
             DB::commit();
@@ -177,6 +191,7 @@ class ComentarioService
 
     /**
      * Toggle de reacción (agregar/quitar emoji).
+     * Cada usuario solo puede tener UNA reacción por comentario (sustitutiva).
      */
     public function toggleReaccion(Comentario $comentario, string $emoji): array
     {
@@ -190,18 +205,23 @@ class ComentarioService
 
         $userId = auth()->id();
 
-        // Buscar reacción existente
+        // Buscar reacción existente del usuario (cualquier emoji)
         $reaccionExistente = ComentarioReaccion::where('comentario_id', $comentario->id)
             ->where('user_id', $userId)
-            ->where('emoji', $emoji)
             ->first();
 
         if ($reaccionExistente) {
-            // Eliminar reacción
-            $reaccionExistente->delete();
-            $accion = 'removed';
+            if ($reaccionExistente->emoji === $emoji) {
+                // Mismo emoji: eliminar (toggle off)
+                $reaccionExistente->delete();
+                $accion = 'removed';
+            } else {
+                // Diferente emoji: sustituir
+                $reaccionExistente->update(['emoji' => $emoji]);
+                $accion = 'changed';
+            }
         } else {
-            // Agregar reacción
+            // No hay reacción: crear nueva
             ComentarioReaccion::create([
                 'comentario_id' => $comentario->id,
                 'user_id' => $userId,
@@ -217,7 +237,11 @@ class ComentarioService
             'success' => true,
             'accion' => $accion,
             'reacciones' => $comentario->reacciones_resumen,
-            'message' => $accion === 'added' ? 'Reacción agregada' : 'Reacción eliminada',
+            'message' => match($accion) {
+                'added' => 'Reacción agregada',
+                'changed' => 'Reacción cambiada',
+                'removed' => 'Reacción eliminada',
+            },
         ];
     }
 

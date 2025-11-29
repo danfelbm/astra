@@ -22,9 +22,7 @@ class ComentarioRepository
                 'autor:id,name,email',
                 'reacciones',
                 'comentarioCitado.autor:id,name,email',
-                'respuestasRecursivas.autor:id,name,email',
-                'respuestasRecursivas.reacciones',
-                'respuestasRecursivas.comentarioCitado.autor:id,name,email',
+                'respuestas', // Auto-recursivo
             ])
             ->orderByDesc('created_at')
             ->paginate($perPage);
@@ -43,8 +41,7 @@ class ComentarioRepository
                 'autor:id,name,email',
                 'reacciones',
                 'comentarioCitado.autor:id,name,email',
-                'respuestasRecursivas.autor:id,name,email',
-                'respuestasRecursivas.reacciones',
+                'respuestas', // Auto-recursivo
             ])
             ->orderByDesc('created_at')
             ->get();
@@ -60,8 +57,7 @@ class ComentarioRepository
                 'autor:id,name,email',
                 'reacciones',
                 'comentarioCitado.autor:id,name,email',
-                'respuestasRecursivas.autor:id,name,email',
-                'respuestasRecursivas.reacciones',
+                'respuestas', // Auto-recursivo
                 'parent.autor:id,name,email',
             ])
             ->find($id);
@@ -108,14 +104,7 @@ class ComentarioRepository
      */
     public function getRespuestas(Comentario $comentario): Collection
     {
-        return $comentario->respuestas()
-            ->with([
-                'autor:id,name,email',
-                'reacciones',
-                'respuestasRecursivas.autor:id,name,email',
-                'respuestasRecursivas.reacciones',
-            ])
-            ->orderBy('created_at')
-            ->get();
+        // La relación respuestas ya es auto-recursiva
+        return $comentario->respuestas;
     }
 }
