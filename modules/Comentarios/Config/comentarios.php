@@ -35,8 +35,8 @@ return [
     'modelos' => [
         'hitos' => \Modules\Proyectos\Models\Hito::class,
         'entregables' => \Modules\Proyectos\Models\Entregable::class,
+        'evidencias' => \Modules\Proyectos\Models\Evidencia::class,
         // Agregar más modelos aquí según se vayan integrando:
-        // 'evidencias' => \Modules\Proyectos\Models\Evidencia::class,
         // 'asambleas' => \Modules\Asamblea\Models\Asamblea::class,
         // 'candidaturas' => \Modules\Elecciones\Models\Candidatura::class,
     ],

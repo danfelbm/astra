@@ -28,6 +28,7 @@ import {
 } from 'lucide-vue-next';
 import type { Contrato } from '@modules/Proyectos/Resources/js/types/contratos';
 import type { Evidencia } from '@modules/Proyectos/Resources/js/types/evidencias';
+import ComentariosPanel from '@modules/Comentarios/Resources/js/components/ComentariosPanel.vue';
 
 // Props
 const props = defineProps<{
@@ -392,6 +393,13 @@ const descargarTodosArchivos = () => {
                             <p class="whitespace-pre-wrap">{{ evidencia.descripcion }}</p>
                         </CardContent>
                     </Card>
+
+                    <!-- Comentarios -->
+                    <ComentariosPanel
+                        commentable-type="evidencias"
+                        :commentable-id="evidencia.id"
+                        :can-create="true"
+                    />
                 </div>
 
                 <!-- Columna lateral: Información adicional -->

@@ -7,12 +7,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Modules\Core\Traits\HasTenant;
 use Modules\Core\Traits\HasAuditLog;
+use Modules\Comentarios\Traits\HasComentarios;
 use Modules\Core\Models\User;
 use Illuminate\Support\Facades\Storage;
 
 class Evidencia extends Model
 {
-    use HasTenant, HasAuditLog;
+    use HasTenant, HasAuditLog, HasComentarios;
 
     /**
      * La tabla asociada con el modelo.
@@ -78,7 +79,8 @@ class Evidencia extends Model
         'es_audio',
         'es_documento',
         'tiene_multiples_archivos',
-        'archivos_por_tipo'
+        'archivos_por_tipo',
+        'total_comentarios'
     ];
 
     /**
