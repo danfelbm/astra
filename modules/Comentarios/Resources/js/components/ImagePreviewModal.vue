@@ -11,7 +11,7 @@ import {
     DialogTitle,
 } from '@modules/Core/Resources/js/components/ui/dialog';
 import { Button } from '@modules/Core/Resources/js/components/ui/button';
-import { X, Download, ExternalLink } from 'lucide-vue-next';
+import { Download, ExternalLink } from 'lucide-vue-next';
 import type { ArchivoAdjunto } from '../types/comentarios';
 
 interface Props {
@@ -31,11 +31,6 @@ const isOpen = computed({
     get: () => props.open,
     set: (value) => emit('update:open', value),
 });
-
-// Cerrar modal
-const cerrar = () => {
-    isOpen.value = false;
-};
 
 // Abrir imagen en nueva pestaña
 const abrirEnNuevaPestana = () => {
@@ -60,40 +55,28 @@ const descargar = () => {
 <template>
     <Dialog v-model:open="isOpen">
         <DialogContent class="max-w-4xl max-h-[90vh] p-0 overflow-hidden">
-            <DialogHeader class="p-4 pb-0">
-                <div class="flex items-center justify-between">
-                    <DialogTitle class="text-sm font-medium truncate pr-4">
-                        {{ archivo?.nombre || 'Imagen' }}
-                    </DialogTitle>
-                    <div class="flex items-center gap-1">
-                        <!-- Abrir en nueva pestaña -->
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            @click="abrirEnNuevaPestana"
-                            title="Abrir en nueva pestaña"
-                        >
-                            <ExternalLink class="h-4 w-4" />
-                        </Button>
-                        <!-- Descargar -->
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            @click="descargar"
-                            title="Descargar"
-                        >
-                            <Download class="h-4 w-4" />
-                        </Button>
-                        <!-- Cerrar -->
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            @click="cerrar"
-                            title="Cerrar"
-                        >
-                            <X class="h-4 w-4" />
-                        </Button>
-                    </div>
+            <DialogHeader class="p-4 pb-2 pr-10">
+                <DialogTitle class="text-sm font-medium truncate">
+                    {{ archivo?.nombre || 'Imagen' }}
+                </DialogTitle>
+                <!-- Botones de acción debajo del título -->
+                <div class="flex items-center gap-2 mt-2">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        @click="abrirEnNuevaPestana"
+                    >
+                        <ExternalLink class="h-4 w-4 mr-1" />
+                        Abrir
+                    </Button>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        @click="descargar"
+                    >
+                        <Download class="h-4 w-4 mr-1" />
+                        Descargar
+                    </Button>
                 </div>
             </DialogHeader>
 

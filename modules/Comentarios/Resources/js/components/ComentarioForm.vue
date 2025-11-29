@@ -186,9 +186,10 @@ defineExpose({
                     :class="{ 'text-primary': showUpload || archivos.length > 0 }"
                     title="Adjuntar archivos"
                 >
-                    <Paperclip class="h-4 w-4" />
-                    <span v-if="archivos.length > 0" class="ml-1 text-xs">
-                        ({{ archivos.length }})
+                    <Paperclip class="h-4 w-4 mr-1" />
+                    <span class="text-xs">
+                        Adjuntar archivos
+                        <template v-if="archivos.length > 0">({{ archivos.length }})</template>
                     </span>
                 </Button>
 
