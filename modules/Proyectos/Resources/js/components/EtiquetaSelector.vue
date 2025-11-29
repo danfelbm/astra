@@ -8,135 +8,143 @@
             </span>
         </div>
 
-        <!-- Campo de búsqueda y selección -->
-        <Popover v-model:open="open">
-            <PopoverTrigger asChild>
-                <Button
-                    :id="inputId"
-                    variant="outline"
-                    role="combobox"
-                    :aria-expanded="open"
-                    :disabled="disabled"
-                    class="w-full justify-between"
-                >
-                    <span class="text-left truncate">
-                        {{ placeholder }}
-                    </span>
-                    <ChevronsUpDown class="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                </Button>
-            </PopoverTrigger>
-            <PopoverContent class="w-full p-0" align="start">
-                <Tabs v-model="viewMode" class="w-full">
-                    <!-- Tabs para cambiar entre vistas -->
-                    <div class="border-b px-3 pt-3">
-                        <TabsList class="grid w-full grid-cols-2">
-                            <TabsTrigger value="list">
-                                <List class="h-4 w-4 mr-2" />
-                                Lista
-                            </TabsTrigger>
-                            <TabsTrigger value="tree">
-                                <TreePine class="h-4 w-4 mr-2" />
-                                Árbol
-                            </TabsTrigger>
-                        </TabsList>
+        <!-- Trigger que abre el modal -->
+        <Button
+            :id="inputId"
+            type="button"
+            @click="open = true"
+            variant="outline"
+            role="combobox"
+            :aria-expanded="open"
+            :disabled="disabled"
+            class="w-full justify-between"
+        >
+            <span class="text-left truncate">
+                {{ placeholderText }}
+            </span>
+            <ChevronsUpDown class="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+
+        <!-- Modal Dialog -->
+        <Dialog v-model:open="open">
+            <DialogContent class="max-w-2xl max-h-[80vh] flex flex-col">
+                <DialogHeader>
+                    <DialogTitle>Seleccionar Etiquetas</DialogTitle>
+                    <DialogDescription>
+                        Selecciona hasta {{ maxEtiquetas }} etiquetas para categorizar
+                    </DialogDescription>
+                </DialogHeader>
+
+                <!-- Buscador -->
+                <div class="relative">
+                    <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                        v-model="searchQuery"
+                        placeholder="Buscar etiqueta..."
+                        class="pl-10"
+                    />
+                </div>
+
+                <!-- Lista con categorías colapsables -->
+                <div class="flex-1 overflow-y-auto border rounded-lg min-h-[200px] max-h-[400px]">
+                    <!-- Sin resultados -->
+                    <div v-if="categoriasConEtiquetas.length === 0" class="p-8 text-center">
+                        <Tag class="h-12 w-12 mx-auto mb-3 text-muted-foreground" />
+                        <p class="text-muted-foreground">
+                            {{ searchQuery ? 'No se encontraron etiquetas' : 'No hay etiquetas disponibles' }}
+                        </p>
+                        <!-- Opción de crear nueva etiqueta -->
+                        <Button
+                            v-if="allowCreate && searchQuery.length > 2"
+                            type="button"
+                            @click="createNewEtiqueta"
+                            variant="ghost"
+                            size="sm"
+                            class="mt-2"
+                        >
+                            <Plus class="mr-2 h-3 w-3" />
+                            Crear "{{ searchQuery }}"
+                        </Button>
                     </div>
 
-                    <!-- Vista de Lista (original) -->
-                    <TabsContent value="list" class="mt-0">
-                        <Command>
-                            <CommandInput
-                                placeholder="Buscar etiqueta..."
-                                v-model="searchQuery"
-                            />
-                            <CommandEmpty>
-                                <div class="p-2 text-sm">
-                                    No se encontraron etiquetas.
-                                    <Button
-                                        v-if="allowCreate && searchQuery.length > 2"
-                                        @click="createNewEtiqueta"
-                                        variant="ghost"
-                                        size="sm"
-                                        class="w-full mt-1"
-                                    >
-                                        <Plus class="mr-2 h-3 w-3" />
-                                        Crear "{{ searchQuery }}"
-                                    </Button>
+                    <!-- Categorías con Collapsible -->
+                    <div v-else class="p-2 space-y-1">
+                        <Collapsible
+                            v-for="categoria in categoriasConEtiquetas"
+                            :key="categoria.id"
+                            v-model:open="expandedCategories[categoria.id]"
+                        >
+                            <CollapsibleTrigger class="flex items-center justify-between w-full p-3 hover:bg-muted/50 rounded-lg transition-colors">
+                                <div class="flex items-center gap-2">
+                                    <component
+                                        v-if="categoria.icono"
+                                        :is="getIcon(categoria.icono)"
+                                        class="h-4 w-4 text-muted-foreground"
+                                    />
+                                    <span class="font-medium">{{ categoria.nombre }}</span>
+                                    <Badge variant="secondary" class="text-xs">
+                                        {{ categoria.etiquetas?.length || 0 }}
+                                    </Badge>
                                 </div>
-                            </CommandEmpty>
-                            <CommandList>
-                                <CommandGroup
-                                    v-for="categoria in categoriasConEtiquetas"
-                                    :key="categoria.id"
-                                    :heading="categoria.nombre"
-                                >
-                                    <CommandItem
+                                <ChevronDown
+                                    class="h-4 w-4 text-muted-foreground transition-transform duration-200"
+                                    :class="{ 'rotate-180': expandedCategories[categoria.id] }"
+                                />
+                            </CollapsibleTrigger>
+
+                            <CollapsibleContent>
+                                <div class="ml-4 space-y-1 pb-2">
+                                    <div
                                         v-for="etiqueta in categoria.etiquetas"
                                         :key="etiqueta.id"
-                                        :value="etiqueta"
-                                        @select="toggleEtiqueta(etiqueta)"
-                                        :disabled="!isEtiquetaSelectable(etiqueta)"
-                                        class="cursor-pointer"
+                                        @click="toggleEtiqueta(etiqueta)"
+                                        :class="[
+                                            'flex items-center gap-3 p-2 rounded-md cursor-pointer transition-colors',
+                                            isSelected(etiqueta.id) ? 'bg-primary/10' : 'hover:bg-muted',
+                                            !isEtiquetaSelectable(etiqueta) && !isSelected(etiqueta.id) && 'opacity-50 cursor-not-allowed'
+                                        ]"
                                     >
-                                        <Check
-                                            :class="[
-                                                'mr-2 h-4 w-4',
-                                                isSelected(etiqueta.id) ? 'opacity-100' : 'opacity-0'
-                                            ]"
+                                        <Checkbox
+                                            :checked="isSelected(etiqueta.id)"
+                                            :disabled="!isEtiquetaSelectable(etiqueta)"
+                                            @click.stop
                                         />
-                                        <component
-                                            v-if="categoria.icono"
-                                            :is="getIcon(categoria.icono)"
-                                            class="mr-2 h-3 w-3 opacity-60"
-                                        />
-                                        {{ etiqueta.nombre }}
-                                        <span v-if="etiqueta.parent" class="text-xs text-muted-foreground ml-1">
+                                        <span class="flex-1">{{ etiqueta.nombre }}</span>
+                                        <span v-if="etiqueta.parent" class="text-xs text-muted-foreground">
                                             ({{ etiqueta.parent.nombre }})
                                         </span>
                                         <span
                                             v-if="etiqueta.descripcion"
-                                            class="ml-auto text-xs text-muted-foreground"
+                                            class="text-xs text-muted-foreground truncate max-w-[200px]"
                                         >
                                             {{ etiqueta.descripcion }}
                                         </span>
-                                    </CommandItem>
-                                </CommandGroup>
-                            </CommandList>
-                        </Command>
-                    </TabsContent>
+                                    </div>
+                                </div>
+                            </CollapsibleContent>
+                        </Collapsible>
+                    </div>
+                </div>
 
-                    <!-- Vista de Árbol -->
-                    <TabsContent value="tree" class="mt-0">
-                        <div class="p-2">
-                            <Input
-                                placeholder="Buscar en árbol..."
-                                v-model="treeSearchQuery"
-                                class="mb-2"
-                            />
-                            <div class="max-h-[300px] overflow-y-auto border rounded-lg p-2">
-                                <div v-if="arbolFiltrado.length === 0" class="p-4 text-center text-sm text-muted-foreground">
-                                    No se encontraron etiquetas
-                                </div>
-                                <div v-else>
-                                    <EtiquetaSelectorTreeItem
-                                        v-for="nodo in arbolFiltrado"
-                                        :key="nodo.id"
-                                        :etiqueta="nodo"
-                                        :nivel="0"
-                                        :selected-ids="modelValue"
-                                        :expandidos="expandidos"
-                                        :is-selectable="isEtiquetaSelectable"
-                                        @toggle-expand="toggleExpansion"
-                                        @toggle-select="toggleEtiqueta"
-                                    />
-                                </div>
-                            </div>
+                <DialogFooter>
+                    <div class="flex items-center justify-between w-full">
+                        <span class="text-sm text-muted-foreground">
+                            {{ selectedEtiquetas.length }} / {{ maxEtiquetas }} seleccionadas
+                        </span>
+                        <div class="flex gap-2">
+                            <Button type="button" variant="outline" @click="open = false">
+                                Cancelar
+                            </Button>
+                            <Button type="button" @click="open = false">
+                                Aceptar
+                            </Button>
                         </div>
-                    </TabsContent>
-                </Tabs>
-            </PopoverContent>
-        </Popover>
+                    </div>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
 
-        <!-- Etiquetas seleccionadas -->
+        <!-- Etiquetas seleccionadas como badges -->
         <div v-if="selectedEtiquetas.length > 0" class="flex flex-wrap gap-1.5">
             <Badge
                 v-for="etiqueta in selectedEtiquetas"
@@ -168,41 +176,38 @@
 </template>
 
 <script setup lang="ts">
+/**
+ * EtiquetaSelector - Selector de etiquetas con modal y categorías colapsables
+ *
+ * Permite seleccionar múltiples etiquetas organizadas por categorías.
+ * Las categorías son colapsables y se expanden por defecto al abrir el modal.
+ */
 import { ref, computed, watch } from 'vue';
 import { Button } from '@modules/Core/Resources/js/components/ui/button';
 import { Badge } from '@modules/Core/Resources/js/components/ui/badge';
 import { Label } from '@modules/Core/Resources/js/components/ui/label';
 import { Input } from '@modules/Core/Resources/js/components/ui/input';
+import { Checkbox } from '@modules/Core/Resources/js/components/ui/checkbox';
 import {
-    Popover,
-    PopoverContent,
-    PopoverTrigger,
-} from '@modules/Core/Resources/js/components/ui/popover';
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@modules/Core/Resources/js/components/ui/dialog';
 import {
-    Tabs,
-    TabsContent,
-    TabsList,
-    TabsTrigger,
-} from '@modules/Core/Resources/js/components/ui/tabs';
+    Collapsible,
+    CollapsibleContent,
+    CollapsibleTrigger,
+} from '@modules/Core/Resources/js/components/ui/collapsible';
 import {
-    Command,
-    CommandEmpty,
-    CommandGroup,
-    CommandInput,
-    CommandItem,
-    CommandList,
-} from '@modules/Core/Resources/js/components/ui/command';
-import {
-    Check, ChevronsUpDown, X, Plus, List, TreePine, ChevronRight
-} from 'lucide-vue-next';
-import type { Etiqueta, CategoriaEtiqueta } from '../types/etiquetas';
-import { useEtiquetaHierarchy } from '../composables/useEtiquetaHierarchy';
-import EtiquetaSelectorTreeItem from './EtiquetaSelectorTreeItem.vue';
-import {
+    ChevronsUpDown, X, Plus, Search, ChevronDown,
     Tag, Hash, Bookmark, Flag, Star, Heart,
     Zap, Target, Award, TrendingUp, Folder,
     Package, Box, Layers, Grid
 } from 'lucide-vue-next';
+import type { Etiqueta, CategoriaEtiqueta } from '../types/etiquetas';
 
 // Props del componente
 interface Props {
@@ -233,20 +238,22 @@ const emit = defineEmits<{
 // Estado local
 const open = ref(false);
 const searchQuery = ref('');
-const treeSearchQuery = ref('');
-const viewMode = ref<'list' | 'tree'>('list');
 const inputId = `etiqueta-selector-${Math.random().toString(36).substr(2, 9)}`;
 
-// Estado para vista de árbol
-const arbolEtiquetas = ref<Etiqueta[]>([]);
-const {
-    etiquetas,
-    expandidos,
-    construirArbol,
-    filtrarArbol,
-    toggleExpansion,
-    expandirTodos
-} = useEtiquetaHierarchy(arbolEtiquetas);
+// Estado para categorías expandidas
+const expandedCategories = ref<Record<number, boolean>>({});
+
+// Inicializar todas las categorías expandidas cuando se abre el modal
+watch(open, (newValue) => {
+    if (newValue) {
+        // Expandir todas las categorías por defecto
+        props.categorias.forEach(cat => {
+            expandedCategories.value[cat.id] = true;
+        });
+        // Limpiar búsqueda al abrir
+        searchQuery.value = '';
+    }
+});
 
 // Computed para filtrar categorías y etiquetas según búsqueda
 const categoriasConEtiquetas = computed(() => {
@@ -280,6 +287,19 @@ const selectedEtiquetas = computed(() => {
     });
 
     return etiquetas;
+});
+
+// Computed para el texto del placeholder
+const placeholderText = computed(() => {
+    if (selectedEtiquetas.value.length === 0) {
+        return props.placeholder;
+    }
+
+    if (selectedEtiquetas.value.length === 1) {
+        return selectedEtiquetas.value[0].nombre;
+    }
+
+    return `${selectedEtiquetas.value.length} etiquetas seleccionadas`;
 });
 
 // Funciones para manejar la selección
@@ -340,58 +360,6 @@ function getIcon(iconName: string) {
 
     return icons[iconName] || Tag;
 }
-
-// Actualizar placeholder dinámicamente
-const placeholder = computed(() => {
-    if (selectedEtiquetas.value.length === 0) {
-        return props.placeholder;
-    }
-
-    if (selectedEtiquetas.value.length === 1) {
-        return selectedEtiquetas.value[0].nombre;
-    }
-
-    return `${selectedEtiquetas.value.length} etiquetas seleccionadas`;
-});
-
-// Computed para árbol filtrado
-const arbolFiltrado = computed(() => {
-    if (!treeSearchQuery.value) return arbolEtiquetas.value;
-    return filtrarArbol(treeSearchQuery.value, arbolEtiquetas.value);
-});
-
-// Construir árbol cuando se abra el selector
-watch(open, (newValue) => {
-    if (newValue && viewMode.value === 'tree') {
-        construirArbolDesdeCategarias();
-    }
-});
-
-watch(viewMode, (newValue) => {
-    if (newValue === 'tree' && open.value) {
-        construirArbolDesdeCategarias();
-    }
-});
-
-// Función para construir el árbol desde las categorías
-function construirArbolDesdeCategarias() {
-    const todasLasEtiquetas: Etiqueta[] = [];
-    props.categorias.forEach(categoria => {
-        if (categoria.etiquetas) {
-            categoria.etiquetas.forEach(etiqueta => {
-                todasLasEtiquetas.push({ ...etiqueta, categoria });
-            });
-        }
-    });
-    arbolEtiquetas.value = construirArbol(todasLasEtiquetas);
-    // Expandir primer nivel por defecto
-    arbolEtiquetas.value.forEach(raiz => {
-        if (raiz.children && raiz.children.length > 0) {
-            expandidos.value.add(raiz.id);
-        }
-    });
-}
-
 </script>
 
 <style scoped>
