@@ -113,8 +113,6 @@ export interface Comentario {
     es_editable?: boolean;
     es_eliminable?: boolean;
     tiempo_restante_edicion?: number | null;
-    tiene_respuestas?: boolean;
-    total_respuestas?: number;
     total_respuestas_anidadas?: number; // Contador de respuestas profundas no cargadas
     reacciones_resumen?: ReaccionResumen[];
     archivos_info?: ArchivoAdjunto[]; // Accessor con info completa de archivos

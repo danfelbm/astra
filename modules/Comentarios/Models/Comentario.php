@@ -113,24 +113,16 @@ class Comentario extends Model
     }
 
     /**
-     * Respuestas a este comentario (auto-recursivas para cargar jerarquía completa).
-     * NOTA: Esta relación es recursiva ilimitada. Para escalabilidad, usar respuestasLimitadas.
+     * Respuestas directas (solo para conteo, sin eager loading).
      */
-    public function respuestas(): HasMany
+    public function respuestasDirectas(): HasMany
     {
-        return $this->hasMany(self::class, 'parent_id')
-            ->with([
-                'autor:id,name,email',
-                'reacciones',
-                'comentarioCitado.autor:id,name,email',
-                'respuestas', // Recursivo
-            ])
-            ->orderBy('created_at', 'asc');
+        return $this->hasMany(self::class, 'parent_id');
     }
 
     /**
-     * Respuestas directas SIN carga recursiva automática.
-     * Optimizada para escalabilidad: la profundidad se controla desde el Repository.
+     * Respuestas con relaciones cargadas, SIN recursividad automática.
+     * La profundidad se controla desde el Repository.
      */
     public function respuestasLimitadas(): HasMany
     {
@@ -140,7 +132,7 @@ class Comentario extends Model
                 'reacciones',
                 'comentarioCitado.autor:id,name,email',
             ])
-            ->withCount('respuestas as total_respuestas_anidadas')
+            ->withCount('respuestasDirectas as total_respuestas_anidadas')
             ->orderBy('created_at', 'asc');
     }
 
@@ -305,22 +297,6 @@ class Comentario extends Model
 
         // Admins con permiso pueden eliminar cualquier comentario
         return $user->can('comentarios.delete_any');
-    }
-
-    /**
-     * Indica si tiene respuestas.
-     */
-    public function getTieneRespuestasAttribute(): bool
-    {
-        return $this->respuestas()->exists();
-    }
-
-    /**
-     * Total de respuestas directas.
-     */
-    public function getTotalRespuestasAttribute(): int
-    {
-        return $this->respuestas()->count();
     }
 
     /**

@@ -108,22 +108,23 @@ class ComentarioRepository implements ComentarioRepositoryInterface
     }
 
     /**
-     * Recolecta todos los IDs de comentarios recursivamente.
+     * Recolecta todos los IDs de comentarios usando iteración (sin recursión).
+     * Más eficiente en memoria que el enfoque recursivo.
      */
     private function collectAllComentarioIds(Collection $comentarios): array
     {
         $ids = [];
+        $stack = $comentarios->all();
 
-        foreach ($comentarios as $comentario) {
+        while (!empty($stack)) {
+            $comentario = array_pop($stack);
             $ids[] = $comentario->id;
 
-            // Usar respuestasLimitadas si está cargada
-            $respuestas = $comentario->relationLoaded('respuestasLimitadas')
-                ? $comentario->respuestasLimitadas
-                : collect();
-
-            if ($respuestas->isNotEmpty()) {
-                $ids = array_merge($ids, $this->collectAllComentarioIds($respuestas));
+            // Agregar respuestas al stack si están cargadas
+            if ($comentario->relationLoaded('respuestasLimitadas') && $comentario->respuestasLimitadas->isNotEmpty()) {
+                foreach ($comentario->respuestasLimitadas as $respuesta) {
+                    $stack[] = $respuesta;
+                }
             }
         }
 
@@ -131,34 +132,51 @@ class ComentarioRepository implements ComentarioRepositoryInterface
     }
 
     /**
-     * Obtiene resumen de reacciones para múltiples comentarios en una sola query.
+     * Obtiene resumen de reacciones para múltiples comentarios.
+     * Usa dos queries separadas para evitar límite de GROUP_CONCAT.
      */
     private function getReaccionesResumenBatch(array $comentarioIds): array
     {
         $userId = auth()->id();
 
-        $reacciones = DB::table('comentario_reacciones')
+        // Query 1: Conteos y verificación de usuario actual (sin GROUP_CONCAT)
+        $query = DB::table('comentario_reacciones')
             ->select([
                 'comentario_id',
                 'emoji',
                 DB::raw('COUNT(*) as count'),
-                DB::raw('GROUP_CONCAT(user_id) as user_ids'),
             ])
             ->whereIn('comentario_id', $comentarioIds)
-            ->groupBy('comentario_id', 'emoji')
-            ->get();
+            ->groupBy('comentario_id', 'emoji');
+
+        // Agregar verificación de usuario actual con binding seguro
+        if ($userId) {
+            $query->selectRaw('MAX(CASE WHEN user_id = ? THEN 1 ELSE 0 END) as usuario_reacciono', [$userId]);
+        } else {
+            $query->selectRaw('0 as usuario_reacciono');
+        }
+
+        $resumen = $query->get();
+
+        // Query 2: Lista de user_ids (sin límite de tamaño)
+        $usuariosPorReaccion = DB::table('comentario_reacciones')
+            ->select('comentario_id', 'emoji', 'user_id')
+            ->whereIn('comentario_id', $comentarioIds)
+            ->get()
+            ->groupBy(fn($r) => "{$r->comentario_id}_{$r->emoji}");
 
         // Organizar por comentario_id
         $map = [];
-        foreach ($reacciones as $reaccion) {
-            $userIds = array_map('intval', explode(',', $reaccion->user_ids));
+        foreach ($resumen as $reaccion) {
+            $key = "{$reaccion->comentario_id}_{$reaccion->emoji}";
+            $userIds = $usuariosPorReaccion->get($key, collect())->pluck('user_id')->map(fn($id) => (int) $id)->toArray();
 
             $map[$reaccion->comentario_id][] = [
                 'emoji' => $reaccion->emoji,
                 'simbolo' => Comentario::EMOJIS[$reaccion->emoji] ?? $reaccion->emoji,
                 'count' => (int) $reaccion->count,
                 'usuarios' => $userIds,
-                'usuario_actual_reacciono' => $userId ? in_array($userId, $userIds) : false,
+                'usuario_actual_reacciono' => (bool) $reaccion->usuario_reacciono,
             ];
         }
 
@@ -166,23 +184,26 @@ class ComentarioRepository implements ComentarioRepositoryInterface
     }
 
     /**
-     * Asigna reacciones resumen a comentarios recursivamente.
+     * Asigna reacciones resumen a comentarios usando iteración.
      */
     private function assignReaccionesRecursivo(Collection $comentarios, array $reaccionesMap): void
     {
-        foreach ($comentarios as $comentario) {
-            // Sobreescribir el accessor con el valor calculado en SQL
+        $stack = $comentarios->all();
+
+        while (!empty($stack)) {
+            $comentario = array_pop($stack);
+
+            // Asignar resumen de reacciones
             $comentario->setAttribute(
                 'reacciones_resumen_optimizado',
                 $reaccionesMap[$comentario->id] ?? []
             );
 
-            $respuestas = $comentario->relationLoaded('respuestasLimitadas')
-                ? $comentario->respuestasLimitadas
-                : collect();
-
-            if ($respuestas->isNotEmpty()) {
-                $this->assignReaccionesRecursivo($respuestas, $reaccionesMap);
+            // Agregar respuestas al stack si están cargadas
+            if ($comentario->relationLoaded('respuestasLimitadas') && $comentario->respuestasLimitadas->isNotEmpty()) {
+                foreach ($comentario->respuestasLimitadas as $respuesta) {
+                    $stack[] = $respuesta;
+                }
             }
         }
     }
@@ -276,7 +297,7 @@ class ComentarioRepository implements ComentarioRepositoryInterface
                 'reacciones',
                 'comentarioCitado.autor:id,name,email',
             ])
-            ->withCount('respuestas as total_respuestas_directas')
+            ->withCount('respuestasDirectas as total_respuestas_directas')
             ->orderBy('created_at', 'asc')
             ->skip($offset)
             ->take($limit)

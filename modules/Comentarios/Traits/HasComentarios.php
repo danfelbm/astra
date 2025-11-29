@@ -47,23 +47,6 @@ trait HasComentarios
     }
 
     /**
-     * Comentarios raíz con todas sus respuestas cargadas recursivamente.
-     * Incluye autor, reacciones y comentarios citados.
-     */
-    public function comentariosConRespuestas(): MorphMany
-    {
-        return $this->comentariosRaiz()
-            ->with([
-                'autor:id,name,email',
-                'reacciones',
-                'comentarioCitado.autor:id,name,email',
-                'respuestasRecursivas.autor:id,name,email',
-                'respuestasRecursivas.reacciones',
-                'respuestasRecursivas.comentarioCitado.autor:id,name,email',
-            ]);
-    }
-
-    /**
      * Total de comentarios (incluyendo respuestas).
      */
     public function getTotalComentariosAttribute(): int
@@ -98,11 +81,4 @@ trait HasComentarios
             ->first();
     }
 
-    /**
-     * Obtiene comentarios paginados para API.
-     */
-    public function comentariosPaginados(int $perPage = 20)
-    {
-        return $this->comentariosConRespuestas()->paginate($perPage);
-    }
 }
