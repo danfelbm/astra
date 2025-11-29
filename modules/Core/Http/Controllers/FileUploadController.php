@@ -24,7 +24,7 @@ class FileUploadController extends Controller
             'files' => 'required',
             'files.*' => 'required|file|max:102400', // Máximo 100MB por archivo
             'field_id' => 'required|string',
-            'module' => 'required|string|in:votaciones,convocatorias,postulaciones,candidaturas,user-updates,evidencias,contratos,campanas',
+            'module' => 'required|string|in:votaciones,convocatorias,postulaciones,candidaturas,user-updates,evidencias,contratos,campanas,comentarios',
             'folder' => 'nullable|string', // Folder personalizado opcional
             'max_size' => 'nullable|integer', // Tamaño máximo en bytes
             // Parámetros de contexto para nomenclatura de evidencias

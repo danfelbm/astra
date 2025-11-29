@@ -16,7 +16,7 @@ interface UploadProgress {
 }
 
 interface UploadOptions {
-    module: 'votaciones' | 'convocatorias' | 'postulaciones' | 'candidaturas' | 'user-updates' | 'evidencias' | 'contratos' | 'campanas';
+    module: 'votaciones' | 'convocatorias' | 'postulaciones' | 'candidaturas' | 'user-updates' | 'evidencias' | 'contratos' | 'campanas' | 'comentarios';
     fieldId: string;
     folder?: string;
     maxSize?: number;

@@ -52,6 +52,27 @@ export interface Mencion {
     user?: UsuarioBasico;
 }
 
+// Archivo adjunto de comentario
+export interface ArchivoAdjunto {
+    path: string;
+    nombre: string;
+    tipo: string;
+    extension: string;
+    url: string;
+    es_imagen: boolean;
+}
+
+// Archivo subido (respuesta del upload)
+export interface UploadedFile {
+    id: string;
+    name: string;
+    size: number;
+    path: string;
+    url: string;
+    mime_type: string;
+    uploaded_at: string;
+}
+
 // Comentario principal
 export interface Comentario {
     id: number;
@@ -70,6 +91,12 @@ export interface Comentario {
     created_at: string;
     updated_at: string;
     deleted_at: string | null;
+
+    // Campos de archivos adjuntos
+    archivos_paths?: string[] | null;
+    archivos_nombres?: string[] | null;
+    archivos_tipos?: string[] | null;
+    total_archivos?: number;
 
     // Relaciones
     autor?: UsuarioBasico;
@@ -90,6 +117,8 @@ export interface Comentario {
     total_respuestas?: number;
     total_respuestas_anidadas?: number; // Contador de respuestas profundas no cargadas
     reacciones_resumen?: ReaccionResumen[];
+    archivos_info?: ArchivoAdjunto[]; // Accessor con info completa de archivos
+    tiene_archivos?: boolean;
 }
 
 // Datos para crear comentario
@@ -97,11 +126,13 @@ export interface ComentarioCreateData {
     contenido: string;
     parent_id?: number | null;
     quoted_comentario_id?: number | null;
+    archivos?: UploadedFile[];
 }
 
 // Datos para actualizar comentario
 export interface ComentarioUpdateData {
     contenido: string;
+    archivos?: UploadedFile[];
 }
 
 // Respuesta de la API

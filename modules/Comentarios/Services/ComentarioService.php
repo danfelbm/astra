@@ -4,6 +4,7 @@ namespace Modules\Comentarios\Services;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Modules\Comentarios\Contracts\ComentarioRepositoryInterface;
 use Modules\Comentarios\Contracts\ComentarioServiceInterface;
 use Modules\Comentarios\Models\Comentario;
@@ -37,6 +38,12 @@ class ComentarioService implements ComentarioServiceInterface
 
             // Crear comentario
             $comentario = $this->repository->create($comentarioData);
+
+            // Procesar archivos adjuntos
+            if (!empty($data['archivos'])) {
+                $comentario->setArchivos($data['archivos']);
+                $comentario->save();
+            }
 
             // Procesar menciones (@usuario)
             $this->procesarMenciones($comentario);
@@ -123,12 +130,32 @@ class ComentarioService implements ComentarioServiceInterface
         DB::beginTransaction();
 
         try {
+            // Manejar archivos: eliminar los que fueron quitados
+            if (array_key_exists('archivos', $data)) {
+                $nuevosArchivos = $data['archivos'] ?? [];
+                $archivosEliminados = $comentario->getArchivosEliminados($nuevosArchivos);
+
+                // Eliminar archivos del storage
+                foreach ($archivosEliminados as $path) {
+                    if (Storage::disk('public')->exists($path)) {
+                        Storage::disk('public')->delete($path);
+                    }
+                }
+
+                // Actualizar archivos del comentario
+                $comentario->setArchivos($nuevosArchivos);
+            }
+
             // Actualizar contenido
             $comentario->update([
                 'contenido' => $data['contenido'],
                 'es_editado' => true,
                 'editado_at' => now(),
                 'updated_by' => auth()->id(),
+                'archivos_paths' => $comentario->archivos_paths,
+                'archivos_nombres' => $comentario->archivos_nombres,
+                'archivos_tipos' => $comentario->archivos_tipos,
+                'total_archivos' => $comentario->total_archivos,
             ]);
 
             // Reprocesar menciones (eliminar antiguas y crear nuevas)
@@ -188,6 +215,14 @@ class ComentarioService implements ComentarioServiceInterface
                     ],
                     'comentario_eliminado'
                 );
+            }
+
+            // Eliminar archivos adjuntos del storage
+            $archivos = $comentario->archivos_paths ?? [];
+            foreach ($archivos as $path) {
+                if (Storage::disk('public')->exists($path)) {
+                    Storage::disk('public')->delete($path);
+                }
             }
 
             // Soft delete (las respuestas se eliminan en cascada por la FK)

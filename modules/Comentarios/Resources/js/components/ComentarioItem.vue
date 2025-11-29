@@ -4,7 +4,7 @@
  * Soporta respuestas anidadas ilimitadas con colapsado tipo Reddit.
  */
 import { ref, computed } from 'vue';
-import type { Comentario, EmojiKey } from '../types/comentarios';
+import type { Comentario, EmojiKey, UploadedFile } from '../types/comentarios';
 import { Avatar, AvatarFallback } from '@modules/Core/Resources/js/components/ui/avatar';
 import { Button } from '@modules/Core/Resources/js/components/ui/button';
 import { Badge } from '@modules/Core/Resources/js/components/ui/badge';
@@ -17,6 +17,7 @@ import {
 import ComentarioReacciones from './ComentarioReacciones.vue';
 import ComentarioQuote from './ComentarioQuote.vue';
 import ComentarioForm from './ComentarioForm.vue';
+import ComentarioAdjuntos from './ComentarioAdjuntos.vue';
 import {
     MessageSquare, MoreHorizontal, Edit, Trash2, Quote,
     ChevronDown, ChevronRight, Clock
@@ -39,10 +40,10 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<{
     reply: [comentario: Comentario];
     quote: [comentario: Comentario];
-    edit: [comentario: Comentario, contenido: string];
+    edit: [comentario: Comentario, contenido: string, archivos: UploadedFile[]];
     delete: [comentario: Comentario];
     toggleReaccion: [comentarioId: number, emoji: EmojiKey];
-    submitReply: [contenido: string, parentId: number];
+    submitReply: [contenido: string, parentId: number, archivos: UploadedFile[]];
     cargarMasRespuestas: [comentarioId: number];
 }>();
 
@@ -116,9 +117,9 @@ const handleReply = () => {
 };
 
 // Enviar respuesta desde formulario inline
-const handleReplySubmit = (contenido: string, parentId: number | null, quotedId: number | null) => {
-    // Emitir evento con contenido y parentId para que el padre maneje el submit real
-    emit('submitReply', contenido, props.comentario.id);
+const handleReplySubmit = (contenido: string, parentId: number | null, quotedId: number | null, archivos: UploadedFile[] = []) => {
+    // Emitir evento con contenido, parentId y archivos para que el padre maneje el submit real
+    emit('submitReply', contenido, props.comentario.id, archivos);
     showReplyForm.value = false;
 };
 
@@ -138,8 +139,8 @@ const handleEdit = () => {
 };
 
 // Guardar edición
-const handleEditSubmit = (contenido: string) => {
-    emit('edit', props.comentario, contenido);
+const handleEditSubmit = (contenido: string, parentId: number | null, quotedId: number | null, archivos: UploadedFile[] = []) => {
+    emit('edit', props.comentario, contenido, archivos);
     editMode.value = false;
 };
 
@@ -219,6 +220,12 @@ const handleCargarMasRespuestas = () => {
                     <div
                         class="mt-1 text-sm prose prose-sm dark:prose-invert max-w-none"
                         v-html="comentario.contenido"
+                    />
+
+                    <!-- Archivos adjuntos -->
+                    <ComentarioAdjuntos
+                        v-if="comentario.archivos_info && comentario.archivos_info.length > 0"
+                        :archivos="comentario.archivos_info"
                     />
 
                     <!-- Reacciones y acciones en el mismo row -->
@@ -320,10 +327,10 @@ const handleCargarMasRespuestas = () => {
                 :can-react="canReact"
                 @reply="emit('reply', $event)"
                 @quote="emit('quote', $event)"
-                @edit="(c, contenido) => emit('edit', c, contenido)"
+                @edit="(c, contenido, archivos) => emit('edit', c, contenido, archivos)"
                 @delete="emit('delete', $event)"
                 @toggle-reaccion="(id, emoji) => emit('toggleReaccion', id, emoji)"
-                @submit-reply="(contenido, parentId) => emit('submitReply', contenido, parentId)"
+                @submit-reply="(contenido, parentId, archivos) => emit('submitReply', contenido, parentId, archivos)"
                 @cargar-mas-respuestas="(id) => emit('cargarMasRespuestas', id)"
             />
         </div>

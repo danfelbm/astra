@@ -26,6 +26,10 @@ class Comentario extends Model
         'nivel',
         'contenido',
         'contenido_plain',
+        'archivos_paths',
+        'archivos_nombres',
+        'archivos_tipos',
+        'total_archivos',
         'quoted_comentario_id',
         'es_editado',
         'editado_at',
@@ -40,6 +44,10 @@ class Comentario extends Model
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
         'deleted_at' => 'datetime',
+        'archivos_paths' => 'array',
+        'archivos_nombres' => 'array',
+        'archivos_tipos' => 'array',
+        'total_archivos' => 'integer',
     ];
 
     /**
@@ -52,6 +60,7 @@ class Comentario extends Model
         'tiempo_restante_edicion',
         'reacciones_resumen',
         'contenido_truncado',
+        'archivos_info',
     ];
 
     /**
@@ -72,6 +81,16 @@ class Comentario extends Model
      * Horas límite para edición de comentarios.
      */
     public const HORAS_EDICION = 24;
+
+    /**
+     * Máximo de archivos adjuntos por comentario.
+     */
+    public const MAX_ARCHIVOS = 3;
+
+    /**
+     * Extensiones de imagen permitidas.
+     */
+    public const EXTENSIONES_IMAGEN = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
 
     // =========================================================================
     // RELACIONES
@@ -337,6 +356,43 @@ class Comentario extends Model
             ->toArray();
     }
 
+    /**
+     * Información completa de archivos adjuntos con URLs.
+     */
+    public function getArchivosInfoAttribute(): array
+    {
+        $paths = $this->archivos_paths ?? [];
+        $nombres = $this->archivos_nombres ?? [];
+        $tipos = $this->archivos_tipos ?? [];
+
+        if (empty($paths)) {
+            return [];
+        }
+
+        return collect($paths)->map(function ($path, $index) use ($nombres, $tipos) {
+            $nombre = $nombres[$index] ?? basename($path);
+            $tipo = $tipos[$index] ?? 'application/octet-stream';
+            $extension = strtolower(pathinfo($nombre, PATHINFO_EXTENSION));
+
+            return [
+                'path' => $path,
+                'nombre' => $nombre,
+                'tipo' => $tipo,
+                'extension' => $extension,
+                'url' => "/storage/{$path}",
+                'es_imagen' => in_array($extension, self::EXTENSIONES_IMAGEN),
+            ];
+        })->values()->toArray();
+    }
+
+    /**
+     * Indica si el comentario tiene archivos adjuntos.
+     */
+    public function getTieneArchivosAttribute(): bool
+    {
+        return ($this->total_archivos ?? 0) > 0;
+    }
+
     // =========================================================================
     // MÉTODOS
     // =========================================================================
@@ -409,6 +465,48 @@ class Comentario extends Model
     {
         $this->contenido_plain = strip_tags($this->contenido);
         $this->saveQuietly();
+    }
+
+    /**
+     * Verifica si se pueden agregar más archivos.
+     */
+    public function puedeAgregarArchivos(int $cantidad = 1): bool
+    {
+        return ($this->total_archivos + $cantidad) <= self::MAX_ARCHIVOS;
+    }
+
+    /**
+     * Establece los archivos adjuntos del comentario.
+     */
+    public function setArchivos(array $archivos): void
+    {
+        $paths = [];
+        $nombres = [];
+        $tipos = [];
+
+        foreach ($archivos as $archivo) {
+            if (isset($archivo['path'])) {
+                $paths[] = $archivo['path'];
+                $nombres[] = $archivo['name'] ?? basename($archivo['path']);
+                $tipos[] = $archivo['mime_type'] ?? 'application/octet-stream';
+            }
+        }
+
+        $this->archivos_paths = $paths;
+        $this->archivos_nombres = $nombres;
+        $this->archivos_tipos = $tipos;
+        $this->total_archivos = count($paths);
+    }
+
+    /**
+     * Obtiene las rutas de archivos que fueron eliminados al comparar con nuevos archivos.
+     */
+    public function getArchivosEliminados(array $nuevosArchivos): array
+    {
+        $pathsActuales = $this->archivos_paths ?? [];
+        $nuevasPaths = collect($nuevosArchivos)->pluck('path')->toArray();
+
+        return array_diff($pathsActuales, $nuevasPaths);
     }
 
     // =========================================================================

@@ -11,7 +11,7 @@
  * />
  */
 import { ref, computed, onMounted, watch } from 'vue';
-import type { Comentario, ComentarioFormMode, EmojiKey, PaginationLink } from '../types/comentarios';
+import type { Comentario, ComentarioFormMode, EmojiKey, PaginationLink, UploadedFile } from '../types/comentarios';
 import { useComentarios, type SortOption } from '../composables/useComentarios';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@modules/Core/Resources/js/components/ui/card';
 import { Button } from '@modules/Core/Resources/js/components/ui/button';
@@ -122,13 +122,13 @@ watch(
 );
 
 // Manejar envío del formulario principal
-const handleFormSubmit = async (contenido: string, parentId: number | null, quotedId: number | null) => {
+const handleFormSubmit = async (contenido: string, parentId: number | null, quotedId: number | null, archivos: UploadedFile[] = []) => {
     formLoading.value = true;
 
     try {
         if (formMode.value === 'edit' && comentarioParaEditar.value) {
             // Editar comentario existente
-            const result = await editar(comentarioParaEditar.value.id, { contenido });
+            const result = await editar(comentarioParaEditar.value.id, { contenido, archivos });
             if (result.success) {
                 toast.success(result.message);
                 resetForm();
@@ -141,6 +141,7 @@ const handleFormSubmit = async (contenido: string, parentId: number | null, quot
                 contenido,
                 parent_id: parentId,
                 quoted_comentario_id: quotedId,
+                archivos,
             });
             if (result.success) {
                 toast.success(result.message);
@@ -171,8 +172,8 @@ const handleQuote = (comentario: Comentario) => {
 };
 
 // Manejar edición de un comentario
-const handleEdit = async (comentario: Comentario, contenido: string) => {
-    const result = await editar(comentario.id, { contenido });
+const handleEdit = async (comentario: Comentario, contenido: string, archivos: UploadedFile[] = []) => {
+    const result = await editar(comentario.id, { contenido, archivos });
     if (result.success) {
         toast.success(result.message);
     } else {
@@ -199,11 +200,12 @@ const handleToggleReaccion = async (comentarioId: number, emoji: EmojiKey) => {
 };
 
 // Manejar submit de respuesta desde formulario inline
-const handleSubmitReply = async (contenido: string, parentId: number) => {
+const handleSubmitReply = async (contenido: string, parentId: number, archivos: UploadedFile[] = []) => {
     const result = await crear({
         contenido,
         parent_id: parentId,
         quoted_comentario_id: null,
+        archivos,
     });
     if (result.success) {
         toast.success(result.message);
