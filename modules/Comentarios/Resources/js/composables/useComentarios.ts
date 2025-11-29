@@ -99,11 +99,29 @@ export function useComentarios(commentableType: string, commentableId: number) {
     };
 
     /**
-     * Carga más comentarios (scroll infinito).
+     * Navega a una página específica.
      */
-    const cargarMas = async (): Promise<void> => {
+    const irAPagina = async (page: number): Promise<void> => {
+        if (page >= 1 && page <= lastPage.value && page !== currentPage.value) {
+            await cargar(page);
+        }
+    };
+
+    /**
+     * Página siguiente.
+     */
+    const paginaSiguiente = async (): Promise<void> => {
         if (currentPage.value < lastPage.value) {
             await cargar(currentPage.value + 1);
+        }
+    };
+
+    /**
+     * Página anterior.
+     */
+    const paginaAnterior = async (): Promise<void> => {
+        if (currentPage.value > 1) {
+            await cargar(currentPage.value - 1);
         }
     };
 
@@ -348,7 +366,9 @@ export function useComentarios(commentableType: string, commentableId: number) {
 
     // Computados
     const tieneComentarios = computed(() => comentarios.value.length > 0);
-    const puedeCargarMas = computed(() => currentPage.value < lastPage.value);
+    const tienePaginacion = computed(() => lastPage.value > 1);
+    const puedePaginaAnterior = computed(() => currentPage.value > 1);
+    const puedePaginaSiguiente = computed(() => currentPage.value < lastPage.value);
 
     return {
         // Estado
@@ -363,11 +383,15 @@ export function useComentarios(commentableType: string, commentableId: number) {
 
         // Computados
         tieneComentarios,
-        puedeCargarMas,
+        tienePaginacion,
+        puedePaginaAnterior,
+        puedePaginaSiguiente,
 
         // Métodos
         cargar,
-        cargarMas,
+        irAPagina,
+        paginaSiguiente,
+        paginaAnterior,
         crear,
         editar,
         eliminar,

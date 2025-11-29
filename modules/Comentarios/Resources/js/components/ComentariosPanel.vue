@@ -25,7 +25,7 @@ import {
 } from '@modules/Core/Resources/js/components/ui/select';
 import ComentarioForm from './ComentarioForm.vue';
 import ComentarioItem from './ComentarioItem.vue';
-import { MessageSquare, Loader2, ArrowUpDown } from 'lucide-vue-next';
+import { MessageSquare, ArrowUpDown, ChevronLeft, ChevronRight } from 'lucide-vue-next';
 import { toast } from 'vue-sonner';
 
 // Opciones de ordenamiento
@@ -53,10 +53,15 @@ const {
     loading,
     error,
     total,
-    puedeCargarMas,
+    currentPage,
+    lastPage,
+    tienePaginacion,
+    puedePaginaAnterior,
+    puedePaginaSiguiente,
     sortBy,
     cargar,
-    cargarMas,
+    paginaSiguiente,
+    paginaAnterior,
     crear,
     editar,
     eliminar,
@@ -283,16 +288,26 @@ const handleFormCancel = () => {
                     @submit-reply="handleSubmitReply"
                 />
 
-                <!-- Cargar más -->
-                <div v-if="puedeCargarMas" class="text-center pt-4">
+                <!-- Paginación -->
+                <div v-if="tienePaginacion" class="flex items-center justify-center gap-2 pt-4">
                     <Button
                         variant="outline"
                         size="sm"
-                        :disabled="loading"
-                        @click="cargarMas"
+                        :disabled="!puedePaginaAnterior || loading"
+                        @click="paginaAnterior"
                     >
-                        <Loader2 v-if="loading" class="h-4 w-4 mr-2 animate-spin" />
-                        Cargar más comentarios
+                        <ChevronLeft class="h-4 w-4" />
+                    </Button>
+                    <span class="text-sm text-muted-foreground px-2">
+                        {{ currentPage }} / {{ lastPage }}
+                    </span>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        :disabled="!puedePaginaSiguiente || loading"
+                        @click="paginaSiguiente"
+                    >
+                        <ChevronRight class="h-4 w-4" />
                     </Button>
                 </div>
             </div>
