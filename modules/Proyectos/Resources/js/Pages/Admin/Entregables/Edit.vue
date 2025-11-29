@@ -1,8 +1,11 @@
 <script setup lang="ts">
 // Página para editar un entregable (Admin)
 import { computed } from 'vue';
+import { Head } from '@inertiajs/vue3';
 import { type BreadcrumbItem } from '@/types';
 import AdminLayout from '@modules/Core/Resources/js/layouts/AdminLayout.vue';
+import { Card, CardContent } from '@modules/Core/Resources/js/components/ui/card';
+import { AlertCircle } from 'lucide-vue-next';
 import EntregableForm from '@modules/Proyectos/Resources/js/components/EntregableForm.vue';
 import type { Hito, Entregable } from '@modules/Proyectos/Resources/js/types/hitos';
 import type { CategoriaEtiqueta } from "@modules/Proyectos/Resources/js/types/etiquetas";
@@ -63,15 +66,28 @@ const breadcrumbs = computed<BreadcrumbItem[]>(() => [
 </script>
 
 <template>
+  <Head :title="`Editar Entregable - ${entregable.nombre}`" />
+
   <AdminLayout :breadcrumbs="breadcrumbs">
     <div class="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
       <!-- Header -->
-      <div>
-        <h2 class="text-3xl font-bold tracking-tight">Editar Entregable</h2>
-        <p class="text-muted-foreground mt-2">
-          Modificar el entregable "{{ entregable.nombre }}"
-        </p>
+      <div class="flex items-center justify-between">
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Editar Entregable</h1>
       </div>
+
+      <!-- Información del entregable -->
+      <Card>
+        <CardContent class="pt-6">
+          <div class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+            <AlertCircle class="h-4 w-4" />
+            <span>ID: {{ entregable.id }}</span>
+            <span class="mx-2">•</span>
+            <span>Creado: {{ new Date(entregable.created_at).toLocaleDateString() }}</span>
+            <span class="mx-2">•</span>
+            <span>Actualizado: {{ new Date(entregable.updated_at).toLocaleDateString() }}</span>
+          </div>
+        </CardContent>
+      </Card>
 
       <!-- Formulario reutilizable -->
       <EntregableForm

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // Página para crear un nuevo entregable (Admin)
 import { computed } from 'vue';
+import { Head } from '@inertiajs/vue3';
 import { type BreadcrumbItem } from '@/types';
 import AdminLayout from '@modules/Core/Resources/js/layouts/AdminLayout.vue';
 import EntregableForm from '@modules/Proyectos/Resources/js/components/EntregableForm.vue';
@@ -56,14 +57,13 @@ const breadcrumbs = computed<BreadcrumbItem[]>(() => [
 </script>
 
 <template>
+  <Head :title="`Crear Entregable - ${hito.nombre}`" />
+
   <AdminLayout :breadcrumbs="breadcrumbs">
     <div class="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
       <!-- Header -->
-      <div>
-        <h2 class="text-3xl font-bold tracking-tight">Nuevo Entregable</h2>
-        <p class="text-muted-foreground mt-2">
-          Agregar un nuevo entregable al hito "{{ hito.nombre }}"
-        </p>
+      <div class="flex items-center justify-between">
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Nuevo Entregable</h1>
       </div>
 
       <!-- Formulario reutilizable -->

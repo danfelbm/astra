@@ -1,8 +1,10 @@
 <script setup lang="ts">
 // Página para crear un nuevo entregable (User)
 import { computed } from 'vue';
-import { Head } from '@inertiajs/vue3';
+import { Head, Link } from '@inertiajs/vue3';
 import UserLayout from '@modules/Core/Resources/js/layouts/UserLayout.vue';
+import { Button } from '@modules/Core/Resources/js/components/ui/button';
+import { ArrowLeft } from 'lucide-vue-next';
 import EntregableForm from '@modules/Proyectos/Resources/js/components/EntregableForm.vue';
 import type { Hito } from '@modules/Proyectos/Resources/js/types/hitos';
 import type { CategoriaEtiqueta } from "@modules/Proyectos/Resources/js/types/etiquetas";
@@ -44,19 +46,26 @@ const { route } = window as any;
 </script>
 
 <template>
-  <UserLayout>
-    <Head :title="`Nuevo Entregable - ${hito.nombre}`" />
+  <Head :title="`Nuevo Entregable - ${hito.nombre}`" />
 
-    <div class="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
-      <!-- Header -->
-      <div>
-        <div class="text-sm text-muted-foreground mb-1">
-          {{ proyecto.nombre }} / {{ hito.nombre }}
+  <UserLayout>
+    <div class="flex h-full flex-1 flex-col rounded-xl p-4">
+      <!-- Header con navegación -->
+      <div class="flex items-center gap-4 mb-6">
+        <Link :href="`/miembro/mis-proyectos/${proyecto.id}?tab=hitos`">
+          <Button variant="ghost" size="sm">
+            <ArrowLeft class="mr-2 h-4 w-4" />
+            Volver
+          </Button>
+        </Link>
+        <div>
+          <h1 class="text-2xl font-bold text-gray-900 dark:text-white">
+            Nuevo Entregable
+          </h1>
+          <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">
+            Agregar un nuevo entregable al hito
+          </p>
         </div>
-        <h2 class="text-3xl font-bold tracking-tight">Nuevo Entregable</h2>
-        <p class="text-muted-foreground mt-2">
-          Agregar un nuevo entregable al hito "{{ hito.nombre }}"
-        </p>
       </div>
 
       <!-- Formulario reutilizable -->

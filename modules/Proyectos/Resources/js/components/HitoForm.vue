@@ -163,6 +163,28 @@ const submitButtonText = computed(() => {
 
 <template>
     <div class="space-y-6">
+        <!-- Categorías (al inicio del formulario) -->
+        <Card v-if="showEtiquetas && categorias && categorias.length > 0">
+            <CardHeader>
+                <CardTitle class="flex items-center gap-2">
+                    <Tag class="h-5 w-5" />
+                    Categorías
+                </CardTitle>
+                <CardDescription>
+                    Asigna etiquetas para categorizar y organizar este hito
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                <EtiquetaSelector
+                    v-model="form.etiquetas"
+                    :categorias="categorias"
+                    :max-etiquetas="10"
+                    placeholder="Seleccionar etiquetas para el hito..."
+                    description="Puedes asignar hasta 10 etiquetas"
+                />
+            </CardContent>
+        </Card>
+
         <!-- Formulario principal -->
         <Card>
             <CardHeader>
@@ -343,28 +365,6 @@ const submitButtonText = computed(() => {
             :errors="form.errors"
             @update="form.campos_personalizados = $event"
         />
-
-        <!-- Etiquetas -->
-        <Card v-if="showEtiquetas && categorias && categorias.length > 0">
-            <CardHeader>
-                <CardTitle class="flex items-center gap-2">
-                    <Tag class="h-5 w-5" />
-                    Etiquetas
-                </CardTitle>
-                <CardDescription>
-                    Asigna etiquetas para categorizar y organizar este hito
-                </CardDescription>
-            </CardHeader>
-            <CardContent>
-                <EtiquetaSelector
-                    v-model="form.etiquetas"
-                    :categorias="categorias"
-                    :max-etiquetas="10"
-                    placeholder="Seleccionar etiquetas para el hito..."
-                    description="Puedes asignar hasta 10 etiquetas"
-                />
-            </CardContent>
-        </Card>
 
         <!-- Modal de selección de responsable -->
         <AddUsersModal

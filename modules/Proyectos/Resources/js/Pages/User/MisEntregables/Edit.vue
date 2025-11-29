@@ -1,8 +1,11 @@
 <script setup lang="ts">
 // Página para editar un entregable (User)
 import { computed } from 'vue';
-import { Head } from '@inertiajs/vue3';
+import { Head, Link } from '@inertiajs/vue3';
 import UserLayout from '@modules/Core/Resources/js/layouts/UserLayout.vue';
+import { Alert, AlertDescription } from '@modules/Core/Resources/js/components/ui/alert';
+import { Button } from '@modules/Core/Resources/js/components/ui/button';
+import { ArrowLeft, AlertCircle } from 'lucide-vue-next';
 import EntregableForm from '@modules/Proyectos/Resources/js/components/EntregableForm.vue';
 import type { Hito, Entregable } from '@modules/Proyectos/Resources/js/types/hitos';
 import type { CategoriaEtiqueta } from "@modules/Proyectos/Resources/js/types/etiquetas";
@@ -56,20 +59,39 @@ const { route } = window as any;
 </script>
 
 <template>
-  <UserLayout>
-    <Head :title="`Editar Entregable - ${entregable.nombre}`" />
+  <Head :title="`Editar Entregable - ${entregable.nombre}`" />
 
-    <div class="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
-      <!-- Header -->
-      <div>
-        <div class="text-sm text-muted-foreground mb-1">
-          {{ proyecto.nombre }} / {{ hito.nombre }}
+  <UserLayout>
+    <div class="flex h-full flex-1 flex-col rounded-xl p-4">
+      <!-- Header con navegación -->
+      <div class="flex items-center gap-4 mb-6">
+        <Link :href="`/miembro/mis-proyectos/${proyecto.id}?tab=hitos`">
+          <Button variant="ghost" size="sm">
+            <ArrowLeft class="mr-2 h-4 w-4" />
+            Volver
+          </Button>
+        </Link>
+        <div>
+          <h1 class="text-2xl font-bold text-gray-900 dark:text-white">
+            Editar Entregable
+          </h1>
+          <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">
+            Actualiza la información del entregable
+          </p>
         </div>
-        <h2 class="text-3xl font-bold tracking-tight">Editar Entregable</h2>
-        <p class="text-muted-foreground mt-2">
-          Modificar el entregable "{{ entregable.nombre }}"
-        </p>
       </div>
+
+      <!-- Información del entregable -->
+      <Alert class="mb-6">
+        <AlertCircle class="h-4 w-4" />
+        <AlertDescription>
+          <div class="flex flex-col gap-1">
+            <span><strong>ID del Entregable:</strong> #{{ entregable.id }}</span>
+            <span><strong>Creado:</strong> {{ new Date(entregable.created_at).toLocaleDateString('es-ES') }}</span>
+            <span><strong>Última actualización:</strong> {{ new Date(entregable.updated_at).toLocaleDateString('es-ES') }}</span>
+          </div>
+        </AlertDescription>
+      </Alert>
 
       <!-- Formulario reutilizable -->
       <EntregableForm

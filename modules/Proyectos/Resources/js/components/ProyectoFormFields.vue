@@ -269,6 +269,28 @@ const handleResponsableSelect = (data: { userIds: number[]; extraData: Record<st
 
 <template>
     <form @submit.prevent="submit" class="space-y-6">
+        <!-- Categorías (al inicio del formulario) -->
+        <Card v-if="categorias && categorias.length > 0">
+            <CardHeader>
+                <CardTitle class="flex items-center gap-2">
+                    <Tag class="h-5 w-5" />
+                    Categorías
+                </CardTitle>
+            </CardHeader>
+            <CardContent>
+                <EtiquetaSelector
+                    v-model="form.etiquetas"
+                    :categorias="categorias"
+                    :max-etiquetas="10"
+                    placeholder="Seleccionar etiquetas para el proyecto..."
+                    description="Puedes asignar hasta 10 etiquetas para categorizar este proyecto"
+                />
+                <p v-if="form.errors.etiquetas" class="mt-1 text-sm text-red-600">
+                    {{ form.errors.etiquetas }}
+                </p>
+            </CardContent>
+        </Card>
+
         <!-- Información básica -->
         <Card>
             <CardHeader>
@@ -415,24 +437,6 @@ const handleResponsableSelect = (data: { userIds: number[]; extraData: Record<st
                     </div>
                     <p v-if="form.errors.responsable_id" class="mt-1 text-sm text-red-600">
                         {{ form.errors.responsable_id }}
-                    </p>
-                </div>
-
-                <!-- Etiquetas -->
-                <div v-if="categorias && categorias.length > 0">
-                    <Label class="flex items-center gap-2 mb-2">
-                        <Tag class="h-4 w-4" />
-                        Etiquetas
-                    </Label>
-                    <EtiquetaSelector
-                        v-model="form.etiquetas"
-                        :categorias="categorias"
-                        :max-etiquetas="10"
-                        placeholder="Seleccionar etiquetas para el proyecto..."
-                        description="Puedes asignar hasta 10 etiquetas para categorizar este proyecto"
-                    />
-                    <p v-if="form.errors.etiquetas" class="mt-1 text-sm text-red-600">
-                        {{ form.errors.etiquetas }}
                     </p>
                 </div>
             </CardContent>

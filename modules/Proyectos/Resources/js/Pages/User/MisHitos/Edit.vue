@@ -5,13 +5,11 @@
  */
 import UserLayout from "@modules/Core/Resources/js/layouts/UserLayout.vue";
 import { Head, Link, router } from '@inertiajs/vue3';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@modules/Core/Resources/js/components/ui/card";
+import { Alert, AlertDescription } from "@modules/Core/Resources/js/components/ui/alert";
 import { Button } from "@modules/Core/Resources/js/components/ui/button";
 import HitoForm from "@modules/Proyectos/Resources/js/components/HitoForm.vue";
-import { ArrowLeft } from 'lucide-vue-next';
+import { ArrowLeft, AlertCircle } from 'lucide-vue-next';
 import { toast } from 'vue-sonner';
-import { format, parseISO } from 'date-fns';
-import { es } from 'date-fns/locale';
 import type { Hito } from '@modules/Proyectos/Resources/js/types/hitos';
 import type { CategoriaEtiqueta } from "@modules/Proyectos/Resources/js/types/etiquetas";
 
@@ -83,50 +81,37 @@ const handleCancel = () => {
     <Head :title="`Editar Hito - ${hito.nombre}`" />
 
     <UserLayout>
-        <div class="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
-            <!-- Header -->
-            <div class="flex items-center justify-between">
-                <div>
-                    <h1 class="text-2xl font-bold">Editar Hito</h1>
-                    <p class="text-muted-foreground">Proyecto: {{ proyecto.nombre }}</p>
-                </div>
+        <div class="flex h-full flex-1 flex-col rounded-xl p-4">
+            <!-- Header con navegación -->
+            <div class="flex items-center gap-4 mb-6">
                 <Link :href="`/miembro/mis-proyectos/${proyecto.id}?tab=hitos`">
-                    <Button variant="outline" size="sm">
-                        <ArrowLeft class="h-4 w-4 mr-2" />
-                        Volver al proyecto
+                    <Button variant="ghost" size="sm">
+                        <ArrowLeft class="mr-2 h-4 w-4" />
+                        Volver
                     </Button>
                 </Link>
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-900 dark:text-white">
+                        Editar Hito
+                    </h1>
+                    <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                        Actualiza la información del hito
+                    </p>
+                </div>
             </div>
 
-            <!-- Card de información del hito -->
-            <Card class="mb-4">
-                <CardHeader>
-                    <CardTitle>{{ hito.nombre }}</CardTitle>
-                    <CardDescription>
-                        Editando hito del proyecto: {{ proyecto.nombre }}
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                        <div>
-                            <p class="text-muted-foreground">Progreso</p>
-                            <p class="font-semibold">{{ hito.porcentaje_completado || 0 }}%</p>
-                        </div>
-                        <div>
-                            <p class="text-muted-foreground">Entregables</p>
-                            <p class="font-semibold">{{ hito.entregables?.length || 0 }}</p>
-                        </div>
-                        <div>
-                            <p class="text-muted-foreground">Creado</p>
-                            <p class="font-semibold">{{ format(parseISO(hito.created_at), 'dd/MM/yyyy', { locale: es }) }}</p>
-                        </div>
-                        <div>
-                            <p class="text-muted-foreground">Última actualización</p>
-                            <p class="font-semibold">{{ format(parseISO(hito.updated_at), 'dd/MM/yyyy', { locale: es }) }}</p>
-                        </div>
+            <!-- Información del hito -->
+            <Alert class="mb-6">
+                <AlertCircle class="h-4 w-4" />
+                <AlertDescription>
+                    <div class="flex flex-col gap-1">
+                        <span><strong>ID del Hito:</strong> #{{ hito.id }}</span>
+                        <span><strong>Progreso:</strong> {{ hito.porcentaje_completado || 0 }}%</span>
+                        <span><strong>Creado:</strong> {{ new Date(hito.created_at).toLocaleDateString('es-ES') }}</span>
+                        <span><strong>Última actualización:</strong> {{ new Date(hito.updated_at).toLocaleDateString('es-ES') }}</span>
                     </div>
-                </CardContent>
-            </Card>
+                </AlertDescription>
+            </Alert>
 
             <!-- Formulario reutilizable -->
             <HitoForm

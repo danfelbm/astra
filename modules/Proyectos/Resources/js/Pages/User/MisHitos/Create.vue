@@ -68,19 +68,23 @@ const handleCancel = () => {
     <Head :title="`Crear Hito - ${proyecto.nombre}`" />
 
     <UserLayout>
-        <div class="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
-            <!-- Header -->
-            <div class="flex items-center justify-between">
-                <div>
-                    <h1 class="text-2xl font-bold">Crear Nuevo Hito</h1>
-                    <p class="text-muted-foreground">Proyecto: {{ proyecto.nombre }}</p>
-                </div>
+        <div class="flex h-full flex-1 flex-col rounded-xl p-4">
+            <!-- Header con navegación -->
+            <div class="flex items-center gap-4 mb-6">
                 <Link :href="`/miembro/mis-proyectos/${proyecto.id}?tab=hitos`">
-                    <Button variant="outline" size="sm">
-                        <ArrowLeft class="h-4 w-4 mr-2" />
-                        Volver al proyecto
+                    <Button variant="ghost" size="sm">
+                        <ArrowLeft class="mr-2 h-4 w-4" />
+                        Volver
                     </Button>
                 </Link>
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-900 dark:text-white">
+                        Crear Nuevo Hito
+                    </h1>
+                    <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                        Define los detalles del nuevo hito para tu proyecto
+                    </p>
+                </div>
             </div>
 
             <!-- Formulario reutilizable -->

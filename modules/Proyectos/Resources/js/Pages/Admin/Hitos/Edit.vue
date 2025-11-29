@@ -4,11 +4,10 @@
  * Utiliza el componente HitoForm reutilizable.
  */
 import AdminLayout from "@modules/Core/Resources/js/layouts/AdminLayout.vue";
-import { Head, Link, router } from '@inertiajs/vue3';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@modules/Core/Resources/js/components/ui/card";
-import { Button } from "@modules/Core/Resources/js/components/ui/button";
+import { Head, router } from '@inertiajs/vue3';
+import { Card, CardContent } from "@modules/Core/Resources/js/components/ui/card";
+import { AlertCircle } from 'lucide-vue-next';
 import HitoForm from "@modules/Proyectos/Resources/js/components/HitoForm.vue";
-import { ArrowLeft } from 'lucide-vue-next';
 import { toast } from 'vue-sonner';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -94,41 +93,21 @@ const handleCancel = () => {
         <div class="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
             <!-- Header -->
             <div class="flex items-center justify-between">
-                <h1 class="text-2xl font-bold">Editar Hito</h1>
-                <Link :href="`/admin/proyectos/${proyecto.id}/hitos`">
-                    <Button variant="outline" size="sm">
-                        <ArrowLeft class="h-4 w-4 mr-2" />
-                        Volver
-                    </Button>
-                </Link>
+                <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Editar Hito</h1>
             </div>
 
-            <!-- Card de información del hito -->
-            <Card class="mb-4">
-                <CardHeader>
-                    <CardTitle>{{ hito.nombre }}</CardTitle>
-                    <CardDescription>
-                        Editando hito del proyecto: {{ proyecto.nombre }}
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                        <div>
-                            <p class="text-muted-foreground">Progreso</p>
-                            <p class="font-semibold">{{ hito.porcentaje_completado || 0 }}%</p>
-                        </div>
-                        <div>
-                            <p class="text-muted-foreground">Entregables</p>
-                            <p class="font-semibold">{{ hito.entregables?.length || 0 }}</p>
-                        </div>
-                        <div>
-                            <p class="text-muted-foreground">Creado</p>
-                            <p class="font-semibold">{{ format(parseISO(hito.created_at), 'dd/MM/yyyy', { locale: es }) }}</p>
-                        </div>
-                        <div>
-                            <p class="text-muted-foreground">Última actualización</p>
-                            <p class="font-semibold">{{ format(parseISO(hito.updated_at), 'dd/MM/yyyy', { locale: es }) }}</p>
-                        </div>
+            <!-- Información del hito -->
+            <Card>
+                <CardContent class="pt-6">
+                    <div class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                        <AlertCircle class="h-4 w-4" />
+                        <span>ID: {{ hito.id }}</span>
+                        <span class="mx-2">•</span>
+                        <span>Progreso: {{ hito.porcentaje_completado || 0 }}%</span>
+                        <span class="mx-2">•</span>
+                        <span>Creado: {{ format(parseISO(hito.created_at), 'dd/MM/yyyy', { locale: es }) }}</span>
+                        <span class="mx-2">•</span>
+                        <span>Actualizado: {{ format(parseISO(hito.updated_at), 'dd/MM/yyyy', { locale: es }) }}</span>
                     </div>
                 </CardContent>
             </Card>

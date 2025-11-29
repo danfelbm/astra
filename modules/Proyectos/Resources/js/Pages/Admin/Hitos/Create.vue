@@ -4,10 +4,8 @@
  * Utiliza el componente HitoForm reutilizable.
  */
 import AdminLayout from "@modules/Core/Resources/js/layouts/AdminLayout.vue";
-import { Head, Link, router } from '@inertiajs/vue3';
-import { Button } from "@modules/Core/Resources/js/components/ui/button";
+import { Head, router } from '@inertiajs/vue3';
 import HitoForm from "@modules/Proyectos/Resources/js/components/HitoForm.vue";
-import { ArrowLeft } from 'lucide-vue-next';
 import type { BreadcrumbItem } from '@/types';
 import type { CategoriaEtiqueta } from "@modules/Proyectos/Resources/js/types/etiquetas";
 
@@ -79,13 +77,7 @@ const handleCancel = () => {
         <div class="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
             <!-- Header -->
             <div class="flex items-center justify-between">
-                <h1 class="text-2xl font-bold">Crear Nuevo Hito</h1>
-                <Link :href="`/admin/proyectos/${proyecto.id}/hitos`">
-                    <Button variant="outline" size="sm">
-                        <ArrowLeft class="h-4 w-4 mr-2" />
-                        Volver
-                    </Button>
-                </Link>
+                <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Crear Nuevo Hito</h1>
             </div>
 
             <!-- Formulario reutilizable -->

@@ -324,6 +324,26 @@ const estadoInfo = computed(() => {
       </AlertDescription>
     </Alert>
 
+    <!-- Categorías (al inicio del formulario) -->
+    <Card v-if="categorias && categorias.length > 0">
+      <CardHeader>
+        <CardTitle class="flex items-center gap-2">
+          <Tag class="h-5 w-5" />
+          Categorías
+        </CardTitle>
+        <CardDescription>Asigna etiquetas para categorizar y organizar este entregable</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <EtiquetaSelector
+          v-model="form.etiquetas"
+          :categorias="categorias"
+          :max-etiquetas="10"
+          placeholder="Seleccionar etiquetas para el entregable..."
+          description="Puedes asignar hasta 10 etiquetas"
+        />
+      </CardContent>
+    </Card>
+
     <!-- Información del Hito -->
     <Card>
       <CardHeader>
@@ -553,26 +573,6 @@ const estadoInfo = computed(() => {
         :errors="form.errors"
         @update="form.campos_personalizados = $event"
       />
-
-      <!-- Etiquetas -->
-      <Card v-if="categorias && categorias.length > 0">
-        <CardHeader>
-          <CardTitle class="flex items-center gap-2">
-            <Tag class="h-5 w-5" />
-            Etiquetas
-          </CardTitle>
-          <CardDescription>Asigna etiquetas para categorizar y organizar este entregable</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <EtiquetaSelector
-            v-model="form.etiquetas"
-            :categorias="categorias"
-            :max-etiquetas="10"
-            placeholder="Seleccionar etiquetas para el entregable..."
-            description="Puedes asignar hasta 10 etiquetas"
-          />
-        </CardContent>
-      </Card>
 
       <!-- Errores de validación -->
       <Alert v-if="validationErrors.length > 0" variant="destructive">
