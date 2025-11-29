@@ -95,6 +95,7 @@ class Comentario extends Model
 
     /**
      * Respuestas a este comentario (auto-recursivas para cargar jerarquía completa).
+     * NOTA: Esta relación es recursiva ilimitada. Para escalabilidad, usar respuestasLimitadas.
      */
     public function respuestas(): HasMany
     {
@@ -105,6 +106,22 @@ class Comentario extends Model
                 'comentarioCitado.autor:id,name,email',
                 'respuestas', // Recursivo
             ])
+            ->orderBy('created_at', 'asc');
+    }
+
+    /**
+     * Respuestas directas SIN carga recursiva automática.
+     * Optimizada para escalabilidad: la profundidad se controla desde el Repository.
+     */
+    public function respuestasLimitadas(): HasMany
+    {
+        return $this->hasMany(self::class, 'parent_id')
+            ->with([
+                'autor:id,name,email',
+                'reacciones',
+                'comentarioCitado.autor:id,name,email',
+            ])
+            ->withCount('respuestas as total_respuestas_anidadas')
             ->orderBy('created_at', 'asc');
     }
 
@@ -289,9 +306,20 @@ class Comentario extends Model
 
     /**
      * Resumen de reacciones agrupadas por emoji.
+     * Optimizado: Usa valor pre-calculado en SQL si está disponible.
      */
     public function getReaccionesResumenAttribute(): array
     {
+        // Si tenemos el valor optimizado calculado por el Repository, usarlo
+        if (isset($this->attributes['reacciones_resumen_optimizado'])) {
+            return $this->attributes['reacciones_resumen_optimizado'];
+        }
+
+        // Fallback: Calcular en PHP (para casos donde no viene del Repository)
+        if (!$this->relationLoaded('reacciones')) {
+            return [];
+        }
+
         return $this->reacciones
             ->groupBy('emoji')
             ->map(function ($group, $emoji) {

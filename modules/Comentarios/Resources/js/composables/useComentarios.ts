@@ -314,6 +314,44 @@ export function useComentarios(
         }
     };
 
+    /**
+     * Carga respuestas adicionales de un comentario (para carga bajo demanda).
+     * Útil cuando hay respuestas profundas que no se cargaron inicialmente.
+     */
+    const cargarRespuestasAdicionales = async (
+        comentarioId: number,
+        offset: number = 0,
+        limit: number = 10
+    ): Promise<ApiResponse<Comentario[]>> => {
+        try {
+            const params = new URLSearchParams({
+                offset: String(offset),
+                limit: String(limit),
+            });
+
+            const response = await fetch(`/api/comentarios/${comentarioId}/respuestas?${params}`, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                credentials: 'same-origin',
+            });
+
+            const result = await response.json();
+
+            if (result.success && result.data) {
+                // Agregar las respuestas al comentario padre
+                agregarRespuestasAComentario(comentarioId, result.data);
+            }
+
+            return result;
+        } catch (e) {
+            const message = e instanceof Error ? e.message : 'Error al cargar respuestas';
+            return { success: false, message };
+        }
+    };
+
     // =========================================================================
     // Helpers internos
     // =========================================================================
@@ -327,19 +365,63 @@ export function useComentarios(
     };
 
     /**
+     * Obtiene las respuestas de un comentario (soporta ambos formatos).
+     */
+    const getRespuestas = (comentario: Comentario): Comentario[] => {
+        return comentario.respuestas || comentario.respuestas_limitadas || [];
+    };
+
+    /**
      * Agrega una respuesta a un comentario en la lista.
      */
     const agregarRespuestaAComentario = (parentId: number, respuesta: Comentario): void => {
         const agregarRecursivo = (lista: Comentario[]): boolean => {
             for (const comentario of lista) {
                 if (comentario.id === parentId) {
-                    if (!comentario.respuestas) {
+                    // Usar respuestas o respuestas_limitadas según disponibilidad
+                    if (!comentario.respuestas && !comentario.respuestas_limitadas) {
                         comentario.respuestas = [];
                     }
-                    comentario.respuestas.push(respuesta);
+                    const target = comentario.respuestas || comentario.respuestas_limitadas;
+                    target?.push(respuesta);
                     return true;
                 }
-                if (comentario.respuestas && agregarRecursivo(comentario.respuestas)) {
+                const respuestas = getRespuestas(comentario);
+                if (respuestas.length > 0 && agregarRecursivo(respuestas)) {
+                    return true;
+                }
+            }
+            return false;
+        };
+
+        agregarRecursivo(comentarios.value);
+    };
+
+    /**
+     * Agrega múltiples respuestas a un comentario (para carga bajo demanda).
+     */
+    const agregarRespuestasAComentario = (parentId: number, nuevasRespuestas: Comentario[]): void => {
+        const agregarRecursivo = (lista: Comentario[]): boolean => {
+            for (const comentario of lista) {
+                if (comentario.id === parentId) {
+                    if (!comentario.respuestas && !comentario.respuestas_limitadas) {
+                        comentario.respuestas = [];
+                    }
+                    const target = comentario.respuestas || comentario.respuestas_limitadas;
+                    if (target) {
+                        target.push(...nuevasRespuestas);
+                    }
+                    // Actualizar contador
+                    if (comentario.total_respuestas_anidadas !== undefined) {
+                        comentario.total_respuestas_anidadas = Math.max(
+                            0,
+                            comentario.total_respuestas_anidadas - nuevasRespuestas.length
+                        );
+                    }
+                    return true;
+                }
+                const respuestas = getRespuestas(comentario);
+                if (respuestas.length > 0 && agregarRecursivo(respuestas)) {
                     return true;
                 }
             }
@@ -360,10 +442,12 @@ export function useComentarios(
                     lista[i] = {
                         ...comentarioActualizado,
                         respuestas: lista[i].respuestas,
+                        respuestas_limitadas: lista[i].respuestas_limitadas,
                     };
                     return true;
                 }
-                if (lista[i].respuestas && actualizarRecursivo(lista[i].respuestas)) {
+                const respuestas = getRespuestas(lista[i]);
+                if (respuestas.length > 0 && actualizarRecursivo(respuestas)) {
                     return true;
                 }
             }
@@ -380,10 +464,14 @@ export function useComentarios(
         const eliminarRecursivo = (lista: Comentario[]): Comentario[] => {
             return lista
                 .filter(c => c.id !== comentarioId)
-                .map(c => ({
-                    ...c,
-                    respuestas: c.respuestas ? eliminarRecursivo(c.respuestas) : undefined,
-                }));
+                .map(c => {
+                    const respuestas = getRespuestas(c);
+                    return {
+                        ...c,
+                        respuestas: c.respuestas ? eliminarRecursivo(c.respuestas) : undefined,
+                        respuestas_limitadas: c.respuestas_limitadas ? eliminarRecursivo(c.respuestas_limitadas) : undefined,
+                    };
+                });
         };
 
         comentarios.value = eliminarRecursivo(comentarios.value);
@@ -399,7 +487,8 @@ export function useComentarios(
                     comentario.reacciones_resumen = reacciones;
                     return true;
                 }
-                if (comentario.respuestas && actualizarRecursivo(comentario.respuestas)) {
+                const respuestas = getRespuestas(comentario);
+                if (respuestas.length > 0 && actualizarRecursivo(respuestas)) {
                     return true;
                 }
             }
@@ -445,5 +534,6 @@ export function useComentarios(
         eliminar,
         toggleReaccion,
         cambiarOrden,
+        cargarRespuestasAdicionales,
     };
 }

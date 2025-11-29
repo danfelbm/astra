@@ -4,6 +4,10 @@ namespace Modules\Comentarios\Providers;
 
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use Modules\Comentarios\Contracts\ComentarioRepositoryInterface;
+use Modules\Comentarios\Contracts\ComentarioServiceInterface;
+use Modules\Comentarios\Repositories\ComentarioRepository;
+use Modules\Comentarios\Services\ComentarioService;
 
 class ComentariosServiceProvider extends ServiceProvider
 {
@@ -17,6 +21,10 @@ class ComentariosServiceProvider extends ServiceProvider
             __DIR__ . '/../Config/comentarios.php',
             'comentarios'
         );
+
+        // Registrar bindings de interfaces (Dependency Inversion)
+        $this->app->bind(ComentarioRepositoryInterface::class, ComentarioRepository::class);
+        $this->app->bind(ComentarioServiceInterface::class, ComentarioService::class);
     }
 
     /**

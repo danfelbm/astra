@@ -5,27 +5,35 @@ namespace Modules\Comentarios\Repositories;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
+use Modules\Comentarios\Contracts\ComentarioRepositoryInterface;
 use Modules\Comentarios\Models\Comentario;
 
-class ComentarioRepository
+class ComentarioRepository implements ComentarioRepositoryInterface
 {
     /**
+     * Niveles máximos de anidamiento por defecto.
+     */
+    private const DEFAULT_MAX_NIVELES = 3;
+
+    /**
      * Obtiene comentarios paginados para un modelo específico.
+     * Optimizado con carga limitada de respuestas.
      *
      * @param string $sort Opciones: 'recientes', 'antiguos', 'populares'
+     * @param int $maxNiveles Niveles máximos de respuestas a cargar (default: 3)
      */
-    public function getForModel(Model $model, int $perPage = 20, string $sort = 'recientes'): LengthAwarePaginator
-    {
+    public function getForModel(
+        Model $model,
+        int $perPage = 20,
+        string $sort = 'recientes',
+        int $maxNiveles = self::DEFAULT_MAX_NIVELES
+    ): LengthAwarePaginator {
         $query = Comentario::query()
             ->where('commentable_type', get_class($model))
             ->where('commentable_id', $model->getKey())
             ->whereNull('parent_id')
-            ->with([
-                'autor:id,name,email',
-                'reacciones',
-                'comentarioCitado.autor:id,name,email',
-                'respuestas', // Auto-recursivo
-            ]);
+            ->with($this->buildRelacionesConProfundidad($maxNiveles));
 
         // Aplicar ordenamiento
         match ($sort) {
@@ -34,7 +42,149 @@ class ComentarioRepository
             default => $query->orderByDesc('created_at'), // recientes
         };
 
-        return $query->paginate($perPage);
+        $result = $query->paginate($perPage);
+
+        // Post-procesar para agregar resumen de reacciones optimizado
+        $this->enrichWithReaccionesResumen($result->getCollection());
+
+        return $result;
+    }
+
+    /**
+     * Construye el array de relaciones con profundidad limitada.
+     * Evita recursión infinita limitando niveles de anidamiento.
+     */
+    private function buildRelacionesConProfundidad(int $niveles): array
+    {
+        $relaciones = [
+            'autor:id,name,email',
+            'reacciones',
+            'comentarioCitado.autor:id,name,email',
+        ];
+
+        if ($niveles > 0) {
+            // Construir relación anidada con límite
+            $respuestasRelacion = $this->buildRespuestasAnidadas($niveles);
+            $relaciones[] = $respuestasRelacion;
+        }
+
+        return $relaciones;
+    }
+
+    /**
+     * Construye la cadena de relaciones anidadas para respuestas.
+     * Ejemplo con niveles=3: 'respuestasLimitadas.respuestasLimitadas.respuestasLimitadas'
+     */
+    private function buildRespuestasAnidadas(int $niveles): string
+    {
+        $partes = [];
+        for ($i = 0; $i < $niveles; $i++) {
+            $partes[] = 'respuestasLimitadas';
+        }
+        return implode('.', $partes);
+    }
+
+    /**
+     * Enriquece la colección con resumen de reacciones calculado en SQL.
+     */
+    private function enrichWithReaccionesResumen(Collection $comentarios): void
+    {
+        if ($comentarios->isEmpty()) {
+            return;
+        }
+
+        // Recolectar todos los IDs de comentarios (incluyendo respuestas anidadas)
+        $ids = $this->collectAllComentarioIds($comentarios);
+
+        if (empty($ids)) {
+            return;
+        }
+
+        // Obtener resumen de reacciones con SQL agrupado
+        $reaccionesMap = $this->getReaccionesResumenBatch($ids);
+
+        // Asignar a cada comentario
+        $this->assignReaccionesRecursivo($comentarios, $reaccionesMap);
+    }
+
+    /**
+     * Recolecta todos los IDs de comentarios recursivamente.
+     */
+    private function collectAllComentarioIds(Collection $comentarios): array
+    {
+        $ids = [];
+
+        foreach ($comentarios as $comentario) {
+            $ids[] = $comentario->id;
+
+            // Usar respuestasLimitadas si está cargada
+            $respuestas = $comentario->relationLoaded('respuestasLimitadas')
+                ? $comentario->respuestasLimitadas
+                : collect();
+
+            if ($respuestas->isNotEmpty()) {
+                $ids = array_merge($ids, $this->collectAllComentarioIds($respuestas));
+            }
+        }
+
+        return $ids;
+    }
+
+    /**
+     * Obtiene resumen de reacciones para múltiples comentarios en una sola query.
+     */
+    private function getReaccionesResumenBatch(array $comentarioIds): array
+    {
+        $userId = auth()->id();
+
+        $reacciones = DB::table('comentario_reacciones')
+            ->select([
+                'comentario_id',
+                'emoji',
+                DB::raw('COUNT(*) as count'),
+                DB::raw('GROUP_CONCAT(user_id) as user_ids'),
+            ])
+            ->whereIn('comentario_id', $comentarioIds)
+            ->groupBy('comentario_id', 'emoji')
+            ->get();
+
+        // Organizar por comentario_id
+        $map = [];
+        foreach ($reacciones as $reaccion) {
+            $userIds = array_map('intval', explode(',', $reaccion->user_ids));
+
+            $map[$reaccion->comentario_id][] = [
+                'emoji' => $reaccion->emoji,
+                'simbolo' => Comentario::EMOJIS[$reaccion->emoji] ?? $reaccion->emoji,
+                'count' => (int) $reaccion->count,
+                'usuarios' => $userIds,
+                'usuario_actual_reacciono' => $userId ? in_array($userId, $userIds) : false,
+            ];
+        }
+
+        return $map;
+    }
+
+    /**
+     * Asigna reacciones resumen a comentarios recursivamente.
+     */
+    private function assignReaccionesRecursivo(Collection $comentarios, array $reaccionesMap): void
+    {
+        foreach ($comentarios as $comentario) {
+            // Sobreescribir el accessor con el valor calculado en SQL
+            $comentario->setAttribute(
+                'reacciones_resumen_optimizado',
+                $reaccionesMap[$comentario->id] ?? []
+            );
+
+            $respuestas = $comentario->relationLoaded('respuestasLimitadas')
+                ? $comentario->respuestasLimitadas
+                : collect();
+
+            if ($respuestas->isNotEmpty()) {
+                $this->assignReaccionesRecursivo($respuestas, $reaccionesMap);
+            }
+        }
     }
 
     /**
@@ -46,12 +196,7 @@ class ComentarioRepository
             ->where('commentable_type', get_class($model))
             ->where('commentable_id', $model->getKey())
             ->whereNull('parent_id')
-            ->with([
-                'autor:id,name,email',
-                'reacciones',
-                'comentarioCitado.autor:id,name,email',
-                'respuestas', // Auto-recursivo
-            ])
+            ->with($this->buildRelacionesConProfundidad(self::DEFAULT_MAX_NIVELES))
             ->orderByDesc('created_at')
             ->get();
     }
@@ -66,7 +211,7 @@ class ComentarioRepository
                 'autor:id,name,email',
                 'reacciones',
                 'comentarioCitado.autor:id,name,email',
-                'respuestas', // Auto-recursivo
+                'respuestasLimitadas',
                 'parent.autor:id,name,email',
             ])
             ->find($id);
@@ -109,11 +254,40 @@ class ComentarioRepository
     }
 
     /**
-     * Obtiene respuestas de un comentario.
+     * Obtiene respuestas de un comentario con profundidad limitada.
      */
-    public function getRespuestas(Comentario $comentario): Collection
+    public function getRespuestas(Comentario $comentario, int $maxNiveles = self::DEFAULT_MAX_NIVELES): Collection
     {
-        // La relación respuestas ya es auto-recursiva
-        return $comentario->respuestas;
+        return $comentario->respuestasLimitadas()
+            ->with($this->buildRelacionesConProfundidad($maxNiveles - 1))
+            ->get();
+    }
+
+    /**
+     * Carga respuestas adicionales para un comentario (para "cargar más").
+     * Útil cuando hay más respuestas que el límite inicial.
+     */
+    public function cargarRespuestasAdicionales(int $comentarioId, int $offset = 0, int $limit = 10): Collection
+    {
+        return Comentario::query()
+            ->where('parent_id', $comentarioId)
+            ->with([
+                'autor:id,name,email',
+                'reacciones',
+                'comentarioCitado.autor:id,name,email',
+            ])
+            ->withCount('respuestas as total_respuestas_directas')
+            ->orderBy('created_at', 'asc')
+            ->skip($offset)
+            ->take($limit)
+            ->get();
+    }
+
+    /**
+     * Obtiene resumen de reacciones optimizado con SQL para un comentario.
+     */
+    public function getReaccionesResumen(int $comentarioId): array
+    {
+        return $this->getReaccionesResumenBatch([$comentarioId])[$comentarioId] ?? [];
     }
 }

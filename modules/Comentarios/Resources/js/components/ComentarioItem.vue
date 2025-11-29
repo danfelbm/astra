@@ -43,6 +43,7 @@ const emit = defineEmits<{
     delete: [comentario: Comentario];
     toggleReaccion: [comentarioId: number, emoji: EmojiKey];
     submitReply: [contenido: string, parentId: number];
+    cargarMasRespuestas: [comentarioId: number];
 }>();
 
 // Estado local
@@ -50,12 +51,19 @@ const collapsed = ref(false);
 const showReplyForm = ref(false);
 const editMode = ref(false);
 const deleteConfirm = ref(false);
+const cargandoMas = ref(false);
+
+// Obtiene respuestas (soporta ambos formatos: respuestas y respuestas_limitadas)
+const respuestasVisibles = computed(() => {
+    return props.comentario.respuestas || props.comentario.respuestas_limitadas || [];
+});
 
 // Total de respuestas (incluyendo anidadas)
 const totalRespuestas = computed(() => {
     const contar = (c: Comentario): number => {
-        let count = c.respuestas?.length || 0;
-        c.respuestas?.forEach(r => { count += contar(r); });
+        const respuestas = c.respuestas || c.respuestas_limitadas || [];
+        let count = respuestas.length;
+        respuestas.forEach(r => { count += contar(r); });
         return count;
     };
     return contar(props.comentario);
@@ -63,7 +71,12 @@ const totalRespuestas = computed(() => {
 
 // Tiene respuestas directas
 const tieneRespuestas = computed(() => {
-    return (props.comentario.respuestas?.length || 0) > 0;
+    return respuestasVisibles.value.length > 0;
+});
+
+// Tiene respuestas no cargadas (profundidad excedida)
+const tieneRespuestasNoCargadas = computed(() => {
+    return (props.comentario.total_respuestas_anidadas || 0) > 0;
 });
 
 // Iniciales del autor para el avatar
@@ -149,6 +162,14 @@ const handleDelete = () => {
 // Toggle reacción
 const handleToggleReaccion = (emoji: EmojiKey) => {
     emit('toggleReaccion', props.comentario.id, emoji);
+};
+
+// Cargar más respuestas (cuando hay respuestas profundas no cargadas)
+const handleCargarMasRespuestas = () => {
+    cargandoMas.value = true;
+    emit('cargarMasRespuestas', props.comentario.id);
+    // El estado se resetea cuando el padre actualiza las respuestas
+    setTimeout(() => { cargandoMas.value = false; }, 2000);
 };
 </script>
 
@@ -291,7 +312,7 @@ const handleToggleReaccion = (emoji: EmojiKey) => {
         <!-- Respuestas anidadas (recursivas) -->
         <div v-if="tieneRespuestas && !collapsed" class="mt-3 space-y-3">
             <ComentarioItem
-                v-for="respuesta in comentario.respuestas"
+                v-for="respuesta in respuestasVisibles"
                 :key="respuesta.id"
                 :comentario="respuesta"
                 :nivel="nivel + 1"
@@ -303,7 +324,22 @@ const handleToggleReaccion = (emoji: EmojiKey) => {
                 @delete="emit('delete', $event)"
                 @toggle-reaccion="(id, emoji) => emit('toggleReaccion', id, emoji)"
                 @submit-reply="(contenido, parentId) => emit('submitReply', contenido, parentId)"
+                @cargar-mas-respuestas="(id) => emit('cargarMasRespuestas', id)"
             />
+        </div>
+
+        <!-- Botón para cargar más respuestas cuando hay respuestas no cargadas -->
+        <div v-if="tieneRespuestasNoCargadas && !collapsed" class="mt-2 ml-6 pl-4">
+            <Button
+                variant="ghost"
+                size="sm"
+                class="h-7 text-xs text-muted-foreground"
+                :disabled="cargandoMas"
+                @click="handleCargarMasRespuestas"
+            >
+                <ChevronDown class="h-3 w-3 mr-1" />
+                {{ cargandoMas ? 'Cargando...' : `Cargar ${comentario.total_respuestas_anidadas} respuestas más` }}
+            </Button>
         </div>
     </div>
 </template>

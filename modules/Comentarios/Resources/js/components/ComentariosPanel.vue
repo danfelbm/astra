@@ -77,6 +77,7 @@ const {
     eliminar,
     toggleReaccion,
     cambiarOrden,
+    cargarRespuestasAdicionales,
 } = useComentarios(props.commentableType, props.commentableId, {
     paginaInicial: getPaginaInicialDeUrl(),
     urlParam: 'pagina',
@@ -211,6 +212,14 @@ const handleSubmitReply = async (contenido: string, parentId: number) => {
     }
 };
 
+// Manejar carga de más respuestas (para respuestas profundas)
+const handleCargarMasRespuestas = async (comentarioId: number) => {
+    const result = await cargarRespuestasAdicionales(comentarioId);
+    if (!result.success) {
+        toast.error(result.message || 'Error al cargar respuestas');
+    }
+};
+
 // Resetear formulario
 const resetForm = () => {
     formMode.value = 'create';
@@ -316,6 +325,7 @@ const handleFormCancel = () => {
                     @delete="handleDelete"
                     @toggle-reaccion="handleToggleReaccion"
                     @submit-reply="handleSubmitReply"
+                    @cargar-mas-respuestas="handleCargarMasRespuestas"
                 />
 
                 <!-- Paginación -->

@@ -74,6 +74,7 @@ export interface Comentario {
     // Relaciones
     autor?: UsuarioBasico;
     respuestas?: Comentario[];
+    respuestas_limitadas?: Comentario[]; // Respuestas con profundidad controlada
     comentario_citado?: Comentario | null;
     reacciones?: Reaccion[];
     menciones?: Mencion[];
@@ -87,6 +88,7 @@ export interface Comentario {
     tiempo_restante_edicion?: number | null;
     tiene_respuestas?: boolean;
     total_respuestas?: number;
+    total_respuestas_anidadas?: number; // Contador de respuestas profundas no cargadas
     reacciones_resumen?: ReaccionResumen[];
 }
 

@@ -33,6 +33,12 @@ Route::middleware(['auth'])->prefix('api/comentarios')->name('api.comentarios.')
         ->middleware('can:comentarios.react')
         ->where('comentario', '[0-9]+');
 
+    // Cargar respuestas adicionales (para carga bajo demanda)
+    Route::get('/{comentario}/respuestas', [ComentarioController::class, 'respuestas'])
+        ->name('respuestas')
+        ->middleware('can:comentarios.view')
+        ->where('comentario', '[0-9]+');
+
     // CRUD de comentarios para modelos (rutas dinámicas AL FINAL)
     // {type} = 'hitos', 'entregables', etc. (solo letras y guion bajo)
     // {id} = ID del modelo

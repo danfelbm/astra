@@ -4,16 +4,17 @@ namespace Modules\Comentarios\Services;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
+use Modules\Comentarios\Contracts\ComentarioRepositoryInterface;
+use Modules\Comentarios\Contracts\ComentarioServiceInterface;
 use Modules\Comentarios\Models\Comentario;
 use Modules\Comentarios\Models\ComentarioReaccion;
 use Modules\Comentarios\Models\ComentarioMencion;
-use Modules\Comentarios\Repositories\ComentarioRepository;
 use Modules\Core\Models\User;
 
-class ComentarioService
+class ComentarioService implements ComentarioServiceInterface
 {
     public function __construct(
-        private ComentarioRepository $repository
+        private ComentarioRepositoryInterface $repository
     ) {}
 
     /**

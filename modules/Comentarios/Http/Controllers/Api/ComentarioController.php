@@ -5,17 +5,17 @@ namespace Modules\Comentarios\Http\Controllers\Api;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
+use Modules\Comentarios\Contracts\ComentarioRepositoryInterface;
+use Modules\Comentarios\Contracts\ComentarioServiceInterface;
 use Modules\Comentarios\Http\Requests\StoreComentarioRequest;
 use Modules\Comentarios\Http\Requests\UpdateComentarioRequest;
 use Modules\Comentarios\Models\Comentario;
-use Modules\Comentarios\Repositories\ComentarioRepository;
-use Modules\Comentarios\Services\ComentarioService;
 
 class ComentarioController extends Controller
 {
     public function __construct(
-        private ComentarioService $service,
-        private ComentarioRepository $repository
+        private ComentarioServiceInterface $service,
+        private ComentarioRepositoryInterface $repository
     ) {}
 
     /**
@@ -119,6 +119,29 @@ class ComentarioController extends Controller
         $result = $this->service->toggleReaccion($comentario, $request->input('emoji'));
 
         return response()->json($result, $result['success'] ? 200 : 422);
+    }
+
+    /**
+     * Carga respuestas adicionales de un comentario (para carga bajo demanda).
+     * GET /api/comentarios/{comentario}/respuestas
+     */
+    public function respuestas(Request $request, Comentario $comentario): JsonResponse
+    {
+        $offset = (int) $request->input('offset', 0);
+        $limit = min((int) $request->input('limit', 10), 50); // Máximo 50
+
+        $respuestas = $this->repository->cargarRespuestasAdicionales(
+            $comentario->id,
+            $offset,
+            $limit
+        );
+
+        return response()->json([
+            'success' => true,
+            'data' => $respuestas,
+            'offset' => $offset,
+            'limit' => $limit,
+        ]);
     }
 
     /**
