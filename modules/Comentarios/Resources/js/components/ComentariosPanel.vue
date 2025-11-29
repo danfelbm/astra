@@ -10,8 +10,8 @@
  *     :can-create="canEdit"
  * />
  */
-import { ref, onMounted, watch } from 'vue';
-import type { Comentario, ComentarioFormMode, EmojiKey } from '../types/comentarios';
+import { ref, computed, onMounted, watch } from 'vue';
+import type { Comentario, ComentarioFormMode, EmojiKey, PaginationLink } from '../types/comentarios';
 import { useComentarios, type SortOption } from '../composables/useComentarios';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@modules/Core/Resources/js/components/ui/card';
 import { Button } from '@modules/Core/Resources/js/components/ui/button';
@@ -25,7 +25,7 @@ import {
 } from '@modules/Core/Resources/js/components/ui/select';
 import ComentarioForm from './ComentarioForm.vue';
 import ComentarioItem from './ComentarioItem.vue';
-import { MessageSquare, ArrowUpDown, ChevronLeft, ChevronRight } from 'lucide-vue-next';
+import { MessageSquare, ArrowUpDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-vue-next';
 import { toast } from 'vue-sonner';
 
 // Opciones de ordenamiento
@@ -47,19 +47,29 @@ const props = withDefaults(defineProps<Props>(), {
     canReact: true,
 });
 
-// Composable de comentarios
+// Leer página inicial desde la URL
+const getPaginaInicialDeUrl = (): number => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const pagina = urlParams.get('pagina');
+    return pagina ? parseInt(pagina, 10) : 1;
+};
+
+// Composable de comentarios con opciones
 const {
     comentarios,
     loading,
     error,
     total,
-    currentPage,
     lastPage,
+    from,
+    to,
+    links,
     tienePaginacion,
     puedePaginaAnterior,
     puedePaginaSiguiente,
     sortBy,
     cargar,
+    irAPagina,
     paginaSiguiente,
     paginaAnterior,
     crear,
@@ -67,7 +77,27 @@ const {
     eliminar,
     toggleReaccion,
     cambiarOrden,
-} = useComentarios(props.commentableType, props.commentableId);
+} = useComentarios(props.commentableType, props.commentableId, {
+    paginaInicial: getPaginaInicialDeUrl(),
+    urlParam: 'pagina',
+    sincronizarUrl: true,
+});
+
+// Links de paginación procesados
+const paginationLinks = computed(() => {
+    if (!links.value || links.value.length <= 3) return [];
+    return links.value;
+});
+
+// Ir a una página específica desde los links
+const handlePageClick = (link: PaginationLink) => {
+    if (!link.url || link.active) return;
+
+    // Extraer el número de página de la URL del link
+    const url = new URL(link.url, window.location.origin);
+    const page = parseInt(url.searchParams.get('page') || '1', 10);
+    irAPagina(page);
+};
 
 // Estado del formulario principal
 const formMode = ref<ComentarioFormMode>('create');
@@ -289,26 +319,87 @@ const handleFormCancel = () => {
                 />
 
                 <!-- Paginación -->
-                <div v-if="tienePaginacion" class="flex items-center justify-center gap-2 pt-4">
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        :disabled="!puedePaginaAnterior || loading"
-                        @click="paginaAnterior"
-                    >
-                        <ChevronLeft class="h-4 w-4" />
-                    </Button>
-                    <span class="text-sm text-muted-foreground px-2">
-                        {{ currentPage }} / {{ lastPage }}
-                    </span>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        :disabled="!puedePaginaSiguiente || loading"
-                        @click="paginaSiguiente"
-                    >
-                        <ChevronRight class="h-4 w-4" />
-                    </Button>
+                <div v-if="tienePaginacion" class="flex flex-col items-center gap-3 pt-4 border-t">
+                    <!-- Info de resultados -->
+                    <div class="text-sm text-muted-foreground">
+                        Mostrando {{ from }} a {{ to }} de {{ total }} comentarios
+                    </div>
+
+                    <!-- Controles de paginación -->
+                    <div class="flex items-center gap-1">
+                        <!-- Ir al inicio -->
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            class="h-8 w-8 p-0"
+                            :disabled="!puedePaginaAnterior || loading"
+                            @click="irAPagina(1)"
+                            title="Primera página"
+                        >
+                            <ChevronsLeft class="h-4 w-4" />
+                        </Button>
+
+                        <!-- Anterior -->
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            class="h-8 w-8 p-0"
+                            :disabled="!puedePaginaAnterior || loading"
+                            @click="paginaAnterior"
+                            title="Página anterior"
+                        >
+                            <ChevronLeft class="h-4 w-4" />
+                        </Button>
+
+                        <!-- Números de página -->
+                        <template v-for="link in paginationLinks" :key="link.label">
+                            <!-- Omitir Previous y Next (ya tenemos botones para eso) -->
+                            <template v-if="!link.label.includes('Previous') && !link.label.includes('Next') && !link.label.includes('previous') && !link.label.includes('next')">
+                                <!-- Elipsis -->
+                                <span
+                                    v-if="link.label === '...'"
+                                    class="px-2 text-muted-foreground"
+                                >
+                                    ...
+                                </span>
+                                <!-- Número de página -->
+                                <Button
+                                    v-else
+                                    :variant="link.active ? 'default' : 'outline'"
+                                    size="sm"
+                                    class="h-8 min-w-[32px] px-2"
+                                    :disabled="loading || link.active"
+                                    @click="handlePageClick(link)"
+                                >
+                                    {{ link.label }}
+                                </Button>
+                            </template>
+                        </template>
+
+                        <!-- Siguiente -->
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            class="h-8 w-8 p-0"
+                            :disabled="!puedePaginaSiguiente || loading"
+                            @click="paginaSiguiente"
+                            title="Página siguiente"
+                        >
+                            <ChevronRight class="h-4 w-4" />
+                        </Button>
+
+                        <!-- Ir al final -->
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            class="h-8 w-8 p-0"
+                            :disabled="!puedePaginaSiguiente || loading"
+                            @click="irAPagina(lastPage)"
+                            title="Última página"
+                        >
+                            <ChevronsRight class="h-4 w-4" />
+                        </Button>
+                    </div>
                 </div>
             </div>
         </CardContent>

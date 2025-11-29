@@ -112,6 +112,13 @@ export interface ApiResponse<T> {
     accion?: 'added' | 'removed';
 }
 
+// Link de paginación (estructura de Laravel)
+export interface PaginationLink {
+    url: string | null;
+    label: string;
+    active: boolean;
+}
+
 // Respuesta paginada
 export interface PaginatedResponse<T> {
     data: T[];
@@ -121,6 +128,7 @@ export interface PaginatedResponse<T> {
     total: number;
     from: number;
     to: number;
+    links: PaginationLink[];
 }
 
 // Props del panel de comentarios

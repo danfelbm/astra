@@ -5,6 +5,7 @@ import type {
     ComentarioUpdateData,
     ApiResponse,
     PaginatedResponse,
+    PaginationLink,
     ReaccionResumen,
     EmojiKey,
 } from '../types/comentarios';
@@ -12,20 +13,41 @@ import type {
 // Tipos de ordenamiento disponibles
 export type SortOption = 'recientes' | 'antiguos' | 'populares';
 
+// Opciones para el composable
+export interface UseComentariosOptions {
+    paginaInicial?: number;
+    urlParam?: string; // Nombre del parámetro en la URL (default: 'pagina')
+    sincronizarUrl?: boolean; // Si debe actualizar la URL al cambiar de página
+}
+
 /**
  * Composable para gestionar comentarios en cualquier entidad.
  *
  * @param commentableType - Tipo de modelo ('hitos', 'entregables', etc.)
  * @param commentableId - ID del modelo
+ * @param options - Opciones de configuración
  */
-export function useComentarios(commentableType: string, commentableId: number) {
+export function useComentarios(
+    commentableType: string,
+    commentableId: number,
+    options: UseComentariosOptions = {}
+) {
+    const {
+        paginaInicial = 1,
+        urlParam = 'pagina',
+        sincronizarUrl = true,
+    } = options;
+
     // Estado
     const comentarios = ref<Comentario[]>([]);
     const loading = ref(false);
     const error = ref<string | null>(null);
-    const currentPage = ref(1);
+    const currentPage = ref(paginaInicial);
     const lastPage = ref(1);
     const total = ref(0);
+    const from = ref(0);
+    const to = ref(0);
+    const links = ref<PaginationLink[]>([]);
     const sortBy = ref<SortOption>('recientes');
 
     // Emojis disponibles
@@ -44,15 +66,34 @@ export function useComentarios(commentableType: string, commentableId: number) {
     const baseUrl = `/api/comentarios/${commentableType}/${commentableId}`;
 
     /**
-     * Carga comentarios desde la API.
+     * Actualiza el parámetro de página en la URL sin recargar.
      */
-    const cargar = async (page: number = 1): Promise<void> => {
+    const actualizarUrl = (page: number): void => {
+        if (!sincronizarUrl) return;
+
+        const url = new URL(window.location.href);
+        if (page > 1) {
+            url.searchParams.set(urlParam, String(page));
+        } else {
+            url.searchParams.delete(urlParam);
+        }
+        window.history.replaceState({}, '', url.toString());
+    };
+
+    /**
+     * Carga comentarios desde la API.
+     * @param page - Página a cargar (por defecto usa currentPage)
+     * @param actualizarUrlParam - Si debe actualizar el parámetro en la URL
+     */
+    const cargar = async (page?: number, actualizarUrlParam: boolean = true): Promise<void> => {
+        // Si no se especifica página, usar la página actual (permite cargar página inicial de URL)
+        const targetPage = page ?? currentPage.value;
         loading.value = true;
         error.value = null;
 
         try {
             const params = new URLSearchParams({
-                page: String(page),
+                page: String(targetPage),
                 sort: sortBy.value,
             });
 
@@ -68,15 +109,19 @@ export function useComentarios(commentableType: string, commentableId: number) {
             const result: ApiResponse<PaginatedResponse<Comentario>> = await response.json();
 
             if (result.success && result.data) {
-                if (page === 1) {
-                    comentarios.value = result.data.data;
-                } else {
-                    // Agregar al final para scroll infinito
-                    comentarios.value = [...comentarios.value, ...result.data.data];
-                }
+                // Siempre reemplazar datos (paginación real, no "cargar más")
+                comentarios.value = result.data.data;
                 currentPage.value = result.data.current_page;
                 lastPage.value = result.data.last_page;
                 total.value = result.data.total;
+                from.value = result.data.from || 0;
+                to.value = result.data.to || 0;
+                links.value = result.data.links || [];
+
+                // Actualizar URL si corresponde
+                if (actualizarUrlParam) {
+                    actualizarUrl(targetPage);
+                }
             } else {
                 throw new Error(result.message || 'Error al cargar comentarios');
             }
@@ -378,6 +423,9 @@ export function useComentarios(commentableType: string, commentableId: number) {
         currentPage,
         lastPage,
         total,
+        from,
+        to,
+        links,
         emojis,
         sortBy,
 
