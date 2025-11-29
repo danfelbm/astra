@@ -21,4 +21,5 @@ return [
     Modules\Configuration\Providers\ConfigurationServiceProvider::class,
     Modules\Campanas\Providers\CampanasServiceProvider::class,
     Modules\Proyectos\Providers\ProyectosServiceProvider::class,
+    Modules\Comentarios\Providers\ComentariosServiceProvider::class,
 ];

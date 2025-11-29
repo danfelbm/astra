@@ -10,10 +10,11 @@ use Illuminate\Support\Collection;
 use Modules\Core\Traits\HasTenant;
 use Modules\Core\Traits\HasAuditLog;
 use Modules\Core\Models\User;
+use Modules\Comentarios\Traits\HasComentarios;
 
 class Hito extends Model
 {
-    use HasTenant, HasAuditLog;
+    use HasTenant, HasAuditLog, HasComentarios;
 
     /**
      * La tabla asociada con el modelo.
@@ -73,7 +74,8 @@ class Hito extends Model
         'esta_vencido',
         'esta_proximo_vencer',
         'tiene_hijos',
-        'ruta_completa'
+        'ruta_completa',
+        'total_comentarios',
     ];
 
     /**

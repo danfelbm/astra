@@ -13,6 +13,7 @@ import EvidenciaFilters from '@modules/Proyectos/Resources/js/components/Evidenc
 import EvidenciasTable from '@modules/Proyectos/Resources/js/components/EvidenciasTable.vue';
 import ActivityFilters from '@modules/Proyectos/Resources/js/components/ActivityFilters.vue';
 import ActivityLog from '@modules/Proyectos/Resources/js/components/ActivityLog.vue';
+import ComentariosPanel from '@modules/Comentarios/Resources/js/components/ComentariosPanel.vue';
 import {
   ArrowLeft,
   Edit,
@@ -137,7 +138,7 @@ const usuariosAsignados = computed(() => props.usuariosAsignados || []);
 const actividades = computed(() => props.actividades || []);
 
 // Tabs válidos para validación
-const validTabs = ['detalles', 'equipo', 'evidencias', 'actividad'];
+const validTabs = ['detalles', 'equipo', 'evidencias', 'comentarios', 'actividad'];
 
 // Estado para el tab activo - leer de URL query params
 const getInitialTab = (): string => {
@@ -505,6 +506,12 @@ const { route } = window as any;
               {{ evidenciasDelEntregable.length }}
             </Badge>
           </TabsTrigger>
+          <TabsTrigger value="comentarios">
+            Comentarios
+            <Badge v-if="entregable.total_comentarios > 0" class="ml-2 h-5 px-1.5" variant="secondary">
+              {{ entregable.total_comentarios }}
+            </Badge>
+          </TabsTrigger>
           <TabsTrigger value="actividad">
             <Activity class="h-4 w-4 mr-2" />
             Actividad
@@ -682,6 +689,15 @@ const { route } = window as any;
             mode="grouped"
             :evidencias-agrupadas="evidenciasAgrupadasPorContrato"
             :format-date="formatDate"
+          />
+        </TabsContent>
+
+        <!-- Tab Comentarios -->
+        <TabsContent value="comentarios" class="space-y-4">
+          <ComentariosPanel
+            commentable-type="entregables"
+            :commentable-id="entregable.id"
+            :can-create="canEdit"
           />
         </TabsContent>
 

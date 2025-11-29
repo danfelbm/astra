@@ -9,10 +9,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Modules\Core\Traits\HasTenant;
 use Modules\Core\Traits\HasAuditLog;
 use Modules\Core\Models\User;
+use Modules\Comentarios\Traits\HasComentarios;
 
 class Entregable extends Model
 {
-    use HasTenant, HasAuditLog;
+    use HasTenant, HasAuditLog, HasComentarios;
 
     /**
      * La tabla asociada con el modelo.
@@ -69,7 +70,8 @@ class Entregable extends Model
         'dias_restantes',
         'esta_vencido',
         'esta_proximo_vencer',
-        'duracion_dias'
+        'duracion_dias',
+        'total_comentarios',
     ];
 
     /**

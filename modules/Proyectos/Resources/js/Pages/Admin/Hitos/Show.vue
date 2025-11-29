@@ -34,6 +34,7 @@ import EntregablesFilters from '@modules/Proyectos/Resources/js/components/Entre
 import ActivityFilters from '@modules/Proyectos/Resources/js/components/ActivityFilters.vue';
 import ActivityLog from '@modules/Proyectos/Resources/js/components/ActivityLog.vue';
 import CamposPersonalizadosDisplay from '@modules/Proyectos/Resources/js/components/CamposPersonalizadosDisplay.vue';
+import ComentariosPanel from '@modules/Comentarios/Resources/js/components/ComentariosPanel.vue';
 
 interface Usuario {
     id: number;
@@ -100,7 +101,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 // Tabs válidos para validación
-const validTabs = ['detalles', 'entregables', 'actividad'];
+const validTabs = ['detalles', 'entregables', 'comentarios', 'actividad'];
 
 // Estado para el tab activo - leer de URL query params
 const getInitialTab = (): string => {
@@ -508,6 +509,12 @@ const actividadesFiltradas = computed(() => {
                             {{ estadisticas.total_entregables }}
                         </Badge>
                     </TabsTrigger>
+                    <TabsTrigger value="comentarios">
+                        Comentarios
+                        <Badge v-if="hito.total_comentarios > 0" variant="secondary" class="ml-2">
+                            {{ hito.total_comentarios }}
+                        </Badge>
+                    </TabsTrigger>
                     <TabsTrigger value="actividad">Actividad</TabsTrigger>
                 </TabsList>
 
@@ -707,6 +714,15 @@ const actividadesFiltradas = computed(() => {
                             </Button>
                         </CardContent>
                     </Card>
+                </TabsContent>
+
+                <!-- Tab Comentarios -->
+                <TabsContent value="comentarios" class="space-y-4">
+                    <ComentariosPanel
+                        commentable-type="hitos"
+                        :commentable-id="hito.id"
+                        :can-create="canEdit"
+                    />
                 </TabsContent>
 
                 <!-- Tab Actividad -->
