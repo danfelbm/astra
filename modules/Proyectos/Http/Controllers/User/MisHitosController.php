@@ -274,10 +274,11 @@ class MisHitosController extends UserController
         // Obtener campos personalizados para hitos
         $camposPersonalizados = $this->campoPersonalizadoRepository->getActivosParaHitos();
 
-        // Obtener categorías de etiquetas disponibles
+        // Obtener categorías de etiquetas disponibles (filtradas para hitos)
         $categorias = CategoriaEtiqueta::with('etiquetas')
-            ->where('activo', true)
-            ->orderBy('orden')
+            ->activas()
+            ->paraHitos()
+            ->ordenado()
             ->get();
 
         return Inertia::render('Modules/Proyectos/User/MisHitos/Create', [
@@ -378,10 +379,11 @@ class MisHitosController extends UserController
         $camposPersonalizados = $this->campoPersonalizadoRepository->getActivosParaHitos();
         $valoresCamposPersonalizados = $hito->getCamposPersonalizadosValues();
 
-        // Obtener categorías de etiquetas disponibles
+        // Obtener categorías de etiquetas disponibles (filtradas para hitos)
         $categorias = CategoriaEtiqueta::with('etiquetas')
-            ->where('activo', true)
-            ->orderBy('orden')
+            ->activas()
+            ->paraHitos()
+            ->ordenado()
             ->get();
 
         return Inertia::render('Modules/Proyectos/User/MisHitos/Edit', [
@@ -459,10 +461,11 @@ class MisHitosController extends UserController
         // Obtener campos personalizados para entregables
         $camposPersonalizados = $this->campoPersonalizadoRepository->getActivosParaEntregables();
 
-        // Obtener categorías de etiquetas disponibles
+        // Obtener categorías de etiquetas disponibles (filtradas para entregables)
         $categorias = CategoriaEtiqueta::with('etiquetas')
-            ->where('activo', true)
-            ->orderBy('orden')
+            ->activas()
+            ->paraEntregables()
+            ->ordenado()
             ->get();
 
         // Estados y prioridades disponibles
@@ -581,10 +584,11 @@ class MisHitosController extends UserController
         $camposPersonalizados = $this->campoPersonalizadoRepository->getActivosParaEntregables();
         $valoresCamposPersonalizados = $entregable->getCamposPersonalizadosValues();
 
-        // Obtener categorías de etiquetas disponibles
+        // Obtener categorías de etiquetas disponibles (filtradas para entregables)
         $categorias = CategoriaEtiqueta::with('etiquetas')
-            ->where('activo', true)
-            ->orderBy('orden')
+            ->activas()
+            ->paraEntregables()
+            ->ordenado()
             ->get();
 
         // Estados y prioridades disponibles

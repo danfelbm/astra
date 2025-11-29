@@ -31,6 +31,7 @@ class CategoriaEtiqueta extends Model
         'descripcion',
         'orden',
         'activo',
+        'aplicar_para',
         'tenant_id',
     ];
 
@@ -42,6 +43,7 @@ class CategoriaEtiqueta extends Model
     protected $casts = [
         'activo' => 'boolean',
         'orden' => 'integer',
+        'aplicar_para' => 'array',
     ];
 
     /**
@@ -125,6 +127,62 @@ class CategoriaEtiqueta extends Model
               ->orWhere('slug', 'like', "%{$termino}%")
               ->orWhere('descripcion', 'like', "%{$termino}%");
         });
+    }
+
+    /**
+     * Scope para categorías que aplican a proyectos.
+     */
+    public function scopeParaProyectos($query)
+    {
+        return $query->where(function ($q) {
+            $q->whereJsonContains('aplicar_para', 'proyectos')
+              ->orWhereNull('aplicar_para');
+        });
+    }
+
+    /**
+     * Scope para categorías que aplican a hitos.
+     */
+    public function scopeParaHitos($query)
+    {
+        return $query->where(function ($q) {
+            $q->whereJsonContains('aplicar_para', 'hitos')
+              ->orWhereNull('aplicar_para');
+        });
+    }
+
+    /**
+     * Scope para categorías que aplican a entregables.
+     */
+    public function scopeParaEntregables($query)
+    {
+        return $query->where(function ($q) {
+            $q->whereJsonContains('aplicar_para', 'entregables')
+              ->orWhereNull('aplicar_para');
+        });
+    }
+
+    /**
+     * Scope para categorías que aplican a una entidad específica.
+     */
+    public function scopeParaEntidad($query, $entidad)
+    {
+        return $query->where(function ($q) use ($entidad) {
+            $q->whereJsonContains('aplicar_para', $entidad)
+              ->orWhereNull('aplicar_para');
+        });
+    }
+
+    /**
+     * Verifica si la categoría aplica para una entidad.
+     */
+    public function aplicaPara($entidad): bool
+    {
+        if (empty($this->aplicar_para)) {
+            return true; // Compatibilidad: sin aplicar_para = aplica a todas
+        }
+
+        return in_array($entidad, $this->aplicar_para);
     }
 
     /**

@@ -39,6 +39,11 @@ class CategoriaEtiquetaController extends AdminController
             'filters' => $request->only(['search', 'activo']),
             'colores' => $this->service->getColoresDisponibles(),
             'iconos' => $this->service->getIconosSugeridos(),
+            'entidadesDisponibles' => [
+                'proyectos' => 'Proyectos',
+                'hitos' => 'Hitos',
+                'entregables' => 'Entregables',
+            ],
         ]);
     }
 
@@ -53,6 +58,11 @@ class CategoriaEtiquetaController extends AdminController
         return Inertia::render('Modules/Proyectos/Admin/CategoriaEtiquetas/Form', [
             'colores' => $this->service->getColoresDisponibles(),
             'iconos' => $this->service->getIconosSugeridos(),
+            'entidadesDisponibles' => [
+                'proyectos' => 'Proyectos',
+                'hitos' => 'Hitos',
+                'entregables' => 'Entregables',
+            ],
         ]);
     }
 
@@ -103,6 +113,11 @@ class CategoriaEtiquetaController extends AdminController
             'categoria' => $categoriaEtiqueta,
             'colores' => $this->service->getColoresDisponibles(),
             'iconos' => $this->service->getIconosSugeridos(),
+            'entidadesDisponibles' => [
+                'proyectos' => 'Proyectos',
+                'hitos' => 'Hitos',
+                'entregables' => 'Entregables',
+            ],
         ]);
     }
 

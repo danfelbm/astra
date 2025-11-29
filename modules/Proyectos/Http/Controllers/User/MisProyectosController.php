@@ -108,10 +108,11 @@ class MisProyectosController extends UserController
 
         $camposPersonalizados = CampoPersonalizado::activos()->ordenado()->get();
 
-        // Cargar etiquetas y categorías para el selector
+        // Cargar etiquetas y categorías para el selector (filtradas para proyectos)
         $categorias = \Modules\Proyectos\Models\CategoriaEtiqueta::with('etiquetas')
-            ->where('activo', true)
-            ->orderBy('orden')
+            ->activas()
+            ->paraProyectos()
+            ->ordenado()
             ->get();
 
         return Inertia::render('Modules/Proyectos/User/MisProyectos/Create', [
@@ -263,10 +264,11 @@ class MisProyectosController extends UserController
             $valoresCampos[$campo->slug] = $campo->getValorParaProyecto($proyecto->id);
         }
 
-        // Cargar etiquetas y categorías para el selector
+        // Cargar etiquetas y categorías para el selector (filtradas para proyectos)
         $categorias = \Modules\Proyectos\Models\CategoriaEtiqueta::with('etiquetas')
-            ->where('activo', true)
-            ->orderBy('orden')
+            ->activas()
+            ->paraProyectos()
+            ->ordenado()
             ->get();
 
         return Inertia::render('Modules/Proyectos/User/MisProyectos/Edit', [

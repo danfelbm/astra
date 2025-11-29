@@ -88,10 +88,11 @@ class HitoController extends AdminController
         // Obtener campos personalizados para hitos
         $camposPersonalizados = $this->campoPersonalizadoRepository->getActivosParaHitos();
 
-        // Obtener categorías de etiquetas disponibles
+        // Obtener categorías de etiquetas disponibles (filtradas para hitos)
         $categorias = \Modules\Proyectos\Models\CategoriaEtiqueta::with('etiquetas')
-            ->where('activo', true)
-            ->orderBy('orden')
+            ->activas()
+            ->paraHitos()
+            ->ordenado()
             ->get();
 
         return Inertia::render('Modules/Proyectos/Admin/Hitos/Create', [
@@ -256,10 +257,11 @@ class HitoController extends AdminController
         // Cargar etiquetas actuales del hito
         $hito->load('etiquetas.categoria');
 
-        // Obtener categorías de etiquetas disponibles
+        // Obtener categorías de etiquetas disponibles (filtradas para hitos)
         $categorias = \Modules\Proyectos\Models\CategoriaEtiqueta::with('etiquetas')
-            ->where('activo', true)
-            ->orderBy('orden')
+            ->activas()
+            ->paraHitos()
+            ->ordenado()
             ->get();
 
         return Inertia::render('Modules/Proyectos/Admin/Hitos/Edit', [

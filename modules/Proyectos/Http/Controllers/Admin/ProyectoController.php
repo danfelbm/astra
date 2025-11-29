@@ -61,10 +61,11 @@ class ProyectoController extends AdminController
 
         $camposPersonalizados = CampoPersonalizado::paraProyectos()->activos()->ordenado()->get();
 
-        // Cargar etiquetas y categorías para el selector
+        // Cargar etiquetas y categorías para el selector (filtradas para proyectos)
         $categorias = CategoriaEtiqueta::with('etiquetas')
-            ->where('activo', true)
-            ->orderBy('orden')
+            ->activas()
+            ->paraProyectos()
+            ->ordenado()
             ->get();
 
         return Inertia::render('Modules/Proyectos/Admin/Proyectos/Create', [
@@ -224,10 +225,11 @@ class ProyectoController extends AdminController
             $valoresCampos[$campo->id] = $campo->getValorParaProyecto($proyecto->id);
         }
 
-        // Cargar etiquetas y categorías para el selector
+        // Cargar etiquetas y categorías para el selector (filtradas para proyectos)
         $categorias = CategoriaEtiqueta::with('etiquetas')
-            ->where('activo', true)
-            ->orderBy('orden')
+            ->activas()
+            ->paraProyectos()
+            ->ordenado()
             ->get();
 
         return Inertia::render('Modules/Proyectos/Admin/Proyectos/Edit', [

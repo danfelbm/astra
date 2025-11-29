@@ -7,6 +7,7 @@ import { Button } from "@modules/Core/Resources/js/components/ui/button";
 import { Input } from "@modules/Core/Resources/js/components/ui/input";
 import { Label } from "@modules/Core/Resources/js/components/ui/label";
 import { Badge } from "@modules/Core/Resources/js/components/ui/badge";
+import { Checkbox } from "@modules/Core/Resources/js/components/ui/checkbox";
 import {
     Table,
     TableBody,
@@ -45,6 +46,7 @@ interface Props {
     };
     colores: Record<string, string>;
     iconos: Record<string, string>;
+    entidadesDisponibles?: Record<string, string>;
 }
 
 const props = defineProps<Props>();
@@ -74,7 +76,8 @@ const form = useForm({
     color: 'gray',
     icono: 'Tag',
     descripcion: '',
-    orden: 0
+    orden: 0,
+    aplicar_para: ['proyectos', 'hitos', 'entregables'] as string[]
 });
 
 // Formulario para etiquetas
@@ -101,6 +104,22 @@ const startEditing = (categoria: CategoriaEtiqueta) => {
     form.icono = categoria.icono || 'Tag';
     form.descripcion = categoria.descripcion || '';
     form.orden = categoria.orden;
+    form.aplicar_para = (categoria as any).aplicar_para || ['proyectos', 'hitos', 'entregables'];
+};
+
+// Toggle entidad en aplicar_para
+const toggleAplicarPara = (entidad: string) => {
+    const index = form.aplicar_para.indexOf(entidad);
+    if (index === -1) {
+        form.aplicar_para.push(entidad);
+    } else {
+        form.aplicar_para.splice(index, 1);
+    }
+    // Asegurar que al menos una entidad esté seleccionada
+    if (form.aplicar_para.length === 0) {
+        form.aplicar_para = ['proyectos'];
+        toast.warning('Debe seleccionar al menos una entidad');
+    }
 };
 
 // Cancelar edición/creación
@@ -395,6 +414,26 @@ const handleDeleteEtiqueta = (etiqueta: Etiqueta) => {
                                 placeholder="Descripción opcional"
                             />
                         </div>
+
+                        <!-- Aplicar a (entidades) -->
+                        <div v-if="entidadesDisponibles">
+                            <Label>Aplicar a:</Label>
+                            <p class="text-xs text-muted-foreground mb-2">
+                                Selecciona en qué entidades estará disponible esta categoría
+                            </p>
+                            <div class="flex flex-wrap gap-4">
+                                <div v-for="(label, key) in entidadesDisponibles" :key="key" class="flex items-center space-x-2">
+                                    <Checkbox
+                                        :id="`crear_aplicar_${key}`"
+                                        :checked="form.aplicar_para.includes(key)"
+                                        @update:checked="toggleAplicarPara(key)"
+                                    />
+                                    <Label :for="`crear_aplicar_${key}`" class="cursor-pointer text-sm">
+                                        {{ label }}
+                                    </Label>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="flex gap-2 mt-4">
@@ -436,6 +475,7 @@ const handleDeleteEtiqueta = (etiqueta: Etiqueta) => {
                                 <TableHead>Nombre</TableHead>
                                 <TableHead>Color</TableHead>
                                 <TableHead>Etiquetas</TableHead>
+                                <TableHead>Aplicar a</TableHead>
                                 <TableHead>Orden</TableHead>
                                 <TableHead>Estado</TableHead>
                                 <TableHead class="text-right">Acciones</TableHead>
@@ -468,6 +508,21 @@ const handleDeleteEtiqueta = (etiqueta: Etiqueta) => {
                                     </TableCell>
                                     <TableCell>
                                         {{ categoria.etiquetas_count || 0 }}
+                                    </TableCell>
+                                    <TableCell>
+                                        <div class="flex flex-col gap-1" v-if="entidadesDisponibles">
+                                            <div v-for="(label, key) in entidadesDisponibles" :key="key" class="flex items-center gap-1">
+                                                <Checkbox
+                                                    :id="`edit_aplicar_${categoria.id}_${key}`"
+                                                    :checked="form.aplicar_para.includes(key)"
+                                                    @update:checked="toggleAplicarPara(key)"
+                                                    class="h-3 w-3"
+                                                />
+                                                <Label :for="`edit_aplicar_${categoria.id}_${key}`" class="text-xs cursor-pointer">
+                                                    {{ label }}
+                                                </Label>
+                                            </div>
+                                        </div>
                                     </TableCell>
                                     <TableCell>
                                         <Input v-model.number="form.orden" type="number" class="w-20" />
@@ -517,6 +572,18 @@ const handleDeleteEtiqueta = (etiqueta: Etiqueta) => {
                                         <Badge variant="outline">
                                             {{ categoria.etiquetas_count || 0 }} etiquetas
                                         </Badge>
+                                    </TableCell>
+                                    <TableCell>
+                                        <div class="flex flex-wrap gap-1">
+                                            <Badge
+                                                v-for="entidad in ((categoria as any).aplicar_para || ['proyectos', 'hitos', 'entregables'])"
+                                                :key="entidad"
+                                                variant="outline"
+                                                class="text-xs"
+                                            >
+                                                {{ entidadesDisponibles?.[entidad] || entidad }}
+                                            </Badge>
+                                        </div>
                                     </TableCell>
                                     <TableCell>
                                         {{ categoria.orden }}
@@ -570,7 +637,7 @@ const handleDeleteEtiqueta = (etiqueta: Etiqueta) => {
 
                                 <!-- Fila expandida con etiquetas -->
                                 <TableRow v-if="expandedRows.has(categoria.id)" class="bg-gray-50 dark:bg-gray-900/50">
-                                    <TableCell colspan="6" class="p-0">
+                                    <TableCell colspan="7" class="p-0">
                                         <div class="p-4 space-y-4">
                                             <!-- Header de etiquetas -->
                                             <div class="flex items-center justify-between">
@@ -742,7 +809,7 @@ const handleDeleteEtiqueta = (etiqueta: Etiqueta) => {
 
                             <!-- Si no hay categorías -->
                             <TableRow v-if="categorias.data.length === 0">
-                                <TableCell colspan="6" class="text-center text-muted-foreground py-8">
+                                <TableCell colspan="7" class="text-center text-muted-foreground py-8">
                                     No hay categorías creadas. Crea una nueva para empezar.
                                 </TableCell>
                             </TableRow>

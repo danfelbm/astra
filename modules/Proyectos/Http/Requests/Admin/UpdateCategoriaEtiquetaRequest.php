@@ -67,6 +67,14 @@ class UpdateCategoriaEtiquetaRequest extends FormRequest
                 'nullable',
                 'boolean',
             ],
+            'aplicar_para' => [
+                'nullable',
+                'array',
+            ],
+            'aplicar_para.*' => [
+                'string',
+                Rule::in(['proyectos', 'hitos', 'entregables']),
+            ],
         ];
     }
 
@@ -85,6 +93,8 @@ class UpdateCategoriaEtiquetaRequest extends FormRequest
             'descripcion.max' => 'La descripción no puede exceder los 500 caracteres',
             'orden.min' => 'El orden debe ser un número positivo',
             'orden.max' => 'El orden no puede exceder 9999',
+            'aplicar_para.array' => 'El campo aplicar_para debe ser un array',
+            'aplicar_para.*.in' => 'La entidad seleccionada no es válida',
         ];
     }
 
