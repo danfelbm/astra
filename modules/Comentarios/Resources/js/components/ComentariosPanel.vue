@@ -12,14 +12,28 @@
  */
 import { ref, onMounted, watch } from 'vue';
 import type { Comentario, ComentarioFormMode, EmojiKey } from '../types/comentarios';
-import { useComentarios } from '../composables/useComentarios';
+import { useComentarios, type SortOption } from '../composables/useComentarios';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@modules/Core/Resources/js/components/ui/card';
 import { Button } from '@modules/Core/Resources/js/components/ui/button';
 import { Skeleton } from '@modules/Core/Resources/js/components/ui/skeleton';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@modules/Core/Resources/js/components/ui/select';
 import ComentarioForm from './ComentarioForm.vue';
 import ComentarioItem from './ComentarioItem.vue';
-import { MessageSquare, Loader2 } from 'lucide-vue-next';
+import { MessageSquare, Loader2, ArrowUpDown } from 'lucide-vue-next';
 import { toast } from 'vue-sonner';
+
+// Opciones de ordenamiento
+const sortOptions: { value: SortOption; label: string }[] = [
+    { value: 'recientes', label: 'Más recientes' },
+    { value: 'antiguos', label: 'Más antiguos' },
+    { value: 'populares', label: 'Más populares' },
+];
 
 interface Props {
     commentableType: string;
@@ -40,12 +54,14 @@ const {
     error,
     total,
     puedeCargarMas,
+    sortBy,
     cargar,
     cargarMas,
     crear,
     editar,
     eliminar,
     toggleReaccion,
+    cambiarOrden,
 } = useComentarios(props.commentableType, props.commentableId);
 
 // Estado del formulario principal
@@ -78,7 +94,7 @@ const handleFormSubmit = async (contenido: string, parentId: number | null, quot
             // Editar comentario existente
             const result = await editar(comentarioParaEditar.value.id, { contenido });
             if (result.success) {
-                toast.success('Comentario actualizado');
+                toast.success(result.message);
                 resetForm();
             } else {
                 toast.error(result.message || 'Error al actualizar');
@@ -91,7 +107,7 @@ const handleFormSubmit = async (contenido: string, parentId: number | null, quot
                 quoted_comentario_id: quotedId,
             });
             if (result.success) {
-                toast.success(parentId ? 'Respuesta enviada' : 'Comentario publicado');
+                toast.success(result.message);
                 resetForm();
             } else {
                 toast.error(result.message || 'Error al publicar');
@@ -122,7 +138,7 @@ const handleQuote = (comentario: Comentario) => {
 const handleEdit = async (comentario: Comentario, contenido: string) => {
     const result = await editar(comentario.id, { contenido });
     if (result.success) {
-        toast.success('Comentario actualizado');
+        toast.success(result.message);
     } else {
         toast.error(result.message || 'Error al actualizar');
     }
@@ -132,7 +148,7 @@ const handleEdit = async (comentario: Comentario, contenido: string) => {
 const handleDelete = async (comentario: Comentario) => {
     const result = await eliminar(comentario.id);
     if (result.success) {
-        toast.success('Comentario eliminado');
+        toast.success(result.message);
     } else {
         toast.error(result.message || 'Error al eliminar');
     }
@@ -154,7 +170,7 @@ const handleSubmitReply = async (contenido: string, parentId: number) => {
         quoted_comentario_id: null,
     });
     if (result.success) {
-        toast.success('Respuesta enviada');
+        toast.success(result.message);
     } else {
         toast.error(result.message || 'Error al enviar respuesta');
     }
@@ -188,6 +204,23 @@ const handleFormCancel = () => {
                         {{ total }} {{ total === 1 ? 'comentario' : 'comentarios' }}
                     </CardDescription>
                 </div>
+
+                <!-- Selector de ordenamiento -->
+                <Select v-if="total > 1" :model-value="sortBy" @update:model-value="cambiarOrden">
+                    <SelectTrigger class="w-[160px] h-8 text-xs">
+                        <ArrowUpDown class="h-3 w-3 mr-1" />
+                        <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem
+                            v-for="option in sortOptions"
+                            :key="option.value"
+                            :value="option.value"
+                        >
+                            {{ option.label }}
+                        </SelectItem>
+                    </SelectContent>
+                </Select>
             </div>
         </CardHeader>
 

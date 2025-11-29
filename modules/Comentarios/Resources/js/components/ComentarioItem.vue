@@ -153,9 +153,9 @@ const handleToggleReaccion = (emoji: EmojiKey) => {
 </script>
 
 <template>
-    <div class="group" :class="{ 'ml-6 border-l-2 border-muted pl-4': nivel > 0 }">
+    <div :class="{ 'ml-6 border-l-2 border-muted pl-4': nivel > 0 }">
         <!-- Contenido del comentario -->
-        <div class="flex gap-3">
+        <div class="group/item flex gap-3">
             <!-- Avatar -->
             <Avatar class="h-8 w-8 flex-shrink-0">
                 <AvatarFallback class="text-xs">{{ inicialesAutor }}</AvatarFallback>
@@ -200,79 +200,79 @@ const handleToggleReaccion = (emoji: EmojiKey) => {
                         v-html="comentario.contenido"
                     />
 
-                    <!-- Reacciones -->
-                    <div class="mt-2">
+                    <!-- Reacciones y acciones en el mismo row -->
+                    <div class="mt-2 flex items-center gap-2 flex-wrap">
                         <ComentarioReacciones
                             :reacciones="comentario.reacciones_resumen || []"
                             :can-react="canReact"
                             @toggle="handleToggleReaccion"
                         />
-                    </div>
 
-                    <!-- Acciones -->
-                    <div class="flex items-center gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <!-- Responder -->
-                        <Button
-                            v-if="canCreate"
-                            variant="ghost"
-                            size="sm"
-                            class="h-7 text-xs"
-                            @click="handleReply"
-                        >
-                            <MessageSquare class="h-3 w-3 mr-1" />
-                            Responder
-                        </Button>
+                        <!-- Acciones (visibles on hover) -->
+                        <div class="flex items-center gap-1 opacity-0 group-hover/item:opacity-100 transition-opacity">
+                            <!-- Responder -->
+                            <Button
+                                v-if="canCreate"
+                                variant="ghost"
+                                size="sm"
+                                class="h-7 text-xs"
+                                @click="handleReply"
+                            >
+                                <MessageSquare class="h-3 w-3 mr-1" />
+                                Responder
+                            </Button>
 
-                        <!-- Citar -->
-                        <Button
-                            v-if="canCreate"
-                            variant="ghost"
-                            size="sm"
-                            class="h-7 text-xs"
-                            @click="handleQuote"
-                        >
-                            <Quote class="h-3 w-3 mr-1" />
-                            Citar
-                        </Button>
+                            <!-- Citar -->
+                            <Button
+                                v-if="canCreate"
+                                variant="ghost"
+                                size="sm"
+                                class="h-7 text-xs"
+                                @click="handleQuote"
+                            >
+                                <Quote class="h-3 w-3 mr-1" />
+                                Citar
+                            </Button>
 
-                        <!-- Menú de opciones -->
-                        <DropdownMenu v-if="esAutor || comentario.es_eliminable">
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="sm" class="h-7 w-7 p-0">
-                                    <MoreHorizontal class="h-4 w-4" />
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                                <DropdownMenuItem
-                                    v-if="comentario.es_editable"
-                                    @click="handleEdit"
-                                >
-                                    <Edit class="h-4 w-4 mr-2" />
-                                    Editar
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                    v-if="comentario.es_eliminable"
-                                    class="text-destructive"
-                                    @click="handleDelete"
-                                >
-                                    <Trash2 class="h-4 w-4 mr-2" />
-                                    {{ deleteConfirm ? 'Confirmar eliminación' : 'Eliminar' }}
-                                </DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
+                            <!-- Menú de opciones -->
+                            <DropdownMenu v-if="esAutor || comentario.es_eliminable">
+                                <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="sm" class="h-7 w-7 p-0">
+                                        <MoreHorizontal class="h-4 w-4" />
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                    <DropdownMenuItem
+                                        v-if="comentario.es_editable"
+                                        @click="handleEdit"
+                                    >
+                                        <Edit class="h-4 w-4 mr-2" />
+                                        Editar
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                        v-if="comentario.es_eliminable"
+                                        class="text-destructive"
+                                        @click="handleDelete"
+                                    >
+                                        <Trash2 class="h-4 w-4 mr-2" />
+                                        {{ deleteConfirm ? 'Confirmar eliminación' : 'Eliminar' }}
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
 
-                        <!-- Colapsar respuestas -->
-                        <Button
-                            v-if="tieneRespuestas"
-                            variant="ghost"
-                            size="sm"
-                            class="h-7 text-xs ml-auto"
-                            @click="toggleCollapse"
-                        >
-                            <ChevronDown v-if="!collapsed" class="h-3 w-3 mr-1" />
-                            <ChevronRight v-else class="h-3 w-3 mr-1" />
-                            {{ collapsed ? `Mostrar ${totalRespuestas} respuestas` : 'Ocultar respuestas' }}
-                        </Button>
+                            <!-- Colapsar respuestas -->
+                            <Button
+                                v-if="tieneRespuestas"
+                                variant="ghost"
+                                size="sm"
+                                class="h-7 text-xs"
+                                @click="toggleCollapse"
+                            >
+                                <ChevronDown v-if="!collapsed" class="h-3 w-3 mr-1" />
+                                <ChevronRight v-else class="h-3 w-3 mr-1" />
+                                {{ collapsed ? `Mostrar ${totalRespuestas}` : 'Ocultar' }}
+                            </Button>
+                        </div>
                     </div>
                 </template>
 

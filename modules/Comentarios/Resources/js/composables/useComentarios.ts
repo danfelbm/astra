@@ -9,6 +9,9 @@ import type {
     EmojiKey,
 } from '../types/comentarios';
 
+// Tipos de ordenamiento disponibles
+export type SortOption = 'recientes' | 'antiguos' | 'populares';
+
 /**
  * Composable para gestionar comentarios en cualquier entidad.
  *
@@ -23,6 +26,7 @@ export function useComentarios(commentableType: string, commentableId: number) {
     const currentPage = ref(1);
     const lastPage = ref(1);
     const total = ref(0);
+    const sortBy = ref<SortOption>('recientes');
 
     // Emojis disponibles
     const emojis: Record<EmojiKey, string> = {
@@ -47,7 +51,12 @@ export function useComentarios(commentableType: string, commentableId: number) {
         error.value = null;
 
         try {
-            const response = await fetch(`${baseUrl}?page=${page}`, {
+            const params = new URLSearchParams({
+                page: String(page),
+                sort: sortBy.value,
+            });
+
+            const response = await fetch(`${baseUrl}?${params}`, {
                 method: 'GET',
                 headers: {
                     'Accept': 'application/json',
@@ -76,6 +85,16 @@ export function useComentarios(commentableType: string, commentableId: number) {
             console.error('Error cargando comentarios:', e);
         } finally {
             loading.value = false;
+        }
+    };
+
+    /**
+     * Cambia el ordenamiento y recarga los comentarios.
+     */
+    const cambiarOrden = async (nuevoOrden: SortOption): Promise<void> => {
+        if (nuevoOrden !== sortBy.value) {
+            sortBy.value = nuevoOrden;
+            await cargar(1);
         }
     };
 
@@ -340,6 +359,7 @@ export function useComentarios(commentableType: string, commentableId: number) {
         lastPage,
         total,
         emojis,
+        sortBy,
 
         // Computados
         tieneComentarios,
@@ -352,5 +372,6 @@ export function useComentarios(commentableType: string, commentableId: number) {
         editar,
         eliminar,
         toggleReaccion,
+        cambiarOrden,
     };
 }

@@ -11,10 +11,12 @@ class ComentarioRepository
 {
     /**
      * Obtiene comentarios paginados para un modelo específico.
+     *
+     * @param string $sort Opciones: 'recientes', 'antiguos', 'populares'
      */
-    public function getForModel(Model $model, int $perPage = 20): LengthAwarePaginator
+    public function getForModel(Model $model, int $perPage = 20, string $sort = 'recientes'): LengthAwarePaginator
     {
-        return Comentario::query()
+        $query = Comentario::query()
             ->where('commentable_type', get_class($model))
             ->where('commentable_id', $model->getKey())
             ->whereNull('parent_id')
@@ -23,9 +25,16 @@ class ComentarioRepository
                 'reacciones',
                 'comentarioCitado.autor:id,name,email',
                 'respuestas', // Auto-recursivo
-            ])
-            ->orderByDesc('created_at')
-            ->paginate($perPage);
+            ]);
+
+        // Aplicar ordenamiento
+        match ($sort) {
+            'antiguos' => $query->orderBy('created_at'),
+            'populares' => $query->withCount('reacciones')->orderByDesc('reacciones_count'),
+            default => $query->orderByDesc('created_at'), // recientes
+        };
+
+        return $query->paginate($perPage);
     }
 
     /**

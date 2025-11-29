@@ -44,11 +44,13 @@ class ComentarioController extends Controller
         }
 
         $perPage = $request->input('per_page', config('comentarios.por_pagina', 20));
-        $comentarios = $this->repository->getForModel($model, $perPage);
+        $sort = $request->input('sort', 'recientes');
+        $comentarios = $this->repository->getForModel($model, $perPage, $sort);
 
         return response()->json([
             'success' => true,
             'data' => $comentarios,
+            'sort' => $sort,
         ]);
     }
 
