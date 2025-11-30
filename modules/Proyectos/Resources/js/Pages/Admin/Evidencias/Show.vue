@@ -26,6 +26,7 @@ import {
 import type { Contrato } from '@modules/Proyectos/Resources/js/types/contratos';
 import type { Evidencia } from '@modules/Proyectos/Resources/js/types/evidencias';
 import ComentariosPanel from '@modules/Comentarios/Resources/js/components/ComentariosPanel.vue';
+import EvidenciaAccionesEstado from '@modules/Proyectos/Resources/js/components/EvidenciaAccionesEstado.vue';
 
 // Props
 const props = defineProps<{
@@ -184,6 +185,20 @@ const descargarTodosArchivos = () => {
                     </Button>
                 </div>
             </div>
+
+            <!-- Barra de acciones rápidas de estado -->
+            <Card v-if="contrato.proyecto?.id" class="border-dashed">
+                <CardContent class="py-3">
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm text-muted-foreground">Acciones rápidas</span>
+                        <EvidenciaAccionesEstado
+                            :evidencia="evidencia"
+                            :proyecto-id="contrato.proyecto.id"
+                            :estado-actual="evidencia.estado"
+                        />
+                    </div>
+                </CardContent>
+            </Card>
 
             <!-- Alerta de estado -->
             <Alert v-if="evidencia.estado === 'rechazada'" class="border-red-200 bg-red-50">

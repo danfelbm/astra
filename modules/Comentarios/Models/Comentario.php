@@ -33,6 +33,7 @@ class Comentario extends Model
         'quoted_comentario_id',
         'es_editado',
         'editado_at',
+        'metadata',
         'created_by',
         'updated_by',
     ];
@@ -48,6 +49,7 @@ class Comentario extends Model
         'archivos_nombres' => 'array',
         'archivos_tipos' => 'array',
         'total_archivos' => 'integer',
+        'metadata' => 'array',
     ];
 
     /**
@@ -61,6 +63,8 @@ class Comentario extends Model
         'reacciones_resumen',
         'contenido_truncado',
         'archivos_info',
+        'tiene_contexto',
+        'contexto_info',
     ];
 
     /**
@@ -367,6 +371,38 @@ class Comentario extends Model
     public function getTieneArchivosAttribute(): bool
     {
         return ($this->total_archivos ?? 0) > 0;
+    }
+
+    /**
+     * Indica si el comentario tiene metadata contextual.
+     * Agnóstico: no interpreta el contenido, solo verifica existencia.
+     */
+    public function getTieneContextoAttribute(): bool
+    {
+        return !empty($this->metadata) && isset($this->metadata['tipo']);
+    }
+
+    /**
+     * Retorna información del contexto para el frontend.
+     * Agnóstico: devuelve metadata tal cual sin interpretarla.
+     * El módulo origen es responsable de enviar labels y colores.
+     */
+    public function getContextoInfoAttribute(): ?array
+    {
+        if (!$this->tiene_contexto) {
+            return null;
+        }
+
+        return [
+            'tipo' => $this->metadata['tipo'] ?? null,
+            'estado_anterior' => $this->metadata['estado_anterior'] ?? null,
+            'estado_nuevo' => $this->metadata['estado_nuevo'] ?? null,
+            'label_anterior' => $this->metadata['label_anterior'] ?? null,
+            'label_nuevo' => $this->metadata['label_nuevo'] ?? null,
+            'color_anterior' => $this->metadata['color_anterior'] ?? null,
+            'color_nuevo' => $this->metadata['color_nuevo'] ?? null,
+            'extra' => $this->metadata['extra'] ?? [],
+        ];
     }
 
     // =========================================================================

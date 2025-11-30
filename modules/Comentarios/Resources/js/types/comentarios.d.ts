@@ -62,6 +62,19 @@ export interface ArchivoAdjunto {
     es_imagen: boolean;
 }
 
+// Contexto/metadata de un comentario (agnóstico)
+// El módulo origen envía labels y colores, Comentarios solo los almacena
+export interface ComentarioContexto {
+    tipo: string;
+    estado_anterior?: string | null;
+    estado_nuevo?: string | null;
+    label_anterior?: string | null;
+    label_nuevo?: string | null;
+    color_anterior?: string | null;
+    color_nuevo?: string | null;
+    extra?: Record<string, any>;
+}
+
 // Archivo subido (respuesta del upload)
 export interface UploadedFile {
     id: string;
@@ -117,6 +130,11 @@ export interface Comentario {
     reacciones_resumen?: ReaccionResumen[];
     archivos_info?: ArchivoAdjunto[]; // Accessor con info completa de archivos
     tiene_archivos?: boolean;
+
+    // Metadata contextual (agnóstico)
+    metadata?: Record<string, any> | null;
+    tiene_contexto?: boolean;
+    contexto_info?: ComentarioContexto | null;
 }
 
 // Datos para crear comentario

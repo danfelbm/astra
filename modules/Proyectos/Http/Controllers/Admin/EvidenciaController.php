@@ -114,6 +114,7 @@ class EvidenciaController extends AdminController
 
     /**
      * Cambia el estado de una evidencia directamente (solo admin).
+     * Permite agregar un comentario con contexto de cambio de estado.
      */
     public function cambiarEstadoDesdeProyecto(Request $request, Proyecto $proyecto, Evidencia $evidencia): RedirectResponse
     {
@@ -128,22 +129,27 @@ class EvidenciaController extends AdminController
             return back()->withErrors(['error' => 'La evidencia no pertenece a este proyecto']);
         }
 
-        // Validar el estado
+        // Validar el estado y comentario
         $request->validate([
             'estado' => 'required|in:pendiente,aprobada,rechazada',
-            'observaciones' => 'nullable|string'
+            'observaciones' => 'nullable|string',
+            'comentario' => 'nullable|string|max:2000',
+            'agregar_comentario' => 'boolean',
         ]);
 
         $nuevoEstado = $request->input('estado');
+        $estadoAnterior = $evidencia->estado;
         $observaciones = $request->input('observaciones');
 
         // Cambiar el estado según lo solicitado
         if ($nuevoEstado === 'aprobada') {
             $result = $this->service->aprobar($evidencia, $observaciones);
-            return back()->with('success', $result['message'] ?? 'Evidencia aprobada exitosamente');
+            $flashType = 'success';
+            $flashMessage = $result['message'] ?? 'Evidencia aprobada exitosamente';
         } elseif ($nuevoEstado === 'rechazada') {
             $result = $this->service->rechazar($evidencia, $observaciones);
-            return back()->with('error', $result['message'] ?? 'Evidencia rechazada');
+            $flashType = 'error';
+            $flashMessage = $result['message'] ?? 'Evidencia rechazada';
         } else {
             // Volver a pendiente
             $evidencia->estado = 'pendiente';
@@ -151,8 +157,52 @@ class EvidenciaController extends AdminController
             $evidencia->revisado_at = null;
             $evidencia->revisado_por = null;
             $evidencia->save();
-
-            return back()->with('info', 'Estado cambiado a pendiente');
+            $flashType = 'info';
+            $flashMessage = 'Estado cambiado a pendiente';
         }
+
+        // Agregar comentario con contexto si se solicita
+        if ($request->boolean('agregar_comentario') && $request->filled('comentario')) {
+            // El módulo Proyectos envía TODOS los datos visuales (labels, colores)
+            // El módulo Comentarios solo almacena y devuelve
+            $evidencia->agregarComentarioConContexto([
+                'contenido' => $request->input('comentario'),
+                'tipo' => 'cambio_estado',
+                'estado_anterior' => $estadoAnterior,
+                'estado_nuevo' => $nuevoEstado,
+                'label_anterior' => $this->getEstadoLabel($estadoAnterior),
+                'label_nuevo' => $this->getEstadoLabel($nuevoEstado),
+                'color_anterior' => $this->getEstadoColor($estadoAnterior),
+                'color_nuevo' => $this->getEstadoColor($nuevoEstado),
+            ]);
+        }
+
+        return back()->with($flashType, $flashMessage);
+    }
+
+    /**
+     * Obtiene el label legible de un estado de evidencia.
+     */
+    private function getEstadoLabel(string $estado): string
+    {
+        return match ($estado) {
+            'aprobada' => 'Aprobada',
+            'rechazada' => 'Rechazada',
+            'pendiente' => 'Pendiente',
+            default => ucfirst($estado),
+        };
+    }
+
+    /**
+     * Obtiene el color asociado a un estado de evidencia.
+     */
+    private function getEstadoColor(string $estado): string
+    {
+        return match ($estado) {
+            'aprobada' => 'green',
+            'rechazada' => 'red',
+            'pendiente' => 'yellow',
+            default => 'gray',
+        };
     }
 }

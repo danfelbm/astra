@@ -18,6 +18,7 @@ import ComentarioReacciones from './ComentarioReacciones.vue';
 import ComentarioQuote from './ComentarioQuote.vue';
 import ComentarioForm from './ComentarioForm.vue';
 import ComentarioAdjuntos from './ComentarioAdjuntos.vue';
+import ComentarioContextoBadge from './ComentarioContextoBadge.vue';
 import {
     MessageSquare, MoreHorizontal, Edit, Trash2, Quote,
     ChevronDown, ChevronRight, Clock
@@ -191,6 +192,11 @@ const handleCargarMasRespuestas = () => {
                     <Badge v-if="comentario.es_editado" variant="outline" class="text-xs h-5">
                         editado
                     </Badge>
+                    <!-- Badge de contexto (cambio de estado, etc.) -->
+                    <ComentarioContextoBadge
+                        v-if="comentario.tiene_contexto && comentario.contexto_info?.tipo === 'cambio_estado'"
+                        :contexto="comentario.contexto_info"
+                    />
                     <span v-if="tiempoRestanteTexto" class="text-xs text-muted-foreground flex items-center gap-1">
                         <Clock class="h-3 w-3" />
                         {{ tiempoRestanteTexto }}
