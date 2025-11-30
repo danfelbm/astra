@@ -97,7 +97,8 @@ trait HasComentarios
      *   'label_nuevo' => string|null,
      *   'color_anterior' => string|null (ej: 'yellow', 'green', 'red'),
      *   'color_nuevo' => string|null,
-     *   'extra' => array (datos adicionales opcionales)
+     *   'extra' => array (datos adicionales opcionales),
+     *   'archivos' => array (archivos adjuntos opcionales)
      * ]
      * @return Comentario|null
      */
@@ -108,7 +109,7 @@ trait HasComentarios
             return null;
         }
 
-        return $this->comentarios()->create([
+        $comentario = $this->comentarios()->create([
             'commentable_type' => get_class($this),
             'commentable_id' => $this->getKey(),
             'contenido' => $data['contenido'],
@@ -126,6 +127,14 @@ trait HasComentarios
             'created_by' => auth()->id(),
             'tenant_id' => auth()->user()?->tenant_id,
         ]);
+
+        // Procesar archivos adjuntos si existen
+        if (!empty($data['archivos']) && is_array($data['archivos'])) {
+            $comentario->setArchivos($data['archivos']);
+            $comentario->save();
+        }
+
+        return $comentario;
     }
 
 }

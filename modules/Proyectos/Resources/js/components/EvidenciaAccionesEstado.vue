@@ -1,13 +1,12 @@
 <script setup lang="ts">
 /**
  * Componente de acciones rápidas para cambiar el estado de una evidencia.
- * Incluye modal con opción de agregar comentario contextual.
+ * Incluye modal con opción de agregar comentario contextual usando WYSIWYG.
  */
 import { ref, computed } from 'vue';
 import { router } from '@inertiajs/vue3';
 import { Button } from '@modules/Core/Resources/js/components/ui/button';
 import { Switch } from '@modules/Core/Resources/js/components/ui/switch';
-import { Textarea } from '@modules/Core/Resources/js/components/ui/textarea';
 import { Label } from '@modules/Core/Resources/js/components/ui/label';
 import {
     Dialog,
@@ -19,6 +18,8 @@ import {
 } from '@modules/Core/Resources/js/components/ui/dialog';
 import { CheckCircle, XCircle, Clock } from 'lucide-vue-next';
 import { toast } from 'vue-sonner';
+import ComentarioContextoInput from '@modules/Comentarios/Resources/js/components/ComentarioContextoInput.vue';
+import type { UploadedFile } from '@modules/Comentarios/Resources/js/types/comentarios';
 
 interface Props {
     evidencia: {
@@ -35,8 +36,10 @@ const props = defineProps<Props>();
 const showModal = ref(false);
 const nuevoEstado = ref<'aprobada' | 'rechazada' | 'pendiente' | null>(null);
 const comentario = ref('');
+const archivos = ref<UploadedFile[]>([]);
 const agregarComentario = ref(false);
 const procesando = ref(false);
+const comentarioInputRef = ref<InstanceType<typeof ComentarioContextoInput> | null>(null);
 
 // Configuración de estados
 const estadosConfig = {
@@ -108,12 +111,13 @@ const confirmarCambio = () => {
         estado: nuevoEstado.value,
         comentario: agregarComentario.value ? comentario.value : null,
         agregar_comentario: agregarComentario.value,
+        archivos: agregarComentario.value ? archivos.value : [],
     }, {
         preserveScroll: true,
         onSuccess: () => {
             toast.success(`Estado cambiado a ${nuevoEstado.value}`);
             showModal.value = false;
-            comentario.value = '';
+            limpiarFormulario();
         },
         onError: (errors) => {
             const mensaje = Object.values(errors).flat().join(', ') || 'Error al cambiar estado';
@@ -125,12 +129,19 @@ const confirmarCambio = () => {
     });
 };
 
+// Limpiar formulario
+const limpiarFormulario = () => {
+    comentario.value = '';
+    archivos.value = [];
+    comentarioInputRef.value?.clear();
+};
+
 // Cancelar y cerrar modal
 const cancelar = () => {
     showModal.value = false;
     nuevoEstado.value = null;
-    comentario.value = '';
     agregarComentario.value = false;
+    limpiarFormulario();
 };
 </script>
 
@@ -151,7 +162,7 @@ const cancelar = () => {
 
         <!-- Modal de confirmación -->
         <Dialog v-model:open="showModal">
-            <DialogContent class="sm:max-w-md">
+            <DialogContent class="sm:max-w-lg">
                 <DialogHeader>
                     <DialogTitle>{{ tituloModal }}</DialogTitle>
                     <DialogDescription>{{ descripcionModal }}</DialogDescription>
@@ -169,15 +180,19 @@ const cancelar = () => {
                         />
                     </div>
 
-                    <!-- Textarea para comentario (visible si switch activo) -->
+                    <!-- Editor WYSIWYG para comentario (visible si switch activo) -->
                     <div v-if="agregarComentario" class="space-y-2">
-                        <Textarea
+                        <ComentarioContextoInput
+                            ref="comentarioInputRef"
                             v-model="comentario"
                             :placeholder="nuevoEstado === 'rechazada'
                                 ? 'Describe el motivo del rechazo...'
                                 : 'Agrega un comentario opcional...'"
-                            rows="4"
-                            class="resize-none"
+                            :rows="3"
+                            :show-file-upload="true"
+                            upload-module="proyectos"
+                            upload-field-id="evidencia-comentario"
+                            @update:archivos="archivos = $event"
                         />
                         <p class="text-xs text-muted-foreground">
                             Este comentario aparecerá con el badge del nuevo estado.

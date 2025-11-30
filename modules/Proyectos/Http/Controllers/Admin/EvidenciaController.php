@@ -133,8 +133,12 @@ class EvidenciaController extends AdminController
         $request->validate([
             'estado' => 'required|in:pendiente,aprobada,rechazada',
             'observaciones' => 'nullable|string',
-            'comentario' => 'nullable|string|max:2000',
+            'comentario' => 'nullable|string',
             'agregar_comentario' => 'boolean',
+            'archivos' => 'nullable|array|max:3',
+            'archivos.*.path' => 'required_with:archivos|string',
+            'archivos.*.name' => 'required_with:archivos|string',
+            'archivos.*.mime_type' => 'nullable|string',
         ]);
 
         $nuevoEstado = $request->input('estado');
@@ -174,6 +178,7 @@ class EvidenciaController extends AdminController
                 'label_nuevo' => $this->getEstadoLabel($nuevoEstado),
                 'color_anterior' => $this->getEstadoColor($estadoAnterior),
                 'color_nuevo' => $this->getEstadoColor($nuevoEstado),
+                'archivos' => $request->input('archivos', []),
             ]);
         }
 
