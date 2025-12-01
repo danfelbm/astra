@@ -55,7 +55,6 @@ const CONFIRM_DRAG_KEY = 'entregables-confirm-drag';
 // Función para leer confirmOnDrag de localStorage
 const getStoredConfirmOnDrag = (): boolean => {
     const stored = localStorage.getItem(CONFIRM_DRAG_KEY);
-    console.log('[Panel] Reading from localStorage:', stored);
     // Si no existe, default es true (mostrar modal)
     if (stored === null) return true;
     return stored === 'true';
@@ -63,14 +62,11 @@ const getStoredConfirmOnDrag = (): boolean => {
 
 // Estado local para confirmOnDrag (manejado directamente, no vía composable)
 const confirmOnDrag = ref<boolean>(getStoredConfirmOnDrag());
-console.log('[Panel] Initial confirmOnDrag:', confirmOnDrag.value);
 
 // Handler para actualizar confirmOnDrag - guarda directamente a localStorage
 const handleUpdateConfirmOnDrag = (value: boolean) => {
-    console.log('[Panel] handleUpdateConfirmOnDrag called with:', value);
     confirmOnDrag.value = value;
     localStorage.setItem(CONFIRM_DRAG_KEY, String(value));
-    console.log('[Panel] Saved to localStorage, new value:', confirmOnDrag.value);
 };
 
 // Estado del modal de cambio de estado
@@ -118,15 +114,12 @@ const handleChangeStatus = (entregable: Entregable, nuevoEstado: EstadoEntregabl
 
 // Handler de cambio de estado por drag (desde kanban)
 const handleDragChangeStatus = (entregable: Entregable, nuevoEstado: EstadoEntregable) => {
-    console.log('[Panel] handleDragChangeStatus - confirmOnDrag.value:', confirmOnDrag.value);
     if (confirmOnDrag.value) {
-        console.log('[Panel] Opening modal for confirmation');
         // Abrir modal para confirmar
         entregableToChange.value = entregable;
         nuevoEstadoPendiente.value = nuevoEstado;
         statusChangeModalOpen.value = true;
     } else {
-        console.log('[Panel] Updating directly without modal');
         // Cambiar directamente sin modal
         emit('update-status', entregable, nuevoEstado, '', []);
     }
@@ -149,7 +142,7 @@ const confirmStatusChange = (observaciones: string, archivos: UploadedFile[]) =>
 </script>
 
 <template>
-    <div class="space-y-4">
+    <div class="space-y-4 min-w-0">
         <!-- Toggle de modo de vista -->
         <HitosViewModeToggle
             v-model="viewMode"

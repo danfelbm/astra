@@ -142,12 +142,13 @@ watch(() => props.entregables, () => {
 </script>
 
 <template>
-    <div class="kanban-container flex gap-4 overflow-x-auto snap-x snap-mandatory pb-4 -mx-2 px-2">
-        <div
-            v-for="estado in ESTADOS_ORDENADOS"
-            :key="estado"
-            class="kanban-column flex-shrink-0 w-72 snap-center md:w-auto md:flex-1 md:min-w-[200px]"
-        >
+    <!-- Contenedor del kanban con scroll horizontal -->
+    <div class="kanban-container flex gap-4 overflow-x-auto snap-x snap-mandatory pb-4 px-1 min-w-0">
+            <div
+                v-for="estado in ESTADOS_ORDENADOS"
+                :key="estado"
+                class="kanban-column flex-shrink-0 w-72 snap-center"
+            >
             <HitosKanbanColumn
                 :estado="estado"
                 :entregables="getEntregablesByEstado(estado)"

@@ -57,7 +57,7 @@ const modos: { value: EntregablesViewMode; icon: typeof List; label: string }[] 
             <Switch
                 id="confirm-drag"
                 :model-value="confirmOnDrag"
-                @update:model-value="(val) => { console.log('[Toggle] Switch changed to:', val); emit('update:confirmOnDrag', val); }"
+                @update:model-value="emit('update:confirmOnDrag', $event)"
             />
             <Label for="confirm-drag" class="text-sm text-muted-foreground cursor-pointer">
                 Confirmar al arrastrar

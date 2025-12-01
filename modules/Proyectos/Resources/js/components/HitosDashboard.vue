@@ -350,7 +350,7 @@ const handleViewHito = () => {
         </aside>
 
         <!-- Panel Principal -->
-        <main class="flex-1 flex flex-col min-h-0">
+        <main class="flex-1 flex flex-col min-h-0 min-w-0">
             <!-- Selector Móvil -->
             <div class="md:hidden p-4 border-b bg-background sticky top-0 z-10 space-y-3">
                 <!-- Filtro por proyecto móvil (cuando hay múltiples proyectos) -->
@@ -416,7 +416,7 @@ const handleViewHito = () => {
                 </div>
 
                 <!-- Detalle del Hito -->
-                <div v-else class="p-4 md:p-6 space-y-6">
+                <div v-else class="p-4 md:p-6 space-y-6 overflow-x-hidden">
                     <!-- Card de información del hito -->
                     <Card>
                         <CardHeader class="pb-3">
@@ -511,7 +511,7 @@ const handleViewHito = () => {
                     </Card>
 
                     <!-- Lista de Entregables -->
-                    <div class="space-y-4">
+                    <div class="space-y-4 min-w-0">
                         <div class="flex items-center justify-between">
                             <h3 class="font-semibold flex items-center gap-2">
                                 <ListTodo class="h-5 w-5" />
