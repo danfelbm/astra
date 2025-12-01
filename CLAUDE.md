@@ -985,7 +985,7 @@ public function test_admin_can_manage_module() {
 - **Email**: Resend API
 - **SMS/WhatsApp**: Servicios personalizados
 
-### Frontend  
+### Frontend
 - **Framework**: Vue 3 con Composition API
 - **SSR**: Inertia.js
 - **UI Components**: Shadcn-vue ver carpeta @shadcn_docs para más detalles
@@ -995,6 +995,31 @@ public function test_admin_can_manage_module() {
 - **Notificaciones**: Vue Sonner
 - **State Management**: Pinia (cuando necesario)
 - **Forms**: Vee-validate + Zod
+
+### Shadcn-vue / Reka-UI - Notas Importantes
+
+Los componentes de shadcn-vue están basados en Reka-UI (fork de Radix Vue). Algunos gotchas:
+
+#### Switch Component
+El Switch NO usa `checked`/`@update:checked`. Usa el patrón estándar de Vue:
+```vue
+<!-- ❌ INCORRECTO - No funciona -->
+<Switch :checked="value" @update:checked="handler" />
+
+<!-- ✅ CORRECTO -->
+<Switch v-model="value" />
+
+<!-- ✅ CORRECTO - Con eventos separados -->
+<Switch :model-value="value" @update:model-value="handler" />
+```
+
+#### Otros componentes con v-model
+La mayoría de componentes interactivos usan `modelValue`/`@update:modelValue`:
+- Switch, Checkbox, RadioGroup → `v-model` o `:model-value` + `@update:model-value`
+- Select → `v-model` o `:model-value` + `@update:model-value`
+- Dialog, AlertDialog → `v-model:open` o `:open` + `@update:open`
+
+Siempre verificar la implementación en `@shadcn_docs` o en ejemplos existentes del proyecto antes de asumir el API.
 
 ### DevOps
 - **Entorno Local**: Laravel Herd

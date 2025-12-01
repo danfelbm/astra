@@ -50,7 +50,8 @@ import { useEtiquetas } from '@modules/Proyectos/Resources/js/composables/useEti
 import { ref, computed, watch } from 'vue';
 import type { Etiqueta, CategoriaEtiqueta } from '@modules/Proyectos/Resources/js/types/etiquetas';
 import type { Contrato } from '@modules/Proyectos/Resources/js/types/contratos';
-import type { Hito } from '@modules/Proyectos/Resources/js/types/hitos';
+import type { Hito, Entregable } from '@modules/Proyectos/Resources/js/types/hitos';
+import type { UploadedFile } from '@modules/Comentarios/Resources/js/types/comentarios';
 import HitoCard from '@modules/Proyectos/Resources/js/components/HitoCard.vue';
 import HitosGrid from '@modules/Proyectos/Resources/js/components/HitosGrid.vue';
 import HitosDashboard from '@modules/Proyectos/Resources/js/components/HitosDashboard.vue';
@@ -348,6 +349,60 @@ const navigateToEntregables = (hito: Hito) => {
     router.visit(`/admin/proyectos/${props.proyecto.id}/hitos/${hito.id}/entregables`);
 };
 
+// Handler para completar un entregable (incluye observaciones y archivos)
+const handleCompleteEntregable = (entregable: Entregable, observaciones: string, archivos: UploadedFile[]) => {
+    router.post(`/admin/proyectos/${props.proyecto.id}/hitos/${entregable.hito_id}/entregables/${entregable.id}/completar`, {
+        notas: observaciones,
+        archivos: archivos,
+        agregar_comentario: !!observaciones
+    }, {
+        preserveScroll: true,
+        onSuccess: () => {
+            toast.success('Entregable marcado como completado');
+        },
+        onError: () => {
+            toast.error('Error al completar el entregable');
+        }
+    });
+};
+
+// Handler para actualizar estado de un entregable (incluye observaciones y archivos)
+// Nota: La ruta admin usa POST a /actualizar-estado (diferente a la ruta user que usa PUT a /estado)
+const handleUpdateEntregableStatus = (entregable: Entregable, estado: string, observaciones: string, archivos: UploadedFile[]) => {
+    router.post(`/admin/proyectos/${props.proyecto.id}/hitos/${entregable.hito_id}/entregables/${entregable.id}/actualizar-estado`, {
+        estado,
+        observaciones,
+        archivos: archivos,
+        agregar_comentario: !!observaciones
+    }, {
+        preserveScroll: true,
+        onSuccess: () => {
+            toast.success('Estado del entregable actualizado');
+        },
+        onError: () => {
+            toast.error('Error al actualizar el estado');
+        }
+    });
+};
+
+// Handler para editar un entregable
+const handleEditEntregable = (entregable: Entregable, hito: Hito) => {
+    router.visit(`/admin/proyectos/${props.proyecto.id}/hitos/${hito.id}/entregables/${entregable.id}/edit`);
+};
+
+// Handler para eliminar un entregable
+const handleDeleteEntregable = (entregable: Entregable, hito: Hito) => {
+    if (confirm(`¿Estás seguro de eliminar el entregable "${entregable.nombre}"?`)) {
+        router.delete(`/admin/proyectos/${props.proyecto.id}/hitos/${hito.id}/entregables/${entregable.id}`, {
+            onSuccess: () => {
+                toast.success('Entregable eliminado exitosamente');
+            },
+            onError: () => {
+                toast.error('Error al eliminar el entregable');
+            }
+        });
+    }
+};
 
 // Actividades filtradas
 const actividadesFiltradas = computed(() => {
@@ -653,6 +708,10 @@ const getInitials = (name: string) => {
                         @edit-hito="navigateToEditHito"
                         @delete-hito="confirmDeleteHito"
                         @add-entregable="navigateToAddEntregable"
+                        @complete-entregable="handleCompleteEntregable"
+                        @update-entregable-status="handleUpdateEntregableStatus"
+                        @edit-entregable="handleEditEntregable"
+                        @delete-entregable="handleDeleteEntregable"
                     />
                 </TabsContent>
 
