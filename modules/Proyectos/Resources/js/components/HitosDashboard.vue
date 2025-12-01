@@ -45,7 +45,7 @@ import {
 import { Link } from '@inertiajs/vue3';
 
 // Componentes del módulo
-import EntregablesList from './EntregablesList.vue';
+import { HitosEntregablesPanel } from './HitosDashboard';
 
 // Tipos
 import type { Hito, Entregable } from '@modules/Proyectos/Resources/js/types/hitos';
@@ -96,6 +96,7 @@ const emit = defineEmits<{
     'complete-entregable': [entregable: Entregable, observaciones: string, archivos: UploadedFile[]];
     'update-entregable-status': [entregable: Entregable, estado: string, observaciones: string, archivos: UploadedFile[]];
     'edit-entregable': [entregable: Entregable, hito: Hito];
+    'delete-entregable': [entregable: Entregable, hito: Hito];
     'filter-proyecto': [proyectoId: number | null];
 }>();
 
@@ -222,6 +223,12 @@ const handleUpdateEntregableStatus = (entregable: Entregable, estado: string, ob
 const handleEditEntregable = (entregable: Entregable) => {
     if (selectedHito.value) {
         emit('edit-entregable', entregable, selectedHito.value);
+    }
+};
+
+const handleDeleteEntregable = (entregable: Entregable) => {
+    if (selectedHito.value) {
+        emit('delete-entregable', entregable, selectedHito.value);
     }
 };
 
@@ -522,16 +529,16 @@ const handleViewHito = () => {
                             </Link>
                         </div>
 
-                        <EntregablesList
+                        <HitosEntregablesPanel
                             v-if="selectedHito.entregables && selectedHito.entregables.length > 0"
                             :entregables="selectedHito.entregables"
                             :can-edit="canEdit"
                             :can-delete="canDelete"
                             :can-complete="canComplete"
-                            view-mode="list"
                             @complete="handleCompleteEntregable"
                             @update-status="handleUpdateEntregableStatus"
                             @edit="handleEditEntregable"
+                            @delete="handleDeleteEntregable"
                         />
 
                         <!-- Estado vacío de entregables -->

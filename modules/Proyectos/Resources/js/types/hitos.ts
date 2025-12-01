@@ -5,6 +5,17 @@ export type EstadoEntregable = 'pendiente' | 'en_progreso' | 'completado' | 'can
 export type PrioridadEntregable = 'baja' | 'media' | 'alta';
 export type RolUsuario = 'responsable' | 'colaborador' | 'revisor';
 
+// Tipos para modos de visualización de entregables
+export type EntregablesViewMode = 'list' | 'tabs' | 'kanban';
+
+// Interfaz para entregables agrupados por estado
+export interface EntregablesAgrupados {
+    pendientes: Entregable[];
+    en_progreso: Entregable[];
+    completados: Entregable[];
+    cancelados: Entregable[];
+}
+
 export interface User {
     id: number;
     name: string;
