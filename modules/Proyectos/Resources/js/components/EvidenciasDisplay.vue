@@ -1,18 +1,14 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import { Link, router } from '@inertiajs/vue3';
+import { Link } from '@inertiajs/vue3';
 import { Card, CardContent } from "@modules/Core/Resources/js/components/ui/card";
 import { Badge } from "@modules/Core/Resources/js/components/ui/badge";
 import { Button } from "@modules/Core/Resources/js/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@modules/Core/Resources/js/components/ui/table";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@modules/Core/Resources/js/components/ui/accordion";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@modules/Core/Resources/js/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@modules/Core/Resources/js/components/ui/select";
-import { Textarea } from "@modules/Core/Resources/js/components/ui/textarea";
-import { Label } from "@modules/Core/Resources/js/components/ui/label";
 import EvidenciaFilters from "./EvidenciaFilters.vue";
-import { FileText, ExternalLink, Download, Image, CheckCircle, XCircle, Eye } from 'lucide-vue-next';
-import { toast } from 'vue-sonner';
+import EvidenciaAccionesEstado from "./EvidenciaAccionesEstado.vue";
+import { FileText, ExternalLink, Download, Image, Eye } from 'lucide-vue-next';
 
 // Interfaces
 interface Evidencia {
@@ -67,13 +63,6 @@ const filtrosEvidencias = ref({
     estado: null,
     usuario_id: null
 });
-
-// Estado para modal de gestión de estado
-const showEstadoModal = ref(false);
-const evidenciaSeleccionada = ref<Evidencia | null>(null);
-const accionSeleccionada = ref<'aprobar' | 'rechazar' | null>(null);
-const observaciones = ref('');
-const procesandoEstado = ref(false);
 
 // Función para obtener todas las evidencias de los contratos
 const todasLasEvidencias = computed(() => {
@@ -169,75 +158,6 @@ const getEvidenciaRoute = (contratoId: number, evidenciaId: number) => {
     return props.modo === 'admin'
         ? `/admin/contratos/${contratoId}/evidencias/${evidenciaId}`
         : `/miembro/mis-contratos/${contratoId}/evidencias/${evidenciaId}`;
-};
-
-// Función para abrir modal de cambio de estado
-const abrirModalEstado = (evidencia: Evidencia, accion: 'aprobar' | 'rechazar') => {
-    evidenciaSeleccionada.value = evidencia;
-    accionSeleccionada.value = accion;
-    observaciones.value = '';
-    showEstadoModal.value = true;
-};
-
-// Función para cambiar el estado de la evidencia
-const cambiarEstado = async () => {
-    if (!evidenciaSeleccionada.value || !accionSeleccionada.value) return;
-
-    procesandoEstado.value = true;
-
-    const endpoint = `/api/proyectos/${props.proyectoId}/evidencias/${evidenciaSeleccionada.value.id}/${accionSeleccionada.value}`;
-
-    router.post(endpoint, {
-        observaciones: observaciones.value || null
-    }, {
-        preserveScroll: true,
-        onSuccess: () => {
-            toast.success(
-                accionSeleccionada.value === 'aprobar'
-                    ? 'Evidencia aprobada exitosamente'
-                    : 'Evidencia rechazada'
-            );
-            showEstadoModal.value = false;
-            evidenciaSeleccionada.value = null;
-            accionSeleccionada.value = null;
-            observaciones.value = '';
-
-            // Recargar la página para actualizar los datos
-            router.reload({ only: ['proyecto'] });
-        },
-        onError: (errors) => {
-            toast.error('Error al cambiar el estado de la evidencia');
-            console.error(errors);
-        },
-        onFinish: () => {
-            procesandoEstado.value = false;
-        }
-    });
-};
-
-// Función para cambiar estado directamente desde dropdown (admin y user gestores)
-const cambiarEstadoDirecto = (evidencia: Evidencia, nuevoEstado: string) => {
-    if (nuevoEstado === evidencia.estado) return; // No hacer nada si es el mismo estado
-
-    // Determinar el endpoint según el modo
-    const endpoint = props.modo === 'admin'
-        ? `/admin/proyectos/${props.proyectoId}/evidencias/${evidencia.id}/cambiar-estado`
-        : `/miembro/mis-proyectos/${props.proyectoId}/evidencias/${evidencia.id}/cambiar-estado`;
-
-    router.post(endpoint, {
-        estado: nuevoEstado,
-        observaciones: null
-    }, {
-        preserveScroll: true,
-        onSuccess: (page) => {
-            // El mensaje flash viene desde el backend
-            router.reload({ only: ['proyecto'] });
-        },
-        onError: (errors) => {
-            toast.error('Error al cambiar el estado');
-            console.error(errors);
-        }
-    });
 };
 </script>
 
@@ -352,27 +272,13 @@ const cambiarEstadoDirecto = (evidencia: Evidencia, nuevoEstado: string) => {
                                             </a>
                                         </Button>
 
-                                        <!-- Dropdown de estados para Admin y User gestores -->
+                                        <!-- Acciones de estado con modal y comentarios -->
                                         <template v-if="(modo === 'admin') || (modo === 'user' && puedeGestionarEstado)">
-                                            <Select
-                                                :model-value="evidencia.estado"
-                                                @update:model-value="(value) => cambiarEstadoDirecto(evidencia, value)"
-                                            >
-                                                <SelectTrigger class="h-8 w-32">
-                                                    <SelectValue />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="pendiente">
-                                                        <span class="text-yellow-600">Pendiente</span>
-                                                    </SelectItem>
-                                                    <SelectItem value="aprobada">
-                                                        <span class="text-green-600">Aprobada</span>
-                                                    </SelectItem>
-                                                    <SelectItem value="rechazada">
-                                                        <span class="text-red-600">Rechazada</span>
-                                                    </SelectItem>
-                                                </SelectContent>
-                                            </Select>
+                                            <EvidenciaAccionesEstado
+                                                :evidencia="evidencia"
+                                                :proyecto-id="proyectoId"
+                                                :estado-actual="evidencia.estado"
+                                            />
                                         </template>
                                     </div>
                                 </TableCell>
@@ -405,55 +311,4 @@ const cambiarEstadoDirecto = (evidencia: Evidencia, nuevoEstado: string) => {
             </div>
         </CardContent>
     </Card>
-
-    <!-- Modal para cambiar estado de evidencia -->
-    <Dialog v-model:open="showEstadoModal">
-        <DialogContent>
-            <DialogHeader>
-                <DialogTitle>
-                    {{ accionSeleccionada === 'aprobar' ? 'Aprobar Evidencia' : 'Rechazar Evidencia' }}
-                </DialogTitle>
-                <DialogDescription>
-                    {{ accionSeleccionada === 'aprobar'
-                        ? 'Estás a punto de aprobar esta evidencia. Puedes agregar observaciones opcionales.'
-                        : 'Estás a punto de rechazar esta evidencia. Es recomendable agregar el motivo del rechazo.'
-                    }}
-                </DialogDescription>
-            </DialogHeader>
-
-            <div class="space-y-4 py-4">
-                <div>
-                    <Label for="observaciones">
-                        Observaciones {{ accionSeleccionada === 'rechazar' ? '(recomendado)' : '(opcional)' }}
-                    </Label>
-                    <Textarea
-                        id="observaciones"
-                        v-model="observaciones"
-                        :placeholder="accionSeleccionada === 'rechazar'
-                            ? 'Explica el motivo del rechazo...'
-                            : 'Agrega comentarios adicionales...'"
-                        rows="4"
-                        class="mt-2"
-                    />
-                </div>
-            </div>
-
-            <DialogFooter>
-                <Button
-                    variant="outline"
-                    @click="showEstadoModal = false"
-                    :disabled="procesandoEstado"
-                >
-                    Cancelar
-                </Button>
-                <Button
-                    :variant="accionSeleccionada === 'aprobar' ? 'default' : 'destructive'"
-                    @click="cambiarEstado"
-                    :disabled="procesandoEstado"
-                >
-                    {{ procesandoEstado ? 'Procesando...' : (accionSeleccionada === 'aprobar' ? 'Aprobar' : 'Rechazar') }}
-                </Button>
-            </DialogFooter>
-        </DialogContent>
-    </Dialog>
 </template>

@@ -190,7 +190,7 @@ const cancelar = () => {
                                 : 'Agrega un comentario opcional...'"
                             :rows="3"
                             :show-file-upload="true"
-                            upload-module="proyectos"
+                            upload-module="comentarios"
                             upload-field-id="evidencia-comentario"
                             @update:archivos="archivos = $event"
                         />

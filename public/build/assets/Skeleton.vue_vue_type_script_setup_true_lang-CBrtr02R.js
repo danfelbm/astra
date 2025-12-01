@@ -1,1 +1,0 @@
-import{a}from"./createLucideIcon-BgvNgHlT.js";import{d as n,i as o,n as r,f as t,m as c}from"./app-CqrxAVE4.js";const u=n({__name:"Skeleton",props:{class:{}},setup(e){const s=e;return(m,l)=>(c(),o("div",{class:r(t(a)("animate-pulse rounded-md bg-muted",s.class))},null,2))}});export{u as _};
