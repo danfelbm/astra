@@ -6,6 +6,7 @@ import { Button } from "@modules/Core/Resources/js/components/ui/button";
 import { Input } from "@modules/Core/Resources/js/components/ui/input";
 import { Badge } from "@modules/Core/Resources/js/components/ui/badge";
 import HitoCard from '@modules/Proyectos/Resources/js/components/HitoCard.vue';
+import HitosDashboard from '@modules/Proyectos/Resources/js/components/HitosDashboard.vue';
 import { Plus, Search, Filter, ArrowLeft, Target, Network, List } from 'lucide-vue-next';
 import { toast } from 'vue-sonner';
 import { ref, computed } from 'vue';
@@ -291,79 +292,20 @@ const filterByEstado = (estado: string) => {
                 </div>
             </div>
 
-            <!-- Lista de Hitos -->
-            <div v-if="hitosData.data.length > 0">
-                <!-- Vista en Grid (Plana) -->
-                <div v-if="!vistaJerarquica" class="grid gap-4 md:grid-cols-2">
-                    <HitoCard
-                        v-for="hito in hitosData.data"
-                        :key="hito.id"
-                        :hito="hito"
-                        :proyecto-id="proyecto.id"
-                        :canEdit="canEdit"
-                        :canDelete="canDelete"
-                        :canManageDeliverables="canManageDeliverables"
-                        :showActions="true"
-                        @view="navigateToHito"
-                        @edit="navigateToEditHito"
-                        @delete="confirmDeleteHito"
-                        @duplicate="duplicateHito"
-                        @add-entregable="navigateToAddEntregable"
-                        @view-entregables="navigateToEntregables"
-                    />
-                </div>
-
-                <!-- Vista Jerárquica (Lista) -->
-                <div v-else class="space-y-3">
-                    <div
-                        v-for="hito in hitosJerarquicos"
-                        :key="hito.id"
-                        :style="{ marginLeft: `${(hito._nivel || 0) * 2}rem` }"
-                        class="transition-all"
-                    >
-                        <HitoCard
-                            :hito="hito"
-                            :proyecto-id="proyecto.id"
-                            :canEdit="canEdit"
-                            :canDelete="canDelete"
-                            :canManageDeliverables="canManageDeliverables"
-                            :showActions="true"
-                            @view="navigateToHito"
-                            @edit="navigateToEditHito"
-                            @delete="confirmDeleteHito"
-                            @duplicate="duplicateHito"
-                            @add-entregable="navigateToAddEntregable"
-                            @view-entregables="navigateToEntregables"
-                        >
-                            <!-- Badge de nivel si es jerárquico -->
-                            <template v-if="hito._nivel > 0" #prepend>
-                                <Badge variant="outline" class="mr-2">
-                                    Nivel {{ hito._nivel }}
-                                </Badge>
-                            </template>
-                        </HitoCard>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Estado vacío -->
-            <Card v-else>
-                <CardContent class="flex flex-col items-center justify-center py-12">
-                    <div class="rounded-full bg-muted p-3 mb-4">
-                        <Target class="h-8 w-8 text-muted-foreground" />
-                    </div>
-                    <h3 class="text-lg font-semibold mb-2">No hay hitos</h3>
-                    <p class="text-muted-foreground text-center mb-4">
-                        {{ searchQuery ? 'No se encontraron hitos con los filtros aplicados' : 'Comienza creando el primer hito del proyecto' }}
-                    </p>
-                    <Link v-if="canCreate && !searchQuery" :href="`/admin/proyectos/${proyecto.id}/hitos/create`">
-                        <Button>
-                            <Plus class="h-4 w-4 mr-2" />
-                            Crear Primer Hito
-                        </Button>
-                    </Link>
-                </CardContent>
-            </Card>
+            <!-- Lista de Hitos con Dashboard -->
+            <HitosDashboard
+                :hitos="hitosData.data"
+                :proyecto-id="proyecto.id"
+                :can-edit="canEdit"
+                :can-delete="canDelete"
+                :can-manage-deliverables="canManageDeliverables"
+                :can-complete="canManageDeliverables"
+                base-url="/admin/proyectos"
+                @view-hito="navigateToHito"
+                @edit-hito="navigateToEditHito"
+                @delete-hito="confirmDeleteHito"
+                @add-entregable="navigateToAddEntregable"
+            />
 
             <!-- Paginación -->
             <div v-if="hitosData.last_page > 1" class="flex justify-center gap-2 mt-4">

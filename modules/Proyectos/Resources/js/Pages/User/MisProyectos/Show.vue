@@ -34,6 +34,7 @@ import {
 import EtiquetaDisplay from "@modules/Proyectos/Resources/js/components/EtiquetaDisplay.vue";
 import ContratoCard from "@modules/Proyectos/Resources/js/components/ContratoCard.vue";
 import HitoCard from "@modules/Proyectos/Resources/js/components/HitoCard.vue";
+import HitosDashboard from "@modules/Proyectos/Resources/js/components/HitosDashboard.vue";
 import EvidenciasDisplay from "@modules/Proyectos/Resources/js/components/EvidenciasDisplay.vue";
 import CamposPersonalizadosDisplay from "@modules/Proyectos/Resources/js/components/CamposPersonalizadosDisplay.vue";
 import ProyectoEstadoCard from "@modules/Proyectos/Resources/js/components/ProyectoEstadoCard.vue";
@@ -463,59 +464,20 @@ const handleEditEntregable = (entregable: Entregable, hito: Hito) => {
 
                 <!-- Tab de Hitos y Entregables -->
                 <TabsContent value="hitos" class="space-y-4 mt-6">
-                    <!-- Botón de crear hito (solo para gestores) -->
-                    <div v-if="esGestorDelProyecto" class="flex justify-end">
-                        <Link :href="`/miembro/mis-proyectos/${proyecto.id}/hitos/create`">
-                            <Button>
-                                <Plus class="mr-2 h-4 w-4" />
-                                Crear Hito
-                            </Button>
-                        </Link>
-                    </div>
-
-                    <Card v-if="proyecto.hitos && proyecto.hitos.length > 0">
-                        <CardHeader>
-                            <CardTitle>Hitos y Entregables</CardTitle>
-                            <CardDescription>
-                                Seguimiento de los hitos y entregables del proyecto
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <div class="space-y-6">
-                                <HitoCard
-                                    v-for="hito in proyecto.hitos"
-                                    :key="hito.id"
-                                    :hito="hito"
-                                    :show-actions="true"
-                                    :expand-entregables-inline="true"
-                                    :can-edit="esGestorDelProyecto"
-                                    :can-manage-deliverables="esGestorDelProyecto"
-                                    :can-complete-entregables="esGestorDelProyecto"
-                                    :can-edit-entregables="esGestorDelProyecto"
-                                    @view="navigateToHito"
-                                    @edit="handleEditHito"
-                                    @add-entregable="handleAddEntregable"
-                                    @edit-entregable="handleEditEntregable"
-                                    @complete-entregable="handleCompleteEntregable"
-                                    @update-entregable-status="handleUpdateEntregableStatus"
-                                />
-                            </div>
-                        </CardContent>
-                    </Card>
-                    <Card v-else>
-                        <CardContent class="py-8">
-                            <div class="text-center">
-                                <Milestone class="mx-auto h-12 w-12 text-gray-400" />
-                                <p class="mt-2 text-sm text-gray-600">No hay hitos definidos</p>
-                                <Link v-if="esGestorDelProyecto" :href="`/miembro/mis-proyectos/${proyecto.id}/hitos/create`" class="mt-4 inline-block">
-                                    <Button variant="outline">
-                                        <Plus class="mr-2 h-4 w-4" />
-                                        Crear primer hito
-                                    </Button>
-                                </Link>
-                            </div>
-                        </CardContent>
-                    </Card>
+                    <HitosDashboard
+                        :hitos="proyecto.hitos || []"
+                        :proyecto-id="proyecto.id"
+                        :can-edit="esGestorDelProyecto"
+                        :can-manage-deliverables="esGestorDelProyecto"
+                        :can-complete="esGestorDelProyecto"
+                        base-url="/miembro/mis-proyectos"
+                        @view-hito="navigateToHito"
+                        @edit-hito="handleEditHito"
+                        @add-entregable="handleAddEntregable"
+                        @edit-entregable="handleEditEntregable"
+                        @complete-entregable="handleCompleteEntregable"
+                        @update-entregable-status="handleUpdateEntregableStatus"
+                    />
                 </TabsContent>
             </Tabs>
         </div>

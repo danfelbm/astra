@@ -53,6 +53,7 @@ import type { Contrato } from '@modules/Proyectos/Resources/js/types/contratos';
 import type { Hito } from '@modules/Proyectos/Resources/js/types/hitos';
 import HitoCard from '@modules/Proyectos/Resources/js/components/HitoCard.vue';
 import HitosGrid from '@modules/Proyectos/Resources/js/components/HitosGrid.vue';
+import HitosDashboard from '@modules/Proyectos/Resources/js/components/HitosDashboard.vue';
 import EntregableItem from '@modules/Proyectos/Resources/js/components/EntregableItem.vue';
 import CamposPersonalizadosDisplay from '@modules/Proyectos/Resources/js/components/CamposPersonalizadosDisplay.vue';
 import ProyectoEstadoCard from '@modules/Proyectos/Resources/js/components/ProyectoEstadoCard.vue';
@@ -639,26 +640,19 @@ const getInitials = (name: string) => {
 
                 <!-- Tab de Hitos y Entregables -->
                 <TabsContent value="hitos" class="space-y-4 mt-6">
-                    <HitosGrid
+                    <HitosDashboard
                         v-if="canViewHitos"
                         :hitos="proyecto.hitos || []"
                         :proyecto-id="proyecto.id"
-                        :estadisticas="estadisticasHitos"
-                        :show-stats="true"
-                        :show-header="true"
-                        :show-actions="true"
-                        :show-view-all="true"
-                        :can-create="canCreateHitos"
                         :can-edit="canEditHitos"
                         :can-delete="canDeleteHitos"
                         :can-manage-deliverables="canManageEntregables"
-                        empty-message="No hay hitos definidos para este proyecto"
-                        @view="navigateToHito"
-                        @edit="navigateToEditHito"
-                        @delete="confirmDeleteHito"
-                        @duplicate="duplicateHito"
+                        :can-complete="canManageEntregables"
+                        base-url="/admin/proyectos"
+                        @view-hito="navigateToHito"
+                        @edit-hito="navigateToEditHito"
+                        @delete-hito="confirmDeleteHito"
                         @add-entregable="navigateToAddEntregable"
-                        @view-entregables="navigateToEntregables"
                     />
                 </TabsContent>
 
