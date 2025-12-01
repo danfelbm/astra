@@ -37,7 +37,11 @@ import {
     Plus,
     ChevronRight,
     ListTodo,
+    ExternalLink,
 } from 'lucide-vue-next';
+
+// Inertia Link
+import { Link } from '@inertiajs/vue3';
 
 // Componentes del módulo
 import EntregablesList from './EntregablesList.vue';
@@ -99,6 +103,17 @@ const selectedHitoId = ref<number | null>(getInitialHitoId());
 const selectedHito = computed(() =>
     props.hitos.find(h => h.id === selectedHitoId.value) ?? null
 );
+
+// URL para ver todos los hitos del proyecto (solo admin)
+const hitosIndexUrl = computed(() => {
+    return `${props.baseUrl}/${props.proyectoId}/hitos`;
+});
+
+// URL para ver todos los entregables del hito (solo admin)
+const entregablesUrl = computed(() => {
+    if (!selectedHito.value) return null;
+    return `${props.baseUrl}/${props.proyectoId}/hitos/${selectedHito.value.id}/entregables`;
+});
 
 // Sincronizar selección con URL
 watch(selectedHitoId, (newId) => {
@@ -202,10 +217,19 @@ const handleViewHito = () => {
         <aside class="hidden md:flex md:w-72 lg:w-80 flex-col border-r bg-muted/30">
             <!-- Header del sidebar -->
             <div class="p-4 border-b bg-background">
-                <h2 class="font-semibold text-sm text-muted-foreground uppercase tracking-wide flex items-center gap-2">
-                    <Target class="h-4 w-4" />
-                    Hitos ({{ hitos.length }})
-                </h2>
+                <div class="flex items-center justify-between">
+                    <h2 class="font-semibold text-sm text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+                        <Target class="h-4 w-4" />
+                        Hitos ({{ hitos.length }})
+                    </h2>
+                    <!-- Botón al index de hitos (solo admin) -->
+                    <Link v-if="showViewDetail" :href="hitosIndexUrl">
+                        <Button variant="outline" size="sm">
+                            <ExternalLink class="h-3.5 w-3.5 mr-1" />
+                            Ver todos
+                        </Button>
+                    </Link>
+                </div>
             </div>
 
             <!-- Lista de hitos -->
@@ -385,13 +409,22 @@ const handleViewHito = () => {
 
                     <!-- Lista de Entregables -->
                     <div class="space-y-4">
-                        <h3 class="font-semibold flex items-center gap-2">
-                            <ListTodo class="h-5 w-5" />
-                            Entregables
-                            <Badge variant="secondary" class="ml-1">
-                                {{ selectedHito.entregables?.length || 0 }}
-                            </Badge>
-                        </h3>
+                        <div class="flex items-center justify-between">
+                            <h3 class="font-semibold flex items-center gap-2">
+                                <ListTodo class="h-5 w-5" />
+                                Entregables
+                                <Badge variant="secondary" class="ml-1">
+                                    {{ selectedHito.entregables?.length || 0 }}
+                                </Badge>
+                            </h3>
+                            <!-- Botón a la página completa de entregables (solo admin) -->
+                            <Link v-if="showViewDetail && entregablesUrl" :href="entregablesUrl">
+                                <Button variant="outline" size="sm">
+                                    <ExternalLink class="h-3.5 w-3.5 mr-1" />
+                                    Ver todos
+                                </Button>
+                            </Link>
+                        </div>
 
                         <EntregablesList
                             v-if="selectedHito.entregables && selectedHito.entregables.length > 0"
