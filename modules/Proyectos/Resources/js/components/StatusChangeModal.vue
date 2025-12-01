@@ -2,30 +2,31 @@
 /**
  * StatusChangeModal - Modal para cambio de estado con observaciones
  *
- * Extiende la funcionalidad de ConfirmModal añadiendo un campo de texto
- * para observaciones opcionales al cambiar el estado de un entregable.
+ * Incluye editor WYSIWYG con soporte para archivos adjuntos.
+ * El comentario se guarda con contexto de estado (como en evidencias).
  *
  * Uso:
  * <StatusChangeModal
  *   v-model:open="showModal"
- *   :entregable="entregable"
+ *   :entregable-nombre="entregable.nombre"
  *   :nuevo-estado="'completado'"
  *   @confirm="handleStatusChange"
  * />
  */
 import { ref, computed, watch } from 'vue';
 import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-} from '@modules/Core/Resources/js/components/ui/alert-dialog';
-import { Textarea } from '@modules/Core/Resources/js/components/ui/textarea';
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@modules/Core/Resources/js/components/ui/dialog';
+import { Button } from '@modules/Core/Resources/js/components/ui/button';
+import { Switch } from '@modules/Core/Resources/js/components/ui/switch';
 import { Label } from '@modules/Core/Resources/js/components/ui/label';
+import ComentarioContextoInput from '@modules/Comentarios/Resources/js/components/ComentarioContextoInput.vue';
+import type { UploadedFile } from '@modules/Comentarios/Resources/js/types/comentarios';
 import {
     CheckCircle,
     Clock,
@@ -41,16 +42,12 @@ type EstadoEntregable = 'pendiente' | 'en_progreso' | 'completado' | 'cancelado'
 interface Props {
     // Estado del modal (v-model:open)
     open?: boolean;
-
     // Nombre del entregable para mostrar en el título
     entregableNombre?: string;
-
     // Estado actual del entregable
     estadoActual?: EstadoEntregable;
-
     // Nuevo estado al que se cambiará
     nuevoEstado: EstadoEntregable;
-
     // Estado de carga
     loading?: boolean;
 }
@@ -62,21 +59,17 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<{
     (e: 'update:open', value: boolean): void;
-    (e: 'confirm', observaciones: string): void;
+    (e: 'confirm', observaciones: string, archivos: UploadedFile[]): void;
     (e: 'cancel'): void;
 }>();
 
-// Estado interno para las observaciones
+// Estado interno
 const observaciones = ref('');
+const archivos = ref<UploadedFile[]>([]);
+const agregarComentario = ref(false);
+const comentarioInputRef = ref<InstanceType<typeof ComentarioContextoInput> | null>(null);
 
-// Limpiar observaciones cuando se cierra el modal
-watch(() => props.open, (newValue) => {
-    if (!newValue) {
-        observaciones.value = '';
-    }
-});
-
-// Configuración por estado
+// Configuración por estado (incluye si debe tener comentario por defecto)
 const estadoConfig = computed(() => {
     const configs: Record<EstadoEntregable, {
         icon: typeof CheckCircle;
@@ -85,38 +78,43 @@ const estadoConfig = computed(() => {
         title: string;
         description: string;
         confirmText: string;
+        defaultComentario: boolean;
     }> = {
         completado: {
             icon: CheckCircle,
             iconClass: 'text-green-600',
-            buttonClass: 'bg-green-600 hover:bg-green-700 !text-white',
+            buttonClass: 'bg-green-600 hover:bg-green-700',
             title: '¿Marcar como completado?',
             description: 'El entregable se marcará como completado y se registrará la fecha y hora.',
             confirmText: 'Completar',
+            defaultComentario: false,
         },
         en_progreso: {
             icon: Clock,
             iconClass: 'text-blue-600',
-            buttonClass: 'bg-blue-600 hover:bg-blue-700 !text-white',
+            buttonClass: 'bg-blue-600 hover:bg-blue-700',
             title: '¿Marcar en progreso?',
             description: 'El entregable se marcará como en progreso.',
             confirmText: 'En Progreso',
+            defaultComentario: false,
         },
         pendiente: {
             icon: AlertCircle,
             iconClass: 'text-yellow-600',
-            buttonClass: 'bg-yellow-600 hover:bg-yellow-700 !text-white',
+            buttonClass: 'bg-yellow-600 hover:bg-yellow-700',
             title: '¿Reabrir entregable?',
             description: 'El entregable volverá a estado pendiente.',
             confirmText: 'Reabrir',
+            defaultComentario: false,
         },
         cancelado: {
             icon: XCircle,
             iconClass: 'text-red-600',
-            buttonClass: 'bg-red-600 hover:bg-red-700 !text-white',
+            buttonClass: 'bg-red-600 hover:bg-red-700',
             title: '¿Cancelar entregable?',
             description: 'El entregable se marcará como cancelado.',
             confirmText: 'Cancelar Entregable',
+            defaultComentario: true, // Por defecto ON para cancelar
         },
     };
     return configs[props.nuevoEstado];
@@ -130,9 +128,29 @@ const title = computed(() => {
     return estadoConfig.value.title;
 });
 
+// Limpiar formulario
+const limpiarFormulario = () => {
+    observaciones.value = '';
+    archivos.value = [];
+    comentarioInputRef.value?.clear();
+};
+
+// Resetear cuando se abre el modal
+watch(() => props.open, (newValue) => {
+    if (newValue) {
+        // Resetear el switch al valor por defecto del estado
+        agregarComentario.value = estadoConfig.value.defaultComentario;
+    } else {
+        limpiarFormulario();
+        agregarComentario.value = false;
+    }
+});
+
 // Handler para confirmar
 const handleConfirm = () => {
-    emit('confirm', observaciones.value);
+    const comentarioFinal = agregarComentario.value ? observaciones.value : '';
+    const archivosFinal = agregarComentario.value ? archivos.value : [];
+    emit('confirm', comentarioFinal, archivosFinal);
     // No cerramos automáticamente si está en loading
     if (!props.loading) {
         emit('update:open', false);
@@ -147,9 +165,9 @@ const handleCancel = () => {
 </script>
 
 <template>
-    <AlertDialog :open="open" @update:open="emit('update:open', $event)">
-        <AlertDialogContent class="sm:max-w-md">
-            <AlertDialogHeader>
+    <Dialog :open="open" @update:open="emit('update:open', $event)">
+        <DialogContent class="sm:max-w-lg">
+            <DialogHeader>
                 <!-- Header con icono y título -->
                 <div class="flex gap-3">
                     <!-- Icono de estado -->
@@ -159,43 +177,56 @@ const handleCancel = () => {
                         :class="estadoConfig.iconClass"
                         aria-hidden="true"
                     />
-
                     <div class="flex-1">
-                        <AlertDialogTitle>{{ title }}</AlertDialogTitle>
-                        <AlertDialogDescription class="mt-2">
+                        <DialogTitle>{{ title }}</DialogTitle>
+                        <DialogDescription class="mt-2">
                             {{ estadoConfig.description }}
-                        </AlertDialogDescription>
+                        </DialogDescription>
                     </div>
                 </div>
-            </AlertDialogHeader>
+            </DialogHeader>
 
-            <!-- Campo de observaciones -->
-            <div class="py-4">
-                <Label for="observaciones" class="text-sm font-medium mb-2 block">
-                    Observaciones (opcional)
-                </Label>
-                <Textarea
-                    id="observaciones"
-                    v-model="observaciones"
-                    placeholder="Añade un comentario sobre este cambio de estado..."
-                    class="min-h-[80px] resize-none"
-                    :disabled="loading"
-                />
-                <p class="text-xs text-muted-foreground mt-1">
-                    Las observaciones quedarán registradas en el historial de cambios.
-                </p>
+            <div class="space-y-4 py-4">
+                <!-- Switch para agregar comentario -->
+                <div class="flex items-center justify-between">
+                    <Label for="agregar-comentario" class="text-sm">
+                        Agregar comentario
+                    </Label>
+                    <Switch
+                        id="agregar-comentario"
+                        v-model="agregarComentario"
+                        :disabled="loading"
+                    />
+                </div>
+
+                <!-- Editor WYSIWYG para comentario (visible si switch activo) -->
+                <div v-if="agregarComentario" class="space-y-2">
+                    <ComentarioContextoInput
+                        ref="comentarioInputRef"
+                        v-model="observaciones"
+                        placeholder="Agrega un comentario sobre este cambio de estado..."
+                        :rows="3"
+                        :show-file-upload="true"
+                        upload-module="comentarios"
+                        upload-field-id="entregable-comentario"
+                        @update:archivos="archivos = $event"
+                    />
+                    <p class="text-xs text-muted-foreground">
+                        Este comentario aparecerá con el badge del nuevo estado.
+                    </p>
+                </div>
             </div>
 
-            <AlertDialogFooter>
-                <AlertDialogCancel
+            <DialogFooter class="gap-2 sm:gap-0">
+                <Button
+                    variant="outline"
                     @click="handleCancel"
                     :disabled="loading"
                 >
                     Cancelar
-                </AlertDialogCancel>
-
-                <AlertDialogAction
-                    @click.prevent="handleConfirm"
+                </Button>
+                <Button
+                    @click="handleConfirm"
                     :class="estadoConfig.buttonClass"
                     :disabled="loading"
                 >
@@ -205,8 +236,8 @@ const handleCancel = () => {
                         aria-hidden="true"
                     />
                     {{ estadoConfig.confirmText }}
-                </AlertDialogAction>
-            </AlertDialogFooter>
-        </AlertDialogContent>
-    </AlertDialog>
+                </Button>
+            </DialogFooter>
+        </DialogContent>
+    </Dialog>
 </template>

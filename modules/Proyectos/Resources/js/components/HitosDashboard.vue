@@ -54,6 +54,8 @@ interface Props {
     canDelete?: boolean;
     canManageDeliverables?: boolean;
     canComplete?: boolean;
+    // UI
+    showViewDetail?: boolean; // Mostrar botón "Ver Detalle Completo"
     // URL base para navegación
     baseUrl?: string;
 }
@@ -63,8 +65,11 @@ const props = withDefaults(defineProps<Props>(), {
     canDelete: false,
     canManageDeliverables: false,
     canComplete: false,
+    showViewDetail: true,
     baseUrl: '/admin/proyectos',
 });
+
+import type { UploadedFile } from '@modules/Comentarios/Resources/js/types/comentarios';
 
 // Emits
 const emit = defineEmits<{
@@ -73,8 +78,8 @@ const emit = defineEmits<{
     'delete-hito': [hito: Hito];
     'view-hito': [hito: Hito];
     'add-entregable': [hito: Hito];
-    'complete-entregable': [entregable: Entregable, observaciones: string];
-    'update-entregable-status': [entregable: Entregable, estado: string, observaciones: string];
+    'complete-entregable': [entregable: Entregable, observaciones: string, archivos: UploadedFile[]];
+    'update-entregable-status': [entregable: Entregable, estado: string, observaciones: string, archivos: UploadedFile[]];
     'edit-entregable': [entregable: Entregable, hito: Hito];
 }>();
 
@@ -151,12 +156,12 @@ const getEstadoDot = (estado: string) => {
 };
 
 // Handlers de entregables
-const handleCompleteEntregable = (entregable: Entregable, observaciones: string) => {
-    emit('complete-entregable', entregable, observaciones);
+const handleCompleteEntregable = (entregable: Entregable, observaciones: string, archivos: UploadedFile[]) => {
+    emit('complete-entregable', entregable, observaciones, archivos);
 };
 
-const handleUpdateEntregableStatus = (entregable: Entregable, estado: string, observaciones: string) => {
-    emit('update-entregable-status', entregable, estado, observaciones);
+const handleUpdateEntregableStatus = (entregable: Entregable, estado: string, observaciones: string, archivos: UploadedFile[]) => {
+    emit('update-entregable-status', entregable, estado, observaciones, archivos);
 };
 
 const handleEditEntregable = (entregable: Entregable) => {
@@ -356,6 +361,7 @@ const handleViewHito = () => {
                                     Añadir Entregable
                                 </Button>
                                 <Button
+                                    v-if="showViewDetail"
                                     variant="ghost"
                                     size="sm"
                                     @click="handleViewHito"

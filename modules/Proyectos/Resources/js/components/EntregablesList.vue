@@ -28,6 +28,7 @@ import {
     Flag, Users, ChevronDown, ChevronRight
 } from 'lucide-vue-next';
 import type { Entregable } from '@modules/Proyectos/Resources/js/types/hitos';
+import type { UploadedFile } from '@modules/Comentarios/Resources/js/types/comentarios';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import StatusChangeModal from './StatusChangeModal.vue';
@@ -50,8 +51,8 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<{
     'edit': [entregable: Entregable];
     'delete': [entregable: Entregable];
-    'complete': [entregable: Entregable, observaciones: string];
-    'update-status': [entregable: Entregable, estado: string, observaciones: string];
+    'complete': [entregable: Entregable, observaciones: string, archivos: UploadedFile[]];
+    'update-status': [entregable: Entregable, estado: string, observaciones: string, archivos: UploadedFile[]];
 }>();
 
 // Estado local
@@ -175,14 +176,14 @@ const handleStatusChange = (entregable: Entregable, estado: string) => {
     statusChangeModalOpen.value = true;
 };
 
-// Confirma el cambio de estado con observaciones
-const confirmStatusChange = (observaciones: string) => {
+// Confirma el cambio de estado con observaciones y archivos
+const confirmStatusChange = (observaciones: string, archivos: UploadedFile[]) => {
     if (!entregableToChange.value) return;
 
     if (nuevoEstadoPendiente.value === 'completado') {
-        emit('complete', entregableToChange.value, observaciones);
+        emit('complete', entregableToChange.value, observaciones, archivos);
     } else {
-        emit('update-status', entregableToChange.value, nuevoEstadoPendiente.value, observaciones);
+        emit('update-status', entregableToChange.value, nuevoEstadoPendiente.value, observaciones, archivos);
     }
 
     // Cerrar modal y limpiar estado
