@@ -14,6 +14,7 @@ const props = defineProps<{
                 'relative flex min-h-svh flex-1 flex-col bg-background',
                 'sidebar-inset-fix',
                 'peer-data-[variant=inset]:min-h-[calc(100svh-1rem)]',
+                'min-w-0 overflow-x-hidden',
                 props.class,
             )
         "
