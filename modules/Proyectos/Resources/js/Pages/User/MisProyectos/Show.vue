@@ -42,6 +42,7 @@ import ProyectoInfoCard from "@modules/Proyectos/Resources/js/components/Proyect
 import type { Etiqueta } from '@modules/Proyectos/Resources/js/types/etiquetas';
 import type { Contrato } from '@modules/Proyectos/Resources/js/types/contratos';
 import type { Hito, Entregable } from '@modules/Proyectos/Resources/js/types/hitos';
+import type { UploadedFile } from '@modules/Comentarios/Resources/js/types/comentarios';
 import { toast } from 'vue-sonner';
 
 // Interfaces
@@ -236,10 +237,12 @@ const handleEditHito = (hito: Hito) => {
     router.visit(`/miembro/mis-proyectos/${props.proyecto.id}/hitos/${hito.id}/edit`);
 };
 
-// Handler para completar un entregable (incluye observaciones)
-const handleCompleteEntregable = (entregable: Entregable, observaciones: string) => {
+// Handler para completar un entregable (incluye observaciones y archivos)
+const handleCompleteEntregable = (entregable: Entregable, observaciones: string, archivos: UploadedFile[]) => {
     router.post(`/miembro/mis-hitos/${entregable.hito_id}/entregables/${entregable.id}/completar`, {
-        notas: observaciones
+        notas: observaciones,
+        archivos: archivos,
+        agregar_comentario: !!observaciones
     }, {
         preserveScroll: true,
         onSuccess: () => {
@@ -251,11 +254,13 @@ const handleCompleteEntregable = (entregable: Entregable, observaciones: string)
     });
 };
 
-// Handler para actualizar estado de un entregable (incluye observaciones)
-const handleUpdateEntregableStatus = (entregable: Entregable, estado: string, observaciones: string) => {
+// Handler para actualizar estado de un entregable (incluye observaciones y archivos)
+const handleUpdateEntregableStatus = (entregable: Entregable, estado: string, observaciones: string, archivos: UploadedFile[]) => {
     router.put(`/miembro/mis-hitos/${entregable.hito_id}/entregables/${entregable.id}/estado`, {
         estado,
-        observaciones
+        observaciones,
+        archivos: archivos,
+        agregar_comentario: !!observaciones
     }, {
         preserveScroll: true,
         onSuccess: () => {
@@ -470,8 +475,8 @@ const handleEditEntregable = (entregable: Entregable, hito: Hito) => {
                         :can-edit="esGestorDelProyecto"
                         :can-manage-deliverables="esGestorDelProyecto"
                         :can-complete="esGestorDelProyecto"
+                        :show-view-detail="false"
                         base-url="/miembro/mis-proyectos"
-                        @view-hito="navigateToHito"
                         @edit-hito="handleEditHito"
                         @add-entregable="handleAddEntregable"
                         @edit-entregable="handleEditEntregable"
