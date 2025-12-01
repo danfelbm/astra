@@ -32,6 +32,7 @@ class MisHitosController extends UserController
 
     /**
      * Muestra la lista de hitos asignados al usuario.
+     * Usa el componente HitosDashboard con soporte para filtro por proyecto.
      */
     public function index(Request $request): Response
     {
@@ -40,44 +41,93 @@ class MisHitosController extends UserController
 
         $user = auth()->user();
 
-        // Obtener hitos donde el usuario es responsable o tiene entregables asignados
-        $hitos = $this->hitoRepository->getMisHitos($request);
+        // Obtener todos los hitos donde el usuario tiene acceso
+        // (es responsable del hito, del proyecto, o tiene entregables asignados)
+        $hitosQuery = Hito::with([
+            'proyecto:id,nombre,estado',
+            'responsable:id,name,email',
+            'entregables' => function ($q) {
+                $q->with(['responsable:id,name,email', 'usuarios:id,name,email'])
+                  ->orderBy('orden');
+            }
+        ])->where(function ($query) use ($user) {
+            // Es responsable del hito
+            $query->where('responsable_id', $user->id)
+                  // O el proyecto tiene al usuario como responsable/gestor
+                  ->orWhereHas('proyecto', function ($q) use ($user) {
+                      $q->where('responsable_id', $user->id)
+                        ->orWhereHas('gestores', function ($q2) use ($user) {
+                            $q2->where('user_id', $user->id);
+                        });
+                  })
+                  // O tiene entregables asignados
+                  ->orWhereHas('entregables', function ($q) use ($user) {
+                      $q->where('responsable_id', $user->id)
+                        ->orWhereHas('usuarios', function ($q2) use ($user) {
+                            $q2->where('users.id', $user->id);
+                        });
+                  });
+        });
 
-        // Obtener estadísticas del usuario
+        // Aplicar filtro de búsqueda
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $hitosQuery->where(function ($q) use ($search) {
+                $q->where('nombre', 'like', "%{$search}%")
+                  ->orWhere('descripcion', 'like', "%{$search}%");
+            });
+        }
+
+        // Aplicar filtro de estado
+        if ($request->filled('estado')) {
+            $hitosQuery->where('estado', $request->estado);
+        }
+
+        // Aplicar filtro de proyecto
+        if ($request->filled('proyecto_id')) {
+            $hitosQuery->where('proyecto_id', $request->proyecto_id);
+        }
+
+        // Ordenar por proyecto, luego por orden
+        $hitos = $hitosQuery->orderBy('proyecto_id')
+                           ->orderBy('orden')
+                           ->get();
+
+        // Obtener lista de proyectos únicos para el filtro
+        $proyectoIds = $hitos->pluck('proyecto_id')->unique()->toArray();
+        $proyectos = Proyecto::whereIn('id', $proyectoIds)
+                            ->get(['id', 'nombre'])
+                            ->map(fn($p) => ['id' => $p->id, 'nombre' => $p->nombre])
+                            ->values()
+                            ->toArray();
+
+        // Estadísticas del usuario
         $estadisticas = [
-            'total' => $hitos->total(),
-            'pendientes' => Hito::whereHas('entregables', function ($q) use ($user) {
-                $q->where('responsable_id', $user->id)
-                  ->orWhereHas('usuarios', function ($q2) use ($user) {
-                      $q2->where('users.id', $user->id);
-                  });
-            })->where('estado', 'pendiente')->count(),
-            'en_progreso' => Hito::whereHas('entregables', function ($q) use ($user) {
-                $q->where('responsable_id', $user->id)
-                  ->orWhereHas('usuarios', function ($q2) use ($user) {
-                      $q2->where('users.id', $user->id);
-                  });
-            })->where('estado', 'en_progreso')->count(),
-            'completados' => Hito::whereHas('entregables', function ($q) use ($user) {
-                $q->where('responsable_id', $user->id)
-                  ->orWhereHas('usuarios', function ($q2) use ($user) {
-                      $q2->where('users.id', $user->id);
-                  });
-            })->where('estado', 'completado')->count(),
-            'entregables_pendientes' => Entregable::where(function ($q) use ($user) {
-                $q->where('responsable_id', $user->id)
-                  ->orWhereHas('usuarios', function ($q2) use ($user) {
-                      $q2->where('users.id', $user->id);
-                  });
-            })->where('estado', 'pendiente')->count(),
+            'total' => $hitos->count(),
+            'pendientes' => $hitos->where('estado', 'pendiente')->count(),
+            'en_progreso' => $hitos->where('estado', 'en_progreso')->count(),
+            'completados' => $hitos->where('estado', 'completado')->count(),
+            'vencidos' => $hitos->filter(fn($h) => $h->esta_vencido)->count(),
+            'proximos_vencer' => $hitos->filter(fn($h) => $h->esta_proximo_vencer)->count(),
         ];
+
+        // Determinar si el usuario es gestor de algún proyecto
+        $esGestorDeAlguno = Proyecto::where(function ($q) use ($user) {
+            $q->where('responsable_id', $user->id)
+              ->orWhereHas('gestores', function ($q2) use ($user) {
+                  $q2->where('user_id', $user->id);
+              });
+        })->whereIn('id', $proyectoIds)->exists();
 
         return Inertia::render('Modules/Proyectos/User/MisHitos/Index', [
             'hitos' => $hitos,
+            'proyectos' => $proyectos,
             'filters' => $request->only(['search', 'estado', 'proyecto_id']),
             'estadisticas' => $estadisticas,
             'canView' => auth()->user()->can('hitos.view_own'),
-            'canComplete' => auth()->user()->can('hitos.complete_own'),
+            'canEdit' => $esGestorDeAlguno,
+            'canManageDeliverables' => $esGestorDeAlguno,
+            'canComplete' => auth()->user()->can('hitos.complete_own') || auth()->user()->can('hitos.update_progress'),
             'canUpdateProgress' => auth()->user()->can('hitos.update_progress'),
         ]);
     }

@@ -38,6 +38,7 @@ import {
     ChevronRight,
     ListTodo,
     ExternalLink,
+    FolderOpen,
 } from 'lucide-vue-next';
 
 // Inertia Link
@@ -50,9 +51,17 @@ import EntregablesList from './EntregablesList.vue';
 import type { Hito, Entregable } from '@modules/Proyectos/Resources/js/types/hitos';
 
 // Props
+interface ProyectoOption {
+    id: number;
+    nombre: string;
+}
+
 interface Props {
     hitos: Hito[];
-    proyectoId: number;
+    proyectoId?: number; // Opcional cuando hay múltiples proyectos
+    // Filtro por proyecto (para vista de múltiples proyectos)
+    proyectos?: ProyectoOption[];
+    selectedProyectoId?: number | null;
     // Permisos
     canEdit?: boolean;
     canDelete?: boolean;
@@ -60,6 +69,7 @@ interface Props {
     canComplete?: boolean;
     // UI
     showViewDetail?: boolean; // Mostrar botón "Ver Detalle Completo"
+    showProyectoInHito?: boolean; // Mostrar nombre del proyecto en cada hito
     // URL base para navegación
     baseUrl?: string;
 }
@@ -70,6 +80,7 @@ const props = withDefaults(defineProps<Props>(), {
     canManageDeliverables: false,
     canComplete: false,
     showViewDetail: true,
+    showProyectoInHito: false,
     baseUrl: '/admin/proyectos',
 });
 
@@ -85,7 +96,28 @@ const emit = defineEmits<{
     'complete-entregable': [entregable: Entregable, observaciones: string, archivos: UploadedFile[]];
     'update-entregable-status': [entregable: Entregable, estado: string, observaciones: string, archivos: UploadedFile[]];
     'edit-entregable': [entregable: Entregable, hito: Hito];
+    'filter-proyecto': [proyectoId: number | null];
 }>();
+
+// Filtro de proyecto reactivo
+const proyectoFilter = ref<string>(props.selectedProyectoId?.toString() || '');
+
+// Hitos filtrados por proyecto
+const filteredHitos = computed(() => {
+    if (!proyectoFilter.value) {
+        return props.hitos;
+    }
+    const proyectoId = parseInt(proyectoFilter.value, 10);
+    return props.hitos.filter(h => h.proyecto_id === proyectoId);
+});
+
+// Handler para cambio de filtro de proyecto
+const handleProyectoFilter = (value: string) => {
+    proyectoFilter.value = value;
+    selectedHitoId.value = null; // Resetear hito seleccionado
+    const proyectoId = value ? parseInt(value, 10) : null;
+    emit('filter-proyecto', proyectoId);
+};
 
 // Responsive
 const isMobile = useMediaQuery('(max-width: 768px)');
@@ -101,18 +133,26 @@ const selectedHitoId = ref<number | null>(getInitialHitoId());
 
 // Computed
 const selectedHito = computed(() =>
-    props.hitos.find(h => h.id === selectedHitoId.value) ?? null
+    filteredHitos.value.find(h => h.id === selectedHitoId.value) ?? null
 );
+
+// Proyecto ID efectivo (de prop o del hito seleccionado)
+const effectiveProyectoId = computed(() => {
+    if (props.proyectoId) return props.proyectoId;
+    if (selectedHito.value) return selectedHito.value.proyecto_id;
+    return null;
+});
 
 // URL para ver todos los hitos del proyecto (solo admin)
 const hitosIndexUrl = computed(() => {
-    return `${props.baseUrl}/${props.proyectoId}/hitos`;
+    if (!effectiveProyectoId.value) return null;
+    return `${props.baseUrl}/${effectiveProyectoId.value}/hitos`;
 });
 
 // URL para ver todos los entregables del hito (solo admin)
 const entregablesUrl = computed(() => {
-    if (!selectedHito.value) return null;
-    return `${props.baseUrl}/${props.proyectoId}/hitos/${selectedHito.value.id}/entregables`;
+    if (!selectedHito.value || !effectiveProyectoId.value) return null;
+    return `${props.baseUrl}/${effectiveProyectoId.value}/hitos/${selectedHito.value.id}/entregables`;
 });
 
 // Sincronizar selección con URL
@@ -220,15 +260,36 @@ const handleViewHito = () => {
                 <div class="flex items-center justify-between">
                     <h2 class="font-semibold text-sm text-muted-foreground uppercase tracking-wide flex items-center gap-2">
                         <Target class="h-4 w-4" />
-                        Hitos ({{ hitos.length }})
+                        Hitos ({{ filteredHitos.length }})
                     </h2>
                     <!-- Botón al index de hitos (solo admin) -->
-                    <Link v-if="showViewDetail" :href="hitosIndexUrl">
+                    <Link v-if="showViewDetail && hitosIndexUrl" :href="hitosIndexUrl">
                         <Button variant="outline" size="sm">
                             <ExternalLink class="h-3.5 w-3.5 mr-1" />
                             Ver todos
                         </Button>
                     </Link>
+                </div>
+                <!-- Filtro por proyecto (cuando hay múltiples proyectos) -->
+                <div v-if="proyectos && proyectos.length > 0" class="mt-3">
+                    <Select
+                        :model-value="proyectoFilter"
+                        @update:model-value="handleProyectoFilter"
+                    >
+                        <SelectTrigger class="w-full h-9 text-sm">
+                            <SelectValue placeholder="Todos los proyectos" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="">Todos los proyectos</SelectItem>
+                            <SelectItem
+                                v-for="proyecto in proyectos"
+                                :key="proyecto.id"
+                                :value="proyecto.id.toString()"
+                            >
+                                {{ proyecto.nombre }}
+                            </SelectItem>
+                        </SelectContent>
+                    </Select>
                 </div>
             </div>
 
@@ -236,13 +297,13 @@ const handleViewHito = () => {
             <ScrollArea class="flex-1">
                 <div class="p-2 space-y-1">
                     <!-- Estado vacío sidebar -->
-                    <div v-if="hitos.length === 0" class="p-4 text-center text-muted-foreground text-sm">
+                    <div v-if="filteredHitos.length === 0" class="p-4 text-center text-muted-foreground text-sm">
                         No hay hitos definidos
                     </div>
 
                     <!-- Items de hito -->
                     <button
-                        v-for="hito in hitos"
+                        v-for="hito in filteredHitos"
                         :key="hito.id"
                         :data-active="selectedHitoId === hito.id"
                         class="w-full text-left p-3 rounded-lg transition-colors duration-150
@@ -262,6 +323,10 @@ const handleViewHito = () => {
                                 class="h-4 w-4 flex-shrink-0 text-primary"
                             />
                         </div>
+                        <!-- Nombre del proyecto (cuando showProyectoInHito es true) -->
+                        <div v-if="showProyectoInHito && hito.proyecto" class="mt-1 ml-4 text-xs text-muted-foreground truncate">
+                            {{ hito.proyecto.nombre }}
+                        </div>
                         <div class="flex items-center gap-2 mt-2 ml-4 text-xs text-muted-foreground">
                             <Badge :class="getEstadoColor(hito.estado)" class="text-[10px] px-1.5 py-0">
                                 {{ hito.estado_label || hito.estado }}
@@ -280,7 +345,28 @@ const handleViewHito = () => {
         <!-- Panel Principal -->
         <main class="flex-1 flex flex-col min-h-0">
             <!-- Selector Móvil -->
-            <div class="md:hidden p-4 border-b bg-background sticky top-0 z-10">
+            <div class="md:hidden p-4 border-b bg-background sticky top-0 z-10 space-y-3">
+                <!-- Filtro por proyecto móvil (cuando hay múltiples proyectos) -->
+                <Select
+                    v-if="proyectos && proyectos.length > 0"
+                    :model-value="proyectoFilter"
+                    @update:model-value="handleProyectoFilter"
+                >
+                    <SelectTrigger class="w-full h-9 text-sm">
+                        <SelectValue placeholder="Todos los proyectos" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="">Todos los proyectos</SelectItem>
+                        <SelectItem
+                            v-for="proyecto in proyectos"
+                            :key="proyecto.id"
+                            :value="proyecto.id.toString()"
+                        >
+                            {{ proyecto.nombre }}
+                        </SelectItem>
+                    </SelectContent>
+                </Select>
+                <!-- Selector de hito -->
                 <Select
                     :model-value="selectedHitoId?.toString() || ''"
                     @update:model-value="handleMobileSelect"
@@ -290,13 +376,18 @@ const handleViewHito = () => {
                     </SelectTrigger>
                     <SelectContent>
                         <SelectItem
-                            v-for="hito in hitos"
+                            v-for="hito in filteredHitos"
                             :key="hito.id"
                             :value="hito.id.toString()"
                         >
                             <div class="flex items-center gap-2">
                                 <div :class="getEstadoDot(hito.estado)" class="w-2 h-2 rounded-full" />
-                                <span>{{ hito.nombre }}</span>
+                                <div class="flex flex-col">
+                                    <span>{{ hito.nombre }}</span>
+                                    <span v-if="showProyectoInHito && hito.proyecto" class="text-xs text-muted-foreground">
+                                        {{ hito.proyecto.nombre }}
+                                    </span>
+                                </div>
                                 <span class="text-muted-foreground">({{ hito.porcentaje_completado }}%)</span>
                             </div>
                         </SelectItem>
@@ -327,6 +418,11 @@ const handleViewHito = () => {
                                     <div class="flex items-center gap-2 mb-1">
                                         <div :class="getEstadoDot(selectedHito.estado)" class="w-2.5 h-2.5 rounded-full" />
                                         <CardTitle class="text-xl truncate">{{ selectedHito.nombre }}</CardTitle>
+                                    </div>
+                                    <!-- Nombre del proyecto (cuando showProyectoInHito es true) -->
+                                    <div v-if="showProyectoInHito && selectedHito.proyecto" class="flex items-center gap-1.5 text-sm text-muted-foreground mt-1">
+                                        <FolderOpen class="h-4 w-4" />
+                                        <span>{{ selectedHito.proyecto.nombre }}</span>
                                     </div>
                                     <p v-if="selectedHito.descripcion" class="text-sm text-muted-foreground mt-2">
                                         {{ selectedHito.descripcion }}

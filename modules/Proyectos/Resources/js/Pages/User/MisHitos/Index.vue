@@ -1,39 +1,35 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+/**
+ * Página de Mis Hitos - Usa HitosDashboard con filtro por proyecto
+ *
+ * Muestra todos los hitos a los que el usuario tiene acceso,
+ * permitiendo filtrar por proyecto.
+ */
+import { computed } from 'vue';
 import { Head, router, usePage } from '@inertiajs/vue3';
 import UserLayout from '@modules/Core/Resources/js/layouts/UserLayout.vue';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@modules/Core/Resources/js/components/ui/card';
-import { Button } from '@modules/Core/Resources/js/components/ui/button';
-import { Badge } from '@modules/Core/Resources/js/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@modules/Core/Resources/js/components/ui/tabs';
-import { Input } from '@modules/Core/Resources/js/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@modules/Core/Resources/js/components/ui/select';
-import { Progress } from '@modules/Core/Resources/js/components/ui/progress';
-import { Calendar, Clock, Target, Users, CheckCircle, XCircle, AlertCircle, ArrowRight } from 'lucide-vue-next';
+import { Card, CardContent, CardHeader, CardTitle } from '@modules/Core/Resources/js/components/ui/card';
+import { Target, Clock, CheckCircle, AlertCircle, XCircle } from 'lucide-vue-next';
+import HitosDashboard from '@modules/Proyectos/Resources/js/components/HitosDashboard.vue';
 import type { Hito, Entregable } from '@modules/Proyectos/Resources/js/types/hitos';
-import HitoCard from '@modules/Proyectos/Resources/js/components/HitoCard.vue';
-import HitoTimeline from '@modules/Proyectos/Resources/js/components/HitoTimeline.vue';
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
+import type { UploadedFile } from '@modules/Comentarios/Resources/js/types/comentarios';
 import type { PageProps } from '@/types';
 import { toast } from 'vue-sonner';
 
+// Props con tipos
+interface ProyectoOption {
+    id: number;
+    nombre: string;
+}
+
 interface Props {
-    hitos: {
-        data: Hito[];
-        links: any;
-        meta: any;
-    };
+    hitos: Hito[];
+    proyectos: ProyectoOption[];
     filters: {
         search?: string;
         estado?: string;
-        prioridad?: string;
-        proyecto?: string;
+        proyecto_id?: string;
     };
-    proyectos: Array<{
-        id: number;
-        nombre: string;
-    }>;
     estadisticas: {
         total: number;
         pendientes: number;
@@ -42,66 +38,43 @@ interface Props {
         vencidos: number;
         proximos_vencer: number;
     };
+    canView: boolean;
+    canEdit: boolean;
+    canManageDeliverables: boolean;
+    canComplete: boolean;
+    canUpdateProgress: boolean;
 }
 
 const props = defineProps<Props>();
 const page = usePage<PageProps>();
 
-// Filtros reactivos
-const search = ref(props.filters.search || '');
-const estadoFilter = ref(props.filters.estado || 'todos');
-const proyectoFilter = ref(props.filters.proyecto || '');
+// Usuario actual
+const currentUserId = computed(() => (page.props.auth as any)?.user?.id);
 
-// Tab activo
-const activeTab = ref('lista');
-
-// Función para aplicar filtros
-const applyFilters = () => {
-    router.get(route('user.mis-hitos.index'), {
-        search: search.value,
-        estado: estadoFilter.value !== 'todos' ? estadoFilter.value : undefined,
-        proyecto: proyectoFilter.value || undefined,
-    }, {
-        preserveState: true,
-        preserveScroll: true,
-    });
+// Handler para editar un hito
+const handleEditHito = (hito: Hito) => {
+    if (!hito.proyecto_id) return;
+    router.visit(`/miembro/mis-proyectos/${hito.proyecto_id}/hitos/${hito.id}/edit`);
 };
 
-// Watchers para aplicar filtros automáticamente
-watch([search, estadoFilter, proyectoFilter], () => {
-    applyFilters();
-}, { debounce: 300 });
-
-// Función para obtener color del estado
-const getEstadoColor = (estado: string) => {
-    const colors: Record<string, string> = {
-        pendiente: 'bg-gray-100 text-gray-800',
-        en_progreso: 'bg-blue-100 text-blue-800',
-        completado: 'bg-green-100 text-green-800',
-        cancelado: 'bg-red-100 text-red-800',
-    };
-    return colors[estado] || 'bg-gray-100 text-gray-800';
+// Handler para ver detalle de un hito
+const handleViewHito = (hito: Hito) => {
+    router.visit(`/miembro/mis-hitos/${hito.id}`);
 };
 
-// Función para obtener icono del estado
-const getEstadoIcon = (estado: string) => {
-    switch (estado) {
-        case 'pendiente':
-            return AlertCircle;
-        case 'en_progreso':
-            return Clock;
-        case 'completado':
-            return CheckCircle;
-        case 'cancelado':
-            return XCircle;
-        default:
-            return AlertCircle;
-    }
+// Handler para añadir entregable a un hito
+const handleAddEntregable = (hito: Hito) => {
+    if (!hito.proyecto_id) return;
+    router.visit(`/miembro/mis-proyectos/${hito.proyecto_id}/hitos/${hito.id}/entregables/create`);
 };
 
 // Handler para completar un entregable
-const handleCompleteEntregable = (entregable: Entregable) => {
-    router.post(`/miembro/mis-hitos/${entregable.hito_id}/entregables/${entregable.id}/completar`, {}, {
+const handleCompleteEntregable = (entregable: Entregable, observaciones: string, archivos: UploadedFile[]) => {
+    router.post(`/miembro/mis-hitos/${entregable.hito_id}/entregables/${entregable.id}/completar`, {
+        notas: observaciones,
+        archivos: archivos,
+        agregar_comentario: !!observaciones
+    }, {
         preserveScroll: true,
         onSuccess: () => {
             toast.success('Entregable marcado como completado');
@@ -113,9 +86,12 @@ const handleCompleteEntregable = (entregable: Entregable) => {
 };
 
 // Handler para actualizar estado de un entregable
-const handleUpdateEntregableStatus = (entregable: Entregable, estado: string) => {
+const handleUpdateEntregableStatus = (entregable: Entregable, estado: string, observaciones: string, archivos: UploadedFile[]) => {
     router.put(`/miembro/mis-hitos/${entregable.hito_id}/entregables/${entregable.id}/estado`, {
-        estado
+        estado,
+        observaciones,
+        archivos: archivos,
+        agregar_comentario: !!observaciones
     }, {
         preserveScroll: true,
         onSuccess: () => {
@@ -127,30 +103,22 @@ const handleUpdateEntregableStatus = (entregable: Entregable, estado: string) =>
     });
 };
 
-// Función para formatear fecha
-const formatDate = (date: string | null) => {
-    if (!date) return 'No definida';
-    return format(new Date(date), 'dd MMM yyyy', { locale: es });
+// Handler para editar un entregable
+const handleEditEntregable = (entregable: Entregable, hito: Hito) => {
+    if (!hito.proyecto_id) return;
+    router.visit(`/miembro/mis-proyectos/${hito.proyecto_id}/hitos/${hito.id}/entregables/${entregable.id}/edit`);
 };
 
-// Función para calcular días restantes
-const getDiasRestantes = (fechaFin: string | null) => {
-    if (!fechaFin) return null;
-    const dias = Math.ceil((new Date(fechaFin).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
-    if (dias < 0) return `Vencido hace ${Math.abs(dias)} días`;
-    if (dias === 0) return 'Vence hoy';
-    if (dias === 1) return 'Vence mañana';
-    return `${dias} días restantes`;
+// Handler para filtro de proyecto
+const handleFilterProyecto = (proyectoId: number | null) => {
+    router.get('/miembro/mis-hitos', {
+        ...props.filters,
+        proyecto_id: proyectoId || undefined
+    }, {
+        preserveState: true,
+        preserveScroll: true,
+    });
 };
-
-// Hitos agrupados por estado para el timeline
-const hitosAgrupados = computed(() => {
-    return {
-        pendientes: props.hitos.data.filter(h => h.estado === 'pendiente'),
-        en_progreso: props.hitos.data.filter(h => h.estado === 'en_progreso'),
-        completados: props.hitos.data.filter(h => h.estado === 'completado'),
-    };
-});
 </script>
 
 <template>
@@ -162,7 +130,7 @@ const hitosAgrupados = computed(() => {
             <div class="flex flex-col gap-4">
                 <h1 class="text-2xl font-bold tracking-tight">Mis Hitos</h1>
                 <p class="text-muted-foreground">
-                    Gestiona y da seguimiento a los hitos y entregables asignados a ti
+                    Gestiona y da seguimiento a los hitos y entregables de tus proyectos
                 </p>
             </div>
 
@@ -229,130 +197,25 @@ const hitosAgrupados = computed(() => {
                 </Card>
             </div>
 
-            <!-- Filtros -->
-            <Card>
-                <CardHeader>
-                    <CardTitle>Filtros</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <div class="grid gap-4 md:grid-cols-4">
-                        <div>
-                            <Input
-                                v-model="search"
-                                placeholder="Buscar hitos..."
-                                class="w-full"
-                            />
-                        </div>
-
-                        <Select v-model="estadoFilter">
-                            <SelectTrigger>
-                                <SelectValue placeholder="Estado" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="todos">Todos los estados</SelectItem>
-                                <SelectItem value="pendiente">Pendiente</SelectItem>
-                                <SelectItem value="en_progreso">En Progreso</SelectItem>
-                                <SelectItem value="completado">Completado</SelectItem>
-                                <SelectItem value="cancelado">Cancelado</SelectItem>
-                            </SelectContent>
-                        </Select>
-
-                        <Select v-model="proyectoFilter">
-                            <SelectTrigger>
-                                <SelectValue placeholder="Proyecto" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="">Todos los proyectos</SelectItem>
-                                <SelectItem v-for="proyecto in proyectos" :key="proyecto.id" :value="String(proyecto.id)">
-                                    {{ proyecto.nombre }}
-                                </SelectItem>
-                            </SelectContent>
-                        </Select>
-
-                        <Button @click="applyFilters" class="w-full md:w-auto">
-                            Aplicar Filtros
-                        </Button>
-                    </div>
-                </CardContent>
-            </Card>
-
-            <!-- Tabs para diferentes vistas -->
-            <Tabs v-model="activeTab" class="space-y-4">
-                <TabsList>
-                    <TabsTrigger value="lista">Vista de Lista</TabsTrigger>
-                    <TabsTrigger value="tarjetas">Vista de Tarjetas</TabsTrigger>
-                    <TabsTrigger value="timeline">Timeline</TabsTrigger>
-                </TabsList>
-
-                <!-- Vista de Lista -->
-                <TabsContent value="lista" class="space-y-4">
-                    <div class="space-y-4">
-                        <HitoCard
-                            v-for="hito in hitos.data"
-                            :key="hito.id"
-                            :hito="hito"
-                            :show-actions="true"
-                            :expand-entregables-inline="true"
-                            :can-complete-entregables="true"
-                            :can-edit-entregables="true"
-                            @complete-entregable="handleCompleteEntregable"
-                            @update-entregable-status="handleUpdateEntregableStatus"
-                        />
-                    </div>
-
-                    <!-- Mensaje si no hay hitos -->
-                    <Card v-if="hitos.data.length === 0">
-                        <CardContent class="text-center py-8">
-                            <Target class="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                            <p class="text-muted-foreground">No tienes hitos asignados</p>
-                        </CardContent>
-                    </Card>
-                </TabsContent>
-
-                <!-- Vista de Tarjetas -->
-                <TabsContent value="tarjetas" class="space-y-4">
-                    <div class="grid gap-4 md:grid-cols-2">
-                        <HitoCard
-                            v-for="hito in hitos.data"
-                            :key="hito.id"
-                            :hito="hito"
-                            :show-actions="true"
-                            :expand-entregables-inline="true"
-                            :can-complete-entregables="true"
-                            :can-edit-entregables="true"
-                            @complete-entregable="handleCompleteEntregable"
-                            @update-entregable-status="handleUpdateEntregableStatus"
-                        />
-                    </div>
-
-                    <!-- Mensaje si no hay hitos -->
-                    <Card v-if="hitos.data.length === 0">
-                        <CardContent class="text-center py-8">
-                            <Target class="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                            <p class="text-muted-foreground">No tienes hitos asignados</p>
-                        </CardContent>
-                    </Card>
-                </TabsContent>
-
-                <!-- Vista Timeline -->
-                <TabsContent value="timeline" class="space-y-4">
-                    <HitoTimeline :hitos="hitos.data" />
-                </TabsContent>
-            </Tabs>
-
-            <!-- Paginación -->
-            <div v-if="hitos.meta && hitos.meta.last_page > 1" class="flex justify-center">
-                <nav class="flex items-center space-x-2">
-                    <Button
-                        v-for="link in hitos.links"
-                        :key="link.label"
-                        :disabled="!link.url"
-                        @click="link.url && router.visit(link.url)"
-                        :variant="link.active ? 'default' : 'outline'"
-                        v-html="link.label"
-                    />
-                </nav>
-            </div>
+            <!-- Dashboard de Hitos -->
+            <HitosDashboard
+                :hitos="hitos"
+                :proyectos="proyectos"
+                :selected-proyecto-id="filters.proyecto_id ? parseInt(filters.proyecto_id) : null"
+                :can-edit="canEdit"
+                :can-manage-deliverables="canManageDeliverables"
+                :can-complete="canComplete"
+                :show-view-detail="false"
+                :show-proyecto-in-hito="true"
+                base-url="/miembro/mis-proyectos"
+                @edit-hito="handleEditHito"
+                @view-hito="handleViewHito"
+                @add-entregable="handleAddEntregable"
+                @complete-entregable="handleCompleteEntregable"
+                @update-entregable-status="handleUpdateEntregableStatus"
+                @edit-entregable="handleEditEntregable"
+                @filter-proyecto="handleFilterProyecto"
+            />
         </div>
     </UserLayout>
 </template>
