@@ -604,4 +604,79 @@ class Proyecto extends Model
             'progreso_general' => $this->getProgresoHitos()
         ];
     }
+
+    /**
+     * Recalcula y sincroniza el estado del proyecto basado en los estados de sus hitos.
+     * - Todos pendiente → planificacion
+     * - Alguno en_progreso (o mezcla activa) → en_progreso
+     * - Todos completado → completado
+     * - Todos cancelado → cancelado
+     *
+     * Nota: No sobrescribe el estado 'pausado' ya que es un estado manual.
+     */
+    public function recalcularEstadoSegunHitos(): void
+    {
+        // Si el proyecto está pausado, no sincronizar automáticamente
+        // ya que 'pausado' es un estado manual controlado por el usuario
+        if ($this->estado === 'pausado') {
+            return;
+        }
+
+        $totalHitos = $this->hitos()->count();
+
+        // Si no hay hitos, no cambiar estado
+        if ($totalHitos === 0) {
+            return;
+        }
+
+        // Contar hitos por estado
+        $pendientes = $this->hitos()->where('estado', 'pendiente')->count();
+        $enProgreso = $this->hitos()->where('estado', 'en_progreso')->count();
+        $completados = $this->hitos()->where('estado', 'completado')->count();
+        $cancelados = $this->hitos()->where('estado', 'cancelado')->count();
+
+        // Determinar el nuevo estado
+        $nuevoEstado = $this->determinarEstadoSegunHitos(
+            $totalHitos,
+            $pendientes,
+            $enProgreso,
+            $completados,
+            $cancelados
+        );
+
+        // Solo actualizar si el estado cambió
+        if ($nuevoEstado !== $this->estado) {
+            $this->estado = $nuevoEstado;
+            $this->save();
+        }
+    }
+
+    /**
+     * Determina el estado del proyecto según los estados de sus hitos.
+     */
+    private function determinarEstadoSegunHitos(
+        int $total,
+        int $pendientes,
+        int $enProgreso,
+        int $completados,
+        int $cancelados
+    ): string {
+        // Si todos están cancelados → cancelado
+        if ($cancelados === $total) {
+            return 'cancelado';
+        }
+
+        // Si todos están completados → completado
+        if ($completados === $total) {
+            return 'completado';
+        }
+
+        // Si todos están pendientes → planificacion (equivalente a pendiente para proyecto)
+        if ($pendientes === $total) {
+            return 'planificacion';
+        }
+
+        // Si hay mezcla de estados o alguno en progreso → en_progreso
+        return 'en_progreso';
+    }
 }

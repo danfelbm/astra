@@ -465,7 +465,11 @@ class Hito extends Model
 
     /**
      * Calcula y actualiza el porcentaje completado basado en los entregables.
-     * También dispara el recálculo del progreso del proyecto padre.
+     * También sincroniza el estado del hito según los estados de sus entregables:
+     * - Todos pendiente → pendiente
+     * - Alguno en_progreso (o mezcla activa) → en_progreso
+     * - Todos completado → completado
+     * - Todos cancelado → cancelado
      */
     public function calcularPorcentajeCompletado(): void
     {
@@ -473,21 +477,71 @@ class Hito extends Model
 
         if ($totalEntregables === 0) {
             $this->porcentaje_completado = 0;
-        } else {
-            $completados = $this->entregables()->where('estado', 'completado')->count();
-            $this->porcentaje_completado = round(($completados / $totalEntregables) * 100);
+            $this->save();
+            return;
         }
 
-        // Si todos los entregables están completados, marcar el hito como completado
-        if ($this->porcentaje_completado === 100 && $this->estado !== 'completado') {
-            $this->estado = 'completado';
+        // Contar entregables por estado
+        $pendientes = $this->entregables()->where('estado', 'pendiente')->count();
+        $enProgreso = $this->entregables()->where('estado', 'en_progreso')->count();
+        $completados = $this->entregables()->where('estado', 'completado')->count();
+        $cancelados = $this->entregables()->where('estado', 'cancelado')->count();
+
+        // Calcular porcentaje completado
+        $this->porcentaje_completado = round(($completados / $totalEntregables) * 100);
+
+        // Determinar el nuevo estado del hito basado en los estados de los entregables
+        $nuevoEstado = $this->determinarEstadoSegunEntregables(
+            $totalEntregables,
+            $pendientes,
+            $enProgreso,
+            $completados,
+            $cancelados
+        );
+
+        // Detectar si el estado del hito cambió
+        $estadoCambio = $nuevoEstado !== $this->estado;
+
+        if ($estadoCambio) {
+            $this->estado = $nuevoEstado;
         }
 
         $this->save();
 
-        // Notificar al proyecto para que recalcule su progreso
-        // Como porcentaje_completado es un accessor, se calculará automáticamente
-        // la próxima vez que se acceda al proyecto
+        // Notificar al proyecto para que recalcule su estado si el hito cambió de estado
+        if ($estadoCambio && $this->proyecto) {
+            $this->proyecto->recalcularEstadoSegunHitos();
+        }
+    }
+
+    /**
+     * Determina el estado del hito según los estados de sus entregables.
+     */
+    private function determinarEstadoSegunEntregables(
+        int $total,
+        int $pendientes,
+        int $enProgreso,
+        int $completados,
+        int $cancelados
+    ): string {
+        // Si todos están cancelados → cancelado
+        if ($cancelados === $total) {
+            return 'cancelado';
+        }
+
+        // Si todos están completados → completado
+        if ($completados === $total) {
+            return 'completado';
+        }
+
+        // Si todos están pendientes → pendiente
+        if ($pendientes === $total) {
+            return 'pendiente';
+        }
+
+        // Si hay alguno en progreso, o hay mezcla de estados (trabajo activo) → en_progreso
+        // Mezcla activa = completados + pendientes, o cualquier combinación con en_progreso
+        return 'en_progreso';
     }
 
     /**
