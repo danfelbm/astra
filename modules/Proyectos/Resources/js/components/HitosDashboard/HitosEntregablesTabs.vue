@@ -31,6 +31,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 // Emits
 const emit = defineEmits<{
+    'view': [entregable: Entregable];
     'edit': [entregable: Entregable];
     'delete': [entregable: Entregable];
     'complete': [entregable: Entregable];
@@ -126,6 +127,7 @@ const getEntregablesForTab = (estado: EstadoEntregable): Entregable[] => {
                     :expanded="isExpanded(entregable.id)"
                     variant="default"
                     @toggle-expand="toggleExpand(entregable.id)"
+                    @view="emit('view', entregable)"
                     @edit="emit('edit', entregable)"
                     @delete="emit('delete', entregable)"
                     @complete="handleComplete(entregable)"
