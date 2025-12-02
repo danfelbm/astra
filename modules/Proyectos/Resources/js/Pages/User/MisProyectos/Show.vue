@@ -281,6 +281,11 @@ const handleAddEntregable = (hito: Hito) => {
 const handleEditEntregable = (entregable: Entregable, hito: Hito) => {
     router.visit(`/miembro/mis-proyectos/${props.proyecto.id}/hitos/${hito.id}/entregables/${entregable.id}/edit`);
 };
+
+// Handler para ver detalle de un entregable
+const handleViewEntregable = (entregable: Entregable, hito: Hito) => {
+    router.visit(`/miembro/mis-proyectos/${props.proyecto.id}/hitos/${hito.id}/entregables/${entregable.id}`);
+};
 </script>
 
 <template>
@@ -479,6 +484,7 @@ const handleEditEntregable = (entregable: Entregable, hito: Hito) => {
                         base-url="/miembro/mis-proyectos"
                         @edit-hito="handleEditHito"
                         @add-entregable="handleAddEntregable"
+                        @view-entregable="handleViewEntregable"
                         @edit-entregable="handleEditEntregable"
                         @complete-entregable="handleCompleteEntregable"
                         @update-entregable-status="handleUpdateEntregableStatus"

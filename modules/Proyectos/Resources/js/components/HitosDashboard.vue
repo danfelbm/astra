@@ -93,6 +93,7 @@ const emit = defineEmits<{
     'delete-hito': [hito: Hito];
     'view-hito': [hito: Hito];
     'add-entregable': [hito: Hito];
+    'view-entregable': [entregable: Entregable, hito: Hito];
     'complete-entregable': [entregable: Entregable, observaciones: string, archivos: UploadedFile[]];
     'update-entregable-status': [entregable: Entregable, estado: string, observaciones: string, archivos: UploadedFile[]];
     'edit-entregable': [entregable: Entregable, hito: Hito];
@@ -212,6 +213,12 @@ const getEstadoDot = (estado: string) => {
 };
 
 // Handlers de entregables
+const handleViewEntregable = (entregable: Entregable) => {
+    if (selectedHito.value) {
+        emit('view-entregable', entregable, selectedHito.value);
+    }
+};
+
 const handleCompleteEntregable = (entregable: Entregable, observaciones: string, archivos: UploadedFile[]) => {
     emit('complete-entregable', entregable, observaciones, archivos);
 };
@@ -535,6 +542,7 @@ const handleViewHito = () => {
                             :can-edit="canEdit"
                             :can-delete="canDelete"
                             :can-complete="canComplete"
+                            @view="handleViewEntregable"
                             @complete="handleCompleteEntregable"
                             @update-status="handleUpdateEntregableStatus"
                             @edit="handleEditEntregable"

@@ -9,7 +9,7 @@ import { Button } from '@modules/Core/Resources/js/components/ui/button';
 import { Badge } from '@modules/Core/Resources/js/components/ui/badge';
 import {
     Calendar, Clock, CheckCircle, AlertCircle, XCircle,
-    User, Edit, Trash2, ChevronDown, ChevronRight, Users, Flag
+    User, Edit, Trash2, ChevronDown, ChevronRight, Users, Flag, Eye
 } from 'lucide-vue-next';
 import type { Entregable, EstadoEntregable } from '@modules/Proyectos/Resources/js/types/hitos';
 import { useEntregablesView, ESTADO_CONFIG, PRIORIDAD_CONFIG } from '@modules/Proyectos/Resources/js/composables/useEntregablesView';
@@ -38,6 +38,7 @@ const props = withDefaults(defineProps<Props>(), {
 // Emits
 const emit = defineEmits<{
     'toggle-expand': [];
+    'view': [];
     'edit': [];
     'delete': [];
     'complete': [];
@@ -170,6 +171,28 @@ const cardClasses = computed(() => {
                         </span>
                     </div>
                 </div>
+            </div>
+
+            <!-- Botones Ver/Editar (solo kanban) -->
+            <div v-if="variant === 'kanban'" class="flex gap-1 mt-2 pt-2 border-t">
+                <Button
+                    variant="outline"
+                    size="sm"
+                    class="flex-1 h-7 text-xs"
+                    @click.stop="emit('view')"
+                >
+                    <Eye class="h-3 w-3 mr-1" />
+                    Ver
+                </Button>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    class="flex-1 h-7 text-xs"
+                    @click.stop="emit('edit')"
+                >
+                    <Edit class="h-3 w-3 mr-1" />
+                    Editar
+                </Button>
             </div>
 
             <!-- Detalles expandidos (solo default/compact cuando expanded) -->

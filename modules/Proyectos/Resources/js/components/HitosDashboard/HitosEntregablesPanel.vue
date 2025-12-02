@@ -39,6 +39,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 // Emits
 const emit = defineEmits<{
+    'view': [entregable: Entregable];
     'edit': [entregable: Entregable];
     'delete': [entregable: Entregable];
     'complete': [entregable: Entregable, observaciones: string, archivos: UploadedFile[]];
@@ -80,6 +81,10 @@ const deleteDialogOpen = ref(false);
 const entregableToDelete = ref<Entregable | null>(null);
 
 // Handlers de navegación
+const handleView = (entregable: Entregable) => {
+    emit('view', entregable);
+};
+
 const handleEdit = (entregable: Entregable) => {
     emit('edit', entregable);
 };
@@ -182,6 +187,7 @@ const confirmStatusChange = (observaciones: string, archivos: UploadedFile[]) =>
             :can-delete="canDelete"
             :can-complete="canComplete"
             :confirm-on-drag="confirmOnDrag"
+            @view="handleView"
             @edit="handleEdit"
             @delete="handleDelete"
             @complete="handleComplete"

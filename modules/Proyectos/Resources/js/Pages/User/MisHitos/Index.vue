@@ -109,6 +109,12 @@ const handleEditEntregable = (entregable: Entregable, hito: Hito) => {
     router.visit(`/miembro/mis-proyectos/${hito.proyecto_id}/hitos/${hito.id}/entregables/${entregable.id}/edit`);
 };
 
+// Handler para ver detalle de un entregable
+const handleViewEntregable = (entregable: Entregable, hito: Hito) => {
+    if (!hito.proyecto_id) return;
+    router.visit(`/miembro/mis-proyectos/${hito.proyecto_id}/hitos/${hito.id}/entregables/${entregable.id}`);
+};
+
 // Handler para filtro de proyecto
 const handleFilterProyecto = (proyectoId: number | null) => {
     router.get('/miembro/mis-hitos', {
@@ -211,6 +217,7 @@ const handleFilterProyecto = (proyectoId: number | null) => {
                 @edit-hito="handleEditHito"
                 @view-hito="handleViewHito"
                 @add-entregable="handleAddEntregable"
+                @view-entregable="handleViewEntregable"
                 @complete-entregable="handleCompleteEntregable"
                 @update-entregable-status="handleUpdateEntregableStatus"
                 @edit-entregable="handleEditEntregable"

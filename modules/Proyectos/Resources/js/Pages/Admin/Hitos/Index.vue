@@ -145,6 +145,11 @@ const navigateToEntregables = (hito: Hito) => {
     router.visit(`/admin/proyectos/${props.proyecto.id}/hitos/${hito.id}/entregables`);
 };
 
+// Handler para ver detalle de un entregable
+const handleViewEntregable = (entregable: any, hito: Hito) => {
+    router.visit(`/admin/proyectos/${props.proyecto.id}/hitos/${hito.id}/entregables/${entregable.id}`);
+};
+
 // Búsqueda
 const handleSearch = () => {
     router.get(`/admin/proyectos/${props.proyecto.id}/hitos`, {
@@ -305,6 +310,7 @@ const filterByEstado = (estado: string) => {
                 @edit-hito="navigateToEditHito"
                 @delete-hito="confirmDeleteHito"
                 @add-entregable="navigateToAddEntregable"
+                @view-entregable="handleViewEntregable"
             />
 
             <!-- Paginación -->

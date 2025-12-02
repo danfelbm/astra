@@ -26,6 +26,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 // Emits
 const emit = defineEmits<{
+    'view': [entregable: Entregable];
     'edit': [entregable: Entregable];
     'delete': [entregable: Entregable];
     'complete': [entregable: Entregable];
@@ -156,6 +157,7 @@ watch(() => props.entregables, () => {
                 :can-delete="canDelete"
                 :can-complete="canComplete"
                 :is-drag-over="dragOverEstado === estado"
+                @view="emit('view', $event)"
                 @edit="emit('edit', $event)"
                 @delete="emit('delete', $event)"
                 @complete="emit('complete', $event)"

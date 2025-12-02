@@ -29,6 +29,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 // Emits
 const emit = defineEmits<{
+    'view': [entregable: Entregable];
     'edit': [entregable: Entregable];
     'delete': [entregable: Entregable];
     'complete': [entregable: Entregable];
@@ -93,6 +94,7 @@ const columnClasses = computed(() => {
                     :can-complete="canComplete"
                     :draggable="true"
                     variant="kanban"
+                    @view="emit('view', entregable)"
                     @edit="emit('edit', entregable)"
                     @delete="emit('delete', entregable)"
                     @complete="emit('complete', entregable)"

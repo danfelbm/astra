@@ -404,6 +404,11 @@ const handleDeleteEntregable = (entregable: Entregable, hito: Hito) => {
     }
 };
 
+// Handler para ver detalle de un entregable
+const handleViewEntregable = (entregable: Entregable, hito: Hito) => {
+    router.visit(`/admin/proyectos/${props.proyecto.id}/hitos/${hito.id}/entregables/${entregable.id}`);
+};
+
 // Actividades filtradas
 const actividadesFiltradas = computed(() => {
     let result = props.activities || [];
@@ -708,6 +713,7 @@ const getInitials = (name: string) => {
                         @edit-hito="navigateToEditHito"
                         @delete-hito="confirmDeleteHito"
                         @add-entregable="navigateToAddEntregable"
+                        @view-entregable="handleViewEntregable"
                         @complete-entregable="handleCompleteEntregable"
                         @update-entregable-status="handleUpdateEntregableStatus"
                         @edit-entregable="handleEditEntregable"
