@@ -260,7 +260,7 @@ class Entregable extends Model
             'cancelado' => 'Cancelado'
         ];
 
-        return $labels[$this->estado] ?? $this->estado;
+        return $labels[$this->estado] ?? ($this->estado ?? 'Pendiente');
     }
 
     /**
@@ -289,7 +289,7 @@ class Entregable extends Model
             'alta' => 'Alta'
         ];
 
-        return $labels[$this->prioridad] ?? $this->prioridad;
+        return $labels[$this->prioridad] ?? ($this->prioridad ?? 'Media');
     }
 
     /**

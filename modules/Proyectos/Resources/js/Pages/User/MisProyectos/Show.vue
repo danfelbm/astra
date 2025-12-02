@@ -465,6 +465,7 @@ const handleViewEntregable = (entregable: Entregable, hito: Hito) => {
                 <TabsContent value="evidencias" class="space-y-4 mt-6">
                     <EvidenciasDisplay
                         :contratos="proyecto.contratos || []"
+                        :hitos="proyecto.hitos || []"
                         :proyecto-id="proyecto.id"
                         modo="user"
                         :puede-gestionar-estado="esGestorDelProyecto"

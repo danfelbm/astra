@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, watch } from 'vue';
 import { Card, CardContent } from "@modules/Core/Resources/js/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@modules/Core/Resources/js/components/ui/select";
 import { Input } from "@modules/Core/Resources/js/components/ui/input";
@@ -12,6 +12,7 @@ interface Props {
     contratos: any[];
     evidencias: any[];
     entregables?: any[];
+    hitos?: any[];
 }
 
 const props = defineProps<Props>();
@@ -24,6 +25,7 @@ const filtros = defineModel<{
     tipo: string | null;
     estado: string | null;
     usuario_id: number | null;
+    hito_id: number | null;
     entregable_id: number | null;
 }>({ required: true });
 
@@ -54,8 +56,39 @@ const usuariosUnicos = computed(() => {
     }));
 });
 
+// Hitos únicos extraídos de los hitos del proyecto o de las evidencias
+const hitosUnicos = computed(() => {
+    // Si se pasaron hitos como prop, usarlos directamente
+    if (props.hitos && props.hitos.length > 0) {
+        return props.hitos.map(hito => ({
+            value: hito.id,
+            label: hito.nombre
+        }));
+    }
+    // Si no, extraer hitos desde las evidencias (a través de entregables)
+    const hitosMap = new Map();
+    props.evidencias.forEach(e => {
+        if (e.entregables && e.entregables.length > 0) {
+            e.entregables.forEach(ent => {
+                if (ent?.hito?.id) {
+                    hitosMap.set(ent.hito.id, ent.hito);
+                }
+            });
+        }
+    });
+    return Array.from(hitosMap.values()).map(hito => ({
+        value: hito.id,
+        label: hito.nombre
+    }));
+});
+
+// Entregables filtrados por hito seleccionado (si hay uno)
 const entregablesUnicos = computed(() => {
-    if (!props.entregables || props.entregables.length === 0) {
+    let entregablesList: any[] = [];
+
+    if (props.entregables && props.entregables.length > 0) {
+        entregablesList = props.entregables;
+    } else {
         // Extraer entregables de las evidencias si no se pasaron como prop
         const entregablesMap = new Map();
         props.evidencias.forEach(e => {
@@ -67,12 +100,15 @@ const entregablesUnicos = computed(() => {
                 });
             }
         });
-        return Array.from(entregablesMap.values()).map(entregable => ({
-            value: entregable.id,
-            label: entregable.nombre
-        }));
+        entregablesList = Array.from(entregablesMap.values());
     }
-    return props.entregables.map(entregable => ({
+
+    // Filtrar por hito si hay uno seleccionado
+    if (filtros.value.hito_id) {
+        entregablesList = entregablesList.filter(ent => ent.hito_id === filtros.value.hito_id);
+    }
+
+    return entregablesList.map(entregable => ({
         value: entregable.id,
         label: entregable.nombre
     }));
@@ -87,6 +123,7 @@ const limpiarFiltros = () => {
         tipo: null,
         estado: null,
         usuario_id: null,
+        hito_id: null,
         entregable_id: null
     };
 };
@@ -94,6 +131,11 @@ const limpiarFiltros = () => {
 // Verificar si hay filtros activos
 const hayFiltrosActivos = computed(() => {
     return Object.values(filtros.value).some(v => v !== null && v !== '');
+});
+
+// Limpiar entregable_id cuando cambie el hito
+watch(() => filtros.value.hito_id, () => {
+    filtros.value.entregable_id = null;
 });
 </script>
 
@@ -186,9 +228,10 @@ const hayFiltrosActivos = computed(() => {
                     </div>
                 </div>
 
-                <!-- Filtro por Usuario y Entregable -->
-                <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
-                    <div class="space-y-2 md:col-span-2">
+                <!-- Filtro por Usuario, Hito y Entregable -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                    <!-- Filtro por Usuario -->
+                    <div class="space-y-2">
                         <Label for="filter-usuario" class="text-xs">Usuario</Label>
                         <Select v-model="filtros.usuario_id" id="filter-usuario">
                             <SelectTrigger>
@@ -207,13 +250,38 @@ const hayFiltrosActivos = computed(() => {
                         </Select>
                     </div>
 
-                    <div v-if="entregablesUnicos.length > 0" class="space-y-2 md:col-span-2">
-                        <Label for="filter-entregable" class="text-xs">Entregable</Label>
-                        <Select v-model="filtros.entregable_id" id="filter-entregable">
+                    <!-- Filtro por Hito -->
+                    <div v-if="hitosUnicos.length > 0" class="space-y-2">
+                        <Label for="filter-hito" class="text-xs">Hito</Label>
+                        <Select v-model="filtros.hito_id" id="filter-hito">
                             <SelectTrigger>
-                                <SelectValue placeholder="Todos los entregables" />
+                                <SelectValue placeholder="Todos los hitos" />
                             </SelectTrigger>
                             <SelectContent>
+                                <SelectItem :value="null">Todos los hitos</SelectItem>
+                                <SelectItem
+                                    v-for="hito in hitosUnicos"
+                                    :key="hito.value"
+                                    :value="hito.value"
+                                >
+                                    {{ hito.label }}
+                                </SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    <!-- Filtro por Entregable (cascada: requiere hito seleccionado) -->
+                    <div v-if="hitosUnicos.length > 0" class="space-y-2">
+                        <Label for="filter-entregable" class="text-xs">Entregable</Label>
+                        <Select
+                            v-model="filtros.entregable_id"
+                            id="filter-entregable"
+                            :disabled="!filtros.hito_id"
+                        >
+                            <SelectTrigger :class="{ 'opacity-60': !filtros.hito_id }">
+                                <SelectValue :placeholder="filtros.hito_id ? 'Todos los entregables' : 'Elige primero un hito'" />
+                            </SelectTrigger>
+                            <SelectContent v-if="filtros.hito_id">
                                 <SelectItem :value="null">Todos los entregables</SelectItem>
                                 <SelectItem
                                     v-for="entregable in entregablesUnicos"
@@ -227,7 +295,7 @@ const hayFiltrosActivos = computed(() => {
                     </div>
 
                     <!-- Botón de limpiar -->
-                    <div class="flex items-end" :class="entregablesUnicos.length > 0 ? 'md:col-span-1' : 'md:col-span-3'">
+                    <div class="flex items-end lg:col-span-2">
                         <Button
                             v-if="hayFiltrosActivos"
                             variant="outline"

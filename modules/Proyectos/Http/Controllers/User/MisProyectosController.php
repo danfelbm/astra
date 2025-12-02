@@ -179,7 +179,7 @@ class MisProyectosController extends UserController
                 $query->select('users.id', 'users.name', 'users.email', 'proyecto_usuario.rol')
                       ->orderBy('users.name');
             },
-            // Contratos del proyecto
+            // Contratos del proyecto con obligaciones y evidencias (incluyendo entregables asociados)
             'contratos' => function ($query) use ($esGestor, $userId) {
                 $query->with([
                     'contraparteUser:id,name,email',
@@ -187,8 +187,11 @@ class MisProyectosController extends UserController
                     'obligaciones' => function ($q) use ($esGestor, $userId) {
                         $q->with([
                             'evidencias' => function ($eq) use ($esGestor, $userId) {
-                                $eq->with('usuario:id,name,email')
-                                   ->latest();
+                                // Cargar entregables asociados a las evidencias para filtrar por hito
+                                $eq->with([
+                                    'usuario:id,name,email',
+                                    'entregables:id,hito_id,nombre'
+                                ])->latest();
 
                                 // Si NO es gestor, filtrar solo evidencias propias
                                 if (!$esGestor) {

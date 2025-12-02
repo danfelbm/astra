@@ -27,6 +27,13 @@ interface Evidencia {
     contrato_numero?: string;
     contrato_nombre?: string;
     _contrato?: any;
+    entregables?: any[];
+}
+
+interface Hito {
+    id: number;
+    nombre: string;
+    entregables?: any[];
 }
 
 interface Contrato {
@@ -39,6 +46,8 @@ interface Contrato {
 interface Props {
     /** Contratos del proyecto */
     contratos?: Contrato[];
+    /** Hitos del proyecto (para filtrar evidencias por hito/entregable) */
+    hitos?: Hito[];
     /** ID del proyecto (requerido para rutas) */
     proyectoId: number;
     /** Modo de visualización: 'admin' o 'user' */
@@ -51,7 +60,8 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
     puedeGestionarEstado: false,
-    contratos: () => []
+    contratos: () => [],
+    hitos: () => []
 });
 
 // Estado para filtros de evidencias
@@ -61,7 +71,9 @@ const filtrosEvidencias = ref({
     fecha_fin: null,
     tipo: null,
     estado: null,
-    usuario_id: null
+    usuario_id: null,
+    hito_id: null,
+    entregable_id: null
 });
 
 // Función para obtener todas las evidencias de los contratos
@@ -110,6 +122,22 @@ const evidenciasFiltradas = computed(() => {
         result = result.filter(e => e.usuario?.id === filtrosEvidencias.value.usuario_id);
     }
 
+    // Filtrar por hito (a través de los entregables de la evidencia)
+    if (filtrosEvidencias.value.hito_id) {
+        result = result.filter(e => {
+            if (!e.entregables || e.entregables.length === 0) return false;
+            return e.entregables.some(ent => ent.hito_id === filtrosEvidencias.value.hito_id);
+        });
+    }
+
+    // Filtrar por entregable específico
+    if (filtrosEvidencias.value.entregable_id) {
+        result = result.filter(e => {
+            if (!e.entregables || e.entregables.length === 0) return false;
+            return e.entregables.some(ent => ent.id === filtrosEvidencias.value.entregable_id);
+        });
+    }
+
     if (filtrosEvidencias.value.fecha_inicio || filtrosEvidencias.value.fecha_fin) {
         result = result.filter(e => {
             const fecha = new Date(e.created_at);
@@ -146,6 +174,25 @@ const evidenciasAgrupadasPorContrato = computed(() => {
     return Object.values(grupos);
 });
 
+// Entregables del proyecto (aplanados desde los hitos)
+const todosLosEntregables = computed(() => {
+    const entregables: any[] = [];
+    if (props.hitos) {
+        props.hitos.forEach(hito => {
+            if (hito.entregables) {
+                hito.entregables.forEach(entregable => {
+                    entregables.push({
+                        ...entregable,
+                        hito_id: hito.id,
+                        hito_nombre: hito.nombre
+                    });
+                });
+            }
+        });
+    }
+    return entregables;
+});
+
 // Función para obtener la ruta del contrato según el modo
 const getContratoRoute = (contratoId: number) => {
     return props.modo === 'admin'
@@ -168,6 +215,8 @@ const getEvidenciaRoute = (contratoId: number, evidenciaId: number) => {
         v-model="filtrosEvidencias"
         :contratos="contratos || []"
         :evidencias="todasLasEvidencias"
+        :hitos="hitos || []"
+        :entregables="todosLosEntregables"
     />
 
     <!-- Evidencias agrupadas por contrato -->

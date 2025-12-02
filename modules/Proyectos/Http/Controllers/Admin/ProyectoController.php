@@ -108,7 +108,7 @@ class ProyectoController extends AdminController
                 $query->select('users.id', 'users.name', 'users.email', 'proyecto_usuario.rol')
                       ->orderBy('users.name');
             },
-            // Contratos del proyecto con obligaciones y evidencias
+            // Contratos del proyecto con obligaciones y evidencias (incluyendo entregables asociados)
             'contratos' => function ($query) {
                 $query->with([
                     'contraparteUser:id,name,email',
@@ -116,8 +116,11 @@ class ProyectoController extends AdminController
                     'obligaciones' => function ($q) {
                         $q->with([
                             'evidencias' => function ($eq) {
-                                $eq->with('usuario:id,name,email')
-                                   ->latest();
+                                // Cargar entregables asociados a las evidencias para filtrar por hito
+                                $eq->with([
+                                    'usuario:id,name,email',
+                                    'entregables:id,hito_id,nombre'
+                                ])->latest();
                             }
                         ])->withCount('evidencias');
                     }

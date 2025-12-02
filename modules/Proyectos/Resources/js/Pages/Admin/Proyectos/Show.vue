@@ -724,6 +724,7 @@ const getInitials = (name: string) => {
                 <TabsContent value="evidencias" class="space-y-4 mt-6">
                     <EvidenciasDisplay
                         :contratos="proyecto.contratos || []"
+                        :hitos="proyecto.hitos || []"
                         :proyecto-id="proyecto.id"
                         modo="admin"
                         :puede-gestionar-estado="puedeGestionarEvidencias"
