@@ -186,6 +186,7 @@ const confirmStatusChange = (observaciones: string, archivos: UploadedFile[]) =>
             :can-edit="canEdit"
             :can-delete="canDelete"
             :can-complete="canComplete"
+            :can-drag="canComplete"
             :confirm-on-drag="confirmOnDrag"
             @view="handleView"
             @edit="handleEdit"

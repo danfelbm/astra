@@ -17,6 +17,7 @@ interface Props {
     canEdit?: boolean;
     canDelete?: boolean;
     canComplete?: boolean;
+    canDrag?: boolean; // Controla si se puede arrastrar cards (solo gestores)
     isDragOver?: boolean;
 }
 
@@ -24,6 +25,7 @@ const props = withDefaults(defineProps<Props>(), {
     canEdit: false,
     canDelete: false,
     canComplete: false,
+    canDrag: false,
     isDragOver: false,
 });
 
@@ -92,7 +94,7 @@ const columnClasses = computed(() => {
                     :can-edit="canEdit"
                     :can-delete="canDelete"
                     :can-complete="canComplete"
-                    :draggable="true"
+                    :draggable="canDrag"
                     variant="kanban"
                     @view="emit('view', entregable)"
                     @edit="emit('edit', entregable)"

@@ -14,6 +14,7 @@ interface Props {
     canEdit?: boolean;
     canDelete?: boolean;
     canComplete?: boolean;
+    canDrag?: boolean; // Controla si se puede arrastrar cards (solo gestores)
     confirmOnDrag?: boolean;
 }
 
@@ -21,6 +22,7 @@ const props = withDefaults(defineProps<Props>(), {
     canEdit: false,
     canDelete: false,
     canComplete: false,
+    canDrag: false,
     confirmOnDrag: true,
 });
 
@@ -57,10 +59,15 @@ const getEntregablesByEstado = (estado: EstadoEntregable): Entregable[] => {
     return entregablesAgrupados.value[estadoToKey[estado]];
 };
 
-// Configurar Sortable.js
+// Configurar Sortable.js (solo si tiene permisos de drag)
 const setupSortable = () => {
     // Limpiar instancias previas
     destroySortable();
+
+    // Solo inicializar Sortable si el usuario puede arrastrar
+    if (!props.canDrag) {
+        return;
+    }
 
     // Esperar al siguiente tick para asegurar que el DOM está listo
     nextTick(() => {
@@ -156,6 +163,7 @@ watch(() => props.entregables, () => {
                 :can-edit="canEdit"
                 :can-delete="canDelete"
                 :can-complete="canComplete"
+                :can-drag="canDrag"
                 :is-drag-over="dragOverEstado === estado"
                 @view="emit('view', $event)"
                 @edit="emit('edit', $event)"

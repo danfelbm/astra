@@ -127,8 +127,8 @@ class MisHitosController extends UserController
             'canView' => auth()->user()->can('hitos.view_own'),
             'canEdit' => $esGestorDeAlguno,
             'canManageDeliverables' => $esGestorDeAlguno,
-            'canComplete' => auth()->user()->can('hitos.complete_own') || auth()->user()->can('hitos.update_progress'),
-            'canUpdateProgress' => auth()->user()->can('hitos.update_progress'),
+            'canComplete' => $esGestorDeAlguno, // Solo gestores pueden cambiar estados
+            'canUpdateProgress' => $esGestorDeAlguno, // Solo gestores pueden cambiar estados
         ]);
     }
 
@@ -185,26 +185,30 @@ class MisHitosController extends UserController
             'dias_restantes' => $hito->dias_restantes,
         ];
 
+        // Verificar si el usuario es gestor del proyecto
+        $esGestorDelProyecto = $this->puedeGestionarHitosDelProyecto($hito->proyecto);
+
         return Inertia::render('Modules/Proyectos/User/MisHitos/Show', [
             'hito' => $hito,
             'misEntregables' => $misEntregables->values(),
             'estadisticas' => $estadisticas,
-            'canComplete' => auth()->user()->can('hitos.complete_own'),
-            'canUpdateProgress' => auth()->user()->can('hitos.update_progress'),
-            'canCompleteEntregables' => auth()->user()->can('entregables.complete'),
+            'canComplete' => $esGestorDelProyecto, // Solo gestores pueden cambiar estados
+            'canUpdateProgress' => $esGestorDelProyecto, // Solo gestores pueden cambiar estados
+            'canCompleteEntregables' => $esGestorDelProyecto, // Solo gestores pueden cambiar estados
         ]);
     }
 
     /**
      * Marca un entregable como completado.
+     * Solo gestores del proyecto pueden cambiar estados de entregables.
      */
     public function completarEntregable(Request $request, Hito $hito, Entregable $entregable): RedirectResponse
     {
         $user = auth()->user();
 
-        // Verificar permisos
-        abort_unless(auth()->user()->can('entregables.complete'), 403, 'No tienes permisos para completar entregables');
-        abort_unless($entregable->puedeSerCompletadoPor($user), 403, 'No tienes permisos para completar este entregable');
+        // Verificar que el usuario es gestor del proyecto
+        $proyecto = $hito->proyecto;
+        abort_unless($this->puedeGestionarHitosDelProyecto($proyecto), 403, 'Solo el responsable o gestores del proyecto pueden cambiar estados de entregables');
 
         $request->validate([
             'notas' => 'nullable|string|max:1000'
@@ -231,16 +235,16 @@ class MisHitosController extends UserController
     }
 
     /**
-     * Actualiza el estado de un entregable asignado al usuario.
-     * Usa el método genérico cambiarEstado que registra en audit log.
+     * Actualiza el estado de un entregable.
+     * Solo gestores del proyecto pueden cambiar estados de entregables.
      */
     public function actualizarEstadoEntregable(Request $request, Hito $hito, Entregable $entregable): RedirectResponse
     {
         $user = auth()->user();
 
-        // Verificar permisos
-        abort_unless(auth()->user()->can('hitos.update_progress'), 403, 'No tienes permisos para actualizar el estado de entregables');
-        abort_unless($entregable->puedeSerEditadoPor($user), 403, 'No tienes permisos para actualizar este entregable');
+        // Verificar que el usuario es gestor del proyecto
+        $proyecto = $hito->proyecto;
+        abort_unless($this->puedeGestionarHitosDelProyecto($proyecto), 403, 'Solo el responsable o gestores del proyecto pueden cambiar estados de entregables');
 
         $request->validate([
             'estado' => 'required|in:pendiente,en_progreso,completado',
