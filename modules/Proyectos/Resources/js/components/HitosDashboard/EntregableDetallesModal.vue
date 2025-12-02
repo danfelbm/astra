@@ -5,6 +5,7 @@
  * Muestra 5 tabs: detalles, equipo, evidencias, comentarios, actividad.
  * Carga datos via API usando el composable useEntregableDetalles.
  * Soporta deeplinks para tab y paginación de comentarios.
+ * En responsive: header colapsable, tabs como select dropdown.
  */
 import { ref, computed, watch, toRef } from 'vue';
 import { Link } from '@inertiajs/vue3';
@@ -17,6 +18,7 @@ import {
     DialogFooter,
 } from '@modules/Core/Resources/js/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@modules/Core/Resources/js/components/ui/tabs';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@modules/Core/Resources/js/components/ui/collapsible';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@modules/Core/Resources/js/components/ui/card';
 import { Button } from '@modules/Core/Resources/js/components/ui/button';
 import { Badge } from '@modules/Core/Resources/js/components/ui/badge';
@@ -27,7 +29,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@modules/Core/Resources/js/
 import { Alert, AlertDescription } from '@modules/Core/Resources/js/components/ui/alert';
 import {
     Calendar, Clock, User, Edit, Flag, FileText, Tag, Users,
-    ExternalLink, MessageSquare, Activity, RefreshCw, Image, AlertCircle, CheckCircle
+    ExternalLink, MessageSquare, Activity, RefreshCw, Image, AlertCircle, CheckCircle,
+    ChevronDown
 } from 'lucide-vue-next';
 import { format, parseISO, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -77,6 +80,9 @@ const validTabs = ['detalles', 'equipo', 'evidencias', 'comentarios', 'actividad
 
 // Estado del tab activo
 const activeTab = ref(validTabs.includes(props.initialTab) ? props.initialTab : 'detalles');
+
+// Estado para controlar si el header está expandido en móvil
+const headerExpanded = ref(false);
 
 // Filtros de evidencias
 const filtrosEvidencias = ref({
@@ -264,7 +270,7 @@ const handleRefresh = async () => {
     <Dialog :open="open" @update:open="emit('update:open', $event)">
         <DialogContent class="w-full sm:w-[95vw] max-w-full sm:!max-w-5xl h-[100dvh] sm:h-auto sm:max-h-[90vh] rounded-none sm:rounded-lg flex flex-col p-0 gap-0 overflow-hidden">
             <!-- Header fijo -->
-            <DialogHeader class="flex-shrink-0 px-6 pt-6 pb-4 border-b">
+            <DialogHeader class="flex-shrink-0 px-4 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 border-b">
                 <!-- Skeleton de carga -->
                 <template v-if="loading && !entregable">
                     <Skeleton class="h-7 w-3/4 mb-2" />
@@ -279,85 +285,112 @@ const handleRefresh = async () => {
 
                 <!-- Contenido real -->
                 <template v-else-if="entregable">
-                    <div class="flex items-start justify-between gap-4">
+                    <!-- Fila principal: Título + Badge + Refresh (siempre visible) -->
+                    <div class="flex items-center gap-2 sm:gap-4">
                         <div class="flex-1 min-w-0">
-                            <DialogTitle class="text-xl truncate flex items-center gap-2">
-                                <FileText class="h-5 w-5 flex-shrink-0" />
-                                {{ entregable.nombre }}
+                            <DialogTitle class="text-lg sm:text-xl flex items-center gap-2">
+                                <FileText class="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
+                                <span class="truncate">{{ entregable.nombre }}</span>
                             </DialogTitle>
-                            <DialogDescription class="mt-1">
-                                Hito: {{ hito?.nombre }} · Proyecto: {{ proyecto?.nombre }}
-                            </DialogDescription>
                         </div>
-                        <div class="flex items-center gap-2 flex-shrink-0">
-                            <Badge :class="getEstadoColor(entregable.estado)">
-                                {{ entregable.estado_label || entregable.estado }}
-                            </Badge>
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                @click="handleRefresh"
-                                :disabled="loading"
-                                title="Actualizar"
-                            >
-                                <RefreshCw class="h-4 w-4" :class="{ 'animate-spin': loading }" />
-                            </Button>
-                        </div>
+                        <Badge :class="getEstadoColor(entregable.estado)" class="flex-shrink-0 text-xs">
+                            {{ entregable.estado_label || entregable.estado }}
+                        </Badge>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            class="flex-shrink-0 h-8 w-8 p-0"
+                            @click="handleRefresh"
+                            :disabled="loading"
+                            title="Actualizar"
+                        >
+                            <RefreshCw class="h-4 w-4" :class="{ 'animate-spin': loading }" />
+                        </Button>
                     </div>
 
-                    <!-- Resumen rápido -->
-                    <div class="flex flex-wrap gap-4 mt-3 text-sm text-muted-foreground">
-                        <div class="flex items-center gap-1.5">
-                            <Flag class="h-4 w-4" :class="getPrioridadColor(entregable.prioridad)" />
-                            <span class="capitalize">{{ entregable.prioridad }}</span>
-                        </div>
-                        <div class="flex items-center gap-1.5">
-                            <Progress :model-value="entregable.porcentaje_completado || 0" class="w-16 h-2" />
-                            <span>{{ entregable.porcentaje_completado || 0 }}%</span>
-                        </div>
-                        <div v-if="diasRestantes !== null" class="flex items-center gap-1" :class="{ 'text-red-600': estaVencido }">
-                            <Clock class="h-4 w-4" />
-                            <span>
-                                {{ estaVencido ? `Vencido hace ${Math.abs(diasRestantes)} días` :
-                                   diasRestantes === 0 ? 'Vence hoy' : `${diasRestantes} días` }}
-                            </span>
-                        </div>
-                        <div v-if="entregable.responsable" class="flex items-center gap-1">
-                            <User class="h-4 w-4" />
-                            <span>{{ entregable.responsable.name }}</span>
-                        </div>
-                    </div>
+                    <!-- Descripción (siempre visible) -->
+                    <DialogDescription class="mt-1 text-xs sm:text-sm">
+                        Hito: {{ hito?.nombre }} · Proyecto: {{ proyecto?.nombre }}
+                    </DialogDescription>
+
+                    <!-- Detalles colapsables en móvil, siempre visibles en desktop -->
+                    <Collapsible v-model:open="headerExpanded" class="sm:!block">
+                        <!-- Trigger solo visible en móvil -->
+                        <CollapsibleTrigger class="sm:hidden w-full mt-2">
+                            <div class="relative">
+                                <!-- Efecto difuminado cuando está colapsado -->
+                                <div
+                                    v-if="!headerExpanded"
+                                    class="absolute inset-0 bg-gradient-to-b from-transparent via-background/50 to-background pointer-events-none"
+                                />
+                                <button
+                                    class="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors w-full justify-center py-1"
+                                >
+                                    <span>{{ headerExpanded ? 'Ocultar detalles' : 'Ver detalles' }}</span>
+                                    <ChevronDown
+                                        class="h-3 w-3 transition-transform duration-200"
+                                        :class="{ 'rotate-180': headerExpanded }"
+                                    />
+                                </button>
+                            </div>
+                        </CollapsibleTrigger>
+
+                        <!-- Contenido colapsable (resumen rápido) -->
+                        <CollapsibleContent class="sm:!block">
+                            <div class="flex flex-wrap gap-3 sm:gap-4 mt-2 sm:mt-3 text-xs sm:text-sm text-muted-foreground">
+                                <div class="flex items-center gap-1.5">
+                                    <Flag class="h-3.5 w-3.5 sm:h-4 sm:w-4" :class="getPrioridadColor(entregable.prioridad)" />
+                                    <span class="capitalize">{{ entregable.prioridad }}</span>
+                                </div>
+                                <div class="flex items-center gap-1.5">
+                                    <Progress :model-value="entregable.porcentaje_completado || 0" class="w-14 sm:w-16 h-2" />
+                                    <span>{{ entregable.porcentaje_completado || 0 }}%</span>
+                                </div>
+                                <div v-if="diasRestantes !== null" class="flex items-center gap-1" :class="{ 'text-red-600': estaVencido }">
+                                    <Clock class="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                                    <span>
+                                        {{ estaVencido ? `Vencido hace ${Math.abs(diasRestantes)} días` :
+                                           diasRestantes === 0 ? 'Vence hoy' : `${diasRestantes} días` }}
+                                    </span>
+                                </div>
+                                <div v-if="entregable.responsable" class="flex items-center gap-1">
+                                    <User class="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                                    <span>{{ entregable.responsable.name }}</span>
+                                </div>
+                            </div>
+                        </CollapsibleContent>
+                    </Collapsible>
                 </template>
             </DialogHeader>
 
             <!-- Contenido con scroll -->
             <div class="flex-1 min-h-0 overflow-hidden flex flex-col">
                 <Tabs v-model="activeTab" class="flex-1 min-h-0 flex flex-col">
-                    <!-- TabsList fijo -->
-                    <TabsList class="flex-shrink-0 mx-6 mt-4 justify-start flex-wrap">
-                        <TabsTrigger value="detalles">
+                    <!-- TabsList - automáticamente se convierte en Select en móvil -->
+                    <TabsList class="flex-shrink-0 mx-4 sm:mx-6 mt-3 sm:mt-4 justify-start">
+                        <TabsTrigger value="detalles" label="Detalles" :icon="FileText">
                             <FileText class="h-4 w-4 mr-1.5" />
                             Detalles
                         </TabsTrigger>
-                        <TabsTrigger value="equipo">
+                        <TabsTrigger value="equipo" label="Equipo" :icon="Users">
                             <Users class="h-4 w-4 mr-1.5" />
                             Equipo
                         </TabsTrigger>
-                        <TabsTrigger value="evidencias">
+                        <TabsTrigger value="evidencias" label="Evidencias" :icon="Image" :badge="entregable?.evidencias?.length">
                             <Image class="h-4 w-4 mr-1.5" />
                             Evidencias
                             <Badge v-if="entregable?.evidencias?.length" variant="secondary" class="ml-1.5 h-5 px-1.5 text-xs">
                                 {{ entregable.evidencias.length }}
                             </Badge>
                         </TabsTrigger>
-                        <TabsTrigger value="comentarios">
+                        <TabsTrigger value="comentarios" label="Comentarios" :icon="MessageSquare" :badge="entregable?.total_comentarios">
                             <MessageSquare class="h-4 w-4 mr-1.5" />
                             Comentarios
                             <Badge v-if="entregable?.total_comentarios" variant="secondary" class="ml-1.5 h-5 px-1.5 text-xs">
                                 {{ entregable.total_comentarios }}
                             </Badge>
                         </TabsTrigger>
-                        <TabsTrigger value="actividad">
+                        <TabsTrigger value="actividad" label="Actividad" :icon="Activity">
                             <Activity class="h-4 w-4 mr-1.5" />
                             Actividad
                         </TabsTrigger>
@@ -365,7 +398,7 @@ const handleRefresh = async () => {
 
                     <!-- Contenido de tabs con scroll -->
                     <ScrollArea class="flex-1 min-h-0 overflow-y-auto">
-                        <div class="px-6 py-4">
+                        <div class="px-3 py-3 sm:px-6 sm:py-4">
                         <!-- Loading skeleton -->
                         <div v-if="loading && !entregable" class="space-y-4">
                             <Skeleton class="h-32 w-full" />
@@ -618,26 +651,27 @@ const handleRefresh = async () => {
             </div>
 
             <!-- Footer fijo -->
-            <DialogFooter class="flex-shrink-0 px-6 py-4 border-t bg-muted/30">
+            <DialogFooter class="flex-shrink-0 px-3 py-3 sm:px-6 sm:py-4 border-t bg-muted/30">
                 <div class="flex items-center justify-between w-full gap-2">
-                    <div class="flex gap-2">
+                    <div class="flex gap-1.5 sm:gap-2">
                         <Link v-if="entregableShowUrl" :href="entregableShowUrl">
-                            <Button variant="outline" size="sm">
-                                <ExternalLink class="h-4 w-4 mr-1.5" />
-                                Abrir página completa
+                            <Button variant="outline" size="sm" class="text-xs sm:text-sm px-2 sm:px-3">
+                                <ExternalLink class="h-3.5 w-3.5 sm:h-4 sm:w-4 sm:mr-1.5" />
+                                <span class="hidden sm:inline">Abrir página completa</span>
                             </Button>
                         </Link>
                         <Button
                             v-if="(canEdit || data.canEdit) && entregable"
                             variant="outline"
                             size="sm"
+                            class="text-xs sm:text-sm px-2 sm:px-3"
                             @click="emit('edit-entregable')"
                         >
-                            <Edit class="h-4 w-4 mr-1.5" />
-                            Editar
+                            <Edit class="h-3.5 w-3.5 sm:h-4 sm:w-4 sm:mr-1.5" />
+                            <span class="hidden sm:inline">Editar</span>
                         </Button>
                     </div>
-                    <Button variant="ghost" size="sm" @click="handleClose">
+                    <Button variant="ghost" size="sm" class="text-xs sm:text-sm" @click="handleClose">
                         Cerrar
                     </Button>
                 </div>
