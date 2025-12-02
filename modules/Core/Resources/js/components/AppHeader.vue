@@ -3,7 +3,7 @@ import AppLogo from "./AppLogo.vue";
 import AppLogoIcon from "./AppLogoIcon.vue";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Button } from "./ui/button";
-import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator, BreadcrumbEllipsis } from "./ui/breadcrumb";
+import { ResponsiveBreadcrumb } from "./ui/breadcrumb";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdown-menu";
 import {
     NavigationMenu,
@@ -296,70 +296,10 @@ const mainNavItems = computed(() => {
 
         <div v-if="props.breadcrumbs.length >= 1" class="flex w-full border-b border-border">
             <div class="mx-auto flex h-12 w-full items-center justify-start px-2 sm:px-4 text-neutral-500 md:max-w-7xl">
-                <Breadcrumb>
-                    <BreadcrumbList>
-                        <template v-for="(breadcrumb, index) in props.breadcrumbs" :key="index">
-                            <!-- Item del breadcrumb -->
-                            <BreadcrumbItem
-                                :class="[
-                                    props.breadcrumbs.length > 3 && index > 0 && index < props.breadcrumbs.length - 1
-                                        ? 'hidden md:inline-flex'
-                                        : ''
-                                ]"
-                            >
-                                <BreadcrumbLink
-                                    v-if="breadcrumb.href && breadcrumb.href !== '#' && index < props.breadcrumbs.length - 1"
-                                    :as-child="true"
-                                >
-                                    <Link :href="breadcrumb.href" class="max-w-[120px] sm:max-w-none truncate">
-                                        {{ breadcrumb.title }}
-                                    </Link>
-                                </BreadcrumbLink>
-                                <BreadcrumbPage v-else class="max-w-[150px] sm:max-w-none truncate">
-                                    {{ breadcrumb.title }}
-                                </BreadcrumbPage>
-                            </BreadcrumbItem>
-
-                            <!-- Separador normal (oculto en mobile para items intermedios) -->
-                            <BreadcrumbSeparator
-                                v-if="index < props.breadcrumbs.length - 1"
-                                :class="[
-                                    props.breadcrumbs.length > 3 && index >= 1 && index < props.breadcrumbs.length - 1
-                                        ? 'hidden md:inline-flex'
-                                        : '',
-                                    props.breadcrumbs.length > 3 && index === 0 ? 'hidden md:inline-flex' : ''
-                                ]"
-                            />
-
-                            <!-- Ellipsis dropdown para mobile (después del primer item) -->
-                            <template v-if="props.breadcrumbs.length > 3 && index === 0">
-                                <BreadcrumbSeparator class="md:hidden" />
-                                <BreadcrumbItem class="md:hidden">
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger class="flex items-center gap-1">
-                                            <BreadcrumbEllipsis class="h-4 w-4" />
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="start">
-                                            <DropdownMenuItem
-                                                v-for="(hiddenBreadcrumb, hiddenIndex) in props.breadcrumbs.slice(1, -1)"
-                                                :key="hiddenIndex"
-                                                :as-child="true"
-                                            >
-                                                <Link
-                                                    :href="hiddenBreadcrumb.href || '#'"
-                                                    class="w-full"
-                                                >
-                                                    {{ hiddenBreadcrumb.title }}
-                                                </Link>
-                                            </DropdownMenuItem>
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
-                                </BreadcrumbItem>
-                                <BreadcrumbSeparator class="md:hidden" />
-                            </template>
-                        </template>
-                    </BreadcrumbList>
-                </Breadcrumb>
+                <ResponsiveBreadcrumb
+                    :items="props.breadcrumbs"
+                    class="flex-1 min-w-0"
+                />
             </div>
         </div>
     </div>
