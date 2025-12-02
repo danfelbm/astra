@@ -14,3 +14,7 @@ export { default as HitosEntregablesKanban } from './HitosEntregablesKanban.vue'
 export { default as HitosEntregableCard } from './HitosEntregableCard.vue';
 export { default as HitosKanbanColumn } from './HitosKanbanColumn.vue';
 export { default as HitosViewModeToggle } from './HitosViewModeToggle.vue';
+
+// Modales de detalles
+export { default as HitoDetallesModal } from './HitoDetallesModal.vue';
+export { default as EntregableDetallesModal } from './EntregableDetallesModal.vue';

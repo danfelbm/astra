@@ -48,8 +48,8 @@ import { Link } from '@inertiajs/vue3';
 
 // Componentes del módulo
 import { HitosEntregablesPanel } from './HitosDashboard';
-import ComentariosSheet from './HitosDashboard/ComentariosSheet.vue';
-import ActividadSheet from './HitosDashboard/ActividadSheet.vue';
+import HitoDetallesModal from './HitosDashboard/HitoDetallesModal.vue';
+import EntregableDetallesModal from './HitosDashboard/EntregableDetallesModal.vue';
 
 // Tipos
 import type { Hito, Entregable } from '@modules/Proyectos/Resources/js/types/hitos';
@@ -135,35 +135,27 @@ const getInitialHitoId = (): number | null => {
     return hitoParam ? parseInt(hitoParam, 10) : null;
 };
 
-// Leer parámetro de comentarios de URL para deeplink
-const getInitialComentarios = (): { tipo: 'hito' | 'entregable' | null; id?: number } => {
+// Leer parámetros de modal de URL para deeplink
+const getInitialModalState = (): {
+    type: 'hito' | 'entregable' | null;
+    entregableId?: number;
+    tab: string;
+} => {
     const urlParams = new URLSearchParams(window.location.search);
-    const comentariosParam = urlParams.get('comentarios');
-    if (!comentariosParam) return { tipo: null };
-    if (comentariosParam === 'hito') return { tipo: 'hito' };
-    if (comentariosParam.startsWith('entregable_')) {
-        const id = parseInt(comentariosParam.replace('entregable_', ''), 10);
-        return { tipo: 'entregable', id };
-    }
-    return { tipo: null };
-};
+    const modalParam = urlParams.get('modal');
+    const tabParam = urlParams.get('tab') || 'detalles';
 
-// Leer parámetro de actividad de URL para deeplink
-const getInitialActividad = (): { tipo: 'hito' | 'entregable' | null; id?: number } => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const actividadParam = urlParams.get('actividad');
-    if (!actividadParam) return { tipo: null };
-    if (actividadParam === 'hito') return { tipo: 'hito' };
-    if (actividadParam.startsWith('entregable_')) {
-        const id = parseInt(actividadParam.replace('entregable_', ''), 10);
-        return { tipo: 'entregable', id };
+    if (modalParam === 'hito') {
+        return { type: 'hito', tab: tabParam };
+    } else if (modalParam?.startsWith('entregable_')) {
+        const id = parseInt(modalParam.replace('entregable_', ''), 10);
+        return { type: 'entregable', entregableId: id, tab: tabParam };
     }
-    return { tipo: null };
+    return { type: null, tab: 'detalles' };
 };
 
 const selectedHitoId = ref<number | null>(getInitialHitoId());
-const initialComentarios = getInitialComentarios();
-const initialActividad = getInitialActividad();
+const initialModalState = getInitialModalState();
 
 // Computed
 const selectedHito = computed(() =>
@@ -292,28 +284,40 @@ const handleAddEntregable = () => {
 
 const handleViewHito = () => {
     if (selectedHito.value) {
-        emit('view-hito', selectedHito.value);
+        // Abrir modal de hito en tab detalles
+        hitoModalTab.value = 'detalles';
+        showHitoModal.value = true;
     }
 };
 
-// Estado del sheet de comentarios del hito (inicializar desde URL si hay deeplink)
-const showHitoComentarios = ref(initialComentarios.tipo === 'hito');
+// Estado del modal de hito (inicializar desde URL si hay deeplink)
+const showHitoModal = ref(initialModalState.type === 'hito');
+const hitoModalTab = ref(initialModalState.type === 'hito' ? initialModalState.tab : 'detalles');
 
-// Estado del sheet de actividad del hito (inicializar desde URL si hay deeplink)
-const showHitoActividad = ref(initialActividad.tipo === 'hito');
+// Estado del modal de entregable (inicializar desde URL si hay deeplink)
+const showEntregableModal = ref(initialModalState.type === 'entregable');
+const entregableModalId = ref<number | null>(initialModalState.entregableId || null);
+const entregableModalTab = ref(initialModalState.type === 'entregable' ? initialModalState.tab : 'detalles');
 
-// Función para actualizar URL con parámetro de comentarios
-const updateComentariosUrl = (tipo: 'hito' | 'entregable' | null, entregableId?: number) => {
+// Función para actualizar URL con parámetros del modal
+const updateModalUrl = (
+    type: 'hito' | 'entregable' | null,
+    entregableId?: number,
+    tab?: string
+) => {
     const currentPath = window.location.pathname;
     const currentParams = new URLSearchParams(window.location.search);
 
-    if (tipo === 'hito') {
-        currentParams.set('comentarios', 'hito');
-    } else if (tipo === 'entregable' && entregableId) {
-        currentParams.set('comentarios', `entregable_${entregableId}`);
+    if (type === 'hito') {
+        currentParams.set('modal', 'hito');
+        if (tab) currentParams.set('tab', tab);
+    } else if (type === 'entregable' && entregableId) {
+        currentParams.set('modal', `entregable_${entregableId}`);
+        if (tab) currentParams.set('tab', tab);
     } else {
-        // Limpiar comentarios y paginación al cerrar el sheet
-        currentParams.delete('comentarios');
+        // Limpiar parámetros del modal al cerrar
+        currentParams.delete('modal');
+        currentParams.delete('tab');
         currentParams.delete('pagina');
     }
 
@@ -326,54 +330,51 @@ const updateComentariosUrl = (tipo: 'hito' | 'entregable' | null, entregableId?:
     });
 };
 
-// Watch para sincronizar sheet de hito con URL
-watch(showHitoComentarios, (isOpen) => {
+// Watch para sincronizar modal de hito con URL
+watch([showHitoModal, hitoModalTab], ([isOpen, tab]) => {
     if (isOpen) {
-        updateComentariosUrl('hito');
+        updateModalUrl('hito', undefined, tab);
     } else {
-        // Solo limpiar si no hay entregable abierto
+        // Solo limpiar si el modal de hito estaba abierto
         const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get('comentarios') === 'hito') {
-            updateComentariosUrl(null);
+        if (urlParams.get('modal') === 'hito') {
+            updateModalUrl(null);
         }
     }
 });
 
-// Función para actualizar URL con parámetro de actividad
-const updateActividadUrl = (tipo: 'hito' | 'entregable' | null, entregableId?: number) => {
-    const currentPath = window.location.pathname;
-    const currentParams = new URLSearchParams(window.location.search);
-
-    if (tipo === 'hito') {
-        currentParams.set('actividad', 'hito');
-    } else if (tipo === 'entregable' && entregableId) {
-        currentParams.set('actividad', `entregable_${entregableId}`);
+// Watch para sincronizar modal de entregable con URL
+watch([showEntregableModal, entregableModalTab], ([isOpen, tab]) => {
+    if (isOpen && entregableModalId.value) {
+        updateModalUrl('entregable', entregableModalId.value, tab);
     } else {
-        // Limpiar actividad al cerrar el sheet
-        currentParams.delete('actividad');
+        // Solo limpiar si el modal de entregable estaba abierto
+        const urlParams = new URLSearchParams(window.location.search);
+        const modalParam = urlParams.get('modal');
+        if (modalParam?.startsWith('entregable_')) {
+            updateModalUrl(null);
+        }
     }
+});
 
-    const url = `${currentPath}?${currentParams.toString()}`;
-    router.get(url, {}, {
-        preserveState: true,
-        preserveScroll: true,
-        replace: true,
-        only: []
-    });
+// Handler para ver entregable en modal
+const handleOpenEntregableModal = (entregable: Entregable, tab: string = 'detalles') => {
+    entregableModalId.value = entregable.id;
+    entregableModalTab.value = tab;
+    showEntregableModal.value = true;
 };
 
-// Watch para sincronizar sheet de actividad del hito con URL
-watch(showHitoActividad, (isOpen) => {
-    if (isOpen) {
-        updateActividadUrl('hito');
-    } else {
-        // Solo limpiar si no hay entregable abierto
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get('actividad') === 'hito') {
-            updateActividadUrl(null);
-        }
-    }
-});
+// Handler para abrir comentarios del hito en modal
+const handleOpenHitoComentarios = () => {
+    hitoModalTab.value = 'comentarios';
+    showHitoModal.value = true;
+};
+
+// Handler para abrir actividad del hito en modal
+const handleOpenHitoActividad = () => {
+    hitoModalTab.value = 'actividad';
+    showHitoModal.value = true;
+};
 </script>
 
 <template>
@@ -612,12 +613,12 @@ watch(showHitoActividad, (isOpen) => {
                                     @click="handleViewHito"
                                 >
                                     <ListTodo class="h-4 w-4 mr-1.5" />
-                                    Ver Detalle Completo
+                                    Ver detalles
                                 </Button>
                                 <Button
                                     variant="ghost"
                                     size="sm"
-                                    @click="showHitoComentarios = true"
+                                    @click="handleOpenHitoComentarios"
                                 >
                                     <MessageSquare class="h-4 w-4 mr-1.5" />
                                     Comentarios
@@ -632,7 +633,7 @@ watch(showHitoActividad, (isOpen) => {
                                 <Button
                                     variant="ghost"
                                     size="sm"
-                                    @click="showHitoActividad = true"
+                                    @click="handleOpenHitoActividad"
                                 >
                                     <Activity class="h-4 w-4 mr-1.5" />
                                     Actividad
@@ -676,17 +677,15 @@ watch(showHitoActividad, (isOpen) => {
                             :can-edit="canEdit"
                             :can-delete="canDelete"
                             :can-complete="canComplete"
-                            :initial-comentarios-entregable-id="initialComentarios.tipo === 'entregable' ? initialComentarios.id : undefined"
-                            :initial-actividad-entregable-id="initialActividad.tipo === 'entregable' ? initialActividad.id : undefined"
+                            :initial-modal-entregable-id="initialModalState.type === 'entregable' ? initialModalState.entregableId : undefined"
+                            :initial-modal-tab="initialModalState.type === 'entregable' ? initialModalState.tab : undefined"
                             @view="handleViewEntregable"
                             @complete="handleCompleteEntregable"
                             @update-status="handleUpdateEntregableStatus"
                             @edit="handleEditEntregable"
                             @delete="handleDeleteEntregable"
-                            @comentarios-open="(id) => updateComentariosUrl('entregable', id)"
-                            @comentarios-close="() => updateComentariosUrl(null)"
-                            @actividad-open="(id) => updateActividadUrl('entregable', id)"
-                            @actividad-close="() => updateActividadUrl(null)"
+                            @open-modal="handleOpenEntregableModal"
+                            @modal-tab-change="(id, tab) => { entregableModalId = id; entregableModalTab = tab; }"
                         />
 
                         <!-- Estado vacío de entregables -->
@@ -709,21 +708,36 @@ watch(showHitoActividad, (isOpen) => {
             </ScrollArea>
         </main>
 
-        <!-- Sheet de comentarios del hito -->
-        <ComentariosSheet
+        <!-- Modal de detalles del hito -->
+        <HitoDetallesModal
             v-if="selectedHito"
-            v-model:open="showHitoComentarios"
-            commentable-type="hitos"
-            :commentable-id="selectedHito.id"
-            :can-create="canEdit"
+            v-model:open="showHitoModal"
+            :hito-id="selectedHito.id"
+            :proyecto-id="effectiveProyectoId || 0"
+            :initial-tab="hitoModalTab"
+            :can-edit="canEdit"
+            :can-delete="canDelete"
+            :can-manage-entregables="canManageDeliverables"
+            @update:tab="(tab) => hitoModalTab = tab"
+            @edit-hito="handleEditHito"
+            @view-entregable="handleViewEntregable"
+            @edit-entregable="handleEditEntregable"
+            @add-entregable="handleAddEntregable"
         />
 
-        <!-- Sheet de actividad del hito -->
-        <ActividadSheet
-            v-if="selectedHito"
-            v-model:open="showHitoActividad"
-            actividad-type="hitos"
-            :actividad-id="selectedHito.id"
+        <!-- Modal de detalles del entregable -->
+        <EntregableDetallesModal
+            v-if="entregableModalId"
+            v-model:open="showEntregableModal"
+            :entregable-id="entregableModalId"
+            :proyecto-id="effectiveProyectoId"
+            :hito-id="selectedHito?.id"
+            :initial-tab="entregableModalTab"
+            :can-edit="canEdit"
+            :can-delete="canDelete"
+            @update:tab="(tab) => entregableModalTab = tab"
+            @edit-entregable="() => selectedHito && handleEditEntregable({ id: entregableModalId } as Entregable)"
+            @update:open="(v) => { if (!v) entregableModalId = null; }"
         />
     </div>
 </template>

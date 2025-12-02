@@ -2,8 +2,10 @@
 /**
  * HitosEntregablesPanel - Componente orquestador para visualización de entregables
  * Maneja los diferentes modos de vista (lista, tabs, kanban) y los modales compartidos
+ *
+ * Emite eventos al padre (HitosDashboard) para abrir el modal de detalles del entregable
  */
-import { ref, toRef, watch, onMounted } from 'vue';
+import { ref, toRef, onMounted } from 'vue';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -22,8 +24,6 @@ import HitosViewModeToggle from './HitosViewModeToggle.vue';
 import HitosEntregablesList from './HitosEntregablesList.vue';
 import HitosEntregablesTabs from './HitosEntregablesTabs.vue';
 import HitosEntregablesKanban from './HitosEntregablesKanban.vue';
-import ComentariosSheet from './ComentariosSheet.vue';
-import ActividadSheet from './ActividadSheet.vue';
 
 // Props
 interface Props {
@@ -31,10 +31,10 @@ interface Props {
     canEdit?: boolean;
     canDelete?: boolean;
     canComplete?: boolean;
-    // ID del entregable para abrir comentarios por deeplink
-    initialComentariosEntregableId?: number;
-    // ID del entregable para abrir actividad por deeplink
-    initialActividadEntregableId?: number;
+    // ID del entregable para abrir modal por deeplink
+    initialModalEntregableId?: number;
+    // Tab inicial del modal de entregable por deeplink
+    initialModalTab?: string;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -50,12 +50,10 @@ const emit = defineEmits<{
     'delete': [entregable: Entregable];
     'complete': [entregable: Entregable, observaciones: string, archivos: UploadedFile[]];
     'update-status': [entregable: Entregable, estado: string, observaciones: string, archivos: UploadedFile[]];
-    // Eventos para deeplink de comentarios
-    'comentarios-open': [entregableId: number];
-    'comentarios-close': [];
-    // Eventos para deeplink de actividad
-    'actividad-open': [entregableId: number];
-    'actividad-close': [];
+    // Evento para abrir modal de entregable (emite al padre HitosDashboard)
+    'open-modal': [entregable: Entregable, tab: string];
+    // Evento cuando cambia el tab del modal (para deeplink)
+    'modal-tab-change': [entregableId: number, tab: string];
 }>();
 
 // Composable (solo para viewMode y utilidades)
@@ -92,67 +90,31 @@ const statusChangeLoading = ref(false);
 const deleteDialogOpen = ref(false);
 const entregableToDelete = ref<Entregable | null>(null);
 
-// Estado del sheet de comentarios
-const showEntregableComentarios = ref(false);
-const entregableParaComentarios = ref<Entregable | null>(null);
-
-// Estado del sheet de actividad
-const showEntregableActividad = ref(false);
-const entregableParaActividad = ref<Entregable | null>(null);
-
-// Handler para mostrar comentarios
+// Handler para mostrar modal en tab comentarios
 const handleShowComentarios = (entregable: Entregable) => {
-    entregableParaComentarios.value = entregable;
-    showEntregableComentarios.value = true;
+    emit('open-modal', entregable, 'comentarios');
 };
 
-// Handler para mostrar actividad
+// Handler para mostrar modal en tab actividad
 const handleShowActividad = (entregable: Entregable) => {
-    entregableParaActividad.value = entregable;
-    showEntregableActividad.value = true;
+    emit('open-modal', entregable, 'actividad');
 };
-
-// Watch para emitir eventos de deeplink cuando se abre/cierra el sheet de comentarios
-watch(showEntregableComentarios, (isOpen) => {
-    if (isOpen && entregableParaComentarios.value) {
-        emit('comentarios-open', entregableParaComentarios.value.id);
-    } else if (!isOpen) {
-        emit('comentarios-close');
-    }
-});
-
-// Watch para emitir eventos de deeplink cuando se abre/cierra el sheet de actividad
-watch(showEntregableActividad, (isOpen) => {
-    if (isOpen && entregableParaActividad.value) {
-        emit('actividad-open', entregableParaActividad.value.id);
-    } else if (!isOpen) {
-        emit('actividad-close');
-    }
-});
 
 // Inicializar desde deeplink
 onMounted(() => {
-    // Inicializar comentarios desde deeplink
-    if (props.initialComentariosEntregableId) {
-        const entregable = props.entregables.find(e => e.id === props.initialComentariosEntregableId);
+    // Si hay un entregable inicial por deeplink, emitir evento para abrir modal
+    if (props.initialModalEntregableId) {
+        const entregable = props.entregables.find(e => e.id === props.initialModalEntregableId);
         if (entregable) {
-            entregableParaComentarios.value = entregable;
-            showEntregableComentarios.value = true;
-        }
-    }
-    // Inicializar actividad desde deeplink
-    if (props.initialActividadEntregableId) {
-        const entregable = props.entregables.find(e => e.id === props.initialActividadEntregableId);
-        if (entregable) {
-            entregableParaActividad.value = entregable;
-            showEntregableActividad.value = true;
+            emit('open-modal', entregable, props.initialModalTab || 'detalles');
         }
     }
 });
 
 // Handlers de navegación
 const handleView = (entregable: Entregable) => {
-    emit('view', entregable);
+    // Abrir modal en tab detalles
+    emit('open-modal', entregable, 'detalles');
 };
 
 const handleEdit = (entregable: Entregable) => {
@@ -303,22 +265,5 @@ const confirmStatusChange = (observaciones: string, archivos: UploadedFile[]) =>
                 </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
-
-        <!-- Sheet de comentarios del entregable -->
-        <ComentariosSheet
-            v-if="entregableParaComentarios"
-            v-model:open="showEntregableComentarios"
-            commentable-type="entregables"
-            :commentable-id="entregableParaComentarios.id"
-            :can-create="canEdit"
-        />
-
-        <!-- Sheet de actividad del entregable -->
-        <ActividadSheet
-            v-if="entregableParaActividad"
-            v-model:open="showEntregableActividad"
-            actividad-type="entregables"
-            :actividad-id="entregableParaActividad.id"
-        />
     </div>
 </template>

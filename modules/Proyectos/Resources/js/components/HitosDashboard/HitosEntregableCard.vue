@@ -276,6 +276,17 @@ const cardClasses = computed(() => {
                 v-if="variant === 'default' && (canEdit || canDelete || canComplete)"
                 class="flex items-center gap-1 mt-3 pt-3 border-t"
             >
+                <!-- Botón Ver detalles siempre visible -->
+                <Button
+                    variant="outline"
+                    size="sm"
+                    class="h-7 text-xs"
+                    @click="emit('view')"
+                >
+                    <Eye class="h-3 w-3 mr-1" />
+                    Ver detalles
+                </Button>
+
                 <!-- Acciones según estado -->
                 <template v-if="!isCompletado && !isCancelado">
                     <Button
