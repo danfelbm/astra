@@ -380,7 +380,7 @@ const handleOpenHitoActividad = () => {
 </script>
 
 <template>
-    <div class="flex flex-col md:flex-row h-full min-h-[500px] border rounded-lg overflow-hidden bg-background">
+    <div class="flex flex-col md:flex-row h-full min-h-[500px] overflow-hidden bg-background">
         <!-- Sidebar Desktop -->
         <aside class="hidden md:flex md:w-72 lg:w-80 flex-col border-r bg-muted/30">
             <!-- Header del sidebar -->
@@ -537,7 +537,7 @@ const handleOpenHitoActividad = () => {
                 </div>
 
                 <!-- Detalle del Hito -->
-                <div v-else class="p-4 md:p-6 space-y-6 overflow-x-hidden">
+                <div v-else class="p-0 md:p-6 space-y-6 overflow-x-hidden">
                     <!-- Card de información del hito -->
                     <Card>
                         <CardHeader class="pb-3">
