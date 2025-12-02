@@ -10,7 +10,8 @@ import HitosDashboard from '@modules/Proyectos/Resources/js/components/HitosDash
 import { Plus, Search, Filter, ArrowLeft, Target, Network, List } from 'lucide-vue-next';
 import { toast } from 'vue-sonner';
 import { ref, computed } from 'vue';
-import type { Hito } from '@modules/Proyectos/Resources/js/types/hitos';
+import type { Hito, Entregable } from '@modules/Proyectos/Resources/js/types/hitos';
+import type { UploadedFile } from '@modules/Comentarios/Resources/js/types/comentarios';
 import type { BreadcrumbItem } from '@/types';
 
 interface Proyecto {
@@ -148,6 +149,41 @@ const navigateToEntregables = (hito: Hito) => {
 // Handler para ver detalle de un entregable
 const handleViewEntregable = (entregable: any, hito: Hito) => {
     router.visit(`/admin/proyectos/${props.proyecto.id}/hitos/${hito.id}/entregables/${entregable.id}`);
+};
+
+// Handler para completar un entregable
+const handleCompleteEntregable = (entregable: Entregable, observaciones: string, archivos: UploadedFile[]) => {
+    router.post(`/admin/proyectos/${props.proyecto.id}/hitos/${entregable.hito_id}/entregables/${entregable.id}/completar`, {
+        notas: observaciones,
+        archivos: archivos,
+        agregar_comentario: !!observaciones
+    }, {
+        preserveScroll: true,
+        onSuccess: () => {
+            toast.success('Entregable marcado como completado');
+        },
+        onError: () => {
+            toast.error('Error al completar el entregable');
+        }
+    });
+};
+
+// Handler para actualizar estado de un entregable
+const handleUpdateEntregableStatus = (entregable: Entregable, estado: string, observaciones: string, archivos: UploadedFile[]) => {
+    router.post(`/admin/proyectos/${props.proyecto.id}/hitos/${entregable.hito_id}/entregables/${entregable.id}/actualizar-estado`, {
+        estado,
+        observaciones,
+        archivos: archivos,
+        agregar_comentario: !!observaciones
+    }, {
+        preserveScroll: true,
+        onSuccess: () => {
+            toast.success('Estado del entregable actualizado');
+        },
+        onError: () => {
+            toast.error('Error al actualizar el estado');
+        }
+    });
 };
 
 // Búsqueda
@@ -311,6 +347,8 @@ const filterByEstado = (estado: string) => {
                 @delete-hito="confirmDeleteHito"
                 @add-entregable="navigateToAddEntregable"
                 @view-entregable="handleViewEntregable"
+                @complete-entregable="handleCompleteEntregable"
+                @update-entregable-status="handleUpdateEntregableStatus"
             />
 
             <!-- Paginación -->

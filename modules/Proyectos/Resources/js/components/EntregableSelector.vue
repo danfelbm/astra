@@ -66,11 +66,11 @@ const emit = defineEmits<{
     'update:modelValue': [value: number[]];
 }>();
 
-// Estado de filtros
+// Estado de filtros (estado por defecto 'pendiente' para mostrar primero los entregables pendientes)
 const filtros = ref({
     search: '',
     hito: null as string | null,
-    estado: null as string | null,
+    estado: 'pendiente' as string | null,
 });
 
 // Obtener hitos únicos de los entregables
