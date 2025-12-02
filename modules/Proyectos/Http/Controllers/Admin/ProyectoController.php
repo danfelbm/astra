@@ -123,11 +123,17 @@ class ProyectoController extends AdminController
                     }
                 ])->orderBy('fecha_inicio', 'desc');
             },
-            // Hitos y entregables
+            // Hitos y entregables (con contador de comentarios para Sheet)
             'hitos' => function ($query) {
-                $query->with(['responsable', 'entregables' => function ($q) {
-                    $q->with(['responsable', 'usuarios'])->orderBy('orden');
-                }])->orderBy('orden');
+                $query->with([
+                    'responsable',
+                    'entregables' => function ($q) {
+                        $q->with(['responsable', 'usuarios'])
+                          ->withCount('comentarios')
+                          ->orderBy('orden');
+                    }
+                ])->withCount('comentarios')
+                  ->orderBy('orden');
             }
         ]);
 

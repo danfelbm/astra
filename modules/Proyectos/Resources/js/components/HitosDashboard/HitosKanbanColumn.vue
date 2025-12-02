@@ -36,6 +36,7 @@ const emit = defineEmits<{
     'delete': [entregable: Entregable];
     'complete': [entregable: Entregable];
     'change-status': [entregable: Entregable, nuevoEstado: EstadoEntregable];
+    'show-comentarios': [entregable: Entregable];
 }>();
 
 // Configuración del estado
@@ -101,6 +102,7 @@ const columnClasses = computed(() => {
                     @delete="emit('delete', entregable)"
                     @complete="emit('complete', entregable)"
                     @change-status="(nuevoEstado) => emit('change-status', entregable, nuevoEstado)"
+                    @show-comentarios="emit('show-comentarios', entregable)"
                 />
 
                 <!-- Placeholder cuando está vacío -->

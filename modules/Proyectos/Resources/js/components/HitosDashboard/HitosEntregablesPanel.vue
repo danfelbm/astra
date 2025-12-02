@@ -3,7 +3,7 @@
  * HitosEntregablesPanel - Componente orquestador para visualización de entregables
  * Maneja los diferentes modos de vista (lista, tabs, kanban) y los modales compartidos
  */
-import { ref, toRef } from 'vue';
+import { ref, toRef, watch, onMounted } from 'vue';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -22,6 +22,7 @@ import HitosViewModeToggle from './HitosViewModeToggle.vue';
 import HitosEntregablesList from './HitosEntregablesList.vue';
 import HitosEntregablesTabs from './HitosEntregablesTabs.vue';
 import HitosEntregablesKanban from './HitosEntregablesKanban.vue';
+import ComentariosSheet from './ComentariosSheet.vue';
 
 // Props
 interface Props {
@@ -29,6 +30,8 @@ interface Props {
     canEdit?: boolean;
     canDelete?: boolean;
     canComplete?: boolean;
+    // ID del entregable para abrir comentarios por deeplink
+    initialComentariosEntregableId?: number;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -44,6 +47,9 @@ const emit = defineEmits<{
     'delete': [entregable: Entregable];
     'complete': [entregable: Entregable, observaciones: string, archivos: UploadedFile[]];
     'update-status': [entregable: Entregable, estado: string, observaciones: string, archivos: UploadedFile[]];
+    // Eventos para deeplink de comentarios
+    'comentarios-open': [entregableId: number];
+    'comentarios-close': [];
 }>();
 
 // Composable (solo para viewMode y utilidades)
@@ -79,6 +85,36 @@ const statusChangeLoading = ref(false);
 // Estado del diálogo de confirmación de eliminación
 const deleteDialogOpen = ref(false);
 const entregableToDelete = ref<Entregable | null>(null);
+
+// Estado del sheet de comentarios
+const showEntregableComentarios = ref(false);
+const entregableParaComentarios = ref<Entregable | null>(null);
+
+// Handler para mostrar comentarios
+const handleShowComentarios = (entregable: Entregable) => {
+    entregableParaComentarios.value = entregable;
+    showEntregableComentarios.value = true;
+};
+
+// Watch para emitir eventos de deeplink cuando se abre/cierra el sheet
+watch(showEntregableComentarios, (isOpen) => {
+    if (isOpen && entregableParaComentarios.value) {
+        emit('comentarios-open', entregableParaComentarios.value.id);
+    } else if (!isOpen) {
+        emit('comentarios-close');
+    }
+});
+
+// Inicializar desde deeplink
+onMounted(() => {
+    if (props.initialComentariosEntregableId) {
+        const entregable = props.entregables.find(e => e.id === props.initialComentariosEntregableId);
+        if (entregable) {
+            entregableParaComentarios.value = entregable;
+            showEntregableComentarios.value = true;
+        }
+    }
+});
 
 // Handlers de navegación
 const handleView = (entregable: Entregable) => {
@@ -166,6 +202,7 @@ const confirmStatusChange = (observaciones: string, archivos: UploadedFile[]) =>
             @delete="handleDelete"
             @complete="handleComplete"
             @change-status="handleChangeStatus"
+            @show-comentarios="handleShowComentarios"
         />
 
         <HitosEntregablesTabs
@@ -178,6 +215,7 @@ const confirmStatusChange = (observaciones: string, archivos: UploadedFile[]) =>
             @delete="handleDelete"
             @complete="handleComplete"
             @change-status="handleChangeStatus"
+            @show-comentarios="handleShowComentarios"
         />
 
         <HitosEntregablesKanban
@@ -194,6 +232,7 @@ const confirmStatusChange = (observaciones: string, archivos: UploadedFile[]) =>
             @complete="handleComplete"
             @change-status="handleChangeStatus"
             @drag-change-status="handleDragChangeStatus"
+            @show-comentarios="handleShowComentarios"
         />
 
         <!-- Modal de cambio de estado -->
@@ -227,5 +266,14 @@ const confirmStatusChange = (observaciones: string, archivos: UploadedFile[]) =>
                 </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
+
+        <!-- Sheet de comentarios del entregable -->
+        <ComentariosSheet
+            v-if="entregableParaComentarios"
+            v-model:open="showEntregableComentarios"
+            commentable-type="entregables"
+            :commentable-id="entregableParaComentarios.id"
+            :can-create="canEdit"
+        />
     </div>
 </template>

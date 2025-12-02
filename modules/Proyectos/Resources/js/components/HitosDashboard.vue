@@ -39,6 +39,7 @@ import {
     ListTodo,
     ExternalLink,
     FolderOpen,
+    MessageSquare,
 } from 'lucide-vue-next';
 
 // Inertia Link
@@ -46,6 +47,7 @@ import { Link } from '@inertiajs/vue3';
 
 // Componentes del módulo
 import { HitosEntregablesPanel } from './HitosDashboard';
+import ComentariosSheet from './HitosDashboard/ComentariosSheet.vue';
 
 // Tipos
 import type { Hito, Entregable } from '@modules/Proyectos/Resources/js/types/hitos';
@@ -101,12 +103,12 @@ const emit = defineEmits<{
     'filter-proyecto': [proyectoId: number | null];
 }>();
 
-// Filtro de proyecto reactivo
-const proyectoFilter = ref<string>(props.selectedProyectoId?.toString() || '');
+// Filtro de proyecto reactivo ("_all" = todos los proyectos)
+const proyectoFilter = ref<string>(props.selectedProyectoId?.toString() || '_all');
 
 // Hitos filtrados por proyecto
 const filteredHitos = computed(() => {
-    if (!proyectoFilter.value) {
+    if (proyectoFilter.value === '_all') {
         return props.hitos;
     }
     const proyectoId = parseInt(proyectoFilter.value, 10);
@@ -117,7 +119,7 @@ const filteredHitos = computed(() => {
 const handleProyectoFilter = (value: string) => {
     proyectoFilter.value = value;
     selectedHitoId.value = null; // Resetear hito seleccionado
-    const proyectoId = value ? parseInt(value, 10) : null;
+    const proyectoId = value !== '_all' ? parseInt(value, 10) : null;
     emit('filter-proyecto', proyectoId);
 };
 
@@ -131,7 +133,21 @@ const getInitialHitoId = (): number | null => {
     return hitoParam ? parseInt(hitoParam, 10) : null;
 };
 
+// Leer parámetro de comentarios de URL para deeplink
+const getInitialComentarios = (): { tipo: 'hito' | 'entregable' | null; id?: number } => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const comentariosParam = urlParams.get('comentarios');
+    if (!comentariosParam) return { tipo: null };
+    if (comentariosParam === 'hito') return { tipo: 'hito' };
+    if (comentariosParam.startsWith('entregable_')) {
+        const id = parseInt(comentariosParam.replace('entregable_', ''), 10);
+        return { tipo: 'entregable', id };
+    }
+    return { tipo: null };
+};
+
 const selectedHitoId = ref<number | null>(getInitialHitoId());
+const initialComentarios = getInitialComentarios();
 
 // Computed
 const selectedHito = computed(() =>
@@ -263,6 +279,46 @@ const handleViewHito = () => {
         emit('view-hito', selectedHito.value);
     }
 };
+
+// Estado del sheet de comentarios del hito (inicializar desde URL si hay deeplink)
+const showHitoComentarios = ref(initialComentarios.tipo === 'hito');
+
+// Función para actualizar URL con parámetro de comentarios
+const updateComentariosUrl = (tipo: 'hito' | 'entregable' | null, entregableId?: number) => {
+    const currentPath = window.location.pathname;
+    const currentParams = new URLSearchParams(window.location.search);
+
+    if (tipo === 'hito') {
+        currentParams.set('comentarios', 'hito');
+    } else if (tipo === 'entregable' && entregableId) {
+        currentParams.set('comentarios', `entregable_${entregableId}`);
+    } else {
+        // Limpiar comentarios y paginación al cerrar el sheet
+        currentParams.delete('comentarios');
+        currentParams.delete('pagina');
+    }
+
+    const url = `${currentPath}?${currentParams.toString()}`;
+    router.get(url, {}, {
+        preserveState: true,
+        preserveScroll: true,
+        replace: true,
+        only: []
+    });
+};
+
+// Watch para sincronizar sheet de hito con URL
+watch(showHitoComentarios, (isOpen) => {
+    if (isOpen) {
+        updateComentariosUrl('hito');
+    } else {
+        // Solo limpiar si no hay entregable abierto
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('comentarios') === 'hito') {
+            updateComentariosUrl(null);
+        }
+    }
+});
 </script>
 
 <template>
@@ -294,7 +350,7 @@ const handleViewHito = () => {
                             <SelectValue placeholder="Todos los proyectos" />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="">Todos los proyectos</SelectItem>
+                            <SelectItem value="_all">Todos los proyectos</SelectItem>
                             <SelectItem
                                 v-for="proyecto in proyectos"
                                 :key="proyecto.id"
@@ -370,7 +426,7 @@ const handleViewHito = () => {
                         <SelectValue placeholder="Todos los proyectos" />
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem value="">Todos los proyectos</SelectItem>
+                        <SelectItem value="_all">Todos los proyectos</SelectItem>
                         <SelectItem
                             v-for="proyecto in proyectos"
                             :key="proyecto.id"
@@ -504,6 +560,21 @@ const handleViewHito = () => {
                                     Ver Detalle Completo
                                 </Button>
                                 <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    @click="showHitoComentarios = true"
+                                >
+                                    <MessageSquare class="h-4 w-4 mr-1.5" />
+                                    Comentarios
+                                    <Badge
+                                        v-if="selectedHito.comentarios_count && selectedHito.comentarios_count > 0"
+                                        variant="secondary"
+                                        class="ml-1.5 text-xs"
+                                    >
+                                        {{ selectedHito.comentarios_count }}
+                                    </Badge>
+                                </Button>
+                                <Button
                                     v-if="canDelete"
                                     variant="ghost"
                                     size="sm"
@@ -542,11 +613,14 @@ const handleViewHito = () => {
                             :can-edit="canEdit"
                             :can-delete="canDelete"
                             :can-complete="canComplete"
+                            :initial-comentarios-entregable-id="initialComentarios.tipo === 'entregable' ? initialComentarios.id : undefined"
                             @view="handleViewEntregable"
                             @complete="handleCompleteEntregable"
                             @update-status="handleUpdateEntregableStatus"
                             @edit="handleEditEntregable"
                             @delete="handleDeleteEntregable"
+                            @comentarios-open="(id) => updateComentariosUrl('entregable', id)"
+                            @comentarios-close="() => updateComentariosUrl(null)"
                         />
 
                         <!-- Estado vacío de entregables -->
@@ -568,5 +642,14 @@ const handleViewHito = () => {
                 </div>
             </ScrollArea>
         </main>
+
+        <!-- Sheet de comentarios del hito -->
+        <ComentariosSheet
+            v-if="selectedHito"
+            v-model:open="showHitoComentarios"
+            commentable-type="hitos"
+            :commentable-id="selectedHito.id"
+            :can-create="canEdit"
+        />
     </div>
 </template>

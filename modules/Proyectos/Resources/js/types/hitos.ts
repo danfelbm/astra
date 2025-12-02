@@ -68,6 +68,10 @@ export interface Hito {
     esta_proximo_vencer?: boolean;
     tiene_hijos?: boolean;
     ruta_completa?: string;
+
+    // Contador de comentarios (desde withCount)
+    comentarios_count?: number;
+    total_comentarios?: number;
 }
 
 export interface Entregable {
@@ -105,6 +109,10 @@ export interface Entregable {
     esta_vencido?: boolean;
     esta_proximo_vencer?: boolean;
     duracion_dias?: number | null;
+
+    // Contador de comentarios (desde withCount)
+    comentarios_count?: number;
+    total_comentarios?: number;
 }
 
 export interface UsuarioEntregable {

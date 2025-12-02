@@ -204,15 +204,17 @@ class MisProyectosController extends UserController
                     }
                 ])->orderBy('fecha_inicio', 'desc');
             },
-            // Hitos y entregables
+            // Hitos y entregables (con contador de comentarios para Sheet de comentarios)
             'hitos' => function ($query) {
                 $query->with([
                     'responsable:id,name,email',
                     'entregables' => function ($q) {
                         $q->with(['responsable:id,name,email', 'usuarios:id,name,email'])
+                          ->withCount('comentarios')
                           ->orderBy('orden');
                     }
-                ])->orderBy('orden');
+                ])->withCount('comentarios')
+                  ->orderBy('orden');
             }
         ]);
 

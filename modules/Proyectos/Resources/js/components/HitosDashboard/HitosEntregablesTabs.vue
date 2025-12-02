@@ -35,6 +35,7 @@ const emit = defineEmits<{
     'delete': [entregable: Entregable];
     'complete': [entregable: Entregable];
     'change-status': [entregable: Entregable, nuevoEstado: EstadoEntregable];
+    'show-comentarios': [entregable: Entregable];
 }>();
 
 // Composable
@@ -128,6 +129,7 @@ const getEntregablesForTab = (estado: EstadoEntregable): Entregable[] => {
                     @delete="emit('delete', entregable)"
                     @complete="handleComplete(entregable)"
                     @change-status="(nuevoEstado) => handleChangeStatus(entregable, nuevoEstado)"
+                    @show-comentarios="emit('show-comentarios', entregable)"
                 />
             </div>
 

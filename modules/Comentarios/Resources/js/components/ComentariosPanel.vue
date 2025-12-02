@@ -40,11 +40,14 @@ interface Props {
     commentableId: number;
     canCreate?: boolean;
     canReact?: boolean;
+    // Modo embebido (sin Card wrapper, para usar dentro de Sheet/Dialog)
+    embedded?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
     canCreate: true,
     canReact: true,
+    embedded: false,
 });
 
 // Leer página inicial desde la URL
@@ -238,8 +241,10 @@ const handleFormCancel = () => {
 </script>
 
 <template>
-    <Card>
-        <CardHeader>
+    <!-- Wrapper: Card cuando no está embebido, div simple cuando sí -->
+    <component :is="embedded ? 'div' : Card" :class="{ 'space-y-4': embedded }">
+        <!-- Header -->
+        <component :is="embedded ? 'div' : CardHeader">
             <div class="flex items-center justify-between">
                 <div>
                     <CardTitle class="flex items-center gap-2">
@@ -268,9 +273,9 @@ const handleFormCancel = () => {
                     </SelectContent>
                 </Select>
             </div>
-        </CardHeader>
+        </component>
 
-        <CardContent class="space-y-6">
+        <component :is="embedded ? 'div' : CardContent" class="space-y-6">
             <!-- Formulario de nuevo comentario -->
             <div v-if="canCreate">
                 <ComentarioForm
@@ -414,6 +419,6 @@ const handleFormCancel = () => {
                     </div>
                 </div>
             </div>
-        </CardContent>
-    </Card>
+        </component>
+    </component>
 </template>

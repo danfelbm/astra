@@ -34,6 +34,7 @@ const emit = defineEmits<{
     'complete': [entregable: Entregable];
     'change-status': [entregable: Entregable, nuevoEstado: EstadoEntregable];
     'drag-change-status': [entregable: Entregable, nuevoEstado: EstadoEntregable];
+    'show-comentarios': [entregable: Entregable];
 }>();
 
 // Composable
@@ -170,6 +171,7 @@ watch(() => props.entregables, () => {
                 @delete="emit('delete', $event)"
                 @complete="emit('complete', $event)"
                 @change-status="(entregable, nuevoEstado) => emit('change-status', entregable, nuevoEstado)"
+                @show-comentarios="emit('show-comentarios', $event)"
             />
         </div>
     </div>

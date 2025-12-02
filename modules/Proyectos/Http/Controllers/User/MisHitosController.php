@@ -48,9 +48,11 @@ class MisHitosController extends UserController
             'responsable:id,name,email',
             'entregables' => function ($q) {
                 $q->with(['responsable:id,name,email', 'usuarios:id,name,email'])
+                  ->withCount('comentarios')
                   ->orderBy('orden');
             }
-        ])->where(function ($query) use ($user) {
+        ])->withCount('comentarios')
+        ->where(function ($query) use ($user) {
             // Es responsable del hito
             $query->where('responsable_id', $user->id)
                   // O el proyecto tiene al usuario como responsable/gestor
@@ -163,9 +165,11 @@ class MisHitosController extends UserController
                           $q2->where('users.id', $user->id);
                       });
                 })->with(['responsable:id,name,email', 'usuarios:id,name,email'])
+                  ->withCount('comentarios')
                   ->orderBy('orden');
             }
         ]);
+        $hito->loadCount('comentarios');
 
         // Obtener entregables del usuario
         $misEntregables = $hito->entregables->filter(function ($entregable) use ($user) {

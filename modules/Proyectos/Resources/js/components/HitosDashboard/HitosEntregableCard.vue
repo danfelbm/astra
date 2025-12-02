@@ -9,7 +9,7 @@ import { Button } from '@modules/Core/Resources/js/components/ui/button';
 import { Badge } from '@modules/Core/Resources/js/components/ui/badge';
 import {
     Calendar, Clock, CheckCircle, AlertCircle, XCircle,
-    User, Edit, Trash2, ChevronDown, ChevronRight, Users, Flag, Eye
+    User, Edit, Trash2, ChevronDown, ChevronRight, Users, Flag, Eye, MessageSquare
 } from 'lucide-vue-next';
 import type { Entregable, EstadoEntregable } from '@modules/Proyectos/Resources/js/types/hitos';
 import { useEntregablesView, ESTADO_CONFIG, PRIORIDAD_CONFIG } from '@modules/Proyectos/Resources/js/composables/useEntregablesView';
@@ -43,6 +43,7 @@ const emit = defineEmits<{
     'delete': [];
     'complete': [];
     'change-status': [nuevoEstado: EstadoEntregable];
+    'show-comentarios': [];
 }>();
 
 // Composable (con array vacío ya que solo usamos utilidades)
@@ -173,7 +174,7 @@ const cardClasses = computed(() => {
                 </div>
             </div>
 
-            <!-- Botones Ver/Editar (solo kanban) -->
+            <!-- Botones Ver/Editar/Comentarios (solo kanban) -->
             <div v-if="variant === 'kanban'" class="flex gap-1 mt-2 pt-2 border-t">
                 <Button
                     variant="outline"
@@ -192,6 +193,18 @@ const cardClasses = computed(() => {
                 >
                     <Edit class="h-3 w-3 mr-1" />
                     Editar
+                </Button>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    class="h-7 px-2 text-xs"
+                    @click.stop="emit('show-comentarios')"
+                    title="Comentarios"
+                >
+                    <MessageSquare class="h-3 w-3" />
+                    <span v-if="entregable.comentarios_count && entregable.comentarios_count > 0" class="ml-1">
+                        {{ entregable.comentarios_count }}
+                    </span>
                 </Button>
             </div>
 
@@ -299,6 +312,22 @@ const cardClasses = computed(() => {
                 >
                     <Edit class="h-3 w-3 mr-1" />
                     Editar
+                </Button>
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    class="h-7 text-xs"
+                    @click="emit('show-comentarios')"
+                >
+                    <MessageSquare class="h-3 w-3 mr-1" />
+                    Comentarios
+                    <Badge
+                        v-if="entregable.comentarios_count && entregable.comentarios_count > 0"
+                        variant="secondary"
+                        class="ml-1 text-xs"
+                    >
+                        {{ entregable.comentarios_count }}
+                    </Badge>
                 </Button>
                 <Button
                     v-if="canDelete"
