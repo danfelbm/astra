@@ -237,7 +237,7 @@ const handleEditEntregable = (entregable: Entregable) => {
 
 <template>
     <Dialog :open="open" @update:open="emit('update:open', $event)">
-        <DialogContent class="max-w-4xl max-h-[85vh] flex flex-col p-0 gap-0">
+        <DialogContent class="w-full sm:w-[95vw] max-w-full sm:!max-w-5xl h-[100dvh] sm:h-auto sm:max-h-[90vh] rounded-none sm:rounded-lg flex flex-col p-0 gap-0 overflow-hidden">
             <!-- Header fijo -->
             <DialogHeader class="flex-shrink-0 px-6 pt-6 pb-4 border-b">
                 <!-- Skeleton de carga -->
@@ -301,10 +301,10 @@ const handleEditEntregable = (entregable: Entregable) => {
             </DialogHeader>
 
             <!-- Contenido con scroll -->
-            <div class="flex-1 overflow-hidden min-h-0">
-                <Tabs v-model="activeTab" class="h-full flex flex-col">
+            <div class="flex-1 min-h-0 overflow-hidden flex flex-col">
+                <Tabs v-model="activeTab" class="flex-1 min-h-0 flex flex-col">
                     <!-- TabsList fijo -->
-                    <TabsList class="flex-shrink-0 mx-6 mt-4 justify-start">
+                    <TabsList class="flex-shrink-0 mx-6 mt-4 justify-start flex-wrap">
                         <TabsTrigger value="detalles">
                             <FileText class="h-4 w-4 mr-1.5" />
                             Detalles
@@ -330,7 +330,8 @@ const handleEditEntregable = (entregable: Entregable) => {
                     </TabsList>
 
                     <!-- Contenido de tabs con scroll -->
-                    <ScrollArea class="flex-1 px-6 py-4">
+                    <ScrollArea class="flex-1 min-h-0 overflow-y-auto">
+                        <div class="px-6 py-4">
                         <!-- Loading skeleton -->
                         <div v-if="loading && !hito" class="space-y-4">
                             <Skeleton class="h-32 w-full" />
@@ -540,6 +541,7 @@ const handleEditEntregable = (entregable: Entregable) => {
                                 :show-card="false"
                             />
                         </TabsContent>
+                        </div>
                     </ScrollArea>
                 </Tabs>
             </div>
