@@ -462,7 +462,7 @@ const getInitials = (name: string) => {
     <Head :title="`Proyecto: ${proyecto.nombre}`" />
 
     <AdminLayout :breadcrumbs="breadcrumbs">
-        <div class="flex h-full flex-1 flex-col gap-4 rounded-xl p-2">
+        <div class="flex h-full flex-1 flex-col gap-4 rounded-xl p-2 md:p-8">
             <!-- Header con acciones -->
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
