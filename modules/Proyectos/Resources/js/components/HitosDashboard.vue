@@ -136,6 +136,7 @@ const getInitialHitoId = (): number | null => {
 };
 
 // Leer parámetros de modal de URL para deeplink
+// Usa 'modal_tab' para evitar conflictos con el 'tab' de la página principal
 const getInitialModalState = (): {
     type: 'hito' | 'entregable' | null;
     entregableId?: number;
@@ -143,7 +144,7 @@ const getInitialModalState = (): {
 } => {
     const urlParams = new URLSearchParams(window.location.search);
     const modalParam = urlParams.get('modal');
-    const tabParam = urlParams.get('tab') || 'detalles';
+    const tabParam = urlParams.get('modal_tab') || 'detalles';
 
     if (modalParam === 'hito') {
         return { type: 'hito', tab: tabParam };
@@ -300,6 +301,7 @@ const entregableModalId = ref<number | null>(initialModalState.entregableId || n
 const entregableModalTab = ref(initialModalState.type === 'entregable' ? initialModalState.tab : 'detalles');
 
 // Función para actualizar URL con parámetros del modal
+// Usa 'modal_tab' para evitar conflictos con el 'tab' de la página
 const updateModalUrl = (
     type: 'hito' | 'entregable' | null,
     entregableId?: number,
@@ -310,14 +312,14 @@ const updateModalUrl = (
 
     if (type === 'hito') {
         currentParams.set('modal', 'hito');
-        if (tab) currentParams.set('tab', tab);
+        if (tab) currentParams.set('modal_tab', tab);
     } else if (type === 'entregable' && entregableId) {
         currentParams.set('modal', `entregable_${entregableId}`);
-        if (tab) currentParams.set('tab', tab);
+        if (tab) currentParams.set('modal_tab', tab);
     } else {
-        // Limpiar parámetros del modal al cerrar
+        // Limpiar parámetros del modal al cerrar (no tocar 'tab' de la página)
         currentParams.delete('modal');
-        currentParams.delete('tab');
+        currentParams.delete('modal_tab');
         currentParams.delete('pagina');
     }
 
