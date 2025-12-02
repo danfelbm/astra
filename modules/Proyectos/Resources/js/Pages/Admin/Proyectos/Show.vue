@@ -698,7 +698,7 @@ const getInitials = (name: string) => {
                 </TabsContent>
 
                 <!-- Tab de Hitos y Entregables -->
-                <TabsContent value="hitos" class="space-y-4 mt-6">
+                <TabsContent value="hitos" class="space-y-4 mt-0 sm:mt-6">
                     <HitosDashboard
                         v-if="canViewHitos"
                         :hitos="proyecto.hitos || []"

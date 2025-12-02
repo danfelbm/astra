@@ -473,7 +473,7 @@ const handleOpenHitoActividad = () => {
         <!-- Panel Principal -->
         <main class="flex-1 flex flex-col min-h-0 min-w-0">
             <!-- Selector Móvil -->
-            <div class="md:hidden p-4 border-b bg-background sticky top-0 z-10 space-y-3">
+            <div class="md:hidden mb-2 border-b bg-background sticky top-0 z-10 space-y-2">
                 <!-- Filtro por proyecto móvil (cuando hay múltiples proyectos) -->
                 <Select
                     v-if="proyectos && proyectos.length > 0"
