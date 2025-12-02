@@ -53,7 +53,6 @@ import type { Contrato } from '@modules/Proyectos/Resources/js/types/contratos';
 import type { Hito, Entregable } from '@modules/Proyectos/Resources/js/types/hitos';
 import type { UploadedFile } from '@modules/Comentarios/Resources/js/types/comentarios';
 import HitoCard from '@modules/Proyectos/Resources/js/components/HitoCard.vue';
-import HitosGrid from '@modules/Proyectos/Resources/js/components/HitosGrid.vue';
 import HitosDashboard from '@modules/Proyectos/Resources/js/components/HitosDashboard.vue';
 import EntregableItem from '@modules/Proyectos/Resources/js/components/EntregableItem.vue';
 import CamposPersonalizadosDisplay from '@modules/Proyectos/Resources/js/components/CamposPersonalizadosDisplay.vue';
