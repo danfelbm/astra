@@ -23,6 +23,7 @@ import HitosEntregablesList from './HitosEntregablesList.vue';
 import HitosEntregablesTabs from './HitosEntregablesTabs.vue';
 import HitosEntregablesKanban from './HitosEntregablesKanban.vue';
 import ComentariosSheet from './ComentariosSheet.vue';
+import ActividadSheet from './ActividadSheet.vue';
 
 // Props
 interface Props {
@@ -32,6 +33,8 @@ interface Props {
     canComplete?: boolean;
     // ID del entregable para abrir comentarios por deeplink
     initialComentariosEntregableId?: number;
+    // ID del entregable para abrir actividad por deeplink
+    initialActividadEntregableId?: number;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -50,6 +53,9 @@ const emit = defineEmits<{
     // Eventos para deeplink de comentarios
     'comentarios-open': [entregableId: number];
     'comentarios-close': [];
+    // Eventos para deeplink de actividad
+    'actividad-open': [entregableId: number];
+    'actividad-close': [];
 }>();
 
 // Composable (solo para viewMode y utilidades)
@@ -90,13 +96,23 @@ const entregableToDelete = ref<Entregable | null>(null);
 const showEntregableComentarios = ref(false);
 const entregableParaComentarios = ref<Entregable | null>(null);
 
+// Estado del sheet de actividad
+const showEntregableActividad = ref(false);
+const entregableParaActividad = ref<Entregable | null>(null);
+
 // Handler para mostrar comentarios
 const handleShowComentarios = (entregable: Entregable) => {
     entregableParaComentarios.value = entregable;
     showEntregableComentarios.value = true;
 };
 
-// Watch para emitir eventos de deeplink cuando se abre/cierra el sheet
+// Handler para mostrar actividad
+const handleShowActividad = (entregable: Entregable) => {
+    entregableParaActividad.value = entregable;
+    showEntregableActividad.value = true;
+};
+
+// Watch para emitir eventos de deeplink cuando se abre/cierra el sheet de comentarios
 watch(showEntregableComentarios, (isOpen) => {
     if (isOpen && entregableParaComentarios.value) {
         emit('comentarios-open', entregableParaComentarios.value.id);
@@ -105,13 +121,31 @@ watch(showEntregableComentarios, (isOpen) => {
     }
 });
 
+// Watch para emitir eventos de deeplink cuando se abre/cierra el sheet de actividad
+watch(showEntregableActividad, (isOpen) => {
+    if (isOpen && entregableParaActividad.value) {
+        emit('actividad-open', entregableParaActividad.value.id);
+    } else if (!isOpen) {
+        emit('actividad-close');
+    }
+});
+
 // Inicializar desde deeplink
 onMounted(() => {
+    // Inicializar comentarios desde deeplink
     if (props.initialComentariosEntregableId) {
         const entregable = props.entregables.find(e => e.id === props.initialComentariosEntregableId);
         if (entregable) {
             entregableParaComentarios.value = entregable;
             showEntregableComentarios.value = true;
+        }
+    }
+    // Inicializar actividad desde deeplink
+    if (props.initialActividadEntregableId) {
+        const entregable = props.entregables.find(e => e.id === props.initialActividadEntregableId);
+        if (entregable) {
+            entregableParaActividad.value = entregable;
+            showEntregableActividad.value = true;
         }
     }
 });
@@ -203,6 +237,7 @@ const confirmStatusChange = (observaciones: string, archivos: UploadedFile[]) =>
             @complete="handleComplete"
             @change-status="handleChangeStatus"
             @show-comentarios="handleShowComentarios"
+            @show-actividad="handleShowActividad"
         />
 
         <HitosEntregablesTabs
@@ -216,6 +251,7 @@ const confirmStatusChange = (observaciones: string, archivos: UploadedFile[]) =>
             @complete="handleComplete"
             @change-status="handleChangeStatus"
             @show-comentarios="handleShowComentarios"
+            @show-actividad="handleShowActividad"
         />
 
         <HitosEntregablesKanban
@@ -233,6 +269,7 @@ const confirmStatusChange = (observaciones: string, archivos: UploadedFile[]) =>
             @change-status="handleChangeStatus"
             @drag-change-status="handleDragChangeStatus"
             @show-comentarios="handleShowComentarios"
+            @show-actividad="handleShowActividad"
         />
 
         <!-- Modal de cambio de estado -->
@@ -274,6 +311,14 @@ const confirmStatusChange = (observaciones: string, archivos: UploadedFile[]) =>
             commentable-type="entregables"
             :commentable-id="entregableParaComentarios.id"
             :can-create="canEdit"
+        />
+
+        <!-- Sheet de actividad del entregable -->
+        <ActividadSheet
+            v-if="entregableParaActividad"
+            v-model:open="showEntregableActividad"
+            actividad-type="entregables"
+            :actividad-id="entregableParaActividad.id"
         />
     </div>
 </template>

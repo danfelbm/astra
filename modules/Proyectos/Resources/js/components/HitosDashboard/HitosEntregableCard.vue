@@ -9,7 +9,7 @@ import { Button } from '@modules/Core/Resources/js/components/ui/button';
 import { Badge } from '@modules/Core/Resources/js/components/ui/badge';
 import {
     Calendar, Clock, CheckCircle, AlertCircle, XCircle,
-    User, Edit, Trash2, ChevronDown, ChevronRight, Users, Flag, Eye, MessageSquare
+    User, Edit, Trash2, ChevronDown, ChevronRight, Users, Flag, Eye, MessageSquare, Activity
 } from 'lucide-vue-next';
 import type { Entregable, EstadoEntregable } from '@modules/Proyectos/Resources/js/types/hitos';
 import { useEntregablesView, ESTADO_CONFIG, PRIORIDAD_CONFIG } from '@modules/Proyectos/Resources/js/composables/useEntregablesView';
@@ -44,6 +44,7 @@ const emit = defineEmits<{
     'complete': [];
     'change-status': [nuevoEstado: EstadoEntregable];
     'show-comentarios': [];
+    'show-actividad': [];
 }>();
 
 // Composable (con array vacío ya que solo usamos utilidades)
@@ -206,6 +207,15 @@ const cardClasses = computed(() => {
                         {{ entregable.comentarios_count }}
                     </span>
                 </Button>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    class="h-7 px-2 text-xs"
+                    @click.stop="emit('show-actividad')"
+                    title="Actividad"
+                >
+                    <Activity class="h-3 w-3" />
+                </Button>
             </div>
 
             <!-- Detalles expandidos (solo default/compact cuando expanded) -->
@@ -328,6 +338,15 @@ const cardClasses = computed(() => {
                     >
                         {{ entregable.comentarios_count }}
                     </Badge>
+                </Button>
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    class="h-7 text-xs"
+                    @click="emit('show-actividad')"
+                >
+                    <Activity class="h-3 w-3 mr-1" />
+                    Actividad
                 </Button>
                 <Button
                     v-if="canDelete"

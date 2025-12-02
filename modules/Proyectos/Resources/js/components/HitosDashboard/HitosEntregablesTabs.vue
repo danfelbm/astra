@@ -36,6 +36,7 @@ const emit = defineEmits<{
     'complete': [entregable: Entregable];
     'change-status': [entregable: Entregable, nuevoEstado: EstadoEntregable];
     'show-comentarios': [entregable: Entregable];
+    'show-actividad': [entregable: Entregable];
 }>();
 
 // Composable
@@ -130,6 +131,7 @@ const getEntregablesForTab = (estado: EstadoEntregable): Entregable[] => {
                     @complete="handleComplete(entregable)"
                     @change-status="(nuevoEstado) => handleChangeStatus(entregable, nuevoEstado)"
                     @show-comentarios="emit('show-comentarios', entregable)"
+                    @show-actividad="emit('show-actividad', entregable)"
                 />
             </div>
 

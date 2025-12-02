@@ -40,6 +40,7 @@ import {
     ExternalLink,
     FolderOpen,
     MessageSquare,
+    Activity,
 } from 'lucide-vue-next';
 
 // Inertia Link
@@ -48,6 +49,7 @@ import { Link } from '@inertiajs/vue3';
 // Componentes del módulo
 import { HitosEntregablesPanel } from './HitosDashboard';
 import ComentariosSheet from './HitosDashboard/ComentariosSheet.vue';
+import ActividadSheet from './HitosDashboard/ActividadSheet.vue';
 
 // Tipos
 import type { Hito, Entregable } from '@modules/Proyectos/Resources/js/types/hitos';
@@ -146,8 +148,22 @@ const getInitialComentarios = (): { tipo: 'hito' | 'entregable' | null; id?: num
     return { tipo: null };
 };
 
+// Leer parámetro de actividad de URL para deeplink
+const getInitialActividad = (): { tipo: 'hito' | 'entregable' | null; id?: number } => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const actividadParam = urlParams.get('actividad');
+    if (!actividadParam) return { tipo: null };
+    if (actividadParam === 'hito') return { tipo: 'hito' };
+    if (actividadParam.startsWith('entregable_')) {
+        const id = parseInt(actividadParam.replace('entregable_', ''), 10);
+        return { tipo: 'entregable', id };
+    }
+    return { tipo: null };
+};
+
 const selectedHitoId = ref<number | null>(getInitialHitoId());
 const initialComentarios = getInitialComentarios();
+const initialActividad = getInitialActividad();
 
 // Computed
 const selectedHito = computed(() =>
@@ -283,6 +299,9 @@ const handleViewHito = () => {
 // Estado del sheet de comentarios del hito (inicializar desde URL si hay deeplink)
 const showHitoComentarios = ref(initialComentarios.tipo === 'hito');
 
+// Estado del sheet de actividad del hito (inicializar desde URL si hay deeplink)
+const showHitoActividad = ref(initialActividad.tipo === 'hito');
+
 // Función para actualizar URL con parámetro de comentarios
 const updateComentariosUrl = (tipo: 'hito' | 'entregable' | null, entregableId?: number) => {
     const currentPath = window.location.pathname;
@@ -316,6 +335,42 @@ watch(showHitoComentarios, (isOpen) => {
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('comentarios') === 'hito') {
             updateComentariosUrl(null);
+        }
+    }
+});
+
+// Función para actualizar URL con parámetro de actividad
+const updateActividadUrl = (tipo: 'hito' | 'entregable' | null, entregableId?: number) => {
+    const currentPath = window.location.pathname;
+    const currentParams = new URLSearchParams(window.location.search);
+
+    if (tipo === 'hito') {
+        currentParams.set('actividad', 'hito');
+    } else if (tipo === 'entregable' && entregableId) {
+        currentParams.set('actividad', `entregable_${entregableId}`);
+    } else {
+        // Limpiar actividad al cerrar el sheet
+        currentParams.delete('actividad');
+    }
+
+    const url = `${currentPath}?${currentParams.toString()}`;
+    router.get(url, {}, {
+        preserveState: true,
+        preserveScroll: true,
+        replace: true,
+        only: []
+    });
+};
+
+// Watch para sincronizar sheet de actividad del hito con URL
+watch(showHitoActividad, (isOpen) => {
+    if (isOpen) {
+        updateActividadUrl('hito');
+    } else {
+        // Solo limpiar si no hay entregable abierto
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('actividad') === 'hito') {
+            updateActividadUrl(null);
         }
     }
 });
@@ -575,6 +630,14 @@ watch(showHitoComentarios, (isOpen) => {
                                     </Badge>
                                 </Button>
                                 <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    @click="showHitoActividad = true"
+                                >
+                                    <Activity class="h-4 w-4 mr-1.5" />
+                                    Actividad
+                                </Button>
+                                <Button
                                     v-if="canDelete"
                                     variant="ghost"
                                     size="sm"
@@ -614,6 +677,7 @@ watch(showHitoComentarios, (isOpen) => {
                             :can-delete="canDelete"
                             :can-complete="canComplete"
                             :initial-comentarios-entregable-id="initialComentarios.tipo === 'entregable' ? initialComentarios.id : undefined"
+                            :initial-actividad-entregable-id="initialActividad.tipo === 'entregable' ? initialActividad.id : undefined"
                             @view="handleViewEntregable"
                             @complete="handleCompleteEntregable"
                             @update-status="handleUpdateEntregableStatus"
@@ -621,6 +685,8 @@ watch(showHitoComentarios, (isOpen) => {
                             @delete="handleDeleteEntregable"
                             @comentarios-open="(id) => updateComentariosUrl('entregable', id)"
                             @comentarios-close="() => updateComentariosUrl(null)"
+                            @actividad-open="(id) => updateActividadUrl('entregable', id)"
+                            @actividad-close="() => updateActividadUrl(null)"
                         />
 
                         <!-- Estado vacío de entregables -->
@@ -650,6 +716,14 @@ watch(showHitoComentarios, (isOpen) => {
             commentable-type="hitos"
             :commentable-id="selectedHito.id"
             :can-create="canEdit"
+        />
+
+        <!-- Sheet de actividad del hito -->
+        <ActividadSheet
+            v-if="selectedHito"
+            v-model:open="showHitoActividad"
+            actividad-type="hitos"
+            :actividad-id="selectedHito.id"
         />
     </div>
 </template>

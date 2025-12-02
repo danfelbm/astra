@@ -17,6 +17,7 @@ class ProyectosServiceProvider extends ServiceProvider
             $this->loadRoutesFrom(__DIR__.'/../Routes/admin.php');
             $this->loadRoutesFrom(__DIR__.'/../Routes/user.php');
             $this->loadRoutesFrom(__DIR__.'/../Routes/guest.php');
+            $this->loadRoutesFrom(__DIR__.'/../Routes/api.php');
         });
 
         // Cargar migraciones
