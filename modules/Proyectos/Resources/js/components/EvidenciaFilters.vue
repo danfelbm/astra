@@ -29,23 +29,90 @@ const filtros = defineModel<{
     entregable_id: number | null;
 }>({ required: true });
 
-// Opciones únicas extraídas de las evidencias
-const tiposUnicos = computed(() => {
-    const tipos = new Set(props.evidencias.map(e => e.tipo_evidencia).filter(Boolean));
+// Función para filtrar evidencias excluyendo un filtro específico
+// Esto permite calcular opciones disponibles sin crear búsquedas imposibles
+const filtrarEvidencias = (excluir: string | null = null) => {
+    let result = props.evidencias;
+
+    if (excluir !== 'contrato' && filtros.value.contrato_id) {
+        result = result.filter(e => e.contrato_id === filtros.value.contrato_id);
+    }
+
+    if (excluir !== 'tipo' && filtros.value.tipo) {
+        result = result.filter(e => e.tipo_evidencia === filtros.value.tipo);
+    }
+
+    if (excluir !== 'estado' && filtros.value.estado) {
+        result = result.filter(e => e.estado === filtros.value.estado);
+    }
+
+    if (excluir !== 'usuario' && filtros.value.usuario_id) {
+        result = result.filter(e => e.usuario?.id === filtros.value.usuario_id);
+    }
+
+    if (excluir !== 'hito' && filtros.value.hito_id) {
+        result = result.filter(e => {
+            if (!e.entregables || e.entregables.length === 0) return false;
+            return e.entregables.some((ent: any) => ent.hito_id === filtros.value.hito_id);
+        });
+    }
+
+    if (excluir !== 'entregable' && filtros.value.entregable_id) {
+        result = result.filter(e => {
+            if (!e.entregables || e.entregables.length === 0) return false;
+            return e.entregables.some((ent: any) => ent.id === filtros.value.entregable_id);
+        });
+    }
+
+    // Filtro por fechas (siempre aplicar, no excluir)
+    if (filtros.value.fecha_inicio || filtros.value.fecha_fin) {
+        result = result.filter(e => {
+            const fecha = new Date(e.created_at);
+            if (filtros.value.fecha_inicio) {
+                const fechaInicio = new Date(filtros.value.fecha_inicio);
+                if (fecha < fechaInicio) return false;
+            }
+            if (filtros.value.fecha_fin) {
+                const fechaFin = new Date(filtros.value.fecha_fin);
+                fechaFin.setHours(23, 59, 59, 999);
+                if (fecha > fechaFin) return false;
+            }
+            return true;
+        });
+    }
+
+    return result;
+};
+
+// Contratos disponibles basados en evidencias filtradas (excluyendo filtro de contrato)
+const contratosDisponibles = computed(() => {
+    const evidenciasFiltradas = filtrarEvidencias('contrato');
+    const contratoIds = new Set(evidenciasFiltradas.map(e => e.contrato_id));
+    return props.contratos.filter(c => contratoIds.has(c.id));
+});
+
+// Tipos disponibles basados en evidencias filtradas (excluyendo filtro de tipo)
+const tiposDisponibles = computed(() => {
+    const evidenciasFiltradas = filtrarEvidencias('tipo');
+    const tipos = new Set(evidenciasFiltradas.map(e => e.tipo_evidencia).filter(Boolean));
     return Array.from(tipos).map(tipo => ({ value: tipo, label: tipo }));
 });
 
-const estadosUnicos = computed(() => {
-    const estados = new Set(props.evidencias.map(e => e.estado).filter(Boolean));
+// Estados disponibles basados en evidencias filtradas (excluyendo filtro de estado)
+const estadosDisponibles = computed(() => {
+    const evidenciasFiltradas = filtrarEvidencias('estado');
+    const estados = new Set(evidenciasFiltradas.map(e => e.estado).filter(Boolean));
     return Array.from(estados).map(estado => ({
         value: estado,
         label: estado.charAt(0).toUpperCase() + estado.slice(1)
     }));
 });
 
-const usuariosUnicos = computed(() => {
+// Usuarios disponibles basados en evidencias filtradas (excluyendo filtro de usuario)
+const usuariosDisponibles = computed(() => {
+    const evidenciasFiltradas = filtrarEvidencias('usuario');
     const usuariosMap = new Map();
-    props.evidencias.forEach(e => {
+    evidenciasFiltradas.forEach(e => {
         if (e.usuario?.id) {
             usuariosMap.set(e.usuario.id, e.usuario);
         }
@@ -56,20 +123,37 @@ const usuariosUnicos = computed(() => {
     }));
 });
 
-// Hitos únicos extraídos de los hitos del proyecto o de las evidencias
-const hitosUnicos = computed(() => {
-    // Si se pasaron hitos como prop, usarlos directamente
-    if (props.hitos && props.hitos.length > 0) {
-        return props.hitos.map(hito => ({
-            value: hito.id,
-            label: hito.nombre
-        }));
-    }
-    // Si no, extraer hitos desde las evidencias (a través de entregables)
-    const hitosMap = new Map();
-    props.evidencias.forEach(e => {
+// Hitos disponibles basados en evidencias filtradas (excluyendo filtro de hito)
+const hitosDisponibles = computed(() => {
+    const evidenciasFiltradas = filtrarEvidencias('hito');
+    const hitosConEvidencias = new Set<number>();
+
+    // Obtener IDs de hitos que tienen evidencias en el resultado filtrado
+    evidenciasFiltradas.forEach(e => {
         if (e.entregables && e.entregables.length > 0) {
-            e.entregables.forEach(ent => {
+            e.entregables.forEach((ent: any) => {
+                if (ent?.hito_id) {
+                    hitosConEvidencias.add(ent.hito_id);
+                }
+            });
+        }
+    });
+
+    // Si hay hitos como prop, filtrar solo los que tienen evidencias
+    if (props.hitos && props.hitos.length > 0) {
+        return props.hitos
+            .filter(hito => hitosConEvidencias.has(hito.id))
+            .map(hito => ({
+                value: hito.id,
+                label: hito.nombre
+            }));
+    }
+
+    // Si no, extraer hitos desde las evidencias filtradas
+    const hitosMap = new Map();
+    evidenciasFiltradas.forEach(e => {
+        if (e.entregables && e.entregables.length > 0) {
+            e.entregables.forEach((ent: any) => {
                 if (ent?.hito?.id) {
                     hitosMap.set(ent.hito.id, ent.hito);
                 }
@@ -82,18 +166,33 @@ const hitosUnicos = computed(() => {
     }));
 });
 
-// Entregables filtrados por hito seleccionado (si hay uno)
-const entregablesUnicos = computed(() => {
+// Entregables disponibles (cascada: filtrados por hito Y por otros filtros)
+const entregablesDisponibles = computed(() => {
+    // Primero filtrar por otros filtros (excluyendo entregable)
+    const evidenciasFiltradas = filtrarEvidencias('entregable');
+
+    // Obtener IDs de entregables que tienen evidencias
+    const entregablesConEvidencias = new Set<number>();
+    evidenciasFiltradas.forEach(e => {
+        if (e.entregables && e.entregables.length > 0) {
+            e.entregables.forEach((ent: any) => {
+                if (ent?.id) {
+                    entregablesConEvidencias.add(ent.id);
+                }
+            });
+        }
+    });
+
     let entregablesList: any[] = [];
 
     if (props.entregables && props.entregables.length > 0) {
         entregablesList = props.entregables;
     } else {
-        // Extraer entregables de las evidencias si no se pasaron como prop
+        // Extraer entregables de las evidencias
         const entregablesMap = new Map();
         props.evidencias.forEach(e => {
             if (e.entregables && e.entregables.length > 0) {
-                e.entregables.forEach(ent => {
+                e.entregables.forEach((ent: any) => {
                     if (ent?.id) {
                         entregablesMap.set(ent.id, ent);
                     }
@@ -103,10 +202,13 @@ const entregablesUnicos = computed(() => {
         entregablesList = Array.from(entregablesMap.values());
     }
 
-    // Filtrar por hito si hay uno seleccionado
+    // Filtrar por hito seleccionado (cascada obligatoria)
     if (filtros.value.hito_id) {
         entregablesList = entregablesList.filter(ent => ent.hito_id === filtros.value.hito_id);
     }
+
+    // Filtrar solo entregables que tienen evidencias según los otros filtros
+    entregablesList = entregablesList.filter(ent => entregablesConEvidencias.has(ent.id));
 
     return entregablesList.map(entregable => ({
         value: entregable.id,
@@ -155,7 +257,7 @@ watch(() => filtros.value.hito_id, () => {
                             <SelectContent>
                                 <SelectItem :value="null">Todos los contratos</SelectItem>
                                 <SelectItem
-                                    v-for="contrato in contratos"
+                                    v-for="contrato in contratosDisponibles"
                                     :key="contrato.id"
                                     :value="contrato.id"
                                 >
@@ -197,7 +299,7 @@ watch(() => filtros.value.hito_id, () => {
                             <SelectContent>
                                 <SelectItem :value="null">Todos los tipos</SelectItem>
                                 <SelectItem
-                                    v-for="tipo in tiposUnicos"
+                                    v-for="tipo in tiposDisponibles"
                                     :key="tipo.value"
                                     :value="tipo.value"
                                 >
@@ -217,7 +319,7 @@ watch(() => filtros.value.hito_id, () => {
                             <SelectContent>
                                 <SelectItem :value="null">Todos los estados</SelectItem>
                                 <SelectItem
-                                    v-for="estado in estadosUnicos"
+                                    v-for="estado in estadosDisponibles"
                                     :key="estado.value"
                                     :value="estado.value"
                                 >
@@ -240,7 +342,7 @@ watch(() => filtros.value.hito_id, () => {
                             <SelectContent>
                                 <SelectItem :value="null">Todos los usuarios</SelectItem>
                                 <SelectItem
-                                    v-for="usuario in usuariosUnicos"
+                                    v-for="usuario in usuariosDisponibles"
                                     :key="usuario.value"
                                     :value="usuario.value"
                                 >
@@ -251,7 +353,7 @@ watch(() => filtros.value.hito_id, () => {
                     </div>
 
                     <!-- Filtro por Hito -->
-                    <div v-if="hitosUnicos.length > 0" class="space-y-2">
+                    <div v-if="hitosDisponibles.length > 0 || props.hitos?.length" class="space-y-2">
                         <Label for="filter-hito" class="text-xs">Hito</Label>
                         <Select v-model="filtros.hito_id" id="filter-hito">
                             <SelectTrigger>
@@ -260,7 +362,7 @@ watch(() => filtros.value.hito_id, () => {
                             <SelectContent>
                                 <SelectItem :value="null">Todos los hitos</SelectItem>
                                 <SelectItem
-                                    v-for="hito in hitosUnicos"
+                                    v-for="hito in hitosDisponibles"
                                     :key="hito.value"
                                     :value="hito.value"
                                 >
@@ -271,7 +373,7 @@ watch(() => filtros.value.hito_id, () => {
                     </div>
 
                     <!-- Filtro por Entregable (cascada: requiere hito seleccionado) -->
-                    <div v-if="hitosUnicos.length > 0" class="space-y-2">
+                    <div v-if="hitosDisponibles.length > 0 || props.hitos?.length" class="space-y-2">
                         <Label for="filter-entregable" class="text-xs">Entregable</Label>
                         <Select
                             v-model="filtros.entregable_id"
@@ -284,7 +386,7 @@ watch(() => filtros.value.hito_id, () => {
                             <SelectContent v-if="filtros.hito_id">
                                 <SelectItem :value="null">Todos los entregables</SelectItem>
                                 <SelectItem
-                                    v-for="entregable in entregablesUnicos"
+                                    v-for="entregable in entregablesDisponibles"
                                     :key="entregable.value"
                                     :value="entregable.value"
                                 >
