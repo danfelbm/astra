@@ -500,13 +500,19 @@ class Hito extends Model
         );
 
         // Detectar si el estado del hito cambió
-        $estadoCambio = $nuevoEstado !== $this->estado;
+        $estadoAnterior = $this->estado;
+        $estadoCambio = $nuevoEstado !== $estadoAnterior;
 
         if ($estadoCambio) {
             $this->estado = $nuevoEstado;
         }
 
         $this->save();
+
+        // Registrar cambio de estado en audit log
+        if ($estadoCambio) {
+            $this->logStateChange('estado', $estadoAnterior, $nuevoEstado, 'Cambio automático por estados de entregables');
+        }
 
         // Notificar al proyecto para que recalcule su estado si el hito cambió de estado
         if ($estadoCambio && $this->proyecto) {

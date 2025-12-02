@@ -250,8 +250,9 @@ class HitoService
 
             $hito->save();
 
-            // Notificar cambio de estado
+            // Registrar cambio de estado en audit log y notificar
             if ($estadoAnterior != $nuevoEstado) {
+                $hito->logStateChange('estado', $estadoAnterior, $nuevoEstado);
                 $this->notificarCambioEstado($hito);
             }
 

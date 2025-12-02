@@ -322,11 +322,15 @@ class Evidencia extends Model
      */
     public function aprobar(int $userId = null, string $observaciones = null): void
     {
+        $estadoAnterior = $this->estado;
         $this->estado = 'aprobada';
         $this->observaciones_admin = $observaciones;
         $this->revisado_at = now();
         $this->revisado_por = $userId ?? auth()->id();
         $this->save();
+
+        // Registrar cambio de estado en audit log
+        $this->logStateChange('estado', $estadoAnterior, 'aprobada', $observaciones);
     }
 
     /**
@@ -334,11 +338,15 @@ class Evidencia extends Model
      */
     public function rechazar(int $userId = null, string $observaciones = null): void
     {
+        $estadoAnterior = $this->estado;
         $this->estado = 'rechazada';
         $this->observaciones_admin = $observaciones;
         $this->revisado_at = now();
         $this->revisado_por = $userId ?? auth()->id();
         $this->save();
+
+        // Registrar cambio de estado en audit log
+        $this->logStateChange('estado', $estadoAnterior, 'rechazada', $observaciones);
     }
 
     /**

@@ -646,8 +646,12 @@ class Proyecto extends Model
 
         // Solo actualizar si el estado cambió
         if ($nuevoEstado !== $this->estado) {
+            $estadoAnterior = $this->estado;
             $this->estado = $nuevoEstado;
             $this->save();
+
+            // Registrar cambio de estado en audit log
+            $this->logStateChange('estado', $estadoAnterior, $nuevoEstado, 'Cambio automático por estados de hitos');
         }
     }
 

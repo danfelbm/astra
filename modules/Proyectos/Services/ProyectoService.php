@@ -286,8 +286,9 @@ class ProyectoService
             $proyecto->updated_by = auth()->id();
             $proyecto->save();
 
-            // Notificar cambio de estado si está configurado
+            // Registrar cambio de estado en audit log y notificar
             if ($estadoAnterior != $nuevoEstado) {
+                $proyecto->logStateChange('estado', $estadoAnterior, $nuevoEstado);
                 $this->notificationService->notificarCambioEstado($proyecto);
             }
 

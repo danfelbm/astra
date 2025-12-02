@@ -3,10 +3,11 @@ import { ref, computed, watch } from 'vue';
 import { Link } from '@inertiajs/vue3';
 import { Avatar, AvatarFallback, AvatarImage } from '@modules/Core/Resources/js/components/ui/avatar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@modules/Core/Resources/js/components/ui/card';
+import { Badge } from '@modules/Core/Resources/js/components/ui/badge';
 import { Button } from '@modules/Core/Resources/js/components/ui/button';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { ChevronDown } from 'lucide-vue-next';
+import { ChevronDown, ArrowRight } from 'lucide-vue-next';
 
 interface Usuario {
   id: number;
@@ -142,6 +143,59 @@ const parseDescription = (activity: Actividad) => {
 
   return { text: description };
 };
+
+// Detectar si es un cambio de estado
+const isStateChange = (activity: Actividad) => {
+  return activity.event === 'state_changed' && activity.properties?.old_value && activity.properties?.new_value;
+};
+
+// Mapeo de estados a labels legibles
+const estadoLabels: Record<string, string> = {
+  // Estados de Proyecto
+  planificacion: 'Planificación',
+  en_progreso: 'En Progreso',
+  pausado: 'Pausado',
+  completado: 'Completado',
+  cancelado: 'Cancelado',
+  // Estados de Hito/Entregable
+  pendiente: 'Pendiente',
+  // Estados de Evidencia
+  aprobada: 'Aprobada',
+  rechazada: 'Rechazada',
+};
+
+// Mapeo de estados a colores
+const estadoColors: Record<string, string> = {
+  // Estados generales
+  pendiente: 'gray',
+  planificacion: 'blue',
+  en_progreso: 'yellow',
+  pausado: 'orange',
+  completado: 'green',
+  cancelado: 'red',
+  // Estados de Evidencia
+  aprobada: 'green',
+  rechazada: 'red',
+};
+
+// Obtener label legible del estado
+const getEstadoLabel = (estado: string) => {
+  return estadoLabels[estado] || estado;
+};
+
+// Obtener clases de color para el badge
+const getColorClasses = (estado: string) => {
+  const color = estadoColors[estado] || 'gray';
+  const colorMap: Record<string, string> = {
+    green: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
+    red: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
+    yellow: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
+    blue: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
+    gray: 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400',
+    orange: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400',
+  };
+  return colorMap[color] || colorMap.gray;
+};
 </script>
 
 <template>
@@ -187,6 +241,22 @@ const parseDescription = (activity: Actividad) => {
                 {{ activity.description }}
               </template>
             </p>
+            <!-- Badges de transición de estado -->
+            <div v-if="isStateChange(activity)" class="inline-flex items-center gap-1.5 mt-1.5 flex-wrap">
+              <Badge
+                variant="outline"
+                :class="['text-xs h-5 font-normal', getColorClasses(activity.properties?.old_value)]"
+              >
+                {{ getEstadoLabel(activity.properties?.old_value) }}
+              </Badge>
+              <ArrowRight class="h-3 w-3 text-muted-foreground flex-shrink-0" />
+              <Badge
+                variant="outline"
+                :class="['text-xs h-5 font-medium', getColorClasses(activity.properties?.new_value)]"
+              >
+                {{ getEstadoLabel(activity.properties?.new_value) }}
+              </Badge>
+            </div>
             <div class="flex items-center gap-2 mt-1">
               <p class="text-xs text-muted-foreground">
                 {{ formatRelativeDate(activity.created_at) }}
@@ -248,6 +318,22 @@ const parseDescription = (activity: Actividad) => {
               {{ activity.description }}
             </template>
           </p>
+          <!-- Badges de transición de estado -->
+          <div v-if="isStateChange(activity)" class="inline-flex items-center gap-1.5 mt-1.5 flex-wrap">
+            <Badge
+              variant="outline"
+              :class="['text-xs h-5 font-normal', getColorClasses(activity.properties?.old_value)]"
+            >
+              {{ getEstadoLabel(activity.properties?.old_value) }}
+            </Badge>
+            <ArrowRight class="h-3 w-3 text-muted-foreground flex-shrink-0" />
+            <Badge
+              variant="outline"
+              :class="['text-xs h-5 font-medium', getColorClasses(activity.properties?.new_value)]"
+            >
+              {{ getEstadoLabel(activity.properties?.new_value) }}
+            </Badge>
+          </div>
           <div class="flex items-center gap-2 mt-1">
             <p class="text-xs text-muted-foreground">
               {{ formatRelativeDate(activity.created_at) }}
