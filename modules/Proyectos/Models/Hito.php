@@ -197,9 +197,15 @@ class Hito extends Model
 
     /**
      * Obtiene la etiqueta del estado.
+     * Maneja el caso de estado null cuando el modelo se carga parcialmente.
      */
     public function getEstadoLabelAttribute(): string
     {
+        // Si estado es null (ej: carga parcial con select específico), retornar valor por defecto
+        if ($this->estado === null) {
+            return 'Pendiente';
+        }
+
         $labels = [
             'pendiente' => 'Pendiente',
             'en_progreso' => 'En Progreso',
@@ -212,6 +218,7 @@ class Hito extends Model
 
     /**
      * Obtiene el color asociado al estado.
+     * Maneja el caso de estado null cuando el modelo se carga parcialmente.
      */
     public function getEstadoColorAttribute(): string
     {

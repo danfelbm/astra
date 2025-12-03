@@ -64,7 +64,7 @@ class HitoApiController
         $hito->load([
             'proyecto:id,nombre,descripcion',
             'responsable:id,name,email,avatar',
-            'parent:id,nombre',
+            'parent:id,nombre,estado',
             'etiquetas',
             'entregables' => function ($query) {
                 $query->with(['responsable:id,name,email,avatar', 'usuarios:id,name,email,avatar'])
