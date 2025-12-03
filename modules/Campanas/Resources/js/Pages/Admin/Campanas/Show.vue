@@ -26,13 +26,14 @@ interface Campana {
     tipo: 'email' | 'whatsapp' | 'ambos';
     estado: 'borrador' | 'programada' | 'enviando' | 'completada' | 'pausada' | 'cancelada';
     segment?: { id: number; name: string; users_count: number };
-    plantillaEmail?: { id: number; nombre: string; asunto: string };
-    plantillaWhatsApp?: { id: number; nombre: string };
+    // Laravel serializa relaciones en snake_case
+    plantilla_email?: { id: number; nombre: string; asunto: string };
+    plantilla_whats_app?: { id: number; nombre: string };
     fecha_programada?: string;
     fecha_inicio?: string;
     fecha_fin?: string;
     configuracion?: any;
-    createdBy?: { id: number; nombre: string };
+    created_by?: { id: number; nombre?: string; name?: string };
     created_at: string;
     updated_at: string;
 }
@@ -534,7 +535,7 @@ onUnmounted(() => {
                             <CardContent class="space-y-3">
                                 <div class="flex justify-between">
                                     <span class="text-muted-foreground">Creada por:</span>
-                                    <span>{{ campanaData.createdBy?.nombre || 'Sistema' }}</span>
+                                    <span>{{ campanaData.created_by?.nombre || campanaData.created_by?.name || 'Sistema' }}</span>
                                 </div>
                                 <div class="flex justify-between">
                                     <span class="text-muted-foreground">Fecha creación:</span>
@@ -560,25 +561,25 @@ onUnmounted(() => {
                                 <CardTitle>Plantillas Utilizadas</CardTitle>
                             </CardHeader>
                             <CardContent class="space-y-3">
-                                <div v-if="campanaData.plantillaEmail">
+                                <div v-if="campanaData.plantilla_email">
                                     <div class="flex items-center gap-2 mb-1">
                                         <Mail class="w-4 h-4 text-muted-foreground" />
                                         <span class="font-medium">Email:</span>
                                     </div>
                                     <div class="pl-6 text-sm">
-                                        <div>{{ campanaData.plantillaEmail.nombre }}</div>
+                                        <div>{{ campanaData.plantilla_email.nombre }}</div>
                                         <div class="text-muted-foreground">
-                                            Asunto: {{ campanaData.plantillaEmail.asunto }}
+                                            Asunto: {{ campanaData.plantilla_email.asunto }}
                                         </div>
                                     </div>
                                 </div>
-                                <div v-if="campanaData.plantillaWhatsApp">
+                                <div v-if="campanaData.plantilla_whats_app">
                                     <div class="flex items-center gap-2 mb-1">
                                         <MessageSquare class="w-4 h-4 text-muted-foreground" />
                                         <span class="font-medium">WhatsApp:</span>
                                     </div>
                                     <div class="pl-6 text-sm">
-                                        {{ campanaData.plantillaWhatsApp.nombre }}
+                                        {{ campanaData.plantilla_whats_app.nombre }}
                                     </div>
                                 </div>
                             </CardContent>
