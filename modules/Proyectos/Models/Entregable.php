@@ -415,9 +415,10 @@ class Entregable extends Model
         $this->completado_at = now();
         $this->completado_por = $userId ?? auth()->id();
         $this->observaciones_estado = $observaciones;
-        $this->save();
+        // Usar saveQuietly() para evitar log automático del trait LogsActivity
+        $this->saveQuietly();
 
-        // Registrar en audit log con observaciones
+        // Registrar en audit log con observaciones (log único y detallado)
         $this->logStateChange('estado', $estadoAnterior, 'completado', $observaciones);
 
         // Actualizar el porcentaje del hito
@@ -434,9 +435,10 @@ class Entregable extends Model
         if ($estadoAnterior === 'pendiente' || $estadoAnterior === 'completado') {
             $this->estado = 'en_progreso';
             $this->observaciones_estado = $observaciones;
-            $this->save();
+            // Usar saveQuietly() para evitar log automático del trait LogsActivity
+            $this->saveQuietly();
 
-            // Registrar en audit log
+            // Registrar en audit log (log único y detallado)
             $this->logStateChange('estado', $estadoAnterior, 'en_progreso', $observaciones);
 
             // Si el hito está pendiente, también lo ponemos en progreso
@@ -474,9 +476,10 @@ class Entregable extends Model
             $this->completado_por = null;
         }
 
-        $this->save();
+        // Usar saveQuietly() para evitar log automático del trait LogsActivity
+        $this->saveQuietly();
 
-        // Registrar en audit log con observaciones
+        // Registrar en audit log con observaciones (log único y detallado)
         $this->logStateChange('estado', $estadoAnterior, $nuevoEstado, $observaciones);
 
         // Actualizar el porcentaje del hito

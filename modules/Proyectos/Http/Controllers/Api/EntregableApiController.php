@@ -232,16 +232,16 @@ class EntregableApiController
                     // Si cambia a completado, registrar quién y cuándo
                     if ($value === 'completado' && $estadoAnterior !== 'completado') {
                         $entregable->completado_at = now();
-                        $entregable->completado_por_id = $user->id;
+                        $entregable->completado_por = $user->id;
                         if ($observaciones) {
-                            $entregable->observaciones_completado = $observaciones;
+                            $entregable->observaciones_estado = $observaciones;
                         }
                     }
                     // Si deja de estar completado, limpiar los campos
                     elseif ($value !== 'completado' && $estadoAnterior === 'completado') {
                         $entregable->completado_at = null;
-                        $entregable->completado_por_id = null;
-                        $entregable->observaciones_completado = null;
+                        $entregable->completado_por = null;
+                        $entregable->observaciones_estado = null;
                     }
                 } else {
                     $entregable->$field = $value;

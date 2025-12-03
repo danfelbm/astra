@@ -508,7 +508,8 @@ class Hito extends Model
 
         if ($totalEntregables === 0) {
             $this->porcentaje_completado = 0;
-            $this->save();
+            // Usar saveQuietly() para evitar log automático del trait LogsActivity
+            $this->saveQuietly();
             return;
         }
 
@@ -538,9 +539,10 @@ class Hito extends Model
             $this->estado = $nuevoEstado;
         }
 
-        $this->save();
+        // Usar saveQuietly() para evitar log automático del trait LogsActivity
+        $this->saveQuietly();
 
-        // Registrar cambio de estado en audit log
+        // Registrar cambio de estado en audit log (log único y detallado)
         if ($estadoCambio) {
             $this->logStateChange('estado', $estadoAnterior, $nuevoEstado, 'Cambio automático por estados de entregables');
         }

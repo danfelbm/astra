@@ -205,10 +205,6 @@ class HitoApiController
 
         DB::beginTransaction();
         try {
-            // Deshabilitar log automático del modelo para evitar duplicados
-            // El trait LogsActivity verifica $this->enableLoggingModelsEvents
-            $hito->disableLogging();
-
             // Manejar campos directos
             if (in_array($field, $camposDirectos)) {
                 $this->validarCampoDirecto($field, $value, $hito);
@@ -240,13 +236,12 @@ class HitoApiController
                 }
 
                 $hito->$field = $value;
-                $hito->save();
+                // Usar saveQuietly() para evitar que el trait LogsActivity genere log automático
+                $hito->saveQuietly();
 
                 // Registrar audit log manual si hubo cambio
                 if ($valorAnterior != $value) {
-                    $hito->enableLogging();
                     $hito->logStateChange($field, $valorAnteriorLegible, $valorNuevoLegible);
-                    $hito->disableLogging(); // Mantener deshabilitado por si hay más operaciones
                 }
             }
             // Manejar etiquetas
@@ -267,13 +262,11 @@ class HitoApiController
 
                 // Registrar audit log si hubo cambio
                 if ($idsAnteriores != $etiquetaIds) {
-                    $hito->enableLogging();
                     $hito->logStateChange(
                         'etiquetas',
                         count($nombresAnteriores) ? implode(', ', $nombresAnteriores) : '(ninguna)',
                         count($nombresNuevos) ? implode(', ', $nombresNuevos) : '(ninguna)'
                     );
-                    $hito->disableLogging();
                 }
             }
             // Manejar campos personalizados
@@ -298,13 +291,11 @@ class HitoApiController
 
                 // Registrar audit log si hubo cambio
                 if ($valorAnterior != $valorFinal) {
-                    $hito->enableLogging();
                     $hito->logStateChange(
                         $field,
                         $valorAnterior ?? '(vacío)',
                         $valorNuevoLegible ?? '(vacío)'
                     );
-                    $hito->disableLogging();
                 }
             }
             else {
@@ -319,9 +310,6 @@ class HitoApiController
             // Recargar relaciones para devolver datos actualizados
             $hito->load(['responsable:id,name,email,avatar', 'parent:id,nombre', 'etiquetas']);
 
-            // Rehabilitar logging del modelo
-            $hito->enableLogging();
-
             return response()->json([
                 'success' => true,
                 'message' => 'Campo actualizado correctamente',
@@ -329,7 +317,6 @@ class HitoApiController
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
-            $hito->enableLogging(); // Rehabilitar logging en caso de error
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage()
