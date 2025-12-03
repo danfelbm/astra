@@ -30,10 +30,25 @@ class HitoApiController
         $user = auth()->user();
         $proyecto = $hito->proyecto;
 
+        // Verificar acceso: mismo criterio que MisProyectosController para consistencia
         $tieneAcceso = $user->hasAdministrativeAccess() ||
+            // Responsable del hito
             $hito->responsable_id === $user->id ||
+            // Responsable del proyecto
             $proyecto->responsable_id === $user->id ||
+            // Creador del proyecto
+            $proyecto->created_by === $user->id ||
+            // Gestor del proyecto
             $proyecto->gestores()->where('user_id', $user->id)->exists() ||
+            // Participante del proyecto (cualquier rol)
+            $proyecto->participantes()->where('user_id', $user->id)->exists() ||
+            // Acceso vía contratos (responsable o contraparte)
+            $proyecto->contratos()
+                ->where(function ($q) use ($user) {
+                    $q->where('responsable_id', $user->id)
+                      ->orWhere('contraparte_user_id', $user->id);
+                })->exists() ||
+            // Responsable o asignado a algún entregable del hito
             $hito->entregables()->where(function ($q) use ($user) {
                 $q->where('responsable_id', $user->id)
                   ->orWhereHas('usuarios', function ($q2) use ($user) {

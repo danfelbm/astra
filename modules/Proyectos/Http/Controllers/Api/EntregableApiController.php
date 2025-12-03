@@ -31,12 +31,27 @@ class EntregableApiController
         $hito = $entregable->hito;
         $proyecto = $hito->proyecto;
 
+        // Verificar acceso: mismo criterio que MisProyectosController para consistencia
         $tieneAcceso = $user->hasAdministrativeAccess() ||
+            // Responsable directo del entregable o asignado
             $entregable->responsable_id === $user->id ||
+            $entregable->usuarios()->where('users.id', $user->id)->exists() ||
+            // Responsable del hito
             $hito->responsable_id === $user->id ||
+            // Responsable del proyecto
             $proyecto->responsable_id === $user->id ||
+            // Creador del proyecto
+            $proyecto->created_by === $user->id ||
+            // Gestor del proyecto
             $proyecto->gestores()->where('user_id', $user->id)->exists() ||
-            $entregable->usuarios()->where('users.id', $user->id)->exists();
+            // Participante del proyecto (cualquier rol)
+            $proyecto->participantes()->where('user_id', $user->id)->exists() ||
+            // Acceso vía contratos (responsable o contraparte)
+            $proyecto->contratos()
+                ->where(function ($q) use ($user) {
+                    $q->where('responsable_id', $user->id)
+                      ->orWhere('contraparte_user_id', $user->id);
+                })->exists();
 
         if (!$tieneAcceso) {
             return response()->json(['message' => 'No tienes acceso a este entregable'], 403);
