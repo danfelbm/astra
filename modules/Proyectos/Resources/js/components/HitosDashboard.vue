@@ -7,7 +7,6 @@
  */
 import { ref, computed, watch } from 'vue';
 import { router } from '@inertiajs/vue3';
-import { useMediaQuery } from '@vueuse/core';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -18,6 +17,7 @@ import { Badge } from '@modules/Core/Resources/js/components/ui/badge';
 import { Progress } from '@modules/Core/Resources/js/components/ui/progress';
 import { ScrollArea } from '@modules/Core/Resources/js/components/ui/scroll-area';
 import { Separator } from '@modules/Core/Resources/js/components/ui/separator';
+import { Input } from '@modules/Core/Resources/js/components/ui/input';
 import {
     Select,
     SelectContent,
@@ -37,14 +37,12 @@ import {
     Plus,
     ChevronRight,
     ListTodo,
-    ExternalLink,
     FolderOpen,
     MessageSquare,
     Activity,
+    Search,
+    X,
 } from 'lucide-vue-next';
-
-// Inertia Link
-import { Link } from '@inertiajs/vue3';
 
 // Componentes del módulo
 import { HitosEntregablesPanel } from './HitosDashboard';
@@ -74,6 +72,7 @@ interface Props {
     // UI
     showViewDetail?: boolean; // Mostrar botón "Ver Detalle Completo"
     showProyectoInHito?: boolean; // Mostrar nombre del proyecto en cada hito
+    showFilters?: boolean; // Mostrar barra de búsqueda y filtros de hitos
     // URL base para navegación
     baseUrl?: string;
 }
@@ -85,6 +84,7 @@ const props = withDefaults(defineProps<Props>(), {
     canComplete: false,
     showViewDetail: true,
     showProyectoInHito: false,
+    showFilters: false,
     baseUrl: '/admin/proyectos',
 });
 
@@ -108,6 +108,10 @@ const emit = defineEmits<{
 // Filtro de proyecto reactivo ("_all" = todos los proyectos)
 const proyectoFilter = ref<string>(props.selectedProyectoId?.toString() || '_all');
 
+// Estado de filtros de hitos (búsqueda y estado)
+const searchQuery = ref('');
+const selectedEstado = ref<string | null>(null);
+
 // Hitos filtrados por proyecto
 const filteredHitos = computed(() => {
     if (proyectoFilter.value === '_all') {
@@ -117,6 +121,33 @@ const filteredHitos = computed(() => {
     return props.hitos.filter(h => h.proyecto_id === proyectoId);
 });
 
+// Hitos filtrados por búsqueda y estado (aplicados sobre filteredHitos)
+const displayedHitos = computed(() => {
+    let result = filteredHitos.value;
+
+    // Filtrar por búsqueda
+    if (searchQuery.value) {
+        const query = searchQuery.value.toLowerCase();
+        result = result.filter(h =>
+            h.nombre.toLowerCase().includes(query) ||
+            h.descripcion?.toLowerCase().includes(query)
+        );
+    }
+
+    // Filtrar por estado
+    if (selectedEstado.value) {
+        result = result.filter(h => h.estado === selectedEstado.value);
+    }
+
+    return result;
+});
+
+// Limpiar filtros
+const clearFilters = () => {
+    searchQuery.value = '';
+    selectedEstado.value = null;
+};
+
 // Handler para cambio de filtro de proyecto
 const handleProyectoFilter = (value: string) => {
     proyectoFilter.value = value;
@@ -124,9 +155,6 @@ const handleProyectoFilter = (value: string) => {
     const proyectoId = value !== '_all' ? parseInt(value, 10) : null;
     emit('filter-proyecto', proyectoId);
 };
-
-// Responsive
-const isMobile = useMediaQuery('(max-width: 768px)');
 
 // Estado - Leer hito inicial de URL
 const getInitialHitoId = (): number | null => {
@@ -160,7 +188,7 @@ const initialModalState = getInitialModalState();
 
 // Computed
 const selectedHito = computed(() =>
-    filteredHitos.value.find(h => h.id === selectedHitoId.value) ?? null
+    displayedHitos.value.find(h => h.id === selectedHitoId.value) ?? null
 );
 
 // Proyecto ID efectivo (de prop o del hito seleccionado)
@@ -170,17 +198,6 @@ const effectiveProyectoId = computed(() => {
     return null;
 });
 
-// URL para ver todos los hitos del proyecto (solo admin)
-const hitosIndexUrl = computed(() => {
-    if (!effectiveProyectoId.value) return null;
-    return `${props.baseUrl}/${effectiveProyectoId.value}/hitos`;
-});
-
-// URL para ver todos los entregables del hito (solo admin)
-const entregablesUrl = computed(() => {
-    if (!selectedHito.value || !effectiveProyectoId.value) return null;
-    return `${props.baseUrl}/${effectiveProyectoId.value}/hitos/${selectedHito.value.id}/entregables`;
-});
 
 // Sincronizar selección con URL
 watch(selectedHitoId, (newId) => {
@@ -388,15 +405,8 @@ const handleOpenHitoActividad = () => {
                 <div class="flex items-center justify-between">
                     <h2 class="font-semibold text-sm text-muted-foreground uppercase tracking-wide flex items-center gap-2">
                         <Target class="h-4 w-4" />
-                        Hitos ({{ filteredHitos.length }})
+                        Hitos ({{ displayedHitos.length }})
                     </h2>
-                    <!-- Botón al index de hitos (solo admin) -->
-                    <Link v-if="showViewDetail && hitosIndexUrl" :href="hitosIndexUrl">
-                        <Button variant="outline" size="sm">
-                            <ExternalLink class="h-3.5 w-3.5 mr-1" />
-                            Ver todos
-                        </Button>
-                    </Link>
                 </div>
                 <!-- Filtro por proyecto (cuando hay múltiples proyectos) -->
                 <div v-if="proyectos && proyectos.length > 0" class="mt-3">
@@ -421,17 +431,87 @@ const handleOpenHitoActividad = () => {
                 </div>
             </div>
 
+            <!-- Filtros de búsqueda y estado -->
+            <div v-if="showFilters" class="p-3 space-y-3 border-b bg-background/50">
+                <!-- Barra de búsqueda -->
+                <div class="relative">
+                    <Search class="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                        v-model="searchQuery"
+                        placeholder="Buscar hitos..."
+                        class="pl-8 h-9 text-sm"
+                    />
+                    <Button
+                        v-if="searchQuery"
+                        variant="ghost"
+                        size="icon"
+                        class="absolute right-1 top-1 h-7 w-7"
+                        @click="searchQuery = ''"
+                    >
+                        <X class="h-3.5 w-3.5" />
+                    </Button>
+                </div>
+
+                <!-- Filtros por estado -->
+                <div class="flex flex-wrap gap-1">
+                    <Button
+                        size="sm"
+                        :variant="!selectedEstado ? 'default' : 'outline'"
+                        class="h-7 text-xs px-2.5"
+                        @click="selectedEstado = null"
+                    >
+                        Todos
+                    </Button>
+                    <Button
+                        size="sm"
+                        :variant="selectedEstado === 'pendiente' ? 'default' : 'outline'"
+                        class="h-7 text-xs px-2.5"
+                        @click="selectedEstado = 'pendiente'"
+                    >
+                        Pendientes
+                    </Button>
+                    <Button
+                        size="sm"
+                        :variant="selectedEstado === 'en_progreso' ? 'default' : 'outline'"
+                        class="h-7 text-xs px-2.5"
+                        @click="selectedEstado = 'en_progreso'"
+                    >
+                        En Progreso
+                    </Button>
+                    <Button
+                        size="sm"
+                        :variant="selectedEstado === 'completado' ? 'default' : 'outline'"
+                        class="h-7 text-xs px-2.5"
+                        @click="selectedEstado = 'completado'"
+                    >
+                        Completados
+                    </Button>
+                </div>
+
+                <!-- Limpiar filtros (cuando hay alguno activo) -->
+                <Button
+                    v-if="searchQuery || selectedEstado"
+                    variant="ghost"
+                    size="sm"
+                    class="w-full h-7 text-xs"
+                    @click="clearFilters"
+                >
+                    <X class="h-3.5 w-3.5 mr-1" />
+                    Limpiar filtros
+                </Button>
+            </div>
+
             <!-- Lista de hitos -->
             <ScrollArea class="flex-1">
                 <div class="p-2 space-y-1">
                     <!-- Estado vacío sidebar -->
-                    <div v-if="filteredHitos.length === 0" class="p-4 text-center text-muted-foreground text-sm">
-                        No hay hitos definidos
+                    <div v-if="displayedHitos.length === 0" class="p-4 text-center text-muted-foreground text-sm">
+                        {{ (searchQuery || selectedEstado) ? 'No se encontraron hitos con los filtros aplicados' : 'No hay hitos definidos' }}
                     </div>
 
                     <!-- Items de hito -->
                     <button
-                        v-for="hito in filteredHitos"
+                        v-for="hito in displayedHitos"
                         :key="hito.id"
                         :data-active="selectedHitoId === hito.id"
                         class="w-full text-left p-3 rounded-lg transition-colors duration-150
@@ -504,7 +584,7 @@ const handleOpenHitoActividad = () => {
                     </SelectTrigger>
                     <SelectContent>
                         <SelectItem
-                            v-for="hito in filteredHitos"
+                            v-for="hito in displayedHitos"
                             :key="hito.id"
                             :value="hito.id.toString()"
                         >
@@ -521,6 +601,54 @@ const handleOpenHitoActividad = () => {
                         </SelectItem>
                     </SelectContent>
                 </Select>
+
+                <!-- Filtros móvil -->
+                <div v-if="showFilters" class="space-y-2">
+                    <!-- Barra de búsqueda móvil -->
+                    <div class="relative">
+                        <Search class="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input
+                            v-model="searchQuery"
+                            placeholder="Buscar hitos..."
+                            class="pl-8 h-9 text-sm"
+                        />
+                    </div>
+                    <!-- Filtros por estado móvil -->
+                    <div class="flex flex-wrap gap-1">
+                        <Button
+                            size="sm"
+                            :variant="!selectedEstado ? 'default' : 'outline'"
+                            class="h-7 text-xs px-2"
+                            @click="selectedEstado = null"
+                        >
+                            Todos
+                        </Button>
+                        <Button
+                            size="sm"
+                            :variant="selectedEstado === 'pendiente' ? 'default' : 'outline'"
+                            class="h-7 text-xs px-2"
+                            @click="selectedEstado = 'pendiente'"
+                        >
+                            Pendientes
+                        </Button>
+                        <Button
+                            size="sm"
+                            :variant="selectedEstado === 'en_progreso' ? 'default' : 'outline'"
+                            class="h-7 text-xs px-2"
+                            @click="selectedEstado = 'en_progreso'"
+                        >
+                            En Progreso
+                        </Button>
+                        <Button
+                            size="sm"
+                            :variant="selectedEstado === 'completado' ? 'default' : 'outline'"
+                            class="h-7 text-xs px-2"
+                            @click="selectedEstado = 'completado'"
+                        >
+                            Completados
+                        </Button>
+                    </div>
+                </div>
             </div>
 
             <!-- Contenido -->
@@ -664,13 +792,6 @@ const handleOpenHitoActividad = () => {
                                     {{ selectedHito.entregables?.length || 0 }}
                                 </Badge>
                             </h3>
-                            <!-- Botón a la página completa de entregables (solo admin) -->
-                            <Link v-if="showViewDetail && entregablesUrl" :href="entregablesUrl">
-                                <Button variant="outline" size="sm">
-                                    <ExternalLink class="h-3.5 w-3.5 mr-1" />
-                                    Ver todos
-                                </Button>
-                            </Link>
                         </div>
 
                         <HitosEntregablesPanel

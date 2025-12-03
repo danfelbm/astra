@@ -52,9 +52,7 @@ import type { Etiqueta, CategoriaEtiqueta } from '@modules/Proyectos/Resources/j
 import type { Contrato } from '@modules/Proyectos/Resources/js/types/contratos';
 import type { Hito, Entregable } from '@modules/Proyectos/Resources/js/types/hitos';
 import type { UploadedFile } from '@modules/Comentarios/Resources/js/types/comentarios';
-import HitoCard from '@modules/Proyectos/Resources/js/components/HitoCard.vue';
 import HitosDashboard from '@modules/Proyectos/Resources/js/components/HitosDashboard.vue';
-import EntregableItem from '@modules/Proyectos/Resources/js/components/EntregableItem.vue';
 import CamposPersonalizadosDisplay from '@modules/Proyectos/Resources/js/components/CamposPersonalizadosDisplay.vue';
 import ProyectoEstadoCard from '@modules/Proyectos/Resources/js/components/ProyectoEstadoCard.vue';
 import ProyectoInfoCard from '@modules/Proyectos/Resources/js/components/ProyectoInfoCard.vue';
@@ -710,6 +708,7 @@ const getInitials = (name: string) => {
                         :can-delete="canDeleteHitos"
                         :can-manage-deliverables="canManageEntregables"
                         :can-complete="canManageEntregables"
+                        :show-filters="true"
                         base-url="/admin/proyectos"
                         @view-hito="navigateToHito"
                         @edit-hito="navigateToEditHito"

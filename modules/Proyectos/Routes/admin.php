@@ -321,10 +321,6 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
 
     // Rutas para hitos dentro del contexto de un proyecto
     Route::prefix('proyectos/{proyecto}/hitos')->name('proyectos.hitos.')->group(function () {
-        Route::get('/', [\Modules\Proyectos\Http\Controllers\Admin\HitoController::class, 'index'])
-            ->name('index')
-            ->middleware('can:hitos.view');
-
         Route::get('/create', [\Modules\Proyectos\Http\Controllers\Admin\HitoController::class, 'create'])
             ->name('create')
             ->middleware('can:hitos.create');
@@ -355,10 +351,6 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
 
         // Rutas para entregables dentro del contexto de un hito
         Route::prefix('{hito}/entregables')->name('entregables.')->group(function () {
-            Route::get('/', [\Modules\Proyectos\Http\Controllers\Admin\EntregableController::class, 'index'])
-                ->name('index')
-                ->middleware('can:entregables.view');
-
             Route::get('/create', [\Modules\Proyectos\Http\Controllers\Admin\EntregableController::class, 'create'])
                 ->name('create')
                 ->middleware('can:entregables.create');

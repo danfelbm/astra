@@ -27,34 +27,6 @@ class HitoController extends AdminController
     ) {}
 
     /**
-     * Muestra la lista de hitos de un proyecto.
-     */
-    public function index(Request $request, Proyecto $proyecto): Response
-    {
-        // Verificar permisos
-        abort_unless(auth()->user()->can('hitos.view'), 403, 'No tienes permisos para ver hitos');
-
-        $proyecto->load(['responsable', 'etiquetas.categoria']);
-
-        $hitos = $this->hitoRepository->getByProyecto(
-            $proyecto->id,
-            $request->all()
-        );
-
-        return Inertia::render('Modules/Proyectos/Admin/Hitos/Index', [
-            'proyecto' => $proyecto,
-            'hitos' => $hitos,
-            'filters' => $request->only(['search', 'estado', 'responsable_id']),
-            'estadisticas' => $proyecto->getEstadisticasHitos(),
-            'timeline' => $this->hitoRepository->getTimelineData($proyecto->id),
-            'canCreate' => auth()->user()->can('hitos.create'),
-            'canEdit' => auth()->user()->can('hitos.edit'),
-            'canDelete' => auth()->user()->can('hitos.delete'),
-            'canManageDeliverables' => auth()->user()->can('hitos.manage_deliverables'),
-        ]);
-    }
-
-    /**
      * Muestra el formulario para crear un nuevo hito.
      */
     public function create(Request $request, Proyecto $proyecto): Response
@@ -128,8 +100,8 @@ class HitoController extends AdminController
         $result = $this->hitoService->create($data);
 
         if ($result['success']) {
-            return redirect()
-                ->route('admin.proyectos.hitos.index', $proyecto)
+            // Redirigir a la página del proyecto con el tab de hitos
+            return redirect("/admin/proyectos/{$proyecto->id}?tab=hitos")
                 ->with('success', $result['message']);
         }
 
@@ -240,8 +212,8 @@ class HitoController extends AdminController
         $result = $this->hitoService->delete($hito);
 
         if ($result['success']) {
-            return redirect()
-                ->route('admin.proyectos.hitos.index', $proyecto)
+            // Redirigir a la página del proyecto con el tab de hitos
+            return redirect("/admin/proyectos/{$proyecto->id}?tab=hitos")
                 ->with('success', $result['message']);
         }
 

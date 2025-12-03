@@ -28,49 +28,6 @@ class EntregableController extends AdminController
     ) {}
 
     /**
-     * Muestra la lista de entregables de un hito.
-     */
-    public function index(Request $request, Proyecto $proyecto, Hito $hito): Response
-    {
-        // Verificar permisos
-        abort_unless(auth()->user()->can('entregables.view'), 403, 'No tienes permisos para ver entregables');
-
-        $hito->load(['responsable:id,name,email']);
-
-        $entregables = $this->entregableRepository->getByHito(
-            $hito->id,
-            $request->all()
-        );
-
-        // Obtener resumen por usuario
-        $resumenUsuarios = $this->entregableRepository->getResumenPorUsuario($hito->id);
-
-        return Inertia::render('Modules/Proyectos/Admin/Entregables/Index', [
-            'proyecto' => $proyecto,
-            'hito' => $hito,
-            'entregables' => $entregables,
-            'filters' => $request->only(['search', 'estado', 'prioridad', 'responsable_id']),
-            'resumenUsuarios' => $resumenUsuarios,
-            'estados' => [
-                ['value' => 'pendiente', 'label' => 'Pendiente'],
-                ['value' => 'en_progreso', 'label' => 'En Progreso'],
-                ['value' => 'completado', 'label' => 'Completado'],
-                ['value' => 'cancelado', 'label' => 'Cancelado'],
-            ],
-            'prioridades' => [
-                ['value' => 'baja', 'label' => 'Baja', 'color' => 'blue'],
-                ['value' => 'media', 'label' => 'Media', 'color' => 'yellow'],
-                ['value' => 'alta', 'label' => 'Alta', 'color' => 'red'],
-            ],
-            'canCreate' => auth()->user()->can('entregables.create'),
-            'canEdit' => auth()->user()->can('entregables.edit'),
-            'canDelete' => auth()->user()->can('entregables.delete'),
-            'canComplete' => auth()->user()->can('entregables.complete'),
-            'canAssign' => auth()->user()->can('entregables.assign'),
-        ]);
-    }
-
-    /**
      * Muestra el formulario para crear un nuevo entregable.
      */
     public function create(Request $request, Proyecto $proyecto, Hito $hito): Response
