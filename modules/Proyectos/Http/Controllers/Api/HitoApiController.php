@@ -151,11 +151,11 @@ class HitoApiController
             'hitosDisponibles' => $hitosDisponibles,
             'categorias' => $categorias,
             'searchUsersEndpoint' => $searchUsersEndpoint,
-            // Permisos
-            'canEdit' => $user->can('hitos.edit'),
+            // Permisos (incluir verificación de gestor/responsable del proyecto)
+            'canEdit' => $user->can('hitos.edit') || $this->puedeEditarHito($user, $hito),
             'canDelete' => $user->can('hitos.delete'),
-            'canManageEntregables' => $user->can('hitos.manage_deliverables') || $user->can('entregables.create'),
-            'canComplete' => $user->can('entregables.complete'),
+            'canManageEntregables' => $user->can('hitos.manage_deliverables') || $user->can('entregables.create') || $this->puedeEditarHito($user, $hito),
+            'canComplete' => $user->can('entregables.complete') || $this->puedeEditarHito($user, $hito),
         ]);
     }
 

@@ -593,13 +593,35 @@ class Entregable extends Model
      */
     public function puedeSerCompletadoPor(User $user): bool
     {
-        // Si es el responsable principal
+        // Si tiene acceso administrativo
+        if ($user->hasAdministrativeAccess()) {
+            return true;
+        }
+
+        // Si es el responsable principal del entregable
         if ($this->responsable_id === $user->id) {
             return true;
         }
 
         // Si es un usuario asignado con rol de responsable
         if ($this->responsables()->where('user_id', $user->id)->exists()) {
+            return true;
+        }
+
+        // Si es responsable del hito
+        $hito = $this->hito;
+        if ($hito && $hito->responsable_id === $user->id) {
+            return true;
+        }
+
+        // Si es responsable del proyecto
+        $proyecto = $hito?->proyecto;
+        if ($proyecto && $proyecto->responsable_id === $user->id) {
+            return true;
+        }
+
+        // Si es gestor del proyecto
+        if ($proyecto && $proyecto->gestores()->where('user_id', $user->id)->exists()) {
             return true;
         }
 
@@ -616,13 +638,35 @@ class Entregable extends Model
      */
     public function puedeSerEditadoPor(User $user): bool
     {
-        // Si es el responsable principal
+        // Si tiene acceso administrativo
+        if ($user->hasAdministrativeAccess()) {
+            return true;
+        }
+
+        // Si es el responsable principal del entregable
         if ($this->responsable_id === $user->id) {
             return true;
         }
 
-        // Si es un usuario asignado
+        // Si es un usuario asignado al entregable
         if ($this->usuarios()->where('user_id', $user->id)->exists()) {
+            return true;
+        }
+
+        // Si es responsable del hito
+        $hito = $this->hito;
+        if ($hito && $hito->responsable_id === $user->id) {
+            return true;
+        }
+
+        // Si es responsable del proyecto
+        $proyecto = $hito?->proyecto;
+        if ($proyecto && $proyecto->responsable_id === $user->id) {
+            return true;
+        }
+
+        // Si es gestor del proyecto
+        if ($proyecto && $proyecto->gestores()->where('user_id', $user->id)->exists()) {
             return true;
         }
 
