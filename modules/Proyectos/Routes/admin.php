@@ -329,10 +329,6 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
             ->name('store')
             ->middleware('can:hitos.create');
 
-        Route::get('/{hito}/edit', [\Modules\Proyectos\Http\Controllers\Admin\HitoController::class, 'edit'])
-            ->name('edit')
-            ->middleware('can:hitos.edit');
-
         Route::put('/{hito}', [\Modules\Proyectos\Http\Controllers\Admin\HitoController::class, 'update'])
             ->name('update')
             ->middleware('can:hitos.edit');
@@ -358,10 +354,6 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
             Route::post('/', [\Modules\Proyectos\Http\Controllers\Admin\EntregableController::class, 'store'])
                 ->name('store')
                 ->middleware('can:entregables.create');
-
-            Route::get('/{entregable}/edit', [\Modules\Proyectos\Http\Controllers\Admin\EntregableController::class, 'edit'])
-                ->name('edit')
-                ->middleware('can:entregables.edit');
 
             Route::put('/{entregable}', [\Modules\Proyectos\Http\Controllers\Admin\EntregableController::class, 'update'])
                 ->name('update')

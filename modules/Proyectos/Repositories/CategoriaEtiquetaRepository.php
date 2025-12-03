@@ -205,4 +205,29 @@ class CategoriaEtiquetaRepository
                 ->update(['orden' => $item['orden']]);
         }
     }
+
+    /**
+     * Obtiene categorías activas con etiquetas filtradas por tipo de entidad.
+     *
+     * @param string $tipo Tipo de entidad: 'proyecto', 'hito', 'entregable'
+     * @return Collection
+     */
+    public function getCategoriasConEtiquetasPorTipo(string $tipo): Collection
+    {
+        // Mapear tipo singular a plural para compatibilidad con el campo aplicar_para
+        $tipoPlural = match ($tipo) {
+            'proyecto' => 'proyectos',
+            'hito' => 'hitos',
+            'entregable' => 'entregables',
+            default => $tipo,
+        };
+
+        return CategoriaEtiqueta::activas()
+            ->paraEntidad($tipoPlural)
+            ->with(['etiquetas' => function ($query) {
+                $query->orderBy('nombre');
+            }])
+            ->ordenado()
+            ->get();
+    }
 }

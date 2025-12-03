@@ -249,6 +249,37 @@ class Entregable extends Model
     }
 
     /**
+     * Establece el valor de un campo personalizado individual.
+     * Usado por edición inline.
+     */
+    public function setCampoPersonalizadoValue(int $campoId, $valor): void
+    {
+        // Convertir booleanos y strings boolean a '1'/'0' para checkboxes
+        if (is_bool($valor)) {
+            $valor = $valor ? '1' : '0';
+        } elseif ($valor === 'true' || $valor === '1') {
+            $valor = '1';
+        } elseif ($valor === 'false' || $valor === '0') {
+            $valor = '0';
+        }
+
+        // Manejar archivos
+        if ($valor instanceof \Illuminate\Http\UploadedFile) {
+            $filename = time() . '_' . $valor->getClientOriginalName();
+            $valor->storeAs('campos-personalizados', $filename, 'public');
+            $valor = $filename;
+        }
+
+        ValorCampoPersonalizado::updateOrCreate(
+            [
+                'entregable_id' => $this->id,
+                'campo_personalizado_id' => $campoId
+            ],
+            ['valor' => $valor]
+        );
+    }
+
+    /**
      * Obtiene la etiqueta del estado.
      */
     public function getEstadoLabelAttribute(): string

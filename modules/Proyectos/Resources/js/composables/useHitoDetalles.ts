@@ -46,6 +46,26 @@ interface Estadisticas {
     esta_vencido: boolean;
 }
 
+interface SelectOption {
+    value: string;
+    label: string;
+}
+
+interface CategoriaEtiqueta {
+    id: number;
+    nombre: string;
+    slug: string;
+    color?: string;
+    icono?: string;
+    etiquetas?: Array<{
+        id: number;
+        nombre: string;
+        slug: string;
+        color?: string;
+        descripcion?: string;
+    }>;
+}
+
 interface HitoDetallesData {
     hito: Hito | null;
     estadisticas: Estadisticas | null;
@@ -54,6 +74,12 @@ interface HitoDetallesData {
     usuariosEntregables: Usuario[];
     camposPersonalizados: CampoPersonalizado[];
     valoresCamposPersonalizados: Record<number, any>;
+    // Datos para edición inline
+    estados: SelectOption[];
+    hitosDisponibles: SelectOption[];
+    categorias: CategoriaEtiqueta[];
+    searchUsersEndpoint: string;
+    // Permisos
     canEdit: boolean;
     canDelete: boolean;
     canManageEntregables: boolean;
@@ -76,6 +102,12 @@ const defaultData: HitoDetallesData = {
     usuariosEntregables: [],
     camposPersonalizados: [],
     valoresCamposPersonalizados: {},
+    // Datos para edición inline
+    estados: [],
+    hitosDisponibles: [],
+    categorias: [],
+    searchUsersEndpoint: '',
+    // Permisos
     canEdit: false,
     canDelete: false,
     canManageEntregables: false,
@@ -117,6 +149,12 @@ export function useHitoDetalles(hitoId: Ref<number | null>): UseHitoDetallesRetu
                 usuariosEntregables: response.data.usuariosEntregables || [],
                 camposPersonalizados: response.data.camposPersonalizados || [],
                 valoresCamposPersonalizados: response.data.valoresCamposPersonalizados || {},
+                // Datos para edición inline
+                estados: response.data.estados || [],
+                hitosDisponibles: response.data.hitosDisponibles || [],
+                categorias: response.data.categorias || [],
+                searchUsersEndpoint: response.data.searchUsersEndpoint || '',
+                // Permisos
                 canEdit: response.data.canEdit || false,
                 canDelete: response.data.canDelete || false,
                 canManageEntregables: response.data.canManageEntregables || false,

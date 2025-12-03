@@ -75,9 +75,6 @@ Route::middleware(['auth', 'verified', 'user'])->prefix('miembro')->name('user.'
             Route::post('/', [\Modules\Proyectos\Http\Controllers\User\MisHitosController::class, 'store'])
                 ->name('store');
 
-            Route::get('/{hito}/edit', [\Modules\Proyectos\Http\Controllers\User\MisHitosController::class, 'edit'])
-                ->name('edit');
-
             Route::put('/{hito}', [\Modules\Proyectos\Http\Controllers\User\MisHitosController::class, 'update'])
                 ->name('update');
 
@@ -89,9 +86,6 @@ Route::middleware(['auth', 'verified', 'user'])->prefix('miembro')->name('user.'
 
                 Route::post('/', [\Modules\Proyectos\Http\Controllers\User\MisHitosController::class, 'storeEntregable'])
                     ->name('store');
-
-                Route::get('/{entregable}/edit', [\Modules\Proyectos\Http\Controllers\User\MisHitosController::class, 'editEntregable'])
-                    ->name('edit');
 
                 Route::put('/{entregable}', [\Modules\Proyectos\Http\Controllers\User\MisHitosController::class, 'updateEntregable'])
                     ->name('update');

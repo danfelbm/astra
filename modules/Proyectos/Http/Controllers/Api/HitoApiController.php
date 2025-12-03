@@ -3,17 +3,22 @@
 namespace Modules\Proyectos\Http\Controllers\Api;
 
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Modules\Proyectos\Models\Hito;
 use Modules\Proyectos\Repositories\CampoPersonalizadoRepository;
+use Modules\Proyectos\Repositories\CategoriaEtiquetaRepository;
 
 /**
- * Controlador API para obtener detalles de hitos.
+ * Controlador API para obtener y actualizar detalles de hitos.
  * Usado por el HitoDetallesModal en el frontend.
  */
 class HitoApiController
 {
     public function __construct(
-        private CampoPersonalizadoRepository $campoPersonalizadoRepository
+        private CampoPersonalizadoRepository $campoPersonalizadoRepository,
+        private CategoriaEtiquetaRepository $categoriaEtiquetaRepository
     ) {}
 
     /**
@@ -108,6 +113,31 @@ class HitoApiController
             ])
             ->values();
 
+        // Obtener datos adicionales para edición inline
+        $estados = [
+            ['value' => 'pendiente', 'label' => 'Pendiente'],
+            ['value' => 'en_progreso', 'label' => 'En Progreso'],
+            ['value' => 'completado', 'label' => 'Completado'],
+            ['value' => 'cancelado', 'label' => 'Cancelado'],
+        ];
+
+        // Obtener hitos disponibles para selector de padre (excepto el actual y sus hijos)
+        $hitosDisponibles = Hito::where('proyecto_id', $proyecto->id)
+            ->where('id', '!=', $hito->id)
+            ->whereNotIn('id', $hito->descendants()->pluck('id')->toArray())
+            ->orderBy('orden')
+            ->get(['id', 'nombre', 'nivel'])
+            ->map(fn($h) => [
+                'value' => (string) $h->id,
+                'label' => str_repeat('— ', $h->nivel) . $h->nombre
+            ]);
+
+        // Obtener categorías de etiquetas para hitos
+        $categorias = $this->categoriaEtiquetaRepository->getCategoriasConEtiquetasPorTipo('hito');
+
+        // Endpoint de búsqueda de usuarios del proyecto
+        $searchUsersEndpoint = route('admin.proyectos.search-users');
+
         return response()->json([
             'hito' => $hito,
             'estadisticas' => $estadisticas,
@@ -116,10 +146,134 @@ class HitoApiController
             'usuariosEntregables' => $usuariosEntregables,
             'camposPersonalizados' => $camposPersonalizados,
             'valoresCamposPersonalizados' => $valoresCamposPersonalizados,
+            // Datos para edición inline
+            'estados' => $estados,
+            'hitosDisponibles' => $hitosDisponibles,
+            'categorias' => $categorias,
+            'searchUsersEndpoint' => $searchUsersEndpoint,
+            // Permisos
             'canEdit' => $user->can('hitos.edit'),
             'canDelete' => $user->can('hitos.delete'),
             'canManageEntregables' => $user->can('hitos.manage_deliverables') || $user->can('entregables.create'),
             'canComplete' => $user->can('entregables.complete'),
         ]);
+    }
+
+    /**
+     * Actualizar un campo individual del hito (edición inline).
+     */
+    public function updateField(Request $request, Hito $hito): JsonResponse
+    {
+        $user = auth()->user();
+
+        // Verificar permiso de edición
+        $canEdit = $user->can('hitos.edit') || $this->puedeEditarHito($user, $hito);
+        if (!$canEdit) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No tienes permisos para editar este hito'
+            ], 403);
+        }
+
+        // Validar request básico
+        $request->validate([
+            'field' => 'required|string',
+            'value' => 'nullable',
+        ]);
+
+        $field = $request->input('field');
+        // Para archivos usar file(), para otros valores usar input()
+        $value = $request->hasFile('value') ? $request->file('value') : $request->input('value');
+
+        // Campos directos del modelo que se pueden editar
+        $camposDirectos = ['nombre', 'descripcion', 'fecha_inicio', 'fecha_fin', 'estado', 'responsable_id', 'parent_id', 'orden'];
+
+        DB::beginTransaction();
+        try {
+            // Manejar campos directos
+            if (in_array($field, $camposDirectos)) {
+                $this->validarCampoDirecto($field, $value, $hito);
+                $hito->$field = $value;
+                $hito->save();
+            }
+            // Manejar etiquetas
+            elseif ($field === 'etiquetas') {
+                $etiquetaIds = is_array($value) ? $value : [];
+                $hito->etiquetas()->sync($etiquetaIds);
+            }
+            // Manejar campos personalizados
+            elseif (str_starts_with($field, 'campo_personalizado_')) {
+                $campoId = (int) str_replace('campo_personalizado_', '', $field);
+                $hito->setCampoPersonalizadoValue($campoId, $value);
+            }
+            else {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Campo '{$field}' no es editable"
+                ], 400);
+            }
+
+            DB::commit();
+
+            // Recargar relaciones para devolver datos actualizados
+            $hito->load(['responsable:id,name,email,avatar', 'parent:id,nombre', 'etiquetas']);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Campo actualizado correctamente',
+                'hito' => $hito,
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 422);
+        }
+    }
+
+    /**
+     * Validar un campo directo antes de guardar.
+     */
+    private function validarCampoDirecto(string $field, $value, Hito $hito): void
+    {
+        $rules = match ($field) {
+            'nombre' => ['required', 'string', 'max:255'],
+            'descripcion' => ['nullable', 'string', 'max:5000'],
+            'fecha_inicio' => ['nullable', 'date'],
+            'fecha_fin' => ['nullable', 'date', 'after_or_equal:fecha_inicio'],
+            'estado' => ['required', Rule::in(['pendiente', 'en_progreso', 'completado', 'cancelado'])],
+            'responsable_id' => ['nullable', 'exists:users,id'],
+            'parent_id' => ['nullable', 'exists:hitos,id'],
+            'orden' => ['nullable', 'integer', 'min:1'],
+            default => [],
+        };
+
+        if (!empty($rules)) {
+            validator(['value' => $value], ['value' => $rules])->validate();
+        }
+
+        // Validación adicional: parent_id no puede ser el mismo hito ni un descendiente
+        if ($field === 'parent_id' && $value) {
+            if ($value == $hito->id) {
+                throw new \Exception('El hito padre no puede ser el mismo hito');
+            }
+            if ($hito->descendants()->where('id', $value)->exists()) {
+                throw new \Exception('El hito padre no puede ser un descendiente del hito actual');
+            }
+        }
+    }
+
+    /**
+     * Verificar si el usuario puede editar el hito (sin permiso global).
+     */
+    private function puedeEditarHito($user, Hito $hito): bool
+    {
+        $proyecto = $hito->proyecto;
+
+        return $user->hasAdministrativeAccess() ||
+            $hito->responsable_id === $user->id ||
+            $proyecto->responsable_id === $user->id ||
+            $proyecto->gestores()->where('user_id', $user->id)->exists();
     }
 }

@@ -480,7 +480,7 @@ const handleViewEntregable = (entregable: Entregable, hito: Hito) => {
                         :can-edit="esGestorDelProyecto"
                         :can-manage-deliverables="esGestorDelProyecto"
                         :can-complete="esGestorDelProyecto"
-                        :show-view-detail="false"
+                        :show-view-detail="true"
                         :show-filters="true"
                         base-url="/miembro/mis-proyectos"
                         @edit-hito="handleEditHito"

@@ -36,4 +36,16 @@ Route::middleware(['auth'])->prefix('api/proyectos')->name('api.proyectos.')->gr
     Route::get('/entregables/{entregable}/actividades', [ActividadController::class, 'entregableActividades'])
         ->name('entregables.actividades')
         ->where('entregable', '[0-9]+');
+
+    // Actualizar campo individual de un hito (edición inline)
+    // Acepta POST para file uploads con FormData (method spoofing con _method=PATCH)
+    Route::match(['patch', 'post'], '/hitos/{hito}/campo', [HitoApiController::class, 'updateField'])
+        ->name('hitos.update-field')
+        ->where('hito', '[0-9]+');
+
+    // Actualizar campo individual de un entregable (edición inline)
+    // Acepta POST para file uploads con FormData (method spoofing con _method=PATCH)
+    Route::match(['patch', 'post'], '/entregables/{entregable}/campo', [EntregableApiController::class, 'updateField'])
+        ->name('entregables.update-field')
+        ->where('entregable', '[0-9]+');
 });

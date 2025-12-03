@@ -271,7 +271,10 @@ const handleUpdateEntregableStatus = (entregable: Entregable, estado: string, ob
 
 const handleEditEntregable = (entregable: Entregable) => {
     if (selectedHito.value) {
-        emit('edit-entregable', entregable, selectedHito.value);
+        // Abrir modal del entregable en tab detalles para edición inline
+        entregableModalId.value = entregable.id;
+        entregableModalTab.value = 'detalles';
+        showEntregableModal.value = true;
     }
 };
 
@@ -284,7 +287,9 @@ const handleDeleteEntregable = (entregable: Entregable) => {
 // Handlers de hito
 const handleEditHito = () => {
     if (selectedHito.value) {
-        emit('edit-hito', selectedHito.value);
+        // Abrir modal del hito en tab detalles para edición inline
+        hitoModalTab.value = 'detalles';
+        showHitoModal.value = true;
     }
 };
 

@@ -78,6 +78,27 @@ interface HitoInfo {
     porcentaje_completado: number;
 }
 
+interface SelectOption {
+    value: string;
+    label: string;
+    color?: string;
+}
+
+interface CategoriaEtiqueta {
+    id: number;
+    nombre: string;
+    slug: string;
+    color?: string;
+    icono?: string;
+    etiquetas?: Array<{
+        id: number;
+        nombre: string;
+        slug: string;
+        color?: string;
+        descripcion?: string;
+    }>;
+}
+
 interface EntregableDetallesData {
     entregable: Entregable | null;
     proyecto: ProyectoInfo | null;
@@ -88,6 +109,12 @@ interface EntregableDetallesData {
     camposPersonalizados: CampoPersonalizado[];
     valoresCamposPersonalizados: Record<number, any>;
     contratosRelacionados: ContratoRelacionado[];
+    // Datos para edición inline
+    estados: SelectOption[];
+    prioridades: SelectOption[];
+    categorias: CategoriaEtiqueta[];
+    searchUsersEndpoint: string;
+    // Permisos
     canEdit: boolean;
     canDelete: boolean;
     canComplete: boolean;
@@ -111,6 +138,12 @@ const defaultData: EntregableDetallesData = {
     camposPersonalizados: [],
     valoresCamposPersonalizados: {},
     contratosRelacionados: [],
+    // Datos para edición inline
+    estados: [],
+    prioridades: [],
+    categorias: [],
+    searchUsersEndpoint: '',
+    // Permisos
     canEdit: false,
     canDelete: false,
     canComplete: false,
@@ -153,6 +186,12 @@ export function useEntregableDetalles(entregableId: Ref<number | null>): UseEntr
                 camposPersonalizados: response.data.camposPersonalizados || [],
                 valoresCamposPersonalizados: response.data.valoresCamposPersonalizados || {},
                 contratosRelacionados: response.data.contratosRelacionados || [],
+                // Datos para edición inline
+                estados: response.data.estados || [],
+                prioridades: response.data.prioridades || [],
+                categorias: response.data.categorias || [],
+                searchUsersEndpoint: response.data.searchUsersEndpoint || '',
+                // Permisos
                 canEdit: response.data.canEdit || false,
                 canDelete: response.data.canDelete || false,
                 canComplete: response.data.canComplete || false,

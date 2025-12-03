@@ -6,6 +6,7 @@
  * Carga datos via API usando el composable useHitoDetalles.
  * Soporta deeplinks para tab y paginación de comentarios.
  * En responsive: header colapsable, tabs como select dropdown.
+ * Soporta edición inline de campos cuando canEdit es true.
  */
 import { ref, computed, watch, toRef } from 'vue';
 import { Link } from '@inertiajs/vue3';
@@ -28,7 +29,7 @@ import { Skeleton } from '@modules/Core/Resources/js/components/ui/skeleton';
 import {
     Calendar, Clock, User, Edit, Target, FileText, Tag,
     ExternalLink, MessageSquare, Activity, RefreshCw,
-    ChevronDown
+    ChevronDown, GitBranch, Hash
 } from 'lucide-vue-next';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -39,8 +40,21 @@ import ActivityLog from '../ActivityLog.vue';
 import CamposPersonalizadosDisplay from '../CamposPersonalizadosDisplay.vue';
 import ComentariosPanel from '@modules/Comentarios/Resources/js/components/ComentariosPanel.vue';
 
-// Composable
+// Componentes de edición inline
+import {
+    InlineEditText,
+    InlineEditTextarea,
+    InlineEditDate,
+    InlineEditSelect,
+    InlineEditNumber,
+    InlineEditUser,
+    InlineEditEtiquetas,
+    InlineEditCampoPersonalizado,
+} from '../inline-edit';
+
+// Composables
 import { useHitoDetalles } from '../../composables/useHitoDetalles';
+import { useHitoInlineEdit } from '../../composables/useInlineEdit';
 
 // Props
 interface Props {
@@ -69,6 +83,52 @@ const emit = defineEmits<{
 // Composable para cargar datos
 const hitoIdRef = toRef(props, 'hitoId');
 const { data, loading, error, cargar, reset } = useHitoDetalles(hitoIdRef);
+
+// Composable para edición inline
+const {
+    loadingField,
+    updateField,
+    updateResponsable,
+    updatePadre,
+    updateEtiquetas,
+    updateCampoPersonalizado,
+} = useHitoInlineEdit(hitoIdRef, {
+    onSuccess: async () => {
+        // Recargar datos después de actualizar
+        await cargar();
+    }
+});
+
+// Computed: verificar si se puede editar
+const canEditEffective = computed(() => props.canEdit || data.value.canEdit);
+
+// Referencias a componentes inline para cerrar después de guardar
+const inlineRefs = ref<Record<string, any>>({});
+
+// Handlers de guardado para campos inline
+const handleSaveField = async (field: string, value: any, label?: string) => {
+    const success = await updateField(field, value, label);
+    if (success) {
+        inlineRefs.value[field]?.closeAfterSave?.();
+    }
+};
+
+const handleSaveResponsable = async (userId: number | null) => {
+    await updateResponsable(userId);
+};
+
+const handleSavePadre = async (padreId: string) => {
+    const id = padreId ? parseInt(padreId) : null;
+    await updatePadre(id);
+};
+
+const handleSaveEtiquetas = async (etiquetaIds: number[]) => {
+    await updateEtiquetas(etiquetaIds);
+};
+
+const handleSaveCampoPersonalizado = async (campoId: number, value: any) => {
+    await updateCampoPersonalizado(campoId, value);
+};
 
 // Tabs válidos
 const validTabs = ['detalles', 'comentarios', 'actividad'];
@@ -318,46 +378,116 @@ const handleRefresh = async () => {
                                         <CardTitle class="text-base">Información General</CardTitle>
                                     </CardHeader>
                                     <CardContent class="space-y-4">
-                                        <div v-if="hito.descripcion">
-                                            <h4 class="text-sm font-medium text-muted-foreground mb-1">Descripción</h4>
-                                            <p class="text-sm whitespace-pre-wrap">{{ hito.descripcion }}</p>
+                                        <!-- Nombre (editable) -->
+                                        <div>
+                                            <h4 class="text-sm font-medium text-muted-foreground mb-1">Nombre</h4>
+                                            <InlineEditText
+                                                :ref="(el: any) => inlineRefs['nombre'] = el"
+                                                :model-value="hito.nombre"
+                                                :can-edit="canEditEffective"
+                                                :loading="loadingField === 'nombre'"
+                                                label="nombre"
+                                                placeholder="Sin nombre"
+                                                required
+                                                @save="(v: string) => handleSaveField('nombre', v, 'Nombre')"
+                                            />
                                         </div>
 
+                                        <!-- Descripción (editable) -->
+                                        <div>
+                                            <h4 class="text-sm font-medium text-muted-foreground mb-1">Descripción</h4>
+                                            <InlineEditTextarea
+                                                :ref="(el: any) => inlineRefs['descripcion'] = el"
+                                                :model-value="hito.descripcion"
+                                                :can-edit="canEditEffective"
+                                                :loading="loadingField === 'descripcion'"
+                                                label="descripción"
+                                                placeholder="Sin descripción"
+                                                @save="(v: string) => handleSaveField('descripcion', v, 'Descripción')"
+                                            />
+                                        </div>
+
+                                        <!-- Estado (editable) -->
+                                        <div>
+                                            <h4 class="text-sm font-medium text-muted-foreground mb-1">Estado</h4>
+                                            <InlineEditSelect
+                                                :ref="(el: any) => inlineRefs['estado'] = el"
+                                                :model-value="hito.estado"
+                                                :options="data.estados || []"
+                                                :can-edit="canEditEffective"
+                                                :loading="loadingField === 'estado'"
+                                                label="estado"
+                                                show-badge
+                                                @save="(v: string) => handleSaveField('estado', v, 'Estado')"
+                                            />
+                                        </div>
+
+                                        <!-- Fechas en grid -->
                                         <div class="grid gap-4 md:grid-cols-2">
                                             <div>
                                                 <h4 class="text-sm font-medium text-muted-foreground mb-1">Fecha de Inicio</h4>
                                                 <div class="flex items-center gap-1.5 text-sm">
-                                                    <Calendar class="h-4 w-4" />
-                                                    {{ formatDate(hito.fecha_inicio) }}
+                                                    <Calendar class="h-4 w-4 flex-shrink-0" />
+                                                    <InlineEditDate
+                                                        :ref="(el: any) => inlineRefs['fecha_inicio'] = el"
+                                                        :model-value="hito.fecha_inicio"
+                                                        :can-edit="canEditEffective"
+                                                        :loading="loadingField === 'fecha_inicio'"
+                                                        label="fecha de inicio"
+                                                        @save="(v: string | null) => handleSaveField('fecha_inicio', v, 'Fecha de inicio')"
+                                                    />
                                                 </div>
                                             </div>
                                             <div>
                                                 <h4 class="text-sm font-medium text-muted-foreground mb-1">Fecha de Fin</h4>
                                                 <div class="flex items-center gap-1.5 text-sm" :class="{ 'text-red-600': estadisticas?.esta_vencido }">
-                                                    <Calendar class="h-4 w-4" />
-                                                    {{ formatDate(hito.fecha_fin) }}
+                                                    <Calendar class="h-4 w-4 flex-shrink-0" />
+                                                    <InlineEditDate
+                                                        :ref="(el: any) => inlineRefs['fecha_fin'] = el"
+                                                        :model-value="hito.fecha_fin"
+                                                        :can-edit="canEditEffective"
+                                                        :loading="loadingField === 'fecha_fin'"
+                                                        label="fecha de fin"
+                                                        :min-date="hito.fecha_inicio"
+                                                        @save="(v: string | null) => handleSaveField('fecha_fin', v, 'Fecha de fin')"
+                                                    />
                                                 </div>
                                             </div>
                                         </div>
 
-                                        <!-- Resumen de entregables -->
+                                        <!-- Responsable (editable) -->
+                                        <div>
+                                            <h4 class="text-sm font-medium text-muted-foreground mb-1">Responsable</h4>
+                                            <InlineEditUser
+                                                :model-value="hito.responsable"
+                                                :can-edit="canEditEffective"
+                                                :loading="loadingField === 'responsable_id'"
+                                                label="responsable"
+                                                :search-endpoint="data.searchUsersEndpoint || '/admin/proyectos/search-users'"
+                                                modal-title="Seleccionar Responsable"
+                                                modal-description="Busca y selecciona el responsable del hito"
+                                                @save="(userId: number | null) => handleSaveResponsable(userId)"
+                                            />
+                                        </div>
+
+                                        <!-- Resumen de entregables (solo lectura) -->
                                         <div v-if="estadisticas">
                                             <h4 class="text-sm font-medium text-muted-foreground mb-2">Resumen de Entregables</h4>
                                             <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                                                <div class="bg-gray-50 rounded-lg p-2 text-center">
+                                                <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-2 text-center">
                                                     <div class="text-lg font-semibold">{{ estadisticas.entregables_pendientes }}</div>
                                                     <div class="text-xs text-muted-foreground">Pendientes</div>
                                                 </div>
-                                                <div class="bg-blue-50 rounded-lg p-2 text-center">
-                                                    <div class="text-lg font-semibold text-blue-700">{{ estadisticas.entregables_en_progreso }}</div>
+                                                <div class="bg-blue-50 dark:bg-blue-900/30 rounded-lg p-2 text-center">
+                                                    <div class="text-lg font-semibold text-blue-700 dark:text-blue-400">{{ estadisticas.entregables_en_progreso }}</div>
                                                     <div class="text-xs text-muted-foreground">En Progreso</div>
                                                 </div>
-                                                <div class="bg-green-50 rounded-lg p-2 text-center">
-                                                    <div class="text-lg font-semibold text-green-700">{{ estadisticas.entregables_completados }}</div>
+                                                <div class="bg-green-50 dark:bg-green-900/30 rounded-lg p-2 text-center">
+                                                    <div class="text-lg font-semibold text-green-700 dark:text-green-400">{{ estadisticas.entregables_completados }}</div>
                                                     <div class="text-xs text-muted-foreground">Completados</div>
                                                 </div>
-                                                <div class="bg-red-50 rounded-lg p-2 text-center">
-                                                    <div class="text-lg font-semibold text-red-700">{{ estadisticas.entregables_cancelados }}</div>
+                                                <div class="bg-red-50 dark:bg-red-900/30 rounded-lg p-2 text-center">
+                                                    <div class="text-lg font-semibold text-red-700 dark:text-red-400">{{ estadisticas.entregables_cancelados }}</div>
                                                     <div class="text-xs text-muted-foreground">Cancelados</div>
                                                 </div>
                                             </div>
@@ -365,8 +495,8 @@ const handleRefresh = async () => {
                                     </CardContent>
                                 </Card>
 
-                                <!-- Etiquetas -->
-                                <Card v-if="hito.etiquetas && hito.etiquetas.length > 0">
+                                <!-- Etiquetas (editable) -->
+                                <Card>
                                     <CardHeader class="pb-3">
                                         <div class="flex items-center gap-2">
                                             <Tag class="h-4 w-4" />
@@ -374,45 +504,95 @@ const handleRefresh = async () => {
                                         </div>
                                     </CardHeader>
                                     <CardContent>
-                                        <div class="flex flex-wrap gap-2">
-                                            <Badge
-                                                v-for="etiqueta in hito.etiquetas"
-                                                :key="etiqueta.id"
-                                                variant="outline"
-                                                class="px-2.5 py-1"
-                                                :style="{
-                                                    borderColor: etiqueta.color || '#94a3b8',
-                                                    color: etiqueta.color || '#64748b',
-                                                    backgroundColor: `${etiqueta.color}15` || '#f1f5f9'
-                                                }"
+                                        <InlineEditEtiquetas
+                                            :model-value="hito.etiquetas?.map((e: any) => e.id) || []"
+                                            :etiquetas="hito.etiquetas || []"
+                                            :categorias="data.categorias || []"
+                                            :can-edit="canEditEffective"
+                                            :loading="loadingField === 'etiquetas'"
+                                            label="etiquetas"
+                                            @save="handleSaveEtiquetas"
+                                        />
+                                    </CardContent>
+                                </Card>
+
+                                <!-- Campos Personalizados (editable campo por campo) -->
+                                <Card v-if="data.camposPersonalizados && data.camposPersonalizados.length > 0">
+                                    <CardHeader class="pb-3">
+                                        <CardTitle class="text-base">Campos Personalizados</CardTitle>
+                                        <CardDescription>Información adicional del hito</CardDescription>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div class="grid gap-4 md:grid-cols-2">
+                                            <div
+                                                v-for="campo in data.camposPersonalizados"
+                                                :key="campo.id"
                                             >
-                                                {{ etiqueta.nombre }}
-                                            </Badge>
+                                                <h4 class="text-sm font-medium text-muted-foreground mb-1">{{ campo.nombre }}</h4>
+                                                <InlineEditCampoPersonalizado
+                                                    :campo="campo"
+                                                    :model-value="data.valoresCamposPersonalizados[campo.id]"
+                                                    :can-edit="canEditEffective"
+                                                    :loading="loadingField === `campo_personalizado_${campo.id}`"
+                                                    @save="(campoId: number, value: any) => handleSaveCampoPersonalizado(campoId, value)"
+                                                />
+                                            </div>
                                         </div>
                                     </CardContent>
                                 </Card>
 
-                                <!-- Campos Personalizados -->
-                                <CamposPersonalizadosDisplay
-                                    v-if="data.camposPersonalizados && data.camposPersonalizados.length > 0"
-                                    :campos="data.camposPersonalizados"
-                                    :valores-campos="data.valoresCamposPersonalizados"
-                                    descripcion="Información adicional del hito"
-                                    :columns="2"
-                                />
-
-                                <!-- Jerarquía -->
-                                <Card v-if="hito.parent || hito.ruta_completa">
+                                <!-- Jerarquía y Orden (editable) -->
+                                <Card>
                                     <CardHeader class="pb-3">
-                                        <CardTitle class="text-base">Jerarquía</CardTitle>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <div v-if="hito.ruta_completa" class="text-sm">
-                                            <span class="text-muted-foreground">Ruta: </span>
-                                            {{ hito.ruta_completa }}
+                                        <div class="flex items-center gap-2">
+                                            <GitBranch class="h-4 w-4" />
+                                            <CardTitle class="text-base">Jerarquía y Orden</CardTitle>
                                         </div>
-                                        <div v-if="hito.nivel !== undefined" class="mt-2">
+                                    </CardHeader>
+                                    <CardContent class="space-y-4">
+                                        <!-- Hito Padre (editable) -->
+                                        <div>
+                                            <h4 class="text-sm font-medium text-muted-foreground mb-1">Hito Padre</h4>
+                                            <InlineEditSelect
+                                                :ref="(el: any) => inlineRefs['parent_id'] = el"
+                                                :model-value="hito.parent_id?.toString() || ''"
+                                                :options="[{ value: '', label: '(Sin padre - Nivel raíz)' }, ...(data.hitosDisponibles || [])]"
+                                                :can-edit="canEditEffective"
+                                                :loading="loadingField === 'parent_id'"
+                                                label="hito padre"
+                                                placeholder="Sin hito padre"
+                                                @save="handleSavePadre"
+                                            />
+                                        </div>
+
+                                        <!-- Ruta completa (solo lectura) -->
+                                        <div v-if="hito.ruta_completa">
+                                            <h4 class="text-sm font-medium text-muted-foreground mb-1">Ruta Completa</h4>
+                                            <p class="text-sm">{{ hito.ruta_completa }}</p>
+                                        </div>
+
+                                        <!-- Nivel (solo lectura) -->
+                                        <div v-if="hito.nivel !== undefined">
+                                            <h4 class="text-sm font-medium text-muted-foreground mb-1">Nivel</h4>
                                             <Badge variant="outline">Nivel {{ hito.nivel }}</Badge>
+                                        </div>
+
+                                        <!-- Orden (editable) -->
+                                        <div>
+                                            <h4 class="text-sm font-medium text-muted-foreground mb-1">Orden de Visualización</h4>
+                                            <div class="flex items-center gap-1.5 text-sm">
+                                                <Hash class="h-4 w-4 flex-shrink-0" />
+                                                <InlineEditNumber
+                                                    :ref="(el: any) => inlineRefs['orden'] = el"
+                                                    :model-value="hito.orden"
+                                                    :can-edit="canEditEffective"
+                                                    :loading="loadingField === 'orden'"
+                                                    label="orden"
+                                                    placeholder="1"
+                                                    :min="1"
+                                                    @save="(v: number | null) => handleSaveField('orden', v, 'Orden')"
+                                                />
+                                            </div>
                                         </div>
                                     </CardContent>
                                 </Card>
@@ -483,16 +663,6 @@ const handleRefresh = async () => {
                                 <span class="hidden sm:inline">Abrir página completa</span>
                             </Button>
                         </Link>
-                        <Button
-                            v-if="(canEdit || data.canEdit) && hito"
-                            variant="outline"
-                            size="sm"
-                            class="text-xs sm:text-sm px-2 sm:px-3"
-                            @click="emit('edit-hito')"
-                        >
-                            <Edit class="h-3.5 w-3.5 sm:h-4 sm:w-4 sm:mr-1.5" />
-                            <span class="hidden sm:inline">Editar</span>
-                        </Button>
                     </div>
                     <Button variant="ghost" size="sm" class="text-xs sm:text-sm" @click="handleClose">
                         Cerrar

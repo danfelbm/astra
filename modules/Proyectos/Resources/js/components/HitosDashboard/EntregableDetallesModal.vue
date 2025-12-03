@@ -6,6 +6,7 @@
  * Carga datos via API usando el composable useEntregableDetalles.
  * Soporta deeplinks para tab y paginación de comentarios.
  * En responsive: header colapsable, tabs como select dropdown.
+ * Soporta edición inline de campos cuando canEdit es true.
  */
 import { ref, computed, watch, toRef } from 'vue';
 import { Link } from '@inertiajs/vue3';
@@ -30,7 +31,7 @@ import { Alert, AlertDescription } from '@modules/Core/Resources/js/components/u
 import {
     Calendar, Clock, User, Edit, Flag, FileText, Tag, Users,
     ExternalLink, MessageSquare, Activity, RefreshCw, Image, AlertCircle, CheckCircle,
-    ChevronDown
+    ChevronDown, Pencil, Hash
 } from 'lucide-vue-next';
 import { format, parseISO, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -42,9 +43,23 @@ import ActivityFilters from '../ActivityFilters.vue';
 import ActivityLog from '../ActivityLog.vue';
 import CamposPersonalizadosDisplay from '../CamposPersonalizadosDisplay.vue';
 import ComentariosPanel from '@modules/Comentarios/Resources/js/components/ComentariosPanel.vue';
+import AddUsersModal from '@modules/Core/Resources/js/components/modals/AddUsersModal.vue';
 
-// Composable
+// Componentes de edición inline
+import {
+    InlineEditText,
+    InlineEditTextarea,
+    InlineEditDate,
+    InlineEditSelect,
+    InlineEditNumber,
+    InlineEditUser,
+    InlineEditEtiquetas,
+    InlineEditCampoPersonalizado,
+} from '../inline-edit';
+
+// Composables
 import { useEntregableDetalles } from '../../composables/useEntregableDetalles';
+import { useEntregableInlineEdit } from '../../composables/useInlineEdit';
 
 // Props
 interface Props {
@@ -74,6 +89,60 @@ const emit = defineEmits<{
 // Composable para cargar datos
 const entregableIdRef = toRef(props, 'entregableId');
 const { data, loading, error, cargar, reset } = useEntregableDetalles(entregableIdRef);
+
+// Composable para edición inline
+const {
+    loadingField,
+    updateField,
+    updateResponsable,
+    updateColaboradores,
+    updateEtiquetas,
+    updateCampoPersonalizado,
+} = useEntregableInlineEdit(entregableIdRef, {
+    onSuccess: async () => {
+        // Recargar datos después de actualizar
+        await cargar();
+    }
+});
+
+// Computed: verificar si se puede editar
+const canEditEffective = computed(() => props.canEdit || data.value.canEdit);
+
+// Referencias a componentes inline
+const inlineRefs = ref<Record<string, any>>({});
+
+// Modal para agregar colaboradores
+const showColaboradoresModal = ref(false);
+
+// Handlers de guardado para campos inline
+const handleSaveField = async (field: string, value: any, label?: string) => {
+    const success = await updateField(field, value, label);
+    if (success) {
+        inlineRefs.value[field]?.closeAfterSave?.();
+    }
+};
+
+const handleSaveResponsable = async (userId: number | null) => {
+    await updateResponsable(userId);
+};
+
+const handleSaveEtiquetas = async (etiquetaIds: number[]) => {
+    await updateEtiquetas(etiquetaIds);
+};
+
+const handleSaveCampoPersonalizado = async (campoId: number, value: any) => {
+    await updateCampoPersonalizado(campoId, value);
+};
+
+// Handler para guardar colaboradores desde el modal
+const handleSaveColaboradores = async (submitData: { userIds: number[]; extraData?: Record<string, any> }) => {
+    const usuarios = submitData.userIds.map(id => ({
+        user_id: id,
+        rol: submitData.extraData?.[`${id}_rol`] || 'colaborador'
+    }));
+    await updateColaboradores(usuarios);
+    showColaboradoresModal.value = false;
+};
 
 // Tabs válidos
 const validTabs = ['detalles', 'equipo', 'evidencias', 'comentarios', 'actividad'];
@@ -408,52 +477,143 @@ const handleRefresh = async () => {
                         <!-- Tab Detalles -->
                         <TabsContent value="detalles" class="mt-0 space-y-4">
                             <template v-if="entregable">
-                                <!-- Información General -->
+                                <!-- Información General (editable) -->
                                 <Card>
                                     <CardHeader class="pb-3">
                                         <CardTitle class="text-base">Información General</CardTitle>
                                     </CardHeader>
                                     <CardContent class="space-y-4">
-                                        <div v-if="entregable.descripcion">
-                                            <h4 class="text-sm font-medium text-muted-foreground mb-1">Descripción</h4>
-                                            <p class="text-sm whitespace-pre-wrap">{{ entregable.descripcion }}</p>
+                                        <!-- Nombre (editable) -->
+                                        <div>
+                                            <h4 class="text-sm font-medium text-muted-foreground mb-1">Nombre</h4>
+                                            <InlineEditText
+                                                :ref="(el: any) => inlineRefs['nombre'] = el"
+                                                :model-value="entregable.nombre"
+                                                :can-edit="canEditEffective"
+                                                :loading="loadingField === 'nombre'"
+                                                label="nombre"
+                                                placeholder="Sin nombre"
+                                                required
+                                                @save="(v: string) => handleSaveField('nombre', v, 'Nombre')"
+                                            />
                                         </div>
 
+                                        <!-- Descripción (editable) -->
+                                        <div>
+                                            <h4 class="text-sm font-medium text-muted-foreground mb-1">Descripción</h4>
+                                            <InlineEditTextarea
+                                                :ref="(el: any) => inlineRefs['descripcion'] = el"
+                                                :model-value="entregable.descripcion"
+                                                :can-edit="canEditEffective"
+                                                :loading="loadingField === 'descripcion'"
+                                                label="descripción"
+                                                placeholder="Sin descripción"
+                                                @save="(v: string) => handleSaveField('descripcion', v, 'Descripción')"
+                                            />
+                                        </div>
+
+                                        <!-- Estado y Prioridad en grid -->
+                                        <div class="grid gap-4 md:grid-cols-2">
+                                            <div>
+                                                <h4 class="text-sm font-medium text-muted-foreground mb-1">Estado</h4>
+                                                <InlineEditSelect
+                                                    :ref="(el: any) => inlineRefs['estado'] = el"
+                                                    :model-value="entregable.estado"
+                                                    :options="data.estados || []"
+                                                    :can-edit="canEditEffective"
+                                                    :loading="loadingField === 'estado'"
+                                                    label="estado"
+                                                    show-badge
+                                                    @save="(v: string) => handleSaveField('estado', v, 'Estado')"
+                                                />
+                                            </div>
+                                            <div>
+                                                <h4 class="text-sm font-medium text-muted-foreground mb-1">Prioridad</h4>
+                                                <InlineEditSelect
+                                                    :ref="(el: any) => inlineRefs['prioridad'] = el"
+                                                    :model-value="entregable.prioridad"
+                                                    :options="data.prioridades || []"
+                                                    :can-edit="canEditEffective"
+                                                    :loading="loadingField === 'prioridad'"
+                                                    label="prioridad"
+                                                    show-badge
+                                                    @save="(v: string) => handleSaveField('prioridad', v, 'Prioridad')"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <!-- Fechas en grid -->
                                         <div class="grid gap-4 md:grid-cols-2">
                                             <div>
                                                 <h4 class="text-sm font-medium text-muted-foreground mb-1">Fecha de Inicio</h4>
                                                 <div class="flex items-center gap-1.5 text-sm">
-                                                    <Calendar class="h-4 w-4" />
-                                                    {{ formatDate(entregable.fecha_inicio) }}
+                                                    <Calendar class="h-4 w-4 flex-shrink-0" />
+                                                    <InlineEditDate
+                                                        :ref="(el: any) => inlineRefs['fecha_inicio'] = el"
+                                                        :model-value="entregable.fecha_inicio"
+                                                        :can-edit="canEditEffective"
+                                                        :loading="loadingField === 'fecha_inicio'"
+                                                        label="fecha de inicio"
+                                                        @save="(v: string | null) => handleSaveField('fecha_inicio', v, 'Fecha de inicio')"
+                                                    />
                                                 </div>
                                             </div>
                                             <div>
                                                 <h4 class="text-sm font-medium text-muted-foreground mb-1">Fecha de Fin</h4>
                                                 <div class="flex items-center gap-1.5 text-sm" :class="{ 'text-red-600': estaVencido }">
-                                                    <Calendar class="h-4 w-4" />
-                                                    {{ formatDate(entregable.fecha_fin) }}
+                                                    <Calendar class="h-4 w-4 flex-shrink-0" />
+                                                    <InlineEditDate
+                                                        :ref="(el: any) => inlineRefs['fecha_fin'] = el"
+                                                        :model-value="entregable.fecha_fin"
+                                                        :can-edit="canEditEffective"
+                                                        :loading="loadingField === 'fecha_fin'"
+                                                        label="fecha de fin"
+                                                        :min-date="entregable.fecha_inicio"
+                                                        @save="(v: string | null) => handleSaveField('fecha_fin', v, 'Fecha de fin')"
+                                                    />
                                                 </div>
                                             </div>
                                         </div>
 
-                                        <!-- Notas -->
-                                        <div v-if="entregable.notas">
+                                        <!-- Notas (editable) -->
+                                        <div>
                                             <h4 class="text-sm font-medium text-muted-foreground mb-1">Notas</h4>
-                                            <Alert>
-                                                <AlertCircle class="h-4 w-4" />
-                                                <AlertDescription>
-                                                    {{ entregable.notas }}
-                                                </AlertDescription>
-                                            </Alert>
+                                            <InlineEditTextarea
+                                                :ref="(el: any) => inlineRefs['notas'] = el"
+                                                :model-value="entregable.notas"
+                                                :can-edit="canEditEffective"
+                                                :loading="loadingField === 'notas'"
+                                                label="notas"
+                                                placeholder="Sin notas adicionales"
+                                                @save="(v: string) => handleSaveField('notas', v, 'Notas')"
+                                            />
                                         </div>
 
-                                        <!-- Info de completado -->
-                                        <div v-if="entregable.estado === 'completado'" class="bg-green-50 border border-green-200 rounded-lg p-3">
-                                            <div class="flex items-center gap-2 text-green-700 mb-2">
+                                        <!-- Orden (editable) -->
+                                        <div>
+                                            <h4 class="text-sm font-medium text-muted-foreground mb-1">Orden de Visualización</h4>
+                                            <div class="flex items-center gap-1.5 text-sm">
+                                                <Hash class="h-4 w-4 flex-shrink-0" />
+                                                <InlineEditNumber
+                                                    :ref="(el: any) => inlineRefs['orden'] = el"
+                                                    :model-value="entregable.orden"
+                                                    :can-edit="canEditEffective"
+                                                    :loading="loadingField === 'orden'"
+                                                    label="orden"
+                                                    placeholder="1"
+                                                    :min="1"
+                                                    @save="(v: number | null) => handleSaveField('orden', v, 'Orden')"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <!-- Info de completado (solo lectura) -->
+                                        <div v-if="entregable.estado === 'completado'" class="bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-lg p-3">
+                                            <div class="flex items-center gap-2 text-green-700 dark:text-green-400 mb-2">
                                                 <CheckCircle class="h-5 w-5" />
                                                 <span class="font-medium">Completado</span>
                                             </div>
-                                            <div class="text-sm text-green-600 space-y-1">
+                                            <div class="text-sm text-green-600 dark:text-green-500 space-y-1">
                                                 <div v-if="entregable.completado_at">
                                                     Fecha: {{ formatDateTime(entregable.completado_at) }}
                                                 </div>
@@ -468,8 +628,8 @@ const handleRefresh = async () => {
                                     </CardContent>
                                 </Card>
 
-                                <!-- Etiquetas -->
-                                <Card v-if="entregable.etiquetas && entregable.etiquetas.length > 0">
+                                <!-- Etiquetas (editable) -->
+                                <Card>
                                     <CardHeader class="pb-3">
                                         <div class="flex items-center gap-2">
                                             <Tag class="h-4 w-4" />
@@ -477,32 +637,42 @@ const handleRefresh = async () => {
                                         </div>
                                     </CardHeader>
                                     <CardContent>
-                                        <div class="flex flex-wrap gap-2">
-                                            <Badge
-                                                v-for="etiqueta in entregable.etiquetas"
-                                                :key="etiqueta.id"
-                                                variant="outline"
-                                                class="px-2.5 py-1"
-                                                :style="{
-                                                    borderColor: etiqueta.color || '#94a3b8',
-                                                    color: etiqueta.color || '#64748b',
-                                                    backgroundColor: `${etiqueta.color}15` || '#f1f5f9'
-                                                }"
-                                            >
-                                                {{ etiqueta.nombre }}
-                                            </Badge>
-                                        </div>
+                                        <InlineEditEtiquetas
+                                            :model-value="entregable.etiquetas?.map((e: any) => e.id) || []"
+                                            :etiquetas="entregable.etiquetas || []"
+                                            :categorias="data.categorias || []"
+                                            :can-edit="canEditEffective"
+                                            :loading="loadingField === 'etiquetas'"
+                                            label="etiquetas"
+                                            @save="handleSaveEtiquetas"
+                                        />
                                     </CardContent>
                                 </Card>
 
-                                <!-- Campos Personalizados -->
-                                <CamposPersonalizadosDisplay
-                                    v-if="data.camposPersonalizados && data.camposPersonalizados.length > 0"
-                                    :campos="data.camposPersonalizados"
-                                    :valores-campos="data.valoresCamposPersonalizados"
-                                    descripcion="Información adicional del entregable"
-                                    :columns="2"
-                                />
+                                <!-- Campos Personalizados (editable campo por campo) -->
+                                <Card v-if="data.camposPersonalizados && data.camposPersonalizados.length > 0">
+                                    <CardHeader class="pb-3">
+                                        <CardTitle class="text-base">Campos Personalizados</CardTitle>
+                                        <CardDescription>Información adicional del entregable</CardDescription>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div class="grid gap-4 md:grid-cols-2">
+                                            <div
+                                                v-for="campo in data.camposPersonalizados"
+                                                :key="campo.id"
+                                            >
+                                                <h4 class="text-sm font-medium text-muted-foreground mb-1">{{ campo.nombre }}</h4>
+                                                <InlineEditCampoPersonalizado
+                                                    :campo="campo"
+                                                    :model-value="data.valoresCamposPersonalizados[campo.id]"
+                                                    :can-edit="canEditEffective"
+                                                    :loading="loadingField === `campo_personalizado_${campo.id}`"
+                                                    @save="(campoId: number, value: any) => handleSaveCampoPersonalizado(campoId, value)"
+                                                />
+                                            </div>
+                                        </div>
+                                    </CardContent>
+                                </Card>
 
                                 <!-- Metadata -->
                                 <Card>
@@ -532,31 +702,43 @@ const handleRefresh = async () => {
                         <!-- Tab Equipo -->
                         <TabsContent value="equipo" class="mt-0 space-y-4">
                             <template v-if="entregable">
-                                <!-- Responsable Principal -->
+                                <!-- Responsable Principal (editable) -->
                                 <Card>
                                     <CardHeader class="pb-3">
                                         <CardTitle class="text-base">Responsable Principal</CardTitle>
                                     </CardHeader>
                                     <CardContent>
-                                        <div v-if="entregable.responsable" class="flex items-center gap-3">
-                                            <Avatar class="h-10 w-10">
-                                                <AvatarImage v-if="entregable.responsable.avatar" :src="entregable.responsable.avatar" />
-                                                <AvatarFallback>{{ entregable.responsable.name.substring(0, 2).toUpperCase() }}</AvatarFallback>
-                                            </Avatar>
-                                            <div>
-                                                <p class="font-medium">{{ entregable.responsable.name }}</p>
-                                                <p class="text-sm text-muted-foreground">{{ entregable.responsable.email }}</p>
-                                            </div>
-                                        </div>
-                                        <p v-else class="text-muted-foreground">No hay responsable asignado</p>
+                                        <InlineEditUser
+                                            :model-value="entregable.responsable"
+                                            :can-edit="canEditEffective"
+                                            :loading="loadingField === 'responsable_id'"
+                                            label="responsable"
+                                            :search-endpoint="data.searchUsersEndpoint || '/admin/proyectos/search-users'"
+                                            modal-title="Seleccionar Responsable Principal"
+                                            modal-description="Busca y selecciona el responsable principal del entregable"
+                                            @save="(userId: number | null) => handleSaveResponsable(userId)"
+                                        />
                                     </CardContent>
                                 </Card>
 
-                                <!-- Colaboradores -->
+                                <!-- Colaboradores (editable) -->
                                 <Card>
                                     <CardHeader class="pb-3">
-                                        <CardTitle class="text-base">Colaboradores</CardTitle>
-                                        <CardDescription>{{ data.usuariosAsignados?.length || 0 }} usuarios asignados</CardDescription>
+                                        <div class="flex items-center justify-between">
+                                            <div>
+                                                <CardTitle class="text-base">Colaboradores</CardTitle>
+                                                <CardDescription>{{ data.usuariosAsignados?.length || 0 }} usuarios asignados</CardDescription>
+                                            </div>
+                                            <Button
+                                                v-if="canEditEffective"
+                                                variant="outline"
+                                                size="sm"
+                                                @click="showColaboradoresModal = true"
+                                            >
+                                                <Pencil class="h-4 w-4 mr-1.5" />
+                                                Editar
+                                            </Button>
+                                        </div>
                                     </CardHeader>
                                     <CardContent>
                                         <div v-if="data.usuariosAsignados && data.usuariosAsignados.length > 0" class="space-y-2">
@@ -580,11 +762,33 @@ const handleRefresh = async () => {
                                                 </Badge>
                                             </div>
                                         </div>
-                                        <p v-else class="text-muted-foreground">No hay colaboradores asignados</p>
+                                        <div v-else class="text-center py-4">
+                                            <p class="text-muted-foreground mb-2">No hay colaboradores asignados</p>
+                                            <Button
+                                                v-if="canEditEffective"
+                                                variant="outline"
+                                                size="sm"
+                                                @click="showColaboradoresModal = true"
+                                            >
+                                                <Users class="h-4 w-4 mr-1.5" />
+                                                Agregar colaboradores
+                                            </Button>
+                                        </div>
                                     </CardContent>
                                 </Card>
                             </template>
                         </TabsContent>
+
+                        <!-- Modal para agregar colaboradores -->
+                        <AddUsersModal
+                            v-model:open="showColaboradoresModal"
+                            title="Gestionar Colaboradores"
+                            description="Busca y selecciona los colaboradores del entregable"
+                            :selected-users="data.usuariosAsignados?.map((a: any) => a.user_id) || []"
+                            :search-endpoint="data.searchUsersEndpoint || '/admin/proyectos/search-users'"
+                            :loading="loadingField === 'usuarios'"
+                            @submit="handleSaveColaboradores"
+                        />
 
                         <!-- Tab Evidencias -->
                         <TabsContent value="evidencias" class="mt-0 space-y-4">
@@ -660,16 +864,6 @@ const handleRefresh = async () => {
                                 <span class="hidden sm:inline">Abrir página completa</span>
                             </Button>
                         </Link>
-                        <Button
-                            v-if="(canEdit || data.canEdit) && entregable"
-                            variant="outline"
-                            size="sm"
-                            class="text-xs sm:text-sm px-2 sm:px-3"
-                            @click="emit('edit-entregable')"
-                        >
-                            <Edit class="h-3.5 w-3.5 sm:h-4 sm:w-4 sm:mr-1.5" />
-                            <span class="hidden sm:inline">Editar</span>
-                        </Button>
                     </div>
                     <Button variant="ghost" size="sm" class="text-xs sm:text-sm" @click="handleClose">
                         Cerrar
