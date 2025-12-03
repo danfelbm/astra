@@ -2,7 +2,7 @@
 /**
  * HitoDetallesModal - Modal de detalles completos de un Hito
  *
- * Muestra 4 tabs: detalles, entregables, comentarios, actividad.
+ * Muestra 3 tabs: detalles, comentarios, actividad.
  * Carga datos via API usando el composable useHitoDetalles.
  * Soporta deeplinks para tab y paginación de comentarios.
  * En responsive: header colapsable, tabs como select dropdown.
@@ -27,15 +27,13 @@ import { ScrollArea } from '@modules/Core/Resources/js/components/ui/scroll-area
 import { Skeleton } from '@modules/Core/Resources/js/components/ui/skeleton';
 import {
     Calendar, Clock, User, Edit, Target, FileText, Tag,
-    ExternalLink, ListTodo, MessageSquare, Activity, RefreshCw,
+    ExternalLink, MessageSquare, Activity, RefreshCw,
     ChevronDown
 } from 'lucide-vue-next';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 // Componentes del módulo
-import EntregablesTable from '../EntregablesTable.vue';
-import EntregablesFilters from '../EntregablesFilters.vue';
 import ActivityFilters from '../ActivityFilters.vue';
 import ActivityLog from '../ActivityLog.vue';
 import CamposPersonalizadosDisplay from '../CamposPersonalizadosDisplay.vue';
@@ -43,9 +41,6 @@ import ComentariosPanel from '@modules/Comentarios/Resources/js/components/Comen
 
 // Composable
 import { useHitoDetalles } from '../../composables/useHitoDetalles';
-
-// Types
-import type { Entregable } from '../../types/hitos';
 
 // Props
 interface Props {
@@ -55,14 +50,12 @@ interface Props {
     initialTab?: string;
     canEdit?: boolean;
     canDelete?: boolean;
-    canManageEntregables?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
     initialTab: 'detalles',
     canEdit: false,
     canDelete: false,
-    canManageEntregables: false,
 });
 
 // Emits
@@ -70,9 +63,6 @@ const emit = defineEmits<{
     'update:open': [value: boolean];
     'update:tab': [tab: string];
     'edit-hito': [];
-    'view-entregable': [entregable: Entregable];
-    'edit-entregable': [entregable: Entregable];
-    'add-entregable': [];
     'refresh': [];
 }>();
 
@@ -81,23 +71,13 @@ const hitoIdRef = toRef(props, 'hitoId');
 const { data, loading, error, cargar, reset } = useHitoDetalles(hitoIdRef);
 
 // Tabs válidos
-const validTabs = ['detalles', 'entregables', 'comentarios', 'actividad'];
+const validTabs = ['detalles', 'comentarios', 'actividad'];
 
 // Estado del tab activo
 const activeTab = ref(validTabs.includes(props.initialTab) ? props.initialTab : 'detalles');
 
 // Estado para controlar si el header está expandido en móvil
 const headerExpanded = ref(false);
-
-// Filtros de entregables
-const filtrosEntregables = ref({
-    search: null as string | null,
-    estado: null as string | null,
-    prioridad: null as string | null,
-    responsable_id: null as number | null,
-    fecha_inicio: null as string | null,
-    fecha_fin: null as string | null
-});
 
 // Filtros de actividades
 const filtrosActividades = ref({
@@ -132,33 +112,6 @@ watch(activeTab, (newTab) => {
 // Computed: hito
 const hito = computed(() => data.value.hito);
 const estadisticas = computed(() => data.value.estadisticas);
-
-// Computed: entregables filtrados
-const entregablesFiltrados = computed(() => {
-    let result = hito.value?.entregables || [];
-
-    if (filtrosEntregables.value.search) {
-        const searchLower = filtrosEntregables.value.search.toLowerCase();
-        result = result.filter(e =>
-            e.nombre.toLowerCase().includes(searchLower) ||
-            (e.descripcion && e.descripcion.toLowerCase().includes(searchLower))
-        );
-    }
-
-    if (filtrosEntregables.value.estado) {
-        result = result.filter(e => e.estado === filtrosEntregables.value.estado);
-    }
-
-    if (filtrosEntregables.value.prioridad) {
-        result = result.filter(e => e.prioridad === filtrosEntregables.value.prioridad);
-    }
-
-    if (filtrosEntregables.value.responsable_id) {
-        result = result.filter(e => e.responsable?.id === filtrosEntregables.value.responsable_id);
-    }
-
-    return result;
-});
 
 // Computed: actividades filtradas
 const actividadesFiltradas = computed(() => {
@@ -230,14 +183,6 @@ const handleClose = () => {
 const handleRefresh = async () => {
     await cargar();
     emit('refresh');
-};
-
-const handleViewEntregable = (entregable: Entregable) => {
-    emit('view-entregable', entregable);
-};
-
-const handleEditEntregable = (entregable: Entregable) => {
-    emit('edit-entregable', entregable);
 };
 </script>
 
@@ -341,13 +286,6 @@ const handleEditEntregable = (entregable: Entregable) => {
                         <TabsTrigger value="detalles" label="Detalles" :icon="FileText">
                             <FileText class="h-4 w-4 mr-1.5" />
                             Detalles
-                        </TabsTrigger>
-                        <TabsTrigger value="entregables" label="Entregables" :icon="ListTodo" :badge="estadisticas?.total_entregables">
-                            <ListTodo class="h-4 w-4 mr-1.5" />
-                            Entregables
-                            <Badge v-if="estadisticas?.total_entregables" variant="secondary" class="ml-1.5 h-5 px-1.5 text-xs">
-                                {{ estadisticas.total_entregables }}
-                            </Badge>
                         </TabsTrigger>
                         <TabsTrigger value="comentarios" label="Comentarios" :icon="MessageSquare" :badge="hito?.total_comentarios">
                             <MessageSquare class="h-4 w-4 mr-1.5" />
@@ -495,50 +433,6 @@ const handleEditEntregable = (entregable: Entregable) => {
                                                 {{ formatDateTime(hito.updated_at) }}
                                             </div>
                                         </div>
-                                    </CardContent>
-                                </Card>
-                            </template>
-                        </TabsContent>
-
-                        <!-- Tab Entregables -->
-                        <TabsContent value="entregables" class="mt-0 space-y-4">
-                            <template v-if="hito">
-                                <!-- Filtros -->
-                                <EntregablesFilters
-                                    v-if="hito.entregables && hito.entregables.length > 0"
-                                    v-model="filtrosEntregables"
-                                    :usuarios="data.usuariosEntregables"
-                                />
-
-                                <!-- Tabla -->
-                                <Card v-if="hito.entregables && hito.entregables.length > 0">
-                                    <CardContent class="p-0">
-                                        <EntregablesTable
-                                            :entregables="entregablesFiltrados"
-                                            :proyecto-id="proyectoId"
-                                            :hito-id="hitoId"
-                                            :can-edit="canManageEntregables || data.canManageEntregables"
-                                            :can-delete="canManageEntregables || data.canManageEntregables"
-                                            :can-complete="data.canComplete"
-                                            :show-checkbox="false"
-                                            @view="handleViewEntregable"
-                                            @edit="handleEditEntregable"
-                                        />
-                                    </CardContent>
-                                </Card>
-
-                                <!-- Estado vacío -->
-                                <Card v-else>
-                                    <CardContent class="text-center py-8">
-                                        <ListTodo class="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                                        <p class="text-muted-foreground mb-4">No hay entregables en este hito</p>
-                                        <Button
-                                            v-if="canManageEntregables || data.canManageEntregables"
-                                            variant="outline"
-                                            @click="emit('add-entregable')"
-                                        >
-                                            Crear Entregable
-                                        </Button>
                                     </CardContent>
                                 </Card>
                             </template>
