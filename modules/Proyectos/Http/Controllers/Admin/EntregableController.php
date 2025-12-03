@@ -152,79 +152,6 @@ class EntregableController extends AdminController
     }
 
     /**
-     * Muestra los detalles de un entregable específico.
-     */
-    public function show(Request $request, Proyecto $proyecto, Hito $hito, Entregable $entregable): Response
-    {
-        // Verificar permisos
-        abort_unless(auth()->user()->can('entregables.view'), 403, 'No tienes permisos para ver este entregable');
-
-        $entregable->load([
-            'responsable:id,name,email',
-            'usuarios' => function ($query) {
-                $query->select('users.id', 'users.name', 'users.email')
-                      ->withPivot('rol');
-            },
-            'completadoPor:id,name,email',
-            'evidencias' => function ($query) {
-                $query->with([
-                    'usuario:id,name,email',
-                    'obligacion:id,titulo,contrato_id',
-                    'obligacion.contrato'
-                ]);
-            },
-            'camposPersonalizados.campoPersonalizado'
-        ]);
-
-        // Preparar usuarios asignados para el frontend
-        $usuariosAsignados = $entregable->usuarios->map(fn($u) => [
-            'user_id' => $u->id,
-            'user' => [
-                'id' => $u->id,
-                'name' => $u->name,
-                'email' => $u->email,
-                'avatar' => $u->avatar ?? null
-            ],
-            'rol' => $u->pivot->rol,
-            'created_at' => $u->pivot->created_at
-        ])->toArray();
-
-        // Obtener actividades del entregable
-        $actividades = $entregable->getActivityLogs(100);
-
-        // Obtener usuarios únicos de las actividades para los filtros
-        $usuariosActividades = $actividades
-            ->pluck('causer')
-            ->filter()
-            ->unique('id')
-            ->map(fn($user) => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email
-            ])
-            ->values();
-
-        // Obtener campos personalizados con sus valores
-        $camposPersonalizados = $this->campoPersonalizadoRepository->getActivosParaEntregables();
-        $valoresCamposPersonalizados = $entregable->getCamposPersonalizadosValues();
-
-        return Inertia::render('Modules/Proyectos/Admin/Entregables/Show', [
-            'proyecto' => $proyecto,
-            'hito' => $hito,
-            'entregable' => $entregable,
-            'usuariosAsignados' => $usuariosAsignados,
-            'actividades' => $actividades,
-            'usuariosActividades' => $usuariosActividades,
-            'camposPersonalizados' => $camposPersonalizados,
-            'valoresCamposPersonalizados' => $valoresCamposPersonalizados,
-            'canEdit' => auth()->user()->can('entregables.edit'),
-            'canDelete' => auth()->user()->can('entregables.delete'),
-            'canComplete' => auth()->user()->can('entregables.complete'),
-            'canAssign' => auth()->user()->can('entregables.assign'),
-        ]);
-    }
-
-    /**
      * Muestra el formulario para editar un entregable.
      */
     public function edit(Request $request, Proyecto $proyecto, Hito $hito, Entregable $entregable): Response
@@ -320,8 +247,8 @@ class EntregableController extends AdminController
             // Actualizar porcentaje del hito
             $hito->calcularPorcentajeCompletado();
 
-            return redirect()
-                ->route('admin.proyectos.hitos.entregables.show', [$proyecto, $hito, $entregable])
+            // Redirigir a la página del proyecto con el hito seleccionado
+            return redirect("/admin/proyectos/{$proyecto->id}?tab=hitos&hito={$hito->id}")
                 ->with('success', 'Entregable actualizado exitosamente');
         }
 
@@ -451,8 +378,8 @@ class EntregableController extends AdminController
         $nuevoEntregable = $this->entregableRepository->duplicar($entregable->id, $hito->id);
 
         if ($nuevoEntregable) {
-            return redirect()
-                ->route('admin.proyectos.hitos.entregables.show', [$proyecto, $hito, $nuevoEntregable])
+            // Redirigir a la página del proyecto con el hito seleccionado
+            return redirect("/admin/proyectos/{$proyecto->id}?tab=hitos&hito={$hito->id}")
                 ->with('success', 'Entregable duplicado exitosamente');
         }
 

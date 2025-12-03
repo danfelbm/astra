@@ -139,81 +139,6 @@ class HitoController extends AdminController
     }
 
     /**
-     * Muestra los detalles de un hito específico.
-     */
-    public function show(Request $request, Proyecto $proyecto, Hito $hito): Response
-    {
-        // Verificar permisos
-        abort_unless(auth()->user()->can('hitos.view'), 403, 'No tienes permisos para ver hitos');
-
-        $hito->load([
-            'responsable:id,name,email',
-            'entregables' => function ($query) {
-                $query->with(['responsable:id,name,email', 'usuarios:id,name,email'])
-                      ->orderBy('orden');
-            },
-            'camposPersonalizados.campoPersonalizado'
-        ]);
-
-        // Calcular estadísticas del hito
-        $estadisticas = [
-            'total_entregables' => $hito->entregables->count(),
-            'entregables_completados' => $hito->entregables->where('estado', 'completado')->count(),
-            'entregables_pendientes' => $hito->entregables->where('estado', 'pendiente')->count(),
-            'entregables_en_progreso' => $hito->entregables->where('estado', 'en_progreso')->count(),
-            'porcentaje_completado' => $hito->porcentaje_completado,
-            'dias_restantes' => $hito->dias_restantes,
-            'esta_vencido' => $hito->esta_vencido,
-        ];
-
-        // Obtener campos personalizados con sus valores
-        $camposPersonalizados = $this->campoPersonalizadoRepository->getActivosParaHitos();
-        $valoresCamposPersonalizados = $hito->getCamposPersonalizadosValues();
-
-        // Obtener actividades acumuladas del hito + entregables
-        $actividadesHito = $hito->getActivityLogs();
-        $actividadesEntregables = collect();
-
-        foreach ($hito->entregables as $entregable) {
-            $actividadesEntregables = $actividadesEntregables->merge($entregable->getActivityLogs());
-        }
-
-        // Combinar actividades y ordenar por fecha descendente
-        $actividades = $actividadesHito
-            ->merge($actividadesEntregables)
-            ->sortByDesc('created_at')
-            ->take(100) // Limitar a las 100 actividades más recientes
-            ->values();
-
-        // Obtener usuarios únicos de las actividades para los filtros
-        $usuariosActividades = $actividades
-            ->pluck('causer')
-            ->filter()
-            ->unique('id')
-            ->map(fn($user) => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email
-            ])
-            ->values();
-
-        return Inertia::render('Modules/Proyectos/Admin/Hitos/Show', [
-            'proyecto' => $proyecto,
-            'hito' => $hito,
-            'estadisticas' => $estadisticas,
-            'camposPersonalizados' => $camposPersonalizados,
-            'valoresCamposPersonalizados' => $valoresCamposPersonalizados,
-            'actividades' => $actividades,
-            'usuariosActividades' => $usuariosActividades,
-            'canEdit' => auth()->user()->can('hitos.edit'),
-            'canDelete' => auth()->user()->can('hitos.delete'),
-            'canManageEntregables' => auth()->user()->can('hitos.manage_deliverables'),
-            'canManageDeliverables' => auth()->user()->can('hitos.manage_deliverables'),
-            'canCreateDeliverables' => auth()->user()->can('entregables.create'),
-        ]);
-    }
-
-    /**
      * Muestra el formulario para editar un hito.
      */
     public function edit(Request $request, Proyecto $proyecto, Hito $hito): Response
@@ -294,8 +219,8 @@ class HitoController extends AdminController
         $result = $this->hitoService->update($hito, $data);
 
         if ($result['success']) {
-            return redirect()
-                ->route('admin.proyectos.hitos.show', [$proyecto, $hito])
+            // Redirigir a la página del proyecto con el hito seleccionado
+            return redirect("/admin/proyectos/{$proyecto->id}?tab=hitos&hito={$hito->id}")
                 ->with('success', $result['message']);
         }
 
@@ -336,8 +261,8 @@ class HitoController extends AdminController
         $result = $this->hitoService->duplicar($hito);
 
         if ($result['success']) {
-            return redirect()
-                ->route('admin.proyectos.hitos.show', [$proyecto, $result['hito']])
+            // Redirigir a la página del proyecto con el nuevo hito seleccionado
+            return redirect("/admin/proyectos/{$proyecto->id}?tab=hitos&hito={$result['hito']->id}")
                 ->with('success', 'Hito duplicado exitosamente');
         }
 

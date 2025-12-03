@@ -105,9 +105,10 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Hitos', href: `/admin/proyectos/${props.proyecto.id}/hitos` },
 ];
 
-// Métodos de navegación
+// Métodos de navegación - redirige a la página del proyecto con modal abierto
 const navigateToHito = (hito: Hito) => {
-    router.visit(`/admin/proyectos/${props.proyecto.id}/hitos/${hito.id}`);
+    const url = `/admin/proyectos/${props.proyecto.id}?tab=hitos&hito=${hito.id}&modal=hito`;
+    router.visit(url);
 };
 
 const navigateToEditHito = (hito: Hito) => {
@@ -146,9 +147,10 @@ const navigateToEntregables = (hito: Hito) => {
     router.visit(`/admin/proyectos/${props.proyecto.id}/hitos/${hito.id}/entregables`);
 };
 
-// Handler para ver detalle de un entregable
+// Handler para ver detalle de un entregable - redirige a la página del proyecto con modal
 const handleViewEntregable = (entregable: any, hito: Hito) => {
-    router.visit(`/admin/proyectos/${props.proyecto.id}/hitos/${hito.id}/entregables/${entregable.id}`);
+    const url = `/admin/proyectos/${props.proyecto.id}?tab=hitos&hito=${hito.id}&modal=entregable_${entregable.id}`;
+    router.visit(url);
 };
 
 // Handler para completar un entregable

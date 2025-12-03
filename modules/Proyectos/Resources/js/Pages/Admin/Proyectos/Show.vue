@@ -306,8 +306,10 @@ const cancelEditingTags = () => {
 };
 
 // Funciones para gestión de hitos
+// Navegar al hito abre el modal en la misma página con query params
 const navigateToHito = (hito: Hito) => {
-    router.visit(`/admin/proyectos/${props.proyecto.id}/hitos/${hito.id}`);
+    const url = `/admin/proyectos/${props.proyecto.id}?tab=hitos&hito=${hito.id}&modal=hito`;
+    router.visit(url, { preserveState: true, preserveScroll: true });
 };
 
 const navigateToEditHito = (hito: Hito) => {
@@ -403,9 +405,10 @@ const handleDeleteEntregable = (entregable: Entregable, hito: Hito) => {
     }
 };
 
-// Handler para ver detalle de un entregable
+// Handler para ver detalle de un entregable - abre modal con query params
 const handleViewEntregable = (entregable: Entregable, hito: Hito) => {
-    router.visit(`/admin/proyectos/${props.proyecto.id}/hitos/${hito.id}/entregables/${entregable.id}`);
+    const url = `/admin/proyectos/${props.proyecto.id}?tab=hitos&hito=${hito.id}&modal=entregable_${entregable.id}`;
+    router.visit(url, { preserveState: true, preserveScroll: true });
 };
 
 // Actividades filtradas

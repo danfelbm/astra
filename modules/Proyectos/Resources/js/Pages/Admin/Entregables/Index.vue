@@ -119,7 +119,7 @@ const breadcrumbs = computed<BreadcrumbItem[]>(() => [
   { title: 'Proyectos', href: '/admin/proyectos' },
   { title: props.proyecto.nombre, href: `/admin/proyectos/${props.proyecto.id}` },
   { title: 'Hitos', href: `/admin/proyectos/${props.proyecto.id}/hitos` },
-  { title: props.hito.nombre, href: `/admin/proyectos/${props.proyecto.id}/hitos/${props.hito.id}` },
+  { title: props.hito.nombre, href: `/admin/proyectos/${props.proyecto.id}?tab=hitos&hito=${props.hito.id}&modal=hito` },
   { title: 'Entregables' },
 ]);
 
