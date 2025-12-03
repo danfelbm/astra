@@ -620,11 +620,12 @@ const handleRefresh = async () => {
 
                         <!-- Tab Comentarios -->
                         <TabsContent value="comentarios" class="mt-0">
+                            <!-- Si llegó al modal (pasó verificación de acceso), puede comentar -->
                             <ComentariosPanel
                                 v-if="hitoId"
                                 commentable-type="hitos"
                                 :commentable-id="hitoId"
-                                :can-create="canEdit || data.canEdit"
+                                :can-create="true"
                                 embedded
                             />
                         </TabsContent>
