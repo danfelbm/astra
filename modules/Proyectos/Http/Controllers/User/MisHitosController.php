@@ -241,6 +241,7 @@ class MisHitosController extends UserController
     /**
      * Actualiza el estado de un entregable.
      * Solo gestores del proyecto pueden cambiar estados de entregables.
+     * Opcionalmente crea un comentario con contexto de cambio de estado.
      */
     public function actualizarEstadoEntregable(Request $request, Hito $hito, Entregable $entregable): RedirectResponse
     {
@@ -252,8 +253,18 @@ class MisHitosController extends UserController
 
         $request->validate([
             'estado' => 'required|in:pendiente,en_progreso,completado',
-            'observaciones' => 'nullable|string|max:1000'
+            'observaciones' => 'nullable|string|max:1000',
+            'agregar_comentario' => 'boolean',
+            'archivos' => 'nullable|array|max:3',
+            'archivos.*.path' => 'required_with:archivos|string',
+            'archivos.*.name' => 'required_with:archivos|string',
+            'archivos.*.mime_type' => 'nullable|string',
         ]);
+
+        // Capturar estado anterior antes de cambiar
+        $estadoAnterior = $entregable->estado;
+        $labelAnterior = $entregable->estado_label;
+        $colorAnterior = $entregable->estado_color;
 
         // Usar el método genérico que registra en audit log
         $entregable->cambiarEstado(
@@ -261,6 +272,21 @@ class MisHitosController extends UserController
             $user->id,
             $request->observaciones
         );
+
+        // Agregar comentario con contexto si se solicita
+        if ($request->boolean('agregar_comentario') && $request->filled('observaciones')) {
+            $entregable->agregarComentarioConContexto([
+                'contenido' => $request->input('observaciones'),
+                'tipo' => 'cambio_estado',
+                'estado_anterior' => $estadoAnterior,
+                'estado_nuevo' => $request->estado,
+                'label_anterior' => $labelAnterior,
+                'label_nuevo' => $entregable->estado_label,
+                'color_anterior' => $colorAnterior,
+                'color_nuevo' => $entregable->estado_color,
+                'archivos' => $request->input('archivos', []),
+            ]);
+        }
 
         return redirect()
             ->back()
