@@ -205,21 +205,107 @@ class HitoApiController
 
         DB::beginTransaction();
         try {
+            // Deshabilitar log automático del modelo para evitar duplicados
+            // El trait LogsActivity verifica $this->enableLoggingModelsEvents
+            $hito->disableLogging();
+
             // Manejar campos directos
             if (in_array($field, $camposDirectos)) {
                 $this->validarCampoDirecto($field, $value, $hito);
+                // Capturar valor anterior antes de modificar
+                $valorAnterior = $hito->$field;
+
+                // Para campos de relación, obtener nombres legibles
+                $valorAnteriorLegible = $valorAnterior;
+                $valorNuevoLegible = $value;
+
+                if ($field === 'responsable_id') {
+                    // Obtener nombre del responsable anterior
+                    $valorAnteriorLegible = $valorAnterior
+                        ? \Modules\Core\Models\User::find($valorAnterior)?->name ?? "(ID: {$valorAnterior})"
+                        : '(ninguno)';
+                    // Obtener nombre del nuevo responsable
+                    $valorNuevoLegible = $value
+                        ? \Modules\Core\Models\User::find($value)?->name ?? "(ID: {$value})"
+                        : '(ninguno)';
+                } elseif ($field === 'parent_id') {
+                    // Obtener nombre del hito padre anterior
+                    $valorAnteriorLegible = $valorAnterior
+                        ? Hito::find($valorAnterior)?->nombre ?? "(ID: {$valorAnterior})"
+                        : '(ninguno)';
+                    // Obtener nombre del nuevo hito padre
+                    $valorNuevoLegible = $value
+                        ? Hito::find($value)?->nombre ?? "(ID: {$value})"
+                        : '(ninguno)';
+                }
+
                 $hito->$field = $value;
                 $hito->save();
+
+                // Registrar audit log manual si hubo cambio
+                if ($valorAnterior != $value) {
+                    $hito->enableLogging();
+                    $hito->logStateChange($field, $valorAnteriorLegible, $valorNuevoLegible);
+                    $hito->disableLogging(); // Mantener deshabilitado por si hay más operaciones
+                }
             }
             // Manejar etiquetas
             elseif ($field === 'etiquetas') {
                 $etiquetaIds = is_array($value) ? $value : [];
+                // Cargar y capturar etiquetas anteriores (nombres)
+                $hito->load('etiquetas');
+                $nombresAnteriores = $hito->etiquetas->pluck('nombre')->toArray();
+                $idsAnteriores = $hito->etiquetas->pluck('id')->toArray();
                 $hito->etiquetas()->sync($etiquetaIds);
+
+                // Obtener nombres de las nuevas etiquetas
+                $nombresNuevos = [];
+                if (count($etiquetaIds)) {
+                    $nombresNuevos = \Modules\Proyectos\Models\Etiqueta::whereIn('id', $etiquetaIds)
+                        ->pluck('nombre')->toArray();
+                }
+
+                // Registrar audit log si hubo cambio
+                if ($idsAnteriores != $etiquetaIds) {
+                    $hito->enableLogging();
+                    $hito->logStateChange(
+                        'etiquetas',
+                        count($nombresAnteriores) ? implode(', ', $nombresAnteriores) : '(ninguna)',
+                        count($nombresNuevos) ? implode(', ', $nombresNuevos) : '(ninguna)'
+                    );
+                    $hito->disableLogging();
+                }
             }
             // Manejar campos personalizados
             elseif (str_starts_with($field, 'campo_personalizado_')) {
                 $campoId = (int) str_replace('campo_personalizado_', '', $field);
+                // Capturar valor anterior
+                $valoresActuales = $hito->getCamposPersonalizadosValues();
+                $valorAnterior = $valoresActuales[$campoId] ?? null;
+
+                // Si es archivo, obtener nombre original antes de guardar
+                $valorNuevoLegible = $value;
+                if ($value instanceof \Illuminate\Http\UploadedFile) {
+                    $valorNuevoLegible = $value->getClientOriginalName();
+                }
+
                 $hito->setCampoPersonalizadoValue($campoId, $value);
+
+                // Obtener el valor final guardado (nombre del archivo procesado)
+                $hito->load('camposPersonalizados');
+                $valoresFinales = $hito->getCamposPersonalizadosValues();
+                $valorFinal = $valoresFinales[$campoId] ?? null;
+
+                // Registrar audit log si hubo cambio
+                if ($valorAnterior != $valorFinal) {
+                    $hito->enableLogging();
+                    $hito->logStateChange(
+                        $field,
+                        $valorAnterior ?? '(vacío)',
+                        $valorNuevoLegible ?? '(vacío)'
+                    );
+                    $hito->disableLogging();
+                }
             }
             else {
                 return response()->json([
@@ -233,6 +319,9 @@ class HitoApiController
             // Recargar relaciones para devolver datos actualizados
             $hito->load(['responsable:id,name,email,avatar', 'parent:id,nombre', 'etiquetas']);
 
+            // Rehabilitar logging del modelo
+            $hito->enableLogging();
+
             return response()->json([
                 'success' => true,
                 'message' => 'Campo actualizado correctamente',
@@ -240,6 +329,7 @@ class HitoApiController
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
+            $hito->enableLogging(); // Rehabilitar logging en caso de error
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage()

@@ -206,6 +206,23 @@ class EntregableApiController
             // Manejar campos directos
             if (in_array($field, $camposDirectos)) {
                 $this->validarCampoDirecto($field, $value, $entregable);
+                // Capturar valor anterior antes de modificar
+                $valorAnterior = $entregable->$field;
+
+                // Para campos de relación, obtener nombres legibles
+                $valorAnteriorLegible = $valorAnterior;
+                $valorNuevoLegible = $value;
+
+                if ($field === 'responsable_id') {
+                    // Obtener nombre del responsable anterior
+                    $valorAnteriorLegible = $valorAnterior
+                        ? \Modules\Core\Models\User::find($valorAnterior)?->name ?? "(ID: {$valorAnterior})"
+                        : '(ninguno)';
+                    // Obtener nombre del nuevo responsable
+                    $valorNuevoLegible = $value
+                        ? \Modules\Core\Models\User::find($value)?->name ?? "(ID: {$value})"
+                        : '(ninguno)';
+                }
 
                 // Manejo especial para cambio de estado
                 if ($field === 'estado') {
@@ -230,26 +247,98 @@ class EntregableApiController
                     $entregable->$field = $value;
                 }
 
-                $entregable->save();
+                // Usar saveQuietly() para evitar que el trait LogsActivity genere log automático
+                $entregable->saveQuietly();
+
+                // Registrar audit log manual si hubo cambio
+                if ($valorAnterior != $value) {
+                    $entregable->logStateChange($field, $valorAnteriorLegible, $valorNuevoLegible);
+                }
             }
             // Manejar etiquetas
             elseif ($field === 'etiquetas') {
                 $etiquetaIds = is_array($value) ? $value : [];
+                // Cargar y capturar etiquetas anteriores (nombres)
+                $entregable->load('etiquetas');
+                $nombresAnteriores = $entregable->etiquetas->pluck('nombre')->toArray();
+                $idsAnteriores = $entregable->etiquetas->pluck('id')->toArray();
                 $entregable->etiquetas()->sync($etiquetaIds);
+
+                // Obtener nombres de las nuevas etiquetas
+                $nombresNuevos = [];
+                if (count($etiquetaIds)) {
+                    $nombresNuevos = \Modules\Proyectos\Models\Etiqueta::whereIn('id', $etiquetaIds)
+                        ->pluck('nombre')->toArray();
+                }
+
+                // Registrar audit log si hubo cambio
+                if ($idsAnteriores != $etiquetaIds) {
+                    $entregable->logStateChange(
+                        'etiquetas',
+                        count($nombresAnteriores) ? implode(', ', $nombresAnteriores) : '(ninguna)',
+                        count($nombresNuevos) ? implode(', ', $nombresNuevos) : '(ninguna)'
+                    );
+                }
             }
             // Manejar colaboradores (usuarios asignados)
             elseif ($field === 'usuarios') {
                 $usuarios = is_array($value) ? $value : [];
+                // Cargar y capturar usuarios anteriores (nombres)
+                $entregable->load('usuarios');
+                $nombresAnteriores = $entregable->usuarios->pluck('name')->toArray();
+                $idsAnteriores = $entregable->usuarios->pluck('id')->toArray();
+
                 $syncData = [];
                 foreach ($usuarios as $u) {
                     $syncData[$u['user_id']] = ['rol' => $u['rol'] ?? 'colaborador'];
                 }
                 $entregable->usuarios()->sync($syncData);
+
+                // Obtener nombres de los nuevos usuarios
+                $nuevosIds = collect($usuarios)->pluck('user_id')->toArray();
+                $nombresNuevos = [];
+                if (count($nuevosIds)) {
+                    $nombresNuevos = \Modules\Core\Models\User::whereIn('id', $nuevosIds)
+                        ->pluck('name')->toArray();
+                }
+
+                // Registrar audit log si hubo cambio
+                if ($idsAnteriores != $nuevosIds) {
+                    $entregable->logStateChange(
+                        'usuarios',
+                        count($nombresAnteriores) ? implode(', ', $nombresAnteriores) : '(ninguno)',
+                        count($nombresNuevos) ? implode(', ', $nombresNuevos) : '(ninguno)'
+                    );
+                }
             }
             // Manejar campos personalizados
             elseif (str_starts_with($field, 'campo_personalizado_')) {
                 $campoId = (int) str_replace('campo_personalizado_', '', $field);
+                // Capturar valor anterior
+                $valoresActuales = $entregable->getCamposPersonalizadosValues();
+                $valorAnterior = $valoresActuales[$campoId] ?? null;
+
+                // Si es archivo, obtener nombre original antes de guardar
+                $valorNuevoLegible = $value;
+                if ($value instanceof \Illuminate\Http\UploadedFile) {
+                    $valorNuevoLegible = $value->getClientOriginalName();
+                }
+
                 $entregable->setCampoPersonalizadoValue($campoId, $value);
+
+                // Obtener el valor final guardado (nombre del archivo procesado)
+                $entregable->load('camposPersonalizados');
+                $valoresFinales = $entregable->getCamposPersonalizadosValues();
+                $valorFinal = $valoresFinales[$campoId] ?? null;
+
+                // Registrar audit log si hubo cambio
+                if ($valorAnterior != $valorFinal) {
+                    $entregable->logStateChange(
+                        $field,
+                        $valorAnterior ?? '(vacío)',
+                        $valorNuevoLegible ?? '(vacío)'
+                    );
+                }
             }
             else {
                 return response()->json([

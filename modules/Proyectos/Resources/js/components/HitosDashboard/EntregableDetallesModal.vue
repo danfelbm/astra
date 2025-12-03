@@ -781,11 +781,11 @@ const handleRefresh = async () => {
 
                         <!-- Modal para agregar colaboradores -->
                         <AddUsersModal
-                            v-model:open="showColaboradoresModal"
+                            v-model="showColaboradoresModal"
                             title="Gestionar Colaboradores"
                             description="Busca y selecciona los colaboradores del entregable"
                             :selected-users="data.usuariosAsignados?.map((a: any) => a.user_id) || []"
-                            :search-endpoint="data.searchUsersEndpoint || '/admin/proyectos/search-users'"
+                            :search-endpoint="data.searchUsersEndpoint || '/admin/proyectos-search-users'"
                             :loading="loadingField === 'usuarios'"
                             @submit="handleSaveColaboradores"
                         />
