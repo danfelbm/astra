@@ -33,7 +33,6 @@ import {
 } from 'lucide-vue-next';
 import EtiquetaDisplay from "@modules/Proyectos/Resources/js/components/EtiquetaDisplay.vue";
 import ContratoCard from "@modules/Proyectos/Resources/js/components/ContratoCard.vue";
-import HitoCard from "@modules/Proyectos/Resources/js/components/HitoCard.vue";
 import HitosDashboard from "@modules/Proyectos/Resources/js/components/HitosDashboard.vue";
 import EvidenciasDisplay from "@modules/Proyectos/Resources/js/components/EvidenciasDisplay.vue";
 import CamposPersonalizadosDisplay from "@modules/Proyectos/Resources/js/components/CamposPersonalizadosDisplay.vue";
@@ -482,6 +481,7 @@ const handleViewEntregable = (entregable: Entregable, hito: Hito) => {
                         :can-manage-deliverables="esGestorDelProyecto"
                         :can-complete="esGestorDelProyecto"
                         :show-view-detail="false"
+                        :show-filters="true"
                         base-url="/miembro/mis-proyectos"
                         @edit-hito="handleEditHito"
                         @add-entregable="handleAddEntregable"
