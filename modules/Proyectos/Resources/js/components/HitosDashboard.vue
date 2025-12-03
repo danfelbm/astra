@@ -67,6 +67,7 @@ interface Props {
     // Permisos
     canEdit?: boolean;
     canDelete?: boolean;
+    canCreate?: boolean;
     canManageDeliverables?: boolean;
     canComplete?: boolean;
     // UI
@@ -80,6 +81,7 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
     canEdit: false,
     canDelete: false,
+    canCreate: false,
     canManageDeliverables: false,
     canComplete: false,
     showViewDetail: true,
@@ -93,6 +95,7 @@ import type { UploadedFile } from '@modules/Comentarios/Resources/js/types/comen
 // Emits
 const emit = defineEmits<{
     'select-hito': [hitoId: number];
+    'create-hito': [];
     'edit-hito': [hito: Hito];
     'delete-hito': [hito: Hito];
     'view-hito': [hito: Hito];
@@ -412,6 +415,16 @@ const handleOpenHitoActividad = () => {
                         <Target class="h-4 w-4" />
                         Hitos ({{ displayedHitos.length }})
                     </h2>
+                    <!-- Botón crear hito -->
+                    <Button
+                        v-if="canCreate"
+                        size="sm"
+                        class="h-7 text-xs"
+                        @click="emit('create-hito')"
+                    >
+                        <Plus class="h-3.5 w-3.5 mr-1" />
+                        Nuevo
+                    </Button>
                 </div>
                 <!-- Filtro por proyecto (cuando hay múltiples proyectos) -->
                 <div v-if="proyectos && proyectos.length > 0" class="mt-3">
@@ -558,7 +571,23 @@ const handleOpenHitoActividad = () => {
         <!-- Panel Principal -->
         <main class="flex-1 flex flex-col min-h-0 min-w-0">
             <!-- Selector Móvil -->
-            <div class="md:hidden mb-2 border-b bg-background sticky top-0 z-10 space-y-2">
+            <div class="md:hidden mb-2 border-b bg-background sticky top-0 z-10 space-y-2 p-2">
+                <!-- Header móvil con botón crear -->
+                <div class="flex items-center justify-between">
+                    <h2 class="font-semibold text-sm text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+                        <Target class="h-4 w-4" />
+                        Hitos ({{ displayedHitos.length }})
+                    </h2>
+                    <Button
+                        v-if="canCreate"
+                        size="sm"
+                        class="h-7 text-xs"
+                        @click="emit('create-hito')"
+                    >
+                        <Plus class="h-3.5 w-3.5 mr-1" />
+                        Nuevo
+                    </Button>
+                </div>
                 <!-- Filtro por proyecto móvil (cuando hay múltiples proyectos) -->
                 <Select
                     v-if="proyectos && proyectos.length > 0"
