@@ -64,7 +64,7 @@ const redirectOptions = [
     { value: 'default', label: 'Por defecto (según tipo de rol)' },
     { value: 'admin.dashboard', label: 'Dashboard Administrativo', group: 'admin' },
     { value: 'admin.candidaturas.dashboard', label: 'Dashboard Candidaturas', group: 'admin' },
-    { value: 'dashboard', label: 'Dashboard Usuario', group: 'user' },
+    { value: 'user.dashboard', label: 'Dashboard Usuario', group: 'user' },
     { value: 'votaciones.index', label: 'Votaciones', group: 'user' },
     { value: 'asambleas.index', label: 'Asambleas', group: 'user' },
     { value: 'formularios.index', label: 'Formularios', group: 'user' },
