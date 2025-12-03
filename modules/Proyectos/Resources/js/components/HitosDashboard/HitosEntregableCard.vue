@@ -184,12 +184,34 @@ const cardClasses = computed(() => {
                     @click.stop="emit('view')"
                 >
                     <Eye class="h-3 w-3 mr-1" />
-                    Ver
+                    Ver detalles
                 </Button>
+                <!-- Botones de acción solo para gestores/responsables -->
                 <Button
+                    v-if="canComplete && !isCompletado && !isCancelado"
                     variant="outline"
                     size="sm"
-                    class="flex-1 h-7 text-xs"
+                    class="h-7 text-xs"
+                    @click.stop="emit('complete')"
+                >
+                    <CheckCircle class="h-3 w-3 mr-1" />
+                    Completar
+                </Button>
+                <Button
+                    v-if="canEdit && entregable.estado === 'pendiente'"
+                    variant="outline"
+                    size="sm"
+                    class="h-7 text-xs"
+                    @click.stop="emit('change-status', 'en_progreso')"
+                >
+                    <Clock class="h-3 w-3 mr-1" />
+                    En progreso
+                </Button>
+                <Button
+                    v-if="canEdit"
+                    variant="outline"
+                    size="sm"
+                    class="h-7 text-xs"
                     @click.stop="emit('edit')"
                 >
                     <Edit class="h-3 w-3 mr-1" />
@@ -271,12 +293,12 @@ const cardClasses = computed(() => {
                 </template>
             </div>
 
-            <!-- Acciones (solo default cuando hay permisos) -->
+            <!-- Acciones (siempre visible en variante default) -->
             <div
-                v-if="variant === 'default' && (canEdit || canDelete || canComplete)"
-                class="flex items-center gap-1 mt-3 pt-3 border-t"
+                v-if="variant === 'default'"
+                class="flex flex-wrap items-center gap-1 mt-3 pt-3 border-t"
             >
-                <!-- Botón Ver detalles siempre visible -->
+                <!-- Botones siempre visibles para todos los usuarios -->
                 <Button
                     variant="outline"
                     size="sm"
@@ -287,7 +309,7 @@ const cardClasses = computed(() => {
                     Ver detalles
                 </Button>
 
-                <!-- Acciones según estado -->
+                <!-- Acciones de estado solo para gestores/responsables -->
                 <template v-if="!isCompletado && !isCancelado">
                     <Button
                         v-if="canComplete"
@@ -324,6 +346,7 @@ const cardClasses = computed(() => {
                     </Button>
                 </template>
 
+                <!-- Editar solo para gestores/responsables -->
                 <Button
                     v-if="canEdit"
                     variant="ghost"
@@ -334,6 +357,8 @@ const cardClasses = computed(() => {
                     <Edit class="h-3 w-3 mr-1" />
                     Editar
                 </Button>
+
+                <!-- Comentarios y Actividad siempre visibles -->
                 <Button
                     variant="ghost"
                     size="sm"
@@ -359,6 +384,8 @@ const cardClasses = computed(() => {
                     <Activity class="h-3 w-3 mr-1" />
                     Actividad
                 </Button>
+
+                <!-- Eliminar solo para usuarios con permiso -->
                 <Button
                     v-if="canDelete"
                     variant="ghost"
