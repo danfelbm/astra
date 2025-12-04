@@ -11,10 +11,14 @@ import { RadioGroup, RadioGroupItem } from "@modules/Core/Resources/js/component
 import { type BreadcrumbItemType } from '@/types';
 import AdminLayout from "@modules/Core/Resources/js/layouts/AdminLayout.vue";
 import SegmentSelector from "@modules/Campanas/Resources/js/Components/SegmentSelector.vue";
+import AdvancedFilters from "@modules/Core/Resources/js/components/filters/AdvancedFilters.vue";
+import type { AdvancedFilterConfig } from "@modules/Core/Resources/js/types/filters";
 import { Head, useForm, router } from '@inertiajs/vue3';
-import { ArrowLeft, Save, Send, Mail, MessageSquare, Calendar, Users, Info, AlertCircle } from 'lucide-vue-next';
+import { ArrowLeft, Save, Send, Mail, MessageSquare, Calendar, Users, Info, AlertCircle, Filter } from 'lucide-vue-next';
 import { ref, computed, watch } from 'vue';
 import { toast } from 'vue-sonner';
+import axios from 'axios';
+import { debounce } from 'lodash-es';
 
 interface Segmento {
     id: number;
@@ -39,6 +43,8 @@ interface Campana {
     tipo: 'email' | 'whatsapp' | 'ambos';
     estado?: string;
     segment_id?: number;
+    audience_mode?: 'segment' | 'manual';
+    filters?: any;
     plantilla_email_id?: number;
     plantilla_whatsapp_id?: number;
     fecha_programada?: string;
@@ -55,6 +61,7 @@ interface Props {
     batchSizeEmailDefault?: number;
     batchSizeWhatsAppDefault?: number;
     whatsAppDelayDefault?: { min: number; max: number };
+    filterFieldsConfig?: any[]; // Configuración de campos para AdvancedFilters (modo manual)
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -78,6 +85,8 @@ const form = useForm({
     tipo: props.campana?.tipo || 'email',
     estado: props.campana?.estado || 'borrador',
     segment_id: props.campana?.segment_id || null,
+    audience_mode: props.campana?.audience_mode || 'segment', // 'segment' o 'manual'
+    filters: props.campana?.filters || {}, // Filtros para modo manual
     plantilla_email_id: props.campana?.plantilla_email_id || null,
     plantilla_whatsapp_id: props.campana?.plantilla_whatsapp_id || null,
     fecha_programada: props.campana?.fecha_programada || '',
@@ -100,6 +109,71 @@ const selectedSegment = computed(() => {
 const requiresEmail = computed(() => form.tipo === 'email' || form.tipo === 'ambos');
 const requiresWhatsApp = computed(() => form.tipo === 'whatsapp' || form.tipo === 'ambos');
 
+// Estado para modo manual de audiencia
+const manualFilterCount = ref<number | null>(null);
+const isCountingUsers = ref(false);
+
+// Configuración para AdvancedFilters
+const filterConfig = computed<AdvancedFilterConfig>(() => ({
+    fields: props.filterFieldsConfig || [],
+    showQuickSearch: true,
+    quickSearchPlaceholder: 'Buscar por nombre o email...',
+    quickSearchFields: ['name', 'email'],
+    maxNestingLevel: 2,
+    allowSaveFilters: false,
+    autoApply: false,
+}));
+
+// Manejar aplicación de filtros desde AdvancedFilters
+const handleFiltersApply = async (params: any) => {
+    form.filters = params;
+    form.segment_id = null; // Limpiar segmento al usar filtros manuales
+    await countFilteredUsers();
+};
+
+// Contar usuarios filtrados (con debounce)
+const countFilteredUsers = debounce(async () => {
+    const filters = form.filters;
+
+    // Verificar si hay condiciones activas
+    const hasConditions = filters?.advanced_filters?.conditions?.length > 0
+        || filters?.advanced_filters?.groups?.length > 0
+        || filters?.conditions?.length > 0;
+
+    if (!hasConditions) {
+        manualFilterCount.value = null;
+        return;
+    }
+
+    isCountingUsers.value = true;
+    try {
+        const response = await axios.post('/admin/campanas/count-users', { filters });
+        manualFilterCount.value = response.data.count;
+    } catch (error) {
+        console.error('Error contando usuarios:', error);
+        manualFilterCount.value = null;
+        toast.error('Error al contar usuarios');
+    } finally {
+        isCountingUsers.value = false;
+    }
+}, 500);
+
+// Limpiar filtros manuales
+const handleFiltersClear = () => {
+    form.filters = {};
+    manualFilterCount.value = null;
+};
+
+// Cambio de modo de audiencia
+watch(() => form.audience_mode, (newMode) => {
+    if (newMode === 'segment') {
+        form.filters = {};
+        manualFilterCount.value = null;
+    } else {
+        form.segment_id = null;
+    }
+});
+
 watch(() => form.tipo, (newTipo) => {
     // Limpiar plantillas no necesarias según el tipo
     if (newTipo === 'email') {
@@ -110,17 +184,24 @@ watch(() => form.tipo, (newTipo) => {
 });
 
 const submit = () => {
-    // Validaciones adicionales
-    if (!form.segment_id) {
-        toast.error('Debes seleccionar un segmento');
-        return;
+    // Validar audiencia según el modo
+    if (form.audience_mode === 'segment') {
+        if (!form.segment_id) {
+            toast.error('Debes seleccionar un segmento');
+            return;
+        }
+    } else if (form.audience_mode === 'manual') {
+        if (!manualFilterCount.value || manualFilterCount.value <= 0) {
+            toast.error('Debes definir filtros que generen al menos un destinatario');
+            return;
+        }
     }
-    
+
     if (requiresEmail.value && !form.plantilla_email_id) {
         toast.error('Debes seleccionar una plantilla de email');
         return;
     }
-    
+
     if (requiresWhatsApp.value && !form.plantilla_whatsapp_id) {
         toast.error('Debes seleccionar una plantilla de WhatsApp');
         return;
@@ -148,11 +229,18 @@ const submit = () => {
 };
 
 const canSubmit = computed(() => {
-    return form.nombre && 
-           form.segment_id && 
-           !form.processing &&
-           (requiresEmail.value ? form.plantilla_email_id : true) &&
-           (requiresWhatsApp.value ? form.plantilla_whatsapp_id : true);
+    const baseValid = form.nombre &&
+        !form.processing &&
+        (requiresEmail.value ? form.plantilla_email_id : true) &&
+        (requiresWhatsApp.value ? form.plantilla_whatsapp_id : true);
+
+    // Validar audiencia según el modo
+    if (form.audience_mode === 'segment') {
+        return baseValid && form.segment_id;
+    } else {
+        // Modo manual: requiere filtros con al menos un destinatario
+        return baseValid && manualFilterCount.value && manualFilterCount.value > 0;
+    }
 });
 
 // Método para toggle de programación
@@ -282,24 +370,76 @@ const toggleClickTracking = (value) => {
                 </CardContent>
             </Card>
 
-            <!-- Selección de Segmento -->
+            <!-- Audiencia -->
             <Card>
                 <CardHeader>
                     <CardTitle>Audiencia</CardTitle>
                     <CardDescription>
-                        Selecciona el segmento de usuarios que recibirá esta campaña
+                        Define quiénes recibirán esta campaña
                     </CardDescription>
                 </CardHeader>
-                <CardContent>
-                    <SegmentSelector
-                        v-model="form.segment_id"
-                        :segments="segmentos"
-                    />
-                    <div v-if="selectedSegment" class="mt-4 p-3 bg-muted rounded-md">
-                        <div class="flex items-center gap-2 text-sm">
-                            <Users class="w-4 h-4" />
-                            <span class="font-medium">{{ selectedSegment.count }} usuarios</span>
-                            <span class="text-muted-foreground">recibirán esta campaña</span>
+                <CardContent class="space-y-4">
+                    <!-- Selector de modo de audiencia -->
+                    <RadioGroup v-model="form.audience_mode" class="flex gap-4">
+                        <div class="flex items-center space-x-2">
+                            <RadioGroupItem value="segment" id="mode-segment" />
+                            <Label htmlFor="mode-segment" class="flex items-center gap-1 cursor-pointer">
+                                <Users class="w-4 h-4" />
+                                Usar segmento existente
+                            </Label>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <RadioGroupItem value="manual" id="mode-manual" />
+                            <Label htmlFor="mode-manual" class="flex items-center gap-1 cursor-pointer">
+                                <Filter class="w-4 h-4" />
+                                Filtros manuales
+                            </Label>
+                        </div>
+                    </RadioGroup>
+
+                    <!-- Modo Segmento -->
+                    <div v-if="form.audience_mode === 'segment'">
+                        <SegmentSelector
+                            v-model="form.segment_id"
+                            :segments="segmentos"
+                        />
+                        <div v-if="selectedSegment" class="mt-4 p-3 bg-muted rounded-md">
+                            <div class="flex items-center gap-2 text-sm">
+                                <Users class="w-4 h-4" />
+                                <span class="font-medium">{{ selectedSegment.count }} usuarios</span>
+                                <span class="text-muted-foreground">recibirán esta campaña</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Modo Manual -->
+                    <div v-else class="space-y-4">
+                        <Alert>
+                            <Info class="h-4 w-4" />
+                            <AlertDescription>
+                                Define filtros para seleccionar usuarios específicos sin crear un segmento permanente.
+                            </AlertDescription>
+                        </Alert>
+
+                        <AdvancedFilters
+                            :config="filterConfig"
+                            @apply="handleFiltersApply"
+                            @clear="handleFiltersClear"
+                        />
+
+                        <!-- Preview de conteo -->
+                        <div v-if="manualFilterCount !== null" class="p-3 bg-muted rounded-md">
+                            <div class="flex items-center gap-2 text-sm">
+                                <Users class="w-4 h-4" />
+                                <span class="font-medium">{{ manualFilterCount }} usuarios</span>
+                                <span class="text-muted-foreground">recibirán esta campaña</span>
+                            </div>
+                        </div>
+                        <div v-else-if="isCountingUsers" class="p-3 bg-muted rounded-md">
+                            <div class="flex items-center gap-2 text-sm text-muted-foreground">
+                                <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                                Calculando usuarios...
+                            </div>
                         </div>
                     </div>
                 </CardContent>

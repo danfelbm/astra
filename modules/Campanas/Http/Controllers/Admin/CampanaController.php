@@ -85,6 +85,8 @@ class CampanaController extends AdminController
                 'min' => config('campanas.whatsapp.delay_min'),
                 'max' => config('campanas.whatsapp.delay_max'),
             ],
+            // Configuración de campos para AdvancedFilters (modo manual)
+            'filterFieldsConfig' => $this->getUserFilterFieldsConfig(),
         ]);
     }
 
@@ -189,6 +191,8 @@ class CampanaController extends AdminController
             'plantillasWhatsApp' => $this->plantillaRepository->getActiveWhatsApps(),
             'tiposOptions' => Campana::TIPOS,
             'estadosOptions' => ['borrador', 'programada'], // Solo estos estados permitidos en edición
+            // Configuración de campos para AdvancedFilters (modo manual)
+            'filterFieldsConfig' => $this->getUserFilterFieldsConfig(),
         ]);
     }
 
@@ -426,5 +430,99 @@ class CampanaController extends AdminController
             'success' => true,
             'stats' => $stats,
         ]);
+    }
+
+    /**
+     * Contar usuarios filtrados para modo manual de audiencia
+     * Endpoint AJAX para previsualización en tiempo real
+     */
+    public function countFilteredUsers(Request $request): JsonResponse
+    {
+        // Verificar permisos
+        abort_unless(auth()->user()->can('campanas.create'), 403, 'No tienes permisos');
+
+        $filters = $request->input('filters');
+
+        if (empty($filters)) {
+            return response()->json(['count' => 0, 'valid' => false]);
+        }
+
+        $count = $this->service->countFilteredUsers($filters);
+
+        return response()->json([
+            'count' => $count,
+            'valid' => $count > 0,
+        ]);
+    }
+
+    /**
+     * Obtener configuración de campos para AdvancedFilters
+     * Usado en modo manual de audiencia
+     */
+    protected function getUserFilterFieldsConfig(): array
+    {
+        // Cargar opciones geográficas
+        $territorios = \Modules\Geografico\Models\Territorio::select('id', 'nombre')
+            ->orderBy('nombre')
+            ->get()
+            ->map(fn($t) => ['value' => (string) $t->id, 'label' => $t->nombre])
+            ->toArray();
+
+        $departamentos = \Modules\Geografico\Models\Departamento::select('id', 'nombre')
+            ->orderBy('nombre')
+            ->get()
+            ->map(fn($d) => ['value' => (string) $d->id, 'label' => $d->nombre])
+            ->toArray();
+
+        $municipios = \Modules\Geografico\Models\Municipio::select('id', 'nombre')
+            ->orderBy('nombre')
+            ->get()
+            ->map(fn($m) => ['value' => (string) $m->id, 'label' => $m->nombre])
+            ->toArray();
+
+        return [
+            [
+                'name' => 'name',
+                'label' => 'Nombre',
+                'type' => 'text',
+            ],
+            [
+                'name' => 'email',
+                'label' => 'Email',
+                'type' => 'text',
+            ],
+            [
+                'name' => 'activo',
+                'label' => 'Activo',
+                'type' => 'select',
+                'options' => [
+                    ['value' => '1', 'label' => 'Sí'],
+                    ['value' => '0', 'label' => 'No'],
+                ],
+            ],
+            [
+                'name' => 'created_at',
+                'label' => 'Fecha de registro',
+                'type' => 'date',
+            ],
+            [
+                'name' => 'territorio_id',
+                'label' => 'Territorio',
+                'type' => 'select',
+                'options' => $territorios,
+            ],
+            [
+                'name' => 'departamento_id',
+                'label' => 'Departamento',
+                'type' => 'select',
+                'options' => $departamentos,
+            ],
+            [
+                'name' => 'municipio_id',
+                'label' => 'Municipio',
+                'type' => 'select',
+                'options' => $municipios,
+            ],
+        ];
     }
 }

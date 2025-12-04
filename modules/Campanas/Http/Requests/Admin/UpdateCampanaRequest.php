@@ -74,6 +74,26 @@ class UpdateCampanaRequest extends StoreCampanaRequest
                         );
                     }
                 }
+
+                // No permitir cambiar modo de audiencia si ya tiene envíos
+                if ($this->filled('audience_mode') && $campana->audience_mode !== $this->audience_mode) {
+                    if ($campana->envios()->exists()) {
+                        $validator->errors()->add(
+                            'audience_mode',
+                            'No se puede cambiar el modo de audiencia después de iniciar envíos'
+                        );
+                    }
+                }
+
+                // No permitir cambiar filtros si ya tiene envíos
+                if ($this->filled('filters') && $campana->filters != $this->filters) {
+                    if ($campana->envios()->exists()) {
+                        $validator->errors()->add(
+                            'filters',
+                            'No se pueden cambiar los filtros después de iniciar envíos'
+                        );
+                    }
+                }
                 
                 // Validar cambios de estado
                 if ($this->filled('estado')) {

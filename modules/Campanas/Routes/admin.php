@@ -101,7 +101,11 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
     
     Route::get('/stats', [CampanaController::class, 'stats'])->name('stats')
         ->middleware('can:campanas.view');
-    
+
+    // Endpoint para contar usuarios filtrados (modo manual de audiencia)
+    Route::post('/count-users', [CampanaController::class, 'countFilteredUsers'])->name('count-users')
+        ->middleware('can:campanas.create');
+
     Route::get('/{campana}', [CampanaController::class, 'show'])->name('show')
         ->middleware('can:campanas.view');
     

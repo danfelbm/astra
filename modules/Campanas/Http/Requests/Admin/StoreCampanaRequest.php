@@ -25,7 +25,15 @@ class StoreCampanaRequest extends FormRequest
             'descripcion' => ['nullable', 'string', 'max:1000'],
             'tipo' => ['required', Rule::in(['email', 'whatsapp', 'ambos'])],
             'estado' => ['sometimes', Rule::in(['borrador', 'programada'])],
-            'segment_id' => ['required', 'exists:segments,id'],
+            // Modo de audiencia: segment (usa segment_id) o manual (usa filters)
+            'audience_mode' => ['required', Rule::in(['segment', 'manual'])],
+            'segment_id' => ['nullable', 'required_if:audience_mode,segment', 'exists:segments,id'],
+            // Filtros manuales (requeridos si audience_mode = manual)
+            'filters' => ['nullable', 'array', 'required_if:audience_mode,manual'],
+            'filters.advanced_filters' => ['sometimes', 'array'],
+            'filters.advanced_filters.operator' => ['sometimes', Rule::in(['AND', 'OR'])],
+            'filters.advanced_filters.conditions' => ['sometimes', 'array'],
+            'filters.advanced_filters.groups' => ['sometimes', 'array'],
             'plantilla_email_id' => [
                 'nullable',
                 'required_if:tipo,email',
@@ -65,8 +73,11 @@ class StoreCampanaRequest extends FormRequest
             'nombre.max' => 'El nombre no puede exceder 255 caracteres',
             'tipo.required' => 'El tipo de campaña es requerido',
             'tipo.in' => 'El tipo de campaña debe ser: email, whatsapp o ambos',
-            'segment_id.required' => 'Debe seleccionar un segmento de destinatarios',
+            'audience_mode.required' => 'Debe seleccionar el modo de audiencia',
+            'audience_mode.in' => 'El modo de audiencia debe ser: segment o manual',
+            'segment_id.required_if' => 'Debe seleccionar un segmento de destinatarios',
             'segment_id.exists' => 'El segmento seleccionado no existe',
+            'filters.required_if' => 'Debe definir filtros para la audiencia manual',
             'plantilla_email_id.required_if' => 'Debe seleccionar una plantilla de email para campañas de tipo email',
             'plantilla_email_id.exists' => 'La plantilla de email seleccionada no existe',
             'plantilla_whatsapp_id.required_if' => 'Debe seleccionar una plantilla de WhatsApp para campañas de tipo WhatsApp',
@@ -94,7 +105,14 @@ class StoreCampanaRequest extends FormRequest
                 'estado' => 'borrador',
             ]);
         }
-        
+
+        // Establecer audience_mode por defecto
+        if (!$this->has('audience_mode')) {
+            $this->merge([
+                'audience_mode' => 'segment',
+            ]);
+        }
+
         // Establecer tracking_enabled por defecto
         if (!$this->has('tracking_enabled')) {
             $this->merge([
@@ -120,18 +138,38 @@ class StoreCampanaRequest extends FormRequest
                     'El intervalo mínimo debe ser menor o igual al intervalo máximo'
                 );
             }
-            
-            // Validar que haya destinatarios en el segmento
-            if ($this->filled('segment_id')) {
-                $segment = \Modules\Core\Models\Segment::find($this->segment_id);
-                
-                if ($segment) {
-                    $count = $segment->getCount();
-                    
+
+            $audienceMode = $this->input('audience_mode', 'segment');
+
+            // Validar según el modo de audiencia
+            if ($audienceMode === 'segment') {
+                // Modo segmento: validar que haya destinatarios
+                if ($this->filled('segment_id')) {
+                    $segment = \Modules\Core\Models\Segment::find($this->segment_id);
+
+                    if ($segment) {
+                        $count = $segment->getCount();
+
+                        if ($count === 0) {
+                            $validator->errors()->add(
+                                'segment_id',
+                                'El segmento seleccionado no tiene destinatarios'
+                            );
+                        }
+                    }
+                }
+            } elseif ($audienceMode === 'manual') {
+                // Modo manual: validar que los filtros generen destinatarios
+                $filters = $this->input('filters');
+
+                if (!empty($filters)) {
+                    $count = app(\Modules\Campanas\Services\CampanaService::class)
+                        ->countFilteredUsers($filters);
+
                     if ($count === 0) {
                         $validator->errors()->add(
-                            'segment_id',
-                            'El segmento seleccionado no tiene destinatarios'
+                            'filters',
+                            'Los filtros definidos no generan ningún destinatario'
                         );
                     }
                 }

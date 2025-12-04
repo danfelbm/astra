@@ -7,8 +7,10 @@ use Modules\Campanas\Models\CampanaEnvio;
 use Modules\Campanas\Repositories\CampanaRepository;
 use Modules\Campanas\Jobs\ProcessCampanaBatchJob;
 use Modules\Core\Services\TenantService;
+use Modules\Core\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Database\Eloquent\Builder;
 
 class CampanaService
 {
@@ -45,10 +47,12 @@ class CampanaService
             $campana = $this->repository->create($data);
             
             // Crear registro de métricas iniciales
-            // Esto es importante para que muestre el conteo de destinatarios antes de iniciar
-            if ($campana->segment_id) {
+            // Soporta modo segmento y modo manual
+            $tieneAudiencia = $campana->segment_id || ($campana->audience_mode === 'manual' && !empty($campana->filters));
+
+            if ($tieneAudiencia) {
                 $totalDestinatarios = $campana->contarDestinatarios();
-                
+
                 \Modules\Campanas\Models\CampanaMetrica::create([
                     'campana_id' => $campana->id,
                     'tenant_id' => $campana->tenant_id,
@@ -57,9 +61,10 @@ class CampanaService
                     'total_enviados' => 0,
                     'total_fallidos' => 0,
                 ]);
-                
+
                 Log::info('Métricas iniciales creadas para campaña', [
                     'campana_id' => $campana->id,
+                    'audience_mode' => $campana->audience_mode,
                     'total_destinatarios' => $totalDestinatarios
                 ]);
             }
@@ -130,11 +135,15 @@ class CampanaService
             // Actualizar campaña
             $this->repository->update($campana, $data);
             
-            // Si se cambió el segmento, actualizar métricas
-            if (isset($data['segment_id']) && $data['segment_id'] != $campana->segment_id) {
-                $campana->refresh(); // Recargar con nuevo segment_id
+            // Si se cambió la audiencia (segmento o filtros), actualizar métricas
+            $audienciaCambiada = (isset($data['segment_id']) && $data['segment_id'] != $campana->segment_id)
+                || (isset($data['audience_mode']) && $data['audience_mode'] != $campana->audience_mode)
+                || (isset($data['filters']) && $data['filters'] != $campana->filters);
+
+            if ($audienciaCambiada) {
+                $campana->refresh(); // Recargar con nuevos datos
                 $totalDestinatarios = $campana->contarDestinatarios();
-                
+
                 if ($campana->metrica) {
                     $campana->metrica->update([
                         'total_destinatarios' => $totalDestinatarios
@@ -150,9 +159,10 @@ class CampanaService
                         'total_fallidos' => 0,
                     ]);
                 }
-                
-                Log::info('Métricas actualizadas por cambio de segmento', [
+
+                Log::info('Métricas actualizadas por cambio de audiencia', [
                     'campana_id' => $campana->id,
+                    'audience_mode' => $campana->audience_mode,
                     'total_destinatarios' => $totalDestinatarios
                 ]);
             }
@@ -555,6 +565,194 @@ class CampanaService
                 'campana_id' => $campana->id,
                 'tenant_id' => $campana->tenant_id,
             ])->actualizarMetricas();
+        }
+    }
+
+    /**
+     * Contar usuarios filtrados para previsualización
+     * Usado en modo manual de audiencia
+     *
+     * @param array $filters Filtros en formato AdvancedFilters
+     * @param int|null $tenantId ID del tenant
+     * @return int Cantidad de usuarios que cumplen los filtros
+     */
+    public function countFilteredUsers(array $filters, ?int $tenantId = null): int
+    {
+        $tenantId = $tenantId ?? $this->tenantService->getCurrentTenant()?->id ?? auth()->user()?->tenant_id;
+
+        $query = User::withoutGlobalScopes()->where('tenant_id', $tenantId);
+
+        $filtersData = $filters['advanced_filters'] ?? $filters;
+
+        if (!empty($filtersData['conditions']) || !empty($filtersData['groups'])) {
+            $this->applyFiltersToQuery($query, $filtersData);
+        }
+
+        return $query->count();
+    }
+
+    /**
+     * Aplicar filtros avanzados a una query de usuarios
+     * Reutiliza la lógica del trait HasAdvancedFilters
+     *
+     * @param Builder $query Query builder
+     * @param array $filtersData Datos de filtros (conditions, groups, operator)
+     * @return void
+     */
+    public function applyFiltersToQuery(Builder $query, array $filtersData): void
+    {
+        $operator = strtoupper($filtersData['operator'] ?? 'AND');
+
+        // Campos permitidos para filtrar usuarios
+        $allowedFields = [
+            'name', 'email', 'activo', 'created_at',
+            'territorio_id', 'departamento_id', 'municipio_id', 'localidad_id',
+        ];
+
+        // Procesar grupo principal
+        $this->applyFilterGroup($query, $filtersData, $allowedFields, $operator);
+    }
+
+    /**
+     * Aplicar un grupo de filtros recursivamente
+     *
+     * @param Builder $query
+     * @param array $group
+     * @param array $allowedFields
+     * @param string $operator
+     * @return void
+     */
+    protected function applyFilterGroup(Builder $query, array $group, array $allowedFields, string $operator = 'AND'): void
+    {
+        $conditions = $group['conditions'] ?? [];
+        $groups = $group['groups'] ?? [];
+
+        if ($operator === 'OR') {
+            $query->where(function ($q) use ($conditions, $groups, $allowedFields) {
+                foreach ($conditions as $index => $condition) {
+                    if ($index === 0) {
+                        $this->applyCondition($q, $condition, $allowedFields, 'AND');
+                    } else {
+                        $q->orWhere(function ($subQ) use ($condition, $allowedFields) {
+                            $this->applyCondition($subQ, $condition, $allowedFields, 'AND');
+                        });
+                    }
+                }
+
+                foreach ($groups as $subGroup) {
+                    $subOperator = strtoupper($subGroup['operator'] ?? 'AND');
+                    $q->orWhere(function ($subQ) use ($subGroup, $allowedFields, $subOperator) {
+                        $this->applyFilterGroup($subQ, $subGroup, $allowedFields, $subOperator);
+                    });
+                }
+            });
+        } else {
+            // AND - aplicar condiciones secuencialmente
+            foreach ($conditions as $condition) {
+                $this->applyCondition($query, $condition, $allowedFields, 'AND');
+            }
+
+            foreach ($groups as $subGroup) {
+                $subOperator = strtoupper($subGroup['operator'] ?? 'AND');
+                $query->where(function ($subQ) use ($subGroup, $allowedFields, $subOperator) {
+                    $this->applyFilterGroup($subQ, $subGroup, $allowedFields, $subOperator);
+                });
+            }
+        }
+    }
+
+    /**
+     * Aplicar una condición individual
+     *
+     * @param Builder $query
+     * @param array $condition
+     * @param array $allowedFields
+     * @param string $boolean
+     * @return void
+     */
+    protected function applyCondition(Builder $query, array $condition, array $allowedFields, string $boolean = 'AND'): void
+    {
+        $field = $condition['field'] ?? null;
+        $operator = $condition['operator'] ?? 'equals';
+        $value = $condition['value'] ?? null;
+
+        // Validar campo permitido
+        if (!$field || !in_array($field, $allowedFields)) {
+            return;
+        }
+
+        $method = $boolean === 'OR' ? 'orWhere' : 'where';
+
+        switch ($operator) {
+            case 'equals':
+                $query->$method($field, '=', $value);
+                break;
+
+            case 'not_equals':
+                $query->$method($field, '!=', $value);
+                break;
+
+            case 'contains':
+                $query->$method($field, 'LIKE', "%{$value}%");
+                break;
+
+            case 'not_contains':
+                $query->$method($field, 'NOT LIKE', "%{$value}%");
+                break;
+
+            case 'starts_with':
+                $query->$method($field, 'LIKE', "{$value}%");
+                break;
+
+            case 'ends_with':
+                $query->$method($field, 'LIKE', "%{$value}");
+                break;
+
+            case 'is_empty':
+                $query->$method(function ($q) use ($field) {
+                    $q->whereNull($field)->orWhere($field, '=', '');
+                });
+                break;
+
+            case 'is_not_empty':
+                $query->$method(function ($q) use ($field) {
+                    $q->whereNotNull($field)->where($field, '!=', '');
+                });
+                break;
+
+            case 'greater_than':
+                $query->$method($field, '>', $value);
+                break;
+
+            case 'less_than':
+                $query->$method($field, '<', $value);
+                break;
+
+            case 'greater_or_equal':
+                $query->$method($field, '>=', $value);
+                break;
+
+            case 'less_or_equal':
+                $query->$method($field, '<=', $value);
+                break;
+
+            case 'between':
+                if (is_array($value) && count($value) >= 2) {
+                    $query->whereBetween($field, [$value[0], $value[1]]);
+                }
+                break;
+
+            case 'in':
+                if (is_array($value)) {
+                    $query->whereIn($field, $value);
+                }
+                break;
+
+            case 'not_in':
+                if (is_array($value)) {
+                    $query->whereNotIn($field, $value);
+                }
+                break;
         }
     }
 }

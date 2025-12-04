@@ -50,6 +50,8 @@ class Campana extends Model
         'tipo', // email, whatsapp, ambos
         'estado', // borrador, programada, enviando, completada, pausada, cancelada
         'segment_id',
+        'audience_mode', // segment, manual
+        'filters', // JSON con filtros para modo manual
         'plantilla_email_id',
         'plantilla_whatsapp_id',
         'fecha_programada',
@@ -71,6 +73,7 @@ class Campana extends Model
         'fecha_fin' => 'datetime',
         'configuracion' => 'array',
         'metadata' => 'array',
+        'filters' => 'array',
     ];
 
     /**
@@ -80,6 +83,7 @@ class Campana extends Model
      */
     protected $attributes = [
         'estado' => 'borrador',
+        'audience_mode' => 'segment',
         'configuracion' => '{}',
         'metadata' => '{}',
     ];
@@ -191,34 +195,78 @@ class Campana extends Model
 
     /**
      * Obtener los destinatarios de la campaña
+     * Soporta modo segmento (segment_id) y modo manual (filters)
      *
      * @return \Illuminate\Support\Collection
      */
     public function getDestinatarios()
     {
-        if (!$this->segment) {
-            return collect();
+        // Modo segmento (usa segment_id)
+        if ($this->audience_mode === 'segment' || ($this->segment_id && !$this->audience_mode)) {
+            if (!$this->segment) {
+                return collect();
+            }
+            return $this->segment->evaluate();
         }
-        
-        return $this->segment->evaluate();
+
+        // Modo manual (usa filters)
+        if ($this->audience_mode === 'manual' && !empty($this->filters)) {
+            return $this->evaluateManualFilters();
+        }
+
+        return collect();
+    }
+
+    /**
+     * Evaluar filtros manuales y retornar usuarios
+     *
+     * @return \Illuminate\Support\Collection
+     */
+    protected function evaluateManualFilters()
+    {
+        $query = User::withoutGlobalScopes()->where('tenant_id', $this->tenant_id);
+
+        $filtersData = $this->filters['advanced_filters'] ?? $this->filters;
+
+        if (empty($filtersData) || (empty($filtersData['conditions']) && empty($filtersData['groups']))) {
+            return $query->get();
+        }
+
+        // Reutilizar lógica del service para aplicar filtros
+        app(\Modules\Campanas\Services\CampanaService::class)
+            ->applyFiltersToQuery($query, $filtersData);
+
+        return $query->get();
     }
 
     /**
      * Contar destinatarios totales
+     * Soporta modo segmento y modo manual
      *
      * @return int
      */
     public function contarDestinatarios(): int
     {
-        if (!$this->segment) {
-            $this->load('segment');
-            
+        // Modo segmento
+        if ($this->audience_mode === 'segment' || ($this->segment_id && !$this->audience_mode)) {
             if (!$this->segment) {
-                return 0;
+                $this->load('segment');
+
+                if (!$this->segment) {
+                    return 0;
+                }
             }
+
+            return $this->segment->getCount();
         }
-        
-        return $this->segment->getCount();
+
+        // Modo manual
+        if ($this->audience_mode === 'manual' && !empty($this->filters)) {
+            return app(\Modules\Campanas\Services\CampanaService::class)
+                ->countFilteredUsers($this->filters, $this->tenant_id);
+        }
+
+        return 0;
     }
 
     /**
@@ -374,21 +422,30 @@ class Campana extends Model
 
     /**
      * Verificar si la campaña puede ser enviada
+     * Soporta modo segmento y modo manual
      *
      * @return array
      */
     public function puedeEnviarse(): array
     {
         $errores = [];
-        
+
         // Verificar estado
         if (!in_array($this->estado, ['borrador', 'programada', 'pausada', 'enviando'])) {
             $errores[] = 'La campaña debe estar en estado borrador, programada, pausada o enviando';
         }
-        
-        // Verificar segmento
-        if (!$this->segment_id) {
-            $errores[] = 'Debe seleccionar un segmento';
+
+        // Verificar audiencia según modo
+        if ($this->audience_mode === 'segment' || (!$this->audience_mode && !$this->filters)) {
+            // Modo segmento: verificar segment_id
+            if (!$this->segment_id) {
+                $errores[] = 'Debe seleccionar un segmento';
+            }
+        } elseif ($this->audience_mode === 'manual') {
+            // Modo manual: verificar filtros
+            if (empty($this->filters)) {
+                $errores[] = 'Debe definir filtros para la audiencia manual';
+            }
         }
         
         // Verificar plantillas según tipo
