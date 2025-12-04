@@ -235,7 +235,7 @@ const formatNumber = (num: number): string => {
                             <span class="text-muted-foreground">Abiertos</span>
                             <span class="font-medium">{{ formatNumber(metrics?.emails_abiertos || 0) }}</span>
                         </div>
-                        <Progress :value="metrics?.tasa_apertura || 0" class="h-2" />
+                        <Progress :model-value="metrics?.tasa_apertura || 0" class="h-2" />
                     </div>
                     
                     <div class="space-y-2">
@@ -243,7 +243,7 @@ const formatNumber = (num: number): string => {
                             <span class="text-muted-foreground">Con clicks</span>
                             <span class="font-medium">{{ formatNumber(metrics?.emails_con_click || 0) }}</span>
                         </div>
-                        <Progress :value="metrics?.tasa_click || 0" class="h-2" />
+                        <Progress :model-value="metrics?.tasa_click || 0" class="h-2" />
                     </div>
                     
                     <div class="grid grid-cols-2 gap-4 pt-2 border-t">
@@ -298,7 +298,7 @@ const formatNumber = (num: number): string => {
                                     <span class="text-muted-foreground">Entregados</span>
                                     <span class="font-medium">{{ formatNumber(metrics?.whatsapp_individual_enviados || metrics?.whatsapp_entregados || 0) }}</span>
                                 </div>
-                                <Progress :value="derivedMetrics.tasaExitoWhatsApp" class="h-2" />
+                                <Progress :model-value="derivedMetrics.tasaExitoWhatsApp" class="h-2" />
                             </div>
                             <div class="space-y-2">
                                 <div class="flex justify-between text-sm">
@@ -323,7 +323,7 @@ const formatNumber = (num: number): string => {
                                     <span class="text-muted-foreground">Grupos enviados</span>
                                     <span class="font-medium">{{ formatNumber(metrics?.whatsapp_grupos_enviados || 0) }}</span>
                                 </div>
-                                <Progress :value="(metrics?.whatsapp_grupos_total || 0) > 0 ? ((metrics?.whatsapp_grupos_enviados || 0) / (metrics?.whatsapp_grupos_total || 1) * 100) : 0" class="h-2" />
+                                <Progress :model-value="(metrics?.whatsapp_grupos_total || 0) > 0 ? ((metrics?.whatsapp_grupos_enviados || 0) / (metrics?.whatsapp_grupos_total || 1) * 100) : 0" class="h-2" />
                             </div>
                             <div class="space-y-2">
                                 <div class="flex justify-between text-sm">
@@ -344,7 +344,7 @@ const formatNumber = (num: number): string => {
                                 <span class="text-muted-foreground">Entregados</span>
                                 <span class="font-medium">{{ formatNumber(metrics?.whatsapp_entregados || 0) }}</span>
                             </div>
-                            <Progress :value="derivedMetrics.tasaExitoWhatsApp" class="h-2" />
+                            <Progress :model-value="derivedMetrics.tasaExitoWhatsApp" class="h-2" />
                         </div>
 
                         <div class="space-y-2">
@@ -353,7 +353,7 @@ const formatNumber = (num: number): string => {
                                 <span class="font-medium text-red-600">{{ formatNumber(metrics?.whatsapp_fallidos || 0) }}</span>
                             </div>
                             <Progress
-                                :value="(metrics?.whatsapp_enviados || 0) > 0 ? ((metrics?.whatsapp_fallidos || 0) / (metrics?.whatsapp_enviados || 1) * 100) : 0"
+                                :model-value="(metrics?.whatsapp_enviados || 0) > 0 ? ((metrics?.whatsapp_fallidos || 0) / (metrics?.whatsapp_enviados || 1) * 100) : 0"
                                 class="h-2"
                             />
                         </div>
