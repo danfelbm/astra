@@ -12,6 +12,11 @@ class RedisHelper
      * Cache estático para evitar múltiples checks
      */
     private static ?bool $redisAvailable = null;
+
+    /**
+     * Flag para loguear el warning solo una vez por request
+     */
+    private static bool $fallbackWarningLogged = false;
     
     /**
      * Verificar si Redis está disponible y funcionando
@@ -49,12 +54,11 @@ class RedisHelper
         if (self::isAvailable()) {
             return 'redis';
         }
-        
-        // Fallback a database si Redis no está disponible
-        Log::warning('Redis no disponible, usando database cache como fallback');
+
+        self::logFallbackWarning();
         return 'database';
     }
-    
+
     /**
      * Obtener el driver de sesión óptimo según disponibilidad
      */
@@ -63,12 +67,11 @@ class RedisHelper
         if (self::isAvailable()) {
             return 'redis';
         }
-        
-        // Fallback a database si Redis no está disponible
-        Log::warning('Redis no disponible, usando database sessions como fallback');
+
+        self::logFallbackWarning();
         return 'database';
     }
-    
+
     /**
      * Obtener el driver de cola óptimo según disponibilidad
      */
@@ -77,10 +80,22 @@ class RedisHelper
         if (self::isAvailable()) {
             return 'redis';
         }
-        
-        // Fallback a database si Redis no está disponible
-        Log::warning('Redis no disponible, usando database queue como fallback');
+
+        self::logFallbackWarning();
         return 'database';
+    }
+
+    /**
+     * Loguear warning de fallback solo una vez por request
+     */
+    private static function logFallbackWarning(): void
+    {
+        if (self::$fallbackWarningLogged) {
+            return;
+        }
+
+        Log::warning('Redis no disponible, usando database como fallback para cache/sessions/queue');
+        self::$fallbackWarningLogged = true;
     }
     
     /**
@@ -89,6 +104,7 @@ class RedisHelper
     public static function resetCache(): void
     {
         self::$redisAvailable = null;
+        self::$fallbackWarningLogged = false;
     }
     
     /**
