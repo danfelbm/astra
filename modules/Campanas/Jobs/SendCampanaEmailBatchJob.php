@@ -43,6 +43,14 @@ class SendCampanaEmailBatchJob implements ShouldQueue
     }
 
     /**
+     * Verificar si está en modo LOG (desarrollo/debug)
+     */
+    protected function isLogMode(): bool
+    {
+        return config('mail.default') === 'log';
+    }
+
+    /**
      * Ejecutar el job
      */
     public function handle(): void
@@ -65,7 +73,10 @@ class SendCampanaEmailBatchJob implements ShouldQueue
             return;
         }
 
-        Log::info("Procesando batch de {$envios->count()} emails para campaña {$this->campanaId}");
+        $modoLog = $this->isLogMode();
+        $modoTexto = $modoLog ? ' [MODO LOG]' : '';
+
+        Log::info("Procesando batch de {$envios->count()} emails para campaña {$this->campanaId}{$modoTexto}");
 
         try {
             // Preparar array de emails para Resend batch
@@ -113,7 +124,13 @@ class SendCampanaEmailBatchJob implements ShouldQueue
                 return;
             }
 
-            // Enviar batch via Resend API con modo permissive
+            // Si está en modo LOG, simular envío sin llamar a Resend API
+            if ($modoLog) {
+                $this->simularEnvioModoLog($emails, $envioMap, $campana);
+                return;
+            }
+
+            // En modo producción, enviar batch via Resend API con modo permissive
             $response = Resend::batch()->send($emails, [
                 'batch_validation' => 'permissive',
             ]);
@@ -146,6 +163,61 @@ class SendCampanaEmailBatchJob implements ShouldQueue
         $fromAddress = config('mail.from.address');
 
         return "{$fromName} <{$fromAddress}>";
+    }
+
+    /**
+     * Simular envío en modo LOG (desarrollo/debug)
+     * No llama a la API de Resend, solo registra en logs y actualiza estados
+     */
+    protected function simularEnvioModoLog(array $emails, array $envioMap, Campana $campana): void
+    {
+        $exitosos = 0;
+
+        foreach ($envioMap as $index => $envio) {
+            $emailData = $emails[$index] ?? null;
+
+            if (!$emailData) {
+                continue;
+            }
+
+            // Generar ID simulado para el log
+            $fakeResendId = 'LOG_' . uniqid() . '_' . $index;
+
+            // Registrar en log con información del email
+            Log::info('[EMAIL CAMPAÑA - MODO LOG] Email simulado satisfactoriamente', [
+                'mode' => 'log',
+                'campana_id' => $this->campanaId,
+                'envio_id' => $envio->id,
+                'to' => $emailData['to'][0] ?? 'unknown',
+                'subject' => $emailData['subject'] ?? 'Sin asunto',
+                'from' => $emailData['from'] ?? 'unknown',
+                'fake_resend_id' => $fakeResendId,
+                'timestamp' => now()->toIso8601String(),
+            ]);
+
+            // Marcar como enviado (simulado)
+            $envio->update([
+                'estado' => 'enviado',
+                'fecha_enviado' => now(),
+                'metadata' => array_merge($envio->metadata ?? [], [
+                    'resend_id' => $fakeResendId,
+                    'batch_index' => $index,
+                    'enviado_via' => 'log_mode',
+                    'modo_debug' => true,
+                ]),
+            ]);
+
+            $exitosos++;
+        }
+
+        // Actualizar métricas
+        $this->actualizarMetricas($campana, $exitosos, 0);
+
+        Log::info("[EMAIL CAMPAÑA - MODO LOG] Batch simulado para campaña {$this->campanaId}", [
+            'total_emails' => count($emails),
+            'exitosos' => $exitosos,
+            'modo' => 'log',
+        ]);
     }
 
     /**
