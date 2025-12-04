@@ -345,6 +345,40 @@ class CampanaController extends AdminController
     }
 
     /**
+     * Obtener logs de envío de la campaña
+     * Distingue entre Resend (email) y Evolution API (WhatsApp)
+     */
+    public function logs(Campana $campana): JsonResponse
+    {
+        // Verificar permisos
+        abort_unless(auth()->user()->can('campanas.view'), 403, 'No tienes permisos para ver logs');
+
+        $logs = $campana->envios()
+            ->select([
+                'id', 'tipo', 'estado', 'destinatario',
+                'fecha_enviado', 'error_mensaje', 'metadata'
+            ])
+            ->orderByDesc('updated_at')
+            ->limit(500)
+            ->get()
+            ->map(function ($envio) {
+                return [
+                    'id' => $envio->id,
+                    'tipo' => $envio->tipo,
+                    'servicio' => $envio->tipo === 'email' ? 'resend' : 'evolution',
+                    'estado' => $envio->estado,
+                    'destinatario' => $envio->destinatario,
+                    'fecha' => $envio->fecha_enviado?->toIso8601String(),
+                    'mensaje_id' => $envio->metadata['resend_id'] ?? $envio->metadata['whatsapp_message_id'] ?? null,
+                    'error' => $envio->error_mensaje,
+                    'metadata' => $envio->metadata,
+                ];
+            });
+
+        return response()->json($logs);
+    }
+
+    /**
      * Exportar reporte de campaña
      */
     public function export(Request $request, Campana $campana): JsonResponse

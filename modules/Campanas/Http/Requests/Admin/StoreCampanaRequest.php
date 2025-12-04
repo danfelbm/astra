@@ -44,12 +44,14 @@ class StoreCampanaRequest extends FormRequest
                 'date',
                 'after:now'
             ],
-            // Configuración de batches
-            'batch_size_email' => ['nullable', 'integer', 'min:1', 'max:500'],
-            'batch_size_whatsapp' => ['nullable', 'integer', 'min:1', 'max:100'],
-            'whatsapp_min_delay' => ['nullable', 'integer', 'min:1', 'max:60'],
-            'whatsapp_max_delay' => ['nullable', 'integer', 'min:1', 'max:60'],
-            'tracking_enabled' => ['boolean'],
+            // Configuración de batches y envío
+            'configuracion' => ['nullable', 'array'],
+            'configuracion.batch_size_email' => ['nullable', 'integer', 'min:1', 'max:100'], // Máximo 100 (límite Resend batch API)
+            'configuracion.whatsapp_delay_min' => ['nullable', 'integer', 'min:5', 'max:120'], // Mínimo 5 segundos
+            'configuracion.whatsapp_delay_max' => ['nullable', 'integer', 'min:5', 'max:120'], // Máximo 120 segundos
+            'configuracion.enable_tracking' => ['nullable', 'boolean'],
+            'configuracion.enable_pixel_tracking' => ['nullable', 'boolean'],
+            'configuracion.enable_click_tracking' => ['nullable', 'boolean'],
         ];
     }
 
@@ -72,14 +74,12 @@ class StoreCampanaRequest extends FormRequest
             'fecha_programada.required_if' => 'Debe especificar una fecha para campañas programadas',
             'fecha_programada.date' => 'La fecha programada debe ser una fecha válida',
             'fecha_programada.after' => 'La fecha programada debe ser posterior a la fecha actual',
-            'batch_size_email.min' => 'El tamaño del lote de emails debe ser al menos 1',
-            'batch_size_email.max' => 'El tamaño del lote de emails no puede exceder 500',
-            'batch_size_whatsapp.min' => 'El tamaño del lote de WhatsApp debe ser al menos 1',
-            'batch_size_whatsapp.max' => 'El tamaño del lote de WhatsApp no puede exceder 100',
-            'whatsapp_min_delay.min' => 'El delay mínimo debe ser al menos 1 segundo',
-            'whatsapp_min_delay.max' => 'El delay mínimo no puede exceder 60 segundos',
-            'whatsapp_max_delay.min' => 'El delay máximo debe ser al menos 1 segundo',
-            'whatsapp_max_delay.max' => 'El delay máximo no puede exceder 60 segundos',
+            'configuracion.batch_size_email.min' => 'El tamaño del lote de emails debe ser al menos 1',
+            'configuracion.batch_size_email.max' => 'El tamaño del lote de emails no puede exceder 100 (límite de Resend)',
+            'configuracion.whatsapp_delay_min.min' => 'El intervalo mínimo debe ser al menos 5 segundos',
+            'configuracion.whatsapp_delay_min.max' => 'El intervalo mínimo no puede exceder 120 segundos',
+            'configuracion.whatsapp_delay_max.min' => 'El intervalo máximo debe ser al menos 5 segundos',
+            'configuracion.whatsapp_delay_max.max' => 'El intervalo máximo no puede exceder 120 segundos',
         ];
     }
 
@@ -109,14 +109,16 @@ class StoreCampanaRequest extends FormRequest
     public function withValidator($validator): void
     {
         $validator->after(function ($validator) {
-            // Validar que el delay mínimo sea menor o igual al máximo
-            if ($this->filled('whatsapp_min_delay') && $this->filled('whatsapp_max_delay')) {
-                if ($this->whatsapp_min_delay > $this->whatsapp_max_delay) {
-                    $validator->errors()->add(
-                        'whatsapp_min_delay',
-                        'El delay mínimo debe ser menor o igual al delay máximo'
-                    );
-                }
+            // Validar que el intervalo mínimo sea menor o igual al máximo
+            $config = $this->input('configuracion', []);
+            $minDelay = $config['whatsapp_delay_min'] ?? null;
+            $maxDelay = $config['whatsapp_delay_max'] ?? null;
+
+            if ($minDelay !== null && $maxDelay !== null && $minDelay > $maxDelay) {
+                $validator->errors()->add(
+                    'configuracion.whatsapp_delay_min',
+                    'El intervalo mínimo debe ser menor o igual al intervalo máximo'
+                );
             }
             
             // Validar que haya destinatarios en el segmento

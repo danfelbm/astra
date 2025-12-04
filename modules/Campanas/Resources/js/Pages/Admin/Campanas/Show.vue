@@ -9,6 +9,7 @@ import { type BreadcrumbItemType } from '@/types';
 import AdminLayout from "@modules/Core/Resources/js/layouts/AdminLayout.vue";
 import CampanaMetrics from "@modules/Campanas/Resources/js/Components/CampanaMetrics.vue";
 import CampanaProgress from "@modules/Campanas/Resources/js/Components/CampanaProgress.vue";
+import CampanaLogs from "@modules/Campanas/Resources/js/Components/CampanaLogs.vue";
 import { Head, Link, router } from '@inertiajs/vue3';
 import { 
     ArrowLeft, Edit, Play, Pause, XCircle, RefreshCw, BarChart3, 
@@ -519,6 +520,7 @@ onUnmounted(() => {
                 <TabsList>
                     <TabsTrigger value="resumen">Resumen</TabsTrigger>
                     <TabsTrigger value="actividad">Actividad Reciente</TabsTrigger>
+                    <TabsTrigger value="logs">Logs</TabsTrigger>
                     <TabsTrigger value="tendencias" v-if="tendenciasData && tendenciasData.length > 0">
                         Tendencias
                     </TabsTrigger>
@@ -737,6 +739,14 @@ onUnmounted(() => {
                             </Table>
                         </CardContent>
                     </Card>
+                </TabsContent>
+
+                <!-- Tab Logs -->
+                <TabsContent value="logs">
+                    <CampanaLogs
+                        :campana-id="campanaData.id"
+                        :tipo="campanaData.tipo"
+                    />
                 </TabsContent>
 
                 <!-- Tab Configuración -->

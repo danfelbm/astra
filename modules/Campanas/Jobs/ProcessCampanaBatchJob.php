@@ -58,17 +58,16 @@ class ProcessCampanaBatchJob implements ShouldQueue
 
             // Obtener configuración de la campaña
             $config = $this->campana->configuracion ?? [];
-            $batchSizeEmail = $config['batch_size_email'] ?? config('campanas.batch_size.email');
-            $batchSizeWhatsApp = $config['batch_size_whatsapp'] ?? config('campanas.batch_size.whatsapp');
+            $batchSizeEmail = $config['batch_size_email'] ?? config('campanas.batch.email.size', 100);
 
             // Procesar envíos de email si aplica
             if (in_array($this->campana->tipo, ['email', 'ambos'])) {
                 $this->procesarEmailBatch($batchSizeEmail);
             }
 
-            // Procesar envíos de WhatsApp si aplica
+            // Procesar envíos de WhatsApp si aplica (uno a uno con intervalos)
             if (in_array($this->campana->tipo, ['whatsapp', 'ambos'])) {
-                $this->procesarWhatsAppBatch($batchSizeWhatsApp);
+                $this->procesarWhatsAppBatch();
             }
 
             // Verificar si hay más envíos pendientes o en proceso
@@ -119,10 +118,14 @@ class ProcessCampanaBatchJob implements ShouldQueue
     }
 
     /**
-     * Procesar batch de emails
+     * Procesar batch de emails usando Resend Batch API
+     * Envía hasta 100 emails por request (límite de Resend)
      */
     protected function procesarEmailBatch(int $batchSize): void
     {
+        // Limitar a 100 (máximo de Resend batch API)
+        $batchSize = min($batchSize, 100);
+
         // Obtener envíos pendientes de email
         $envios = $this->campana->envios()
             ->where('tipo', 'email')
@@ -130,55 +133,59 @@ class ProcessCampanaBatchJob implements ShouldQueue
             ->take($batchSize)
             ->get();
 
-        Log::info("Procesando {$envios->count()} emails del batch #{$this->batchNumber} para campaña {$this->campana->id}");
-
-        foreach ($envios as $envio) {
-            // Marcar como enviando
-            $envio->update(['estado' => 'enviando']);
-            
-            // Despachar job individual con delay aleatorio pequeño (0-2 segundos)
-            $delay = now()->addMilliseconds(rand(0, 2000));
-            
-            dispatch(new SendCampanaEmailJob($envio))
-                ->onQueue(config('campanas.queues.email'))
-                ->delay($delay);
+        if ($envios->isEmpty()) {
+            return;
         }
+
+        Log::info("Procesando batch de {$envios->count()} emails para campaña {$this->campana->id}");
+
+        // Marcar todos como enviando
+        $envios->each(fn($e) => $e->update(['estado' => 'enviando']));
+
+        // Despachar UN solo job de batch (en lugar de N jobs individuales)
+        dispatch(new SendCampanaEmailBatchJob($envios, $this->campana))
+            ->onQueue(config('campanas.queues.email'));
     }
 
     /**
-     * Procesar batch de WhatsApp
+     * Procesar WhatsApp uno a uno con intervalos de tiempo
+     * Evolution API no soporta batch, cada mensaje se envía individualmente
      */
-    protected function procesarWhatsAppBatch(int $batchSize): void
+    protected function procesarWhatsAppBatch(): void
     {
-        // Obtener envíos pendientes de WhatsApp
+        // Obtener configuración de intervalos
+        $config = $this->campana->configuracion ?? [];
+        $minDelay = $config['whatsapp_delay_min'] ?? config('campanas.batch.whatsapp.min_delay', 5);
+        $maxDelay = $config['whatsapp_delay_max'] ?? config('campanas.batch.whatsapp.max_delay', 120);
+
+        // Procesar un número razonable por iteración (valor fijo interno, no configurable)
         $envios = $this->campana->envios()
             ->where('tipo', 'whatsapp')
             ->where('estado', 'pendiente')
-            ->take($batchSize)
+            ->take(20)
             ->get();
 
-        Log::info("Procesando {$envios->count()} WhatsApp del batch #{$this->batchNumber} para campaña {$this->campana->id}");
+        if ($envios->isEmpty()) {
+            return;
+        }
 
-        // Obtener configuración de delays
-        $config = $this->campana->configuracion ?? [];
-        $minDelay = $config['whatsapp_min_delay'] ?? config('campanas.whatsapp.delay_min');
-        $maxDelay = $config['whatsapp_max_delay'] ?? config('campanas.whatsapp.delay_max');
+        Log::info("Procesando {$envios->count()} WhatsApp uno a uno con intervalos de {$minDelay}-{$maxDelay}s para campaña {$this->campana->id}");
 
         $totalDelay = 0;
         foreach ($envios as $index => $envio) {
             // Marcar como enviando
             $envio->update(['estado' => 'enviando']);
-            
-            // Calcular delay aleatorio acumulativo
-            $randomDelay = rand($minDelay * 1000, $maxDelay * 1000); // Convertir a milisegundos
+
+            // Calcular delay aleatorio acumulativo (en milisegundos)
+            $randomDelay = rand($minDelay * 1000, $maxDelay * 1000);
             $totalDelay += $randomDelay;
-            
+
             // Despachar job individual con delay acumulativo
             dispatch(new SendCampanaWhatsAppJob($envio))
                 ->onQueue(config('campanas.queues.whatsapp'))
                 ->delay(now()->addMilliseconds($totalDelay));
-                
-            Log::debug("WhatsApp #{$index} programado con delay de {$totalDelay}ms");
+
+            Log::debug("WhatsApp #{$index} programado con delay acumulativo de {$totalDelay}ms");
         }
     }
 

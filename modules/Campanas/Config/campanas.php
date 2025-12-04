@@ -10,13 +10,13 @@ return [
     // Configuración de batches para envío masivo
     'batch' => [
         'email' => [
-            'size' => env('CAMPANAS_EMAIL_BATCH_SIZE', 50),  // Emails por batch
+            'size' => env('CAMPANAS_EMAIL_BATCH_SIZE', 100), // Máximo 100 (límite Resend batch API)
             'delay' => env('CAMPANAS_EMAIL_BATCH_DELAY', 1), // Segundos entre batches
         ],
         'whatsapp' => [
-            'size' => env('CAMPANAS_WHATSAPP_BATCH_SIZE', 20),    // Mensajes por batch
-            'min_delay' => env('CAMPANAS_WHATSAPP_MIN_DELAY', 3), // Delay mínimo entre mensajes
-            'max_delay' => env('CAMPANAS_WHATSAPP_MAX_DELAY', 8), // Delay máximo entre mensajes
+            // WhatsApp se envía UNO A UNO con intervalos (Evolution API no soporta batch)
+            'min_delay' => env('CAMPANAS_WHATSAPP_MIN_DELAY', 5),   // Mínimo 5 segundos entre mensajes
+            'max_delay' => env('CAMPANAS_WHATSAPP_MAX_DELAY', 120), // Máximo 120 segundos entre mensajes
         ],
     ],
     

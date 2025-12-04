@@ -130,10 +130,13 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
     Route::post('/{campana}/duplicate', [CampanaController::class, 'duplicate'])->name('duplicate')
         ->middleware('can:campanas.create');
     
-    // Métricas y reportes
+    // Métricas, logs y reportes
     Route::get('/{campana}/metrics', [CampanaController::class, 'metrics'])->name('metrics')
         ->middleware('can:campanas.view');
-    
+
+    Route::get('/{campana}/logs', [CampanaController::class, 'logs'])->name('logs')
+        ->middleware('can:campanas.view');
+
     Route::post('/{campana}/export', [CampanaController::class, 'export'])->name('export')
         ->middleware('can:campanas.export');
     

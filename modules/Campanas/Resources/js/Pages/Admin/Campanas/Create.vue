@@ -84,10 +84,9 @@ const form = useForm({
     es_programada: !!props.campana?.fecha_programada,
     configuracion: {
         batch_size_email: props.campana?.configuracion?.batch_size_email || props.batchSizeEmailDefault || 50,
-        batch_size_whatsapp: props.campana?.configuracion?.batch_size_whatsapp || props.batchSizeWhatsAppDefault || 100,
-        delay_between_batches: props.campana?.configuracion?.delay_between_batches || 2,
-        whatsapp_delay_min: props.campana?.configuracion?.whatsapp_delay_min || props.whatsAppDelayDefault?.min || 3,
-        whatsapp_delay_max: props.campana?.configuracion?.whatsapp_delay_max || props.whatsAppDelayDefault?.max || 10,
+        // WhatsApp: solo intervalos (no batch size - Evolution API es uno a uno)
+        whatsapp_delay_min: props.campana?.configuracion?.whatsapp_delay_min || props.whatsAppDelayDefault?.min || 5,
+        whatsapp_delay_max: props.campana?.configuracion?.whatsapp_delay_max || props.whatsAppDelayDefault?.max || 30,
         enable_tracking: props.campana?.configuracion?.enable_tracking ?? true,
         enable_pixel_tracking: props.campana?.configuracion?.enable_pixel_tracking ?? true,
         enable_click_tracking: props.campana?.configuracion?.enable_click_tracking ?? true,
@@ -429,36 +428,65 @@ const toggleClickTracking = (value) => {
                     </CardDescription>
                 </CardHeader>
                 <CardContent class="space-y-4">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div v-if="requiresEmail">
-                            <Label htmlFor="batch_size_email">
-                                Tamaño de lote (Email)
-                            </Label>
-                            <Input
-                                id="batch_size_email"
-                                type="number"
-                                v-model.number="form.configuracion.batch_size_email"
-                                min="1"
-                                max="500"
-                            />
-                            <p class="text-xs text-muted-foreground mt-1">
-                                Emails por lote (recomendado: 50)
-                            </p>
-                        </div>
-                        <div v-if="requiresWhatsApp">
-                            <Label htmlFor="batch_size_whatsapp">
-                                Tamaño de lote (WhatsApp)
-                            </Label>
-                            <Input
-                                id="batch_size_whatsapp"
-                                type="number"
-                                v-model.number="form.configuracion.batch_size_whatsapp"
-                                min="1"
-                                max="500"
-                            />
-                            <p class="text-xs text-muted-foreground mt-1">
-                                Mensajes por lote (recomendado: 100)
-                            </p>
+                    <!-- Configuración de Email -->
+                    <div v-if="requiresEmail">
+                        <Label htmlFor="batch_size_email">
+                            Tamaño de lote (Email)
+                        </Label>
+                        <Input
+                            id="batch_size_email"
+                            type="number"
+                            v-model.number="form.configuracion.batch_size_email"
+                            min="1"
+                            max="100"
+                            class="max-w-xs"
+                        />
+                        <p class="text-xs text-muted-foreground mt-1">
+                            Emails enviados por lote (máximo 100, recomendado: 50)
+                        </p>
+                    </div>
+
+                    <!-- Configuración de WhatsApp - Intervalos -->
+                    <div v-if="requiresWhatsApp" class="space-y-4">
+                        <Alert>
+                            <Info class="h-4 w-4" />
+                            <AlertDescription>
+                                Los mensajes de WhatsApp se envían uno a uno con intervalos de tiempo
+                                aleatorios para evitar bloqueos de la API.
+                            </AlertDescription>
+                        </Alert>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <Label htmlFor="whatsapp_delay_min">
+                                    Intervalo mínimo (segundos)
+                                </Label>
+                                <Input
+                                    id="whatsapp_delay_min"
+                                    type="number"
+                                    v-model.number="form.configuracion.whatsapp_delay_min"
+                                    min="5"
+                                    max="120"
+                                />
+                                <p class="text-xs text-muted-foreground mt-1">
+                                    Mínimo 5 segundos entre mensajes
+                                </p>
+                            </div>
+                            <div>
+                                <Label htmlFor="whatsapp_delay_max">
+                                    Intervalo máximo (segundos)
+                                </Label>
+                                <Input
+                                    id="whatsapp_delay_max"
+                                    type="number"
+                                    v-model.number="form.configuracion.whatsapp_delay_max"
+                                    min="5"
+                                    max="120"
+                                />
+                                <p class="text-xs text-muted-foreground mt-1">
+                                    Máximo 120 segundos entre mensajes
+                                </p>
+                            </div>
                         </div>
                     </div>
                     
