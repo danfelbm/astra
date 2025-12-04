@@ -132,54 +132,13 @@ class CampanaController extends AdminController
         $comparacion = $comparacionResponse['comparacion'] ?? null;
         $tendencias = $tendenciasResponse['tendencias'] ?? [];
 
-        // Obtener envíos recientes para el log de actividad
-        // Transformar para soportar usuarios, grupos de WhatsApp y envíos individuales
-        $enviosRecientes = $campana->envios()
-            ->with('user:id,name,email')
-            ->latest()
-            ->take(50)
-            ->get()
-            ->map(function ($envio) {
-                $data = [
-                    'id' => $envio->id,
-                    'tipo' => $envio->tipo, // 'email', 'whatsapp', 'whatsapp_group'
-                    'estado' => $envio->estado,
-                    'destinatario' => $envio->destinatario,
-                    'fecha_enviado' => $envio->fecha_enviado,
-                    'fecha_abierto' => $envio->fecha_abierto,
-                    'fecha_primer_click' => $envio->fecha_primer_click,
-                    'clicks_count' => $envio->clicks_count,
-                    'aperturas_count' => $envio->aperturas_count,
-                    'metadata' => $envio->metadata,
-                    'error' => $envio->error_mensaje,
-                    'created_at' => $envio->created_at,
-                ];
-
-                // Usuario individual (email o whatsapp individual)
-                if ($envio->user) {
-                    $data['user'] = [
-                        'id' => $envio->user->id,
-                        'nombre' => $envio->user->name,
-                        'email' => $envio->user->email,
-                    ];
-                } elseif ($envio->tipo === 'whatsapp_group') {
-                    // Para grupos de WhatsApp, usar metadata
-                    $data['grupo'] = [
-                        'nombre' => $envio->metadata['group_nombre'] ?? 'Grupo',
-                        'participantes' => $envio->metadata['group_participantes'] ?? 0,
-                        'jid' => $envio->destinatario,
-                    ];
-                }
-
-                return $data;
-            });
+        // Nota: enviosRecientes ahora se carga via endpoint paginado /envios
 
         return Inertia::render('Modules/Campanas/Admin/Campanas/Show', [
             'campana' => $campana,
             'metricas' => $metricas,
             'comparacion' => $comparacion,
             'tendencias' => $tendencias,
-            'enviosRecientes' => $enviosRecientes,
             'canEdit' => auth()->user()->can('campanas.edit'),
             'canDelete' => auth()->user()->can('campanas.delete'),
             'canPause' => auth()->user()->can('campanas.pause'),
@@ -386,6 +345,137 @@ class CampanaController extends AdminController
             'estado' => $campana->estado,
             'timestamp' => now()->toIso8601String(),
         ]);
+    }
+
+    /**
+     * Obtener envíos paginados con filtros para la actividad reciente
+     * Endpoint API para el componente ActividadReciente
+     */
+    public function envios(Request $request, Campana $campana): JsonResponse
+    {
+        // Verificar permisos
+        abort_unless(auth()->user()->can('campanas.view'), 403, 'No tienes permisos para ver envíos');
+
+        $query = $campana->envios()->with('user:id,name,email');
+
+        // Filtro de búsqueda por destinatario o nombre de usuario
+        if ($request->filled('search')) {
+            $searchTerm = $request->search;
+            $query->where(function ($q) use ($searchTerm) {
+                $q->where('destinatario', 'like', "%{$searchTerm}%")
+                  ->orWhereHas('user', function ($userQuery) use ($searchTerm) {
+                      $userQuery->where('name', 'like', "%{$searchTerm}%")
+                               ->orWhere('email', 'like', "%{$searchTerm}%");
+                  });
+            });
+        }
+
+        // Filtros por campos específicos
+        if ($request->filled('tipo')) {
+            $query->where('tipo', $request->tipo);
+        }
+        if ($request->filled('estado')) {
+            $query->where('estado', $request->estado);
+        }
+        if ($request->filled('fecha_desde')) {
+            $query->whereDate('fecha_enviado', '>=', $request->fecha_desde);
+        }
+        if ($request->filled('fecha_hasta')) {
+            $query->whereDate('fecha_enviado', '<=', $request->fecha_hasta);
+        }
+
+        // Paginación server-side con 20 items por página
+        $envios = $query->latest()->paginate(20)->withQueryString();
+
+        // Transformar datos para el frontend
+        $envios->getCollection()->transform(fn($envio) => $this->transformEnvioForApi($envio));
+
+        return response()->json([
+            'success' => true,
+            'envios' => $envios,
+            'filterFieldsConfig' => $this->getEnviosFilterFieldsConfig(),
+        ]);
+    }
+
+    /**
+     * Transformar un envío para la respuesta API
+     */
+    protected function transformEnvioForApi($envio): array
+    {
+        $data = [
+            'id' => $envio->id,
+            'tipo' => $envio->tipo,
+            'estado' => $envio->estado,
+            'destinatario' => $envio->destinatario,
+            'fecha_enviado' => $envio->fecha_enviado,
+            'fecha_abierto' => $envio->fecha_abierto,
+            'fecha_primer_click' => $envio->fecha_primer_click,
+            'clicks_count' => $envio->clicks_count,
+            'aperturas_count' => $envio->aperturas_count,
+            'metadata' => $envio->metadata,
+            'error' => $envio->error_mensaje,
+            'created_at' => $envio->created_at,
+        ];
+
+        // Usuario individual (email o whatsapp individual)
+        if ($envio->user) {
+            $data['user'] = [
+                'id' => $envio->user->id,
+                'nombre' => $envio->user->name,
+                'email' => $envio->user->email,
+            ];
+        } elseif ($envio->tipo === 'whatsapp_group') {
+            // Para grupos de WhatsApp, usar metadata
+            $data['grupo'] = [
+                'nombre' => $envio->metadata['group_nombre'] ?? 'Grupo',
+                'participantes' => $envio->metadata['group_participantes'] ?? 0,
+                'jid' => $envio->destinatario,
+            ];
+        }
+
+        return $data;
+    }
+
+    /**
+     * Configuración de campos de filtro para envíos
+     */
+    protected function getEnviosFilterFieldsConfig(): array
+    {
+        return [
+            [
+                'name' => 'tipo',
+                'label' => 'Tipo',
+                'type' => 'select',
+                'options' => [
+                    ['value' => 'email', 'label' => 'Email'],
+                    ['value' => 'whatsapp', 'label' => 'WhatsApp'],
+                    ['value' => 'whatsapp_group', 'label' => 'Grupo WhatsApp'],
+                ],
+            ],
+            [
+                'name' => 'estado',
+                'label' => 'Estado',
+                'type' => 'select',
+                'options' => [
+                    ['value' => 'pendiente', 'label' => 'Pendiente'],
+                    ['value' => 'enviando', 'label' => 'Enviando'],
+                    ['value' => 'enviado', 'label' => 'Enviado'],
+                    ['value' => 'abierto', 'label' => 'Abierto'],
+                    ['value' => 'click', 'label' => 'Con Click'],
+                    ['value' => 'fallido', 'label' => 'Fallido'],
+                ],
+            ],
+            [
+                'name' => 'destinatario',
+                'label' => 'Destinatario',
+                'type' => 'text',
+            ],
+            [
+                'name' => 'fecha_enviado',
+                'label' => 'Fecha de Envío',
+                'type' => 'date',
+            ],
+        ];
     }
 
     /**

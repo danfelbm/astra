@@ -148,6 +148,10 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
         Route::get('/{campana}/logs', [CampanaController::class, 'logs'])->name('logs')
             ->middleware('can:campanas.view');
 
+        // Envíos paginados con filtros para Actividad Reciente
+        Route::get('/{campana}/envios', [CampanaController::class, 'envios'])->name('envios')
+            ->middleware('can:campanas.view');
+
         Route::post('/{campana}/export', [CampanaController::class, 'export'])->name('export')
             ->middleware('can:campanas.export');
 
