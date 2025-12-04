@@ -86,7 +86,7 @@ class RedisHelper
     }
 
     /**
-     * Loguear warning de fallback solo una vez por request
+     * Loguear warning de fallback solo una vez (persiste entre requests por 1 hora)
      */
     private static function logFallbackWarning(): void
     {
@@ -94,7 +94,21 @@ class RedisHelper
             return;
         }
 
+        $lockFile = storage_path('framework/cache/redis_fallback_warning.lock');
+        $ttlSeconds = 3600; // 1 hora
+
+        // Verificar si el archivo existe y no ha expirado
+        if (file_exists($lockFile)) {
+            $fileTime = filemtime($lockFile);
+            if ($fileTime && (time() - $fileTime) < $ttlSeconds) {
+                self::$fallbackWarningLogged = true;
+                return;
+            }
+        }
+
+        // Loguear y crear/actualizar el archivo de lock
         Log::warning('Redis no disponible, usando database como fallback para cache/sessions/queue');
+        @touch($lockFile);
         self::$fallbackWarningLogged = true;
     }
     
@@ -105,6 +119,12 @@ class RedisHelper
     {
         self::$redisAvailable = null;
         self::$fallbackWarningLogged = false;
+
+        // Eliminar archivo de lock para permitir nuevo warning
+        $lockFile = storage_path('framework/cache/redis_fallback_warning.lock');
+        if (file_exists($lockFile)) {
+            @unlink($lockFile);
+        }
     }
     
     /**

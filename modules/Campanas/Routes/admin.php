@@ -15,10 +15,12 @@ use Modules\Campanas\Http\Controllers\Admin\WhatsAppGroupController;
 Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.')->group(function () {
 
     // MÓDULO CAMPAÑAS - Rutas administrativas
+
+    // Rutas de Plantillas (bajo /admin/campanas/ para organización lógica)
     Route::prefix('campanas')->name('campanas.')->group(function () {
-    
-    // Rutas de Plantillas de Email
-    Route::prefix('plantillas-email')->name('plantillas-email.')->group(function () {
+
+        // Rutas de Plantillas de Email
+        Route::prefix('plantillas-email')->name('plantillas-email.')->group(function () {
         Route::get('/', [PlantillaEmailController::class, 'index'])->name('index')
             ->middleware('can:campanas.plantillas.view');
         
