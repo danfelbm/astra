@@ -306,7 +306,7 @@ const mainNavItems = computed<NavItem[]>(() => {
         if (hasPermission('campanas.view')) {
             campanasItems.push({
                 title: 'Enviar campañas',
-                url: '/admin/campanas',
+                url: '/admin/envio-campanas',
                 icon: Send,
             });
             campanasItems.push({

@@ -133,7 +133,7 @@ const enviosRecientesData = ref(props.enviosRecientes);
 
 const breadcrumbs: BreadcrumbItemType[] = [
     { title: 'Admin', href: '/admin/dashboard' },
-    { title: 'Campañas', href: '/admin/campanas' },
+    { title: 'Campañas', href: '/admin/envio-campanas' },
     { title: campanaData.value.nombre, href: '#' },
 ];
 
@@ -181,7 +181,7 @@ const getTipoIcon = (tipo: string) => {
 };
 
 const iniciarEnvio = () => {
-    router.post(`/admin/campanas/${campanaData.value.id}/send`, {}, {
+    router.post(`/admin/envio-campanas/${campanaData.value.id}/send`, {}, {
         onSuccess: () => {
             toast.success('Campaña iniciada exitosamente');
             campanaData.value.estado = 'enviando';
@@ -195,7 +195,7 @@ const iniciarEnvio = () => {
 };
 
 const pausarCampana = () => {
-    router.post(`/admin/campanas/${campanaData.value.id}/pause`, {}, {
+    router.post(`/admin/envio-campanas/${campanaData.value.id}/pause`, {}, {
         onSuccess: () => {
             toast.success('Campaña pausada');
             campanaData.value.estado = 'pausada';
@@ -208,7 +208,7 @@ const pausarCampana = () => {
 };
 
 const reanudarCampana = () => {
-    router.post(`/admin/campanas/${campanaData.value.id}/resume`, {}, {
+    router.post(`/admin/envio-campanas/${campanaData.value.id}/resume`, {}, {
         onSuccess: () => {
             toast.success('Campaña reanudada');
             campanaData.value.estado = 'enviando';
@@ -223,7 +223,7 @@ const reanudarCampana = () => {
 
 const cancelarCampana = () => {
     if (confirm('¿Estás seguro de cancelar esta campaña? Esta acción no se puede deshacer.')) {
-        router.post(`/admin/campanas/${campanaData.value.id}/cancel`, {}, {
+        router.post(`/admin/envio-campanas/${campanaData.value.id}/cancel`, {}, {
             onSuccess: () => {
                 toast.success('Campaña cancelada');
                 campanaData.value.estado = 'cancelada';
@@ -242,7 +242,7 @@ const refreshMetrics = async () => {
     
     isRefreshing.value = true;
     try {
-        const response = await fetch(`/admin/campanas/${campanaData.value.id}/metrics`, {
+        const response = await fetch(`/admin/envio-campanas/${campanaData.value.id}/metrics`, {
             headers: {
                 'Accept': 'application/json',
                 'X-Requested-With': 'XMLHttpRequest',
@@ -303,7 +303,7 @@ const refreshMetrics = async () => {
 };
 
 const exportarReporte = () => {
-    router.post(`/admin/campanas/${campanaData.value.id}/export`, {
+    router.post(`/admin/envio-campanas/${campanaData.value.id}/export`, {
         formato: 'excel',
         incluir_detalles: true
     }, {
@@ -442,7 +442,7 @@ onUnmounted(() => {
                     </div>
                 </div>
                 <div class="flex gap-2">
-                    <Link href="/admin/campanas">
+                    <Link href="/admin/envio-campanas">
                         <Button variant="outline">
                             <ArrowLeft class="w-4 h-4 mr-2" />
                             Volver
@@ -460,7 +460,7 @@ onUnmounted(() => {
                     </Button>
                     
                     <!-- Acciones según estado -->
-                    <Link v-if="canEdit && campanaData.estado === 'borrador'" :href="`/admin/campanas/${campanaData.id}/edit`">
+                    <Link v-if="canEdit && campanaData.estado === 'borrador'" :href="`/admin/envio-campanas/${campanaData.id}/edit`">
                         <Button variant="outline">
                             <Edit class="w-4 h-4 mr-2" />
                             Editar

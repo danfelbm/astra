@@ -161,11 +161,17 @@ class Campana extends Model
 
     /**
      * Obtener los grupos de WhatsApp de la campaña
+     * Nota: Se especifican las foreign keys explícitamente porque Laravel convierte
+     * WhatsAppGroup a whats_app_group_id en lugar de whatsapp_group_id
      */
     public function whatsappGroups(): BelongsToMany
     {
-        return $this->belongsToMany(WhatsAppGroup::class, 'campana_whatsapp_groups')
-            ->withTimestamps();
+        return $this->belongsToMany(
+            WhatsAppGroup::class,
+            'campana_whatsapp_groups',
+            'campana_id',
+            'whatsapp_group_id'
+        )->withTimestamps();
     }
 
     /**
@@ -471,7 +477,7 @@ class Campana extends Model
 
     /**
      * Verificar si la campaña puede ser enviada
-     * Soporta modo segmento y modo manual
+     * Soporta modo segmento, modo manual y envíos a grupos de WhatsApp
      *
      * @return array
      */
@@ -484,16 +490,27 @@ class Campana extends Model
             $errores[] = 'La campaña debe estar en estado borrador, programada, pausada o enviando';
         }
 
-        // Verificar audiencia según modo
-        if ($this->audience_mode === 'segment' || (!$this->audience_mode && !$this->filters)) {
-            // Modo segmento: verificar segment_id
-            if (!$this->segment_id) {
-                $errores[] = 'Debe seleccionar un segmento';
+        // Determinar si requiere envíos individuales (email o WhatsApp individual)
+        $requiereEnviosIndividuales = $this->usaEmail() || $this->usaIndividualesWhatsApp();
+
+        // Solo verificar audiencia si requiere envíos individuales
+        if ($requiereEnviosIndividuales) {
+            if ($this->audience_mode === 'segment' || (!$this->audience_mode && !$this->filters)) {
+                // Modo segmento: verificar segment_id
+                if (!$this->segment_id) {
+                    $errores[] = 'Debe seleccionar un segmento para los envíos individuales';
+                }
+            } elseif ($this->audience_mode === 'manual') {
+                // Modo manual: verificar filtros
+                if (empty($this->filters)) {
+                    $errores[] = 'Debe definir filtros para la audiencia manual';
+                }
             }
-        } elseif ($this->audience_mode === 'manual') {
-            // Modo manual: verificar filtros
-            if (empty($this->filters)) {
-                $errores[] = 'Debe definir filtros para la audiencia manual';
+
+            // Verificar destinatarios individuales
+            $destinatarios = $this->contarDestinatarios();
+            if ($destinatarios === 0) {
+                $errores[] = 'No hay destinatarios en la audiencia seleccionada';
             }
         }
 
@@ -506,11 +523,12 @@ class Campana extends Model
             $errores[] = 'Debe seleccionar una plantilla de WhatsApp';
         }
 
-        // Verificar destinatarios
-        $destinatarios = $this->contarDestinatarios();
-
-        if ($destinatarios === 0) {
-            $errores[] = 'No hay destinatarios en la audiencia seleccionada';
+        // Verificar grupos de WhatsApp si el modo lo requiere
+        if ($this->usaGruposWhatsApp()) {
+            $this->load('whatsappGroups');
+            if ($this->whatsappGroups->isEmpty()) {
+                $errores[] = 'Debe seleccionar al menos un grupo de WhatsApp';
+            }
         }
 
         return [

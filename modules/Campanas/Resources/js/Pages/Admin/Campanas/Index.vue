@@ -53,14 +53,14 @@ const props = defineProps<Props>();
 
 const breadcrumbs: BreadcrumbItemType[] = [
     { title: 'Admin', href: '/admin/dashboard' },
-    { title: 'Campañas', href: '/admin/campanas' },
+    { title: 'Campañas', href: '/admin/envio-campanas' },
 ];
 
 const searchQuery = ref(props.filters?.search || '');
 const selectedEstado = ref(props.filters?.estado || 'all');
 
 const applyFilters = () => {
-    router.get('/admin/campanas', {
+    router.get('/admin/envio-campanas', {
         search: searchQuery.value,
         estado: selectedEstado.value !== 'all' ? selectedEstado.value : undefined,
     }, { preserveState: true, preserveScroll: true });
@@ -95,7 +95,7 @@ const getTipoIcon = (tipo: string) => {
                         Gestiona y monitorea tus campañas de email y WhatsApp
                     </p>
                 </div>
-                <Link v-if="canCreate" href="/admin/campanas/create">
+                <Link v-if="canCreate" href="/admin/envio-campanas/create">
                     <Button>
                         <Plus class="w-4 h-4 mr-2" />
                         Nueva Campaña
@@ -217,12 +217,12 @@ const getTipoIcon = (tipo: string) => {
                                 </TableCell>
                                 <TableCell class="text-right">
                                     <div class="flex justify-end gap-1">
-                                        <Link :href="`/admin/campanas/${campana.id}`">
+                                        <Link :href="`/admin/envio-campanas/${campana.id}`">
                                             <Button variant="ghost" size="sm">
                                                 <Eye class="w-4 h-4" />
                                             </Button>
                                         </Link>
-                                        <Link v-if="canEdit && campana.estado === 'borrador'" :href="`/admin/campanas/${campana.id}/edit`">
+                                        <Link v-if="canEdit && campana.estado === 'borrador'" :href="`/admin/envio-campanas/${campana.id}/edit`">
                                             <Button variant="ghost" size="sm">
                                                 <Edit class="w-4 h-4" />
                                             </Button>

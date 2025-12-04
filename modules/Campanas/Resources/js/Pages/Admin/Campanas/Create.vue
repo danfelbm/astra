@@ -92,7 +92,7 @@ const isEditing = computed(() => !!props.campana?.id);
 
 const breadcrumbs: BreadcrumbItemType[] = [
     { title: 'Admin', href: '/admin/dashboard' },
-    { title: 'Campañas', href: '/admin/campanas' },
+    { title: 'Campañas', href: '/admin/envio-campanas' },
     { title: isEditing.value ? 'Editar Campaña' : 'Nueva Campaña', href: '#' },
 ];
 
@@ -167,7 +167,7 @@ const countFilteredUsers = debounce(async () => {
 
     isCountingUsers.value = true;
     try {
-        const response = await axios.post('/admin/campanas/count-users', { filters });
+        const response = await axios.post('/admin/envio-campanas/count-users', { filters });
         manualFilterCount.value = response.data.count;
     } catch (error) {
         console.error('Error contando usuarios:', error);
@@ -229,7 +229,7 @@ const submit = () => {
     }
 
     if (isEditing.value) {
-        form.put(`/admin/campanas/${props.campana?.id}`, {
+        form.put(`/admin/envio-campanas/${props.campana?.id}`, {
             onSuccess: () => {
                 toast.success('Campaña actualizada exitosamente');
             },
@@ -238,7 +238,7 @@ const submit = () => {
             }
         });
     } else {
-        form.post('/admin/campanas', {
+        form.post('/admin/envio-campanas', {
             onSuccess: () => {
                 toast.success('Campaña creada exitosamente');
             },
@@ -313,7 +313,7 @@ const toggleClickTracking = (value) => {
                     <Button 
                         type="button" 
                         variant="outline"
-                        @click="router.visit('/admin/campanas')"
+                        @click="router.visit('/admin/envio-campanas')"
                     >
                         <ArrowLeft class="w-4 h-4 mr-2" />
                         Cancelar

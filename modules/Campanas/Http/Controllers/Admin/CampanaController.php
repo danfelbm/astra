@@ -107,7 +107,7 @@ class CampanaController extends AdminController
         }
 
         return redirect()
-            ->route('admin.campanas.show', $result['campana'])
+            ->route('admin.envio-campanas.show', $result['campana'])
             ->with('success', $result['message']);
     }
 
@@ -171,7 +171,7 @@ class CampanaController extends AdminController
         // No permitir edición si está en proceso o completada
         if (in_array($campana->estado, ['enviando', 'completada', 'cancelada'])) {
             return redirect()
-                ->route('admin.campanas.show', $campana)
+                ->route('admin.envio-campanas.show', $campana)
                 ->with('error', 'No se puede editar una campaña en estado: ' . $campana->estado);
         }
 
@@ -220,7 +220,7 @@ class CampanaController extends AdminController
         }
 
         return redirect()
-            ->route('admin.campanas.show', $campana)
+            ->route('admin.envio-campanas.show', $campana)
             ->with('success', $result['message']);
     }
 
@@ -236,12 +236,12 @@ class CampanaController extends AdminController
 
         if (!$result['success']) {
             return redirect()
-                ->route('admin.campanas.index')
+                ->route('admin.envio-campanas.index')
                 ->with('error', $result['message']);
         }
 
         return redirect()
-            ->route('admin.campanas.index')
+            ->route('admin.envio-campanas.index')
             ->with('success', $result['message']);
     }
 
@@ -260,7 +260,7 @@ class CampanaController extends AdminController
         }
 
         return redirect()
-            ->route('admin.campanas.show', $campana)
+            ->route('admin.envio-campanas.show', $campana)
             ->with('success', $result['message']);
     }
 
@@ -279,7 +279,7 @@ class CampanaController extends AdminController
         }
 
         return redirect()
-            ->route('admin.campanas.show', $campana)
+            ->route('admin.envio-campanas.show', $campana)
             ->with('success', $result['message']);
     }
 
@@ -298,7 +298,7 @@ class CampanaController extends AdminController
         }
 
         return redirect()
-            ->route('admin.campanas.show', $campana)
+            ->route('admin.envio-campanas.show', $campana)
             ->with('success', $result['message']);
     }
 
@@ -317,7 +317,7 @@ class CampanaController extends AdminController
         }
 
         return redirect()
-            ->route('admin.campanas.show', $campana)
+            ->route('admin.envio-campanas.show', $campana)
             ->with('success', $result['message']);
     }
 
@@ -336,7 +336,7 @@ class CampanaController extends AdminController
         }
 
         return redirect()
-            ->route('admin.campanas.edit', $result['campana'])
+            ->route('admin.envio-campanas.edit', $result['campana'])
             ->with('success', $result['message']);
     }
 
