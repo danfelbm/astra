@@ -28,7 +28,32 @@ class CampanaMetricsService
             
             // Convertir estructura anidada a estructura plana para el frontend
             $resumen = $metrica->getResumen();
-            
+
+            // Calcular métricas separadas de WhatsApp (individual vs grupos)
+            $waIndividualEnviados = $campana->envios()
+                ->where('tipo', 'whatsapp')
+                ->whereIn('estado', ['enviado', 'abierto', 'click'])
+                ->count();
+            $waIndividualFallidos = $campana->envios()
+                ->where('tipo', 'whatsapp')
+                ->where('estado', 'fallido')
+                ->count();
+            $waIndividualTotal = $campana->envios()
+                ->where('tipo', 'whatsapp')
+                ->count();
+
+            $waGruposEnviados = $campana->envios()
+                ->where('tipo', 'whatsapp_group')
+                ->whereIn('estado', ['enviado', 'abierto', 'click'])
+                ->count();
+            $waGruposFallidos = $campana->envios()
+                ->where('tipo', 'whatsapp_group')
+                ->where('estado', 'fallido')
+                ->count();
+            $waGruposTotal = $campana->envios()
+                ->where('tipo', 'whatsapp_group')
+                ->count();
+
             return [
                 'success' => true,
                 'metricas' => [
@@ -38,25 +63,35 @@ class CampanaMetricsService
                     'total_pendientes' => $resumen['generales']['total_pendientes'] ?? 0,
                     'total_fallidos' => $resumen['generales']['total_fallidos'] ?? 0,
                     'progreso' => $resumen['generales']['progreso'] ?? 0,
-                    
+
                     // Métricas de email (planas)
                     'emails_enviados' => $resumen['email']['enviados'] ?? 0,
                     'emails_abiertos' => $resumen['email']['abiertos'] ?? 0,
-                    'emails_con_click' => $resumen['email']['clicks'] ?? 0,  // Renombrado
-                    'emails_rebotados' => $resumen['email']['rebotados'] ?? 0,  // Agregado
-                    'total_clicks' => $resumen['email']['total_clicks'] ?? 0,  // Agregado
+                    'emails_con_click' => $resumen['email']['clicks'] ?? 0,
+                    'emails_rebotados' => $resumen['email']['rebotados'] ?? 0,
+                    'total_clicks' => $resumen['email']['total_clicks'] ?? 0,
                     'tasa_apertura' => floatval(str_replace('%', '', $resumen['email']['tasa_apertura'] ?? '0')),
                     'tasa_click' => floatval(str_replace('%', '', $resumen['email']['tasa_click'] ?? '0')),
                     'tasa_rebote' => floatval(str_replace('%', '', $resumen['email']['tasa_rebote'] ?? '0')),
-                    'tiempo_promedio_apertura' => intval(str_replace(' min', '', $resumen['email']['tiempo_promedio_apertura'] ?? '0')),  // Convertir a número
-                    'tiempo_promedio_click' => 0,  // Agregado
-                    
-                    // Métricas de WhatsApp (planas)
+                    'tiempo_promedio_apertura' => intval(str_replace(' min', '', $resumen['email']['tiempo_promedio_apertura'] ?? '0')),
+                    'tiempo_promedio_click' => 0,
+
+                    // Métricas de WhatsApp (totales)
                     'whatsapp_enviados' => $resumen['whatsapp']['enviados'] ?? 0,
                     'whatsapp_entregados' => $resumen['whatsapp']['entregados'] ?? 0,
                     'whatsapp_fallidos' => $resumen['whatsapp']['fallidos'] ?? 0,
                     'whatsapp_tasa_entrega' => floatval(str_replace('%', '', $resumen['whatsapp']['tasa_entrega'] ?? '0')),
-                    
+
+                    // Métricas de WhatsApp Individual (separadas)
+                    'whatsapp_individual_enviados' => $waIndividualEnviados,
+                    'whatsapp_individual_fallidos' => $waIndividualFallidos,
+                    'whatsapp_individual_total' => $waIndividualTotal,
+
+                    // Métricas de WhatsApp Grupos (separadas)
+                    'whatsapp_grupos_enviados' => $waGruposEnviados,
+                    'whatsapp_grupos_fallidos' => $waGruposFallidos,
+                    'whatsapp_grupos_total' => $waGruposTotal,
+
                     // Metadata
                     'ultima_actualizacion' => $resumen['ultima_actualizacion'] ?? null,
                 ],
@@ -89,18 +124,27 @@ class CampanaMetricsService
             'progreso' => 0,
             'emails_enviados' => 0,
             'emails_abiertos' => 0,
-            'emails_con_click' => 0,  // Renombrado
-            'emails_rebotados' => 0,  // Agregado
-            'total_clicks' => 0,  // Agregado
+            'emails_con_click' => 0,
+            'emails_rebotados' => 0,
+            'total_clicks' => 0,
             'tasa_apertura' => 0,
             'tasa_click' => 0,
             'tasa_rebote' => 0,
-            'tiempo_promedio_apertura' => 0,  // Cambiado a número
-            'tiempo_promedio_click' => 0,  // Agregado
+            'tiempo_promedio_apertura' => 0,
+            'tiempo_promedio_click' => 0,
+            // WhatsApp totales
             'whatsapp_enviados' => 0,
             'whatsapp_entregados' => 0,
             'whatsapp_fallidos' => 0,
             'whatsapp_tasa_entrega' => 0,
+            // WhatsApp Individual
+            'whatsapp_individual_enviados' => 0,
+            'whatsapp_individual_fallidos' => 0,
+            'whatsapp_individual_total' => 0,
+            // WhatsApp Grupos
+            'whatsapp_grupos_enviados' => 0,
+            'whatsapp_grupos_fallidos' => 0,
+            'whatsapp_grupos_total' => 0,
             'ultima_actualizacion' => null,
         ];
     }

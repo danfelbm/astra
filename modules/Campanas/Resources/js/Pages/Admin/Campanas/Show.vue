@@ -533,10 +533,11 @@ onUnmounted(() => {
             />
 
             <!-- Métricas Principales -->
-            <CampanaMetrics 
+            <CampanaMetrics
                 :metrics="metricasData"
                 :comparison="comparacionData"
                 :tipo="campanaData.tipo"
+                :whatsapp-mode="campanaData.whatsapp_mode"
             />
 
             <!-- Tabs de Información -->

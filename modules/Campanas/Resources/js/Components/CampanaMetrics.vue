@@ -3,8 +3,9 @@ import { computed } from 'vue';
 import { Card, CardContent, CardHeader, CardTitle } from '@modules/Core/Resources/js/components/ui/card';
 import { Badge } from '@modules/Core/Resources/js/components/ui/badge';
 import { Progress } from '@modules/Core/Resources/js/components/ui/progress';
-import { 
-    Mail, MessageSquare, Eye, MousePointer, 
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@modules/Core/Resources/js/components/ui/tabs';
+import {
+    Mail, MessageSquare, Eye, MousePointer,
     TrendingUp, TrendingDown, Minus, AlertCircle,
     CheckCircle2, XCircle, Users, BarChart3
 } from 'lucide-vue-next';
@@ -18,10 +19,19 @@ interface Props {
         tasa_rebote_prev?: number;
     };
     showDetails?: boolean;
+    tipo?: 'email' | 'whatsapp' | 'ambos';
+    whatsappMode?: 'individual' | 'grupos' | 'mixto';
 }
 
 const props = withDefaults(defineProps<Props>(), {
-    showDetails: true
+    showDetails: true,
+    tipo: 'ambos',
+    whatsappMode: 'individual'
+});
+
+// Determinar si mostrar tabs de WhatsApp (solo si hay grupos)
+const mostrarTabsWhatsApp = computed(() => {
+    return props.tipo !== 'email' && ['grupos', 'mixto'].includes(props.whatsappMode || 'individual');
 });
 
 // Calcular tendencias
@@ -268,33 +278,95 @@ const formatNumber = (num: number): string => {
                     </div>
                 </CardHeader>
                 <CardContent class="space-y-3">
-                    <div class="space-y-2">
-                        <div class="flex justify-between text-sm">
-                            <span class="text-muted-foreground">Entregados</span>
-                            <span class="font-medium">{{ formatNumber(metrics?.whatsapp_entregados || 0) }}</span>
+                    <!-- Con Tabs si hay modo grupos o mixto -->
+                    <Tabs v-if="mostrarTabsWhatsApp" default-value="contactos" class="w-full">
+                        <TabsList class="grid w-full grid-cols-2 mb-4">
+                            <TabsTrigger value="contactos" class="text-xs">
+                                <MessageSquare class="h-3 w-3 mr-1" />
+                                Contactos
+                            </TabsTrigger>
+                            <TabsTrigger value="grupos" class="text-xs">
+                                <Users class="h-3 w-3 mr-1" />
+                                Grupos
+                            </TabsTrigger>
+                        </TabsList>
+
+                        <!-- Tab Contactos -->
+                        <TabsContent value="contactos" class="space-y-3 mt-0">
+                            <div class="space-y-2">
+                                <div class="flex justify-between text-sm">
+                                    <span class="text-muted-foreground">Entregados</span>
+                                    <span class="font-medium">{{ formatNumber(metrics?.whatsapp_individual_enviados || metrics?.whatsapp_entregados || 0) }}</span>
+                                </div>
+                                <Progress :value="derivedMetrics.tasaExitoWhatsApp" class="h-2" />
+                            </div>
+                            <div class="space-y-2">
+                                <div class="flex justify-between text-sm">
+                                    <span class="text-muted-foreground">Fallidos</span>
+                                    <span class="font-medium text-red-600">{{ formatNumber(metrics?.whatsapp_individual_fallidos || 0) }}</span>
+                                </div>
+                            </div>
+                            <div class="pt-2 border-t">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-sm text-muted-foreground">Tasa de éxito</span>
+                                    <span class="text-lg font-semibold" :class="getMetricColor(derivedMetrics.tasaExitoWhatsApp, 'entrega')">
+                                        {{ derivedMetrics.tasaExitoWhatsApp.toFixed(1) }}%
+                                    </span>
+                                </div>
+                            </div>
+                        </TabsContent>
+
+                        <!-- Tab Grupos -->
+                        <TabsContent value="grupos" class="space-y-3 mt-0">
+                            <div class="space-y-2">
+                                <div class="flex justify-between text-sm">
+                                    <span class="text-muted-foreground">Grupos enviados</span>
+                                    <span class="font-medium">{{ formatNumber(metrics?.whatsapp_grupos_enviados || 0) }}</span>
+                                </div>
+                                <Progress :value="(metrics?.whatsapp_grupos_total || 0) > 0 ? ((metrics?.whatsapp_grupos_enviados || 0) / (metrics?.whatsapp_grupos_total || 1) * 100) : 0" class="h-2" />
+                            </div>
+                            <div class="space-y-2">
+                                <div class="flex justify-between text-sm">
+                                    <span class="text-muted-foreground">Fallidos</span>
+                                    <span class="font-medium text-red-600">{{ formatNumber(metrics?.whatsapp_grupos_fallidos || 0) }}</span>
+                                </div>
+                            </div>
+                            <div class="pt-2 border-t text-xs text-muted-foreground">
+                                Los mensajes a grupos no tienen tracking individual de entrega.
+                            </div>
+                        </TabsContent>
+                    </Tabs>
+
+                    <!-- Sin Tabs (solo contactos individuales) -->
+                    <template v-else>
+                        <div class="space-y-2">
+                            <div class="flex justify-between text-sm">
+                                <span class="text-muted-foreground">Entregados</span>
+                                <span class="font-medium">{{ formatNumber(metrics?.whatsapp_entregados || 0) }}</span>
+                            </div>
+                            <Progress :value="derivedMetrics.tasaExitoWhatsApp" class="h-2" />
                         </div>
-                        <Progress :value="derivedMetrics.tasaExitoWhatsApp" class="h-2" />
-                    </div>
-                    
-                    <div class="space-y-2">
-                        <div class="flex justify-between text-sm">
-                            <span class="text-muted-foreground">Fallidos</span>
-                            <span class="font-medium text-red-600">{{ formatNumber(metrics?.whatsapp_fallidos || 0) }}</span>
+
+                        <div class="space-y-2">
+                            <div class="flex justify-between text-sm">
+                                <span class="text-muted-foreground">Fallidos</span>
+                                <span class="font-medium text-red-600">{{ formatNumber(metrics?.whatsapp_fallidos || 0) }}</span>
+                            </div>
+                            <Progress
+                                :value="(metrics?.whatsapp_enviados || 0) > 0 ? ((metrics?.whatsapp_fallidos || 0) / (metrics?.whatsapp_enviados || 1) * 100) : 0"
+                                class="h-2"
+                            />
                         </div>
-                        <Progress 
-                            :value="(metrics?.whatsapp_enviados || 0) > 0 ? ((metrics?.whatsapp_fallidos || 0) / (metrics?.whatsapp_enviados || 1) * 100) : 0" 
-                            class="h-2" 
-                        />
-                    </div>
-                    
-                    <div class="pt-2 border-t">
-                        <div class="flex items-center justify-between">
-                            <span class="text-sm text-muted-foreground">Tasa de éxito</span>
-                            <span class="text-lg font-semibold" :class="getMetricColor(derivedMetrics.tasaExitoWhatsApp, 'entrega')">
-                                {{ derivedMetrics.tasaExitoWhatsApp.toFixed(1) }}%
-                            </span>
+
+                        <div class="pt-2 border-t">
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm text-muted-foreground">Tasa de éxito</span>
+                                <span class="text-lg font-semibold" :class="getMetricColor(derivedMetrics.tasaExitoWhatsApp, 'entrega')">
+                                    {{ derivedMetrics.tasaExitoWhatsApp.toFixed(1) }}%
+                                </span>
+                            </div>
                         </div>
-                    </div>
+                    </template>
                 </CardContent>
             </Card>
         </div>
