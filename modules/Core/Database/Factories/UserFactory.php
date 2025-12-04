@@ -141,4 +141,54 @@ class UserFactory extends Factory
             'email_verified_at' => null,
         ]);
     }
+
+    /**
+     * State para usuarios de Bogotá con localidad aleatoria
+     * Bogotá: municipio_id=549, departamento_id=10, territorio_id=1
+     */
+    public function bogota(): static
+    {
+        return $this->state(function (array $attributes) {
+            // Obtener localidad aleatoria de Bogotá (municipio_id = 549)
+            $localidad = \DB::table('localidades')
+                ->where('municipio_id', 549)
+                ->inRandomOrder()
+                ->first();
+
+            return [
+                'territorio_id' => 1,
+                'departamento_id' => 10,
+                'municipio_id' => 549,
+                'localidad_id' => $localidad?->id,
+            ];
+        });
+    }
+
+    /**
+     * State para usuarios de un municipio específico con localidad aleatoria
+     */
+    public function enMunicipio(int $municipioId): static
+    {
+        return $this->state(function (array $attributes) use ($municipioId) {
+            $municipio = \DB::table('municipios')->find($municipioId);
+
+            if (!$municipio) {
+                return [];
+            }
+
+            $departamento = \DB::table('departamentos')->find($municipio->departamento_id);
+
+            $localidad = \DB::table('localidades')
+                ->where('municipio_id', $municipioId)
+                ->inRandomOrder()
+                ->first();
+
+            return [
+                'territorio_id' => $departamento?->territorio_id ?? 1,
+                'departamento_id' => $municipio->departamento_id,
+                'municipio_id' => $municipioId,
+                'localidad_id' => $localidad?->id,
+            ];
+        });
+    }
 }
