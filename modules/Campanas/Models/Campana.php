@@ -447,23 +447,23 @@ class Campana extends Model
                 $errores[] = 'Debe definir filtros para la audiencia manual';
             }
         }
-        
+
         // Verificar plantillas según tipo
         if ($this->usaEmail() && !$this->plantilla_email_id) {
             $errores[] = 'Debe seleccionar una plantilla de email';
         }
-        
+
         if ($this->usaWhatsApp() && !$this->plantilla_whatsapp_id) {
             $errores[] = 'Debe seleccionar una plantilla de WhatsApp';
         }
-        
+
         // Verificar destinatarios
         $destinatarios = $this->contarDestinatarios();
-        
+
         if ($destinatarios === 0) {
-            $errores[] = 'No hay destinatarios en el segmento seleccionado';
+            $errores[] = 'No hay destinatarios en la audiencia seleccionada';
         }
-        
+
         return [
             'puede_enviarse' => empty($errores),
             'errores' => $errores,

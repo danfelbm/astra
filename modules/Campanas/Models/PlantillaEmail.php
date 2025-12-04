@@ -103,6 +103,26 @@ class PlantillaEmail extends Model
     }
 
     /**
+     * Procesar el contenido texto plano con las variables del usuario
+     *
+     * @param User $user
+     * @return string
+     */
+    public function procesarContenidoTexto(User $user): string
+    {
+        $contenido = $this->contenido_texto ?? strip_tags($this->contenido_html);
+
+        // Reemplazar variables del usuario
+        $variables = $this->obtenerVariables($user);
+
+        foreach ($variables as $key => $value) {
+            $contenido = str_replace('{{' . $key . '}}', $value ?? '', $contenido);
+        }
+
+        return $contenido;
+    }
+
+    /**
      * Procesar el asunto con las variables del usuario
      *
      * @param User $user
