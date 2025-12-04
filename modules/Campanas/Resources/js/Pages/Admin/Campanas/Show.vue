@@ -25,11 +25,18 @@ interface Campana {
     nombre: string;
     descripcion?: string;
     tipo: 'email' | 'whatsapp' | 'ambos';
+    whatsapp_mode?: 'individual' | 'grupos' | 'mixto';
     estado: 'borrador' | 'programada' | 'enviando' | 'completada' | 'pausada' | 'cancelada';
     segment?: { id: number; name: string; users_count: number };
     // Laravel serializa relaciones en snake_case
     plantilla_email?: { id: number; nombre: string; asunto: string };
     plantilla_whats_app?: { id: number; nombre: string };
+    whatsapp_groups?: Array<{
+        id: number;
+        nombre: string;
+        participantes_count: number;
+        group_jid?: string;
+    }>;
     fecha_programada?: string;
     fecha_inicio?: string;
     fecha_fin?: string;
@@ -91,9 +98,12 @@ interface Tendencia {
 
 interface Envio {
     id: number;
+    tipo: 'email' | 'whatsapp' | 'whatsapp_group';
     user?: { id: number; nombre: string; email?: string };
+    grupo?: { nombre: string; participantes: number; jid: string };
+    destinatario?: string;
     estado: string;
-    intentos: number;
+    intentos?: number;
     fecha_enviado?: string;
     fecha_abierto?: string;
     fecha_primer_click?: string;
@@ -104,6 +114,8 @@ interface Envio {
         clicks_detail?: Array<{url: string, clicked_at: string, user_agent: string, ip: string}>;
         aperturas?: Array<{timestamp: string, user_agent: string, ip: string}>;
         device?: {user_agent: string, ip: string, opened_at: string};
+        group_nombre?: string;
+        group_participantes?: number;
     };
     error?: string;
     created_at: string;
@@ -421,10 +433,22 @@ onUnmounted(() => {
                     <p v-if="campanaData.descripcion" class="text-muted-foreground mt-1">
                         {{ campanaData.descripcion }}
                     </p>
-                    <div class="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
+                    <div class="flex items-center gap-4 mt-2 text-sm text-muted-foreground flex-wrap">
                         <div class="flex items-center gap-1">
                             <component :is="getTipoIcon(campanaData.tipo)" class="w-4 h-4" />
                             <span class="capitalize">{{ campanaData.tipo }}</span>
+                        </div>
+                        <!-- Modo WhatsApp -->
+                        <div v-if="campanaData.tipo !== 'email' && campanaData.whatsapp_mode" class="flex items-center gap-1">
+                            <Badge variant="outline" class="text-xs">
+                                {{ campanaData.whatsapp_mode === 'grupos' ? 'Solo Grupos' :
+                                   campanaData.whatsapp_mode === 'mixto' ? 'Mixto' : 'Individual' }}
+                            </Badge>
+                        </div>
+                        <!-- Grupos de WhatsApp -->
+                        <div v-if="campanaData.whatsapp_groups?.length" class="flex items-center gap-1">
+                            <Users class="w-4 h-4 text-green-600" />
+                            <span>{{ campanaData.whatsapp_groups.length }} grupo(s)</span>
                         </div>
                         <div v-if="campanaData.segment" class="flex items-center gap-1">
                             <Users class="w-4 h-4" />
@@ -586,6 +610,37 @@ onUnmounted(() => {
                                 </div>
                             </CardContent>
                         </Card>
+
+                        <!-- Card de Grupos de WhatsApp -->
+                        <Card v-if="campanaData.whatsapp_groups?.length" class="md:col-span-2">
+                            <CardHeader>
+                                <div class="flex items-center justify-between">
+                                    <CardTitle>Grupos de WhatsApp</CardTitle>
+                                    <Badge variant="outline">
+                                        Modo: {{ campanaData.whatsapp_mode === 'grupos' ? 'Solo Grupos' :
+                                                 campanaData.whatsapp_mode === 'mixto' ? 'Mixto' : 'Individual' }}
+                                    </Badge>
+                                </div>
+                            </CardHeader>
+                            <CardContent>
+                                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                                    <div v-for="grupo in campanaData.whatsapp_groups" :key="grupo.id"
+                                         class="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                                        <div class="flex items-center gap-2">
+                                            <Users class="w-4 h-4 text-green-600 flex-shrink-0" />
+                                            <span class="font-medium truncate">{{ grupo.nombre }}</span>
+                                        </div>
+                                        <Badge variant="secondary" class="flex-shrink-0">
+                                            {{ grupo.participantes_count }} participantes
+                                        </Badge>
+                                    </div>
+                                </div>
+                                <div class="mt-3 pt-3 border-t text-sm text-muted-foreground">
+                                    Total: {{ campanaData.whatsapp_groups.length }} grupo(s) •
+                                    {{ campanaData.whatsapp_groups.reduce((sum, g) => sum + (g.participantes_count || 0), 0) }} participantes
+                                </div>
+                            </CardContent>
+                        </Card>
                     </div>
                 </TabsContent>
 
@@ -609,128 +664,209 @@ onUnmounted(() => {
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead>Usuario</TableHead>
+                                        <TableHead class="w-[100px]">Tipo</TableHead>
+                                        <TableHead>Destinatario</TableHead>
                                         <TableHead>Estado</TableHead>
                                         <TableHead>Fecha Envío</TableHead>
-                                        <TableHead>Apertura</TableHead>
-                                        <TableHead>Clicks</TableHead>
+                                        <!-- Solo mostrar Apertura/Clicks para Email -->
+                                        <TableHead v-if="campanaData.tipo === 'email' || campanaData.tipo === 'ambos'">Apertura</TableHead>
+                                        <TableHead v-if="campanaData.tipo === 'email' || campanaData.tipo === 'ambos'">Clicks</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     <template v-for="envio in enviosRecientesData" :key="envio.id">
-                                        <TableRow 
+                                        <TableRow
                                             @click="toggleRow(envio.id)"
                                             class="cursor-pointer hover:bg-muted/50 transition-colors"
                                         >
-                                                <TableCell>
+                                            <!-- Columna Tipo -->
+                                            <TableCell>
+                                                <Badge :variant="envio.tipo === 'email' ? 'default' : 'secondary'" class="text-xs">
+                                                    <Mail v-if="envio.tipo === 'email'" class="w-3 h-3 mr-1" />
+                                                    <Users v-else-if="envio.tipo === 'whatsapp_group'" class="w-3 h-3 mr-1" />
+                                                    <MessageSquare v-else class="w-3 h-3 mr-1" />
+                                                    {{ envio.tipo === 'email' ? 'Email' : envio.tipo === 'whatsapp_group' ? 'Grupo' : 'WA' }}
+                                                </Badge>
+                                            </TableCell>
+                                            <!-- Columna Destinatario -->
+                                            <TableCell>
                                                 <div class="flex items-center gap-2">
-                                                    <ChevronRight v-if="!expandedRows.includes(envio.id)" class="w-4 h-4" />
-                                                    <ChevronDown v-else class="w-4 h-4" />
-                                                    <div>
-                                                        <div class="font-medium">{{ envio.user?.nombre }}</div>
+                                                    <ChevronRight v-if="!expandedRows.includes(envio.id)" class="w-4 h-4 flex-shrink-0" />
+                                                    <ChevronDown v-else class="w-4 h-4 flex-shrink-0" />
+                                                    <!-- Usuario individual -->
+                                                    <div v-if="envio.user">
+                                                        <div class="font-medium">{{ envio.user.nombre }}</div>
                                                         <div class="text-sm text-muted-foreground">
-                                                            {{ envio.user?.email }}
+                                                            {{ envio.user.email || envio.destinatario }}
                                                         </div>
+                                                    </div>
+                                                    <!-- Grupo de WhatsApp -->
+                                                    <div v-else-if="envio.grupo" class="flex items-center gap-2">
+                                                        <div>
+                                                            <div class="font-medium text-green-700">{{ envio.grupo.nombre }}</div>
+                                                            <div class="text-sm text-muted-foreground">
+                                                                {{ envio.grupo.participantes }} participantes
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <!-- Fallback: solo destinatario -->
+                                                    <div v-else>
+                                                        <div class="font-medium text-muted-foreground">{{ envio.destinatario }}</div>
                                                     </div>
                                                 </div>
                                             </TableCell>
-                                        <TableCell>
-                                            <Badge :variant="envio.estado === 'enviado' ? 'default' : 'destructive'">
-                                                {{ envio.estado }}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell>
-                                            {{ envio.fecha_enviado ? new Date(envio.fecha_enviado).toLocaleString('es-ES') : '-' }}
-                                        </TableCell>
-                                        <TableCell>
-                                            <div v-if="envio.fecha_abierto" class="flex items-center gap-1">
-                                                <Eye class="w-3 h-3" />
-                                                {{ new Date(envio.fecha_abierto).toLocaleTimeString('es-ES') }}
-                                                <Badge v-if="envio.aperturas_count && envio.aperturas_count > 1" variant="secondary" class="ml-1">
-                                                    {{ envio.aperturas_count }}
+                                            <!-- Columna Estado -->
+                                            <TableCell>
+                                                <Badge :variant="['enviado', 'abierto', 'click'].includes(envio.estado) ? 'default' : envio.estado === 'fallido' ? 'destructive' : 'secondary'">
+                                                    {{ envio.estado }}
                                                 </Badge>
-                                            </div>
-                                            <span v-else class="text-muted-foreground">-</span>
-                                        </TableCell>
-                                        <TableCell>
-                                            <div v-if="envio.fecha_primer_click" class="flex items-center gap-1">
-                                                <MousePointer class="w-3 h-3" />
-                                                {{ new Date(envio.fecha_primer_click).toLocaleTimeString('es-ES') }}
-                                                <Badge v-if="envio.clicks_count && envio.clicks_count > 1" variant="secondary" class="ml-1">
-                                                    {{ envio.clicks_count }}
-                                                </Badge>
-                                            </div>
-                                            <span v-else class="text-muted-foreground">-</span>
+                                            </TableCell>
+                                            <!-- Columna Fecha Envío -->
+                                            <TableCell>
+                                                {{ envio.fecha_enviado ? new Date(envio.fecha_enviado).toLocaleString('es-ES') : '-' }}
+                                            </TableCell>
+                                            <!-- Columna Apertura (solo Email) -->
+                                            <TableCell v-if="campanaData.tipo === 'email' || campanaData.tipo === 'ambos'">
+                                                <template v-if="envio.tipo === 'email'">
+                                                    <div v-if="envio.fecha_abierto" class="flex items-center gap-1">
+                                                        <Eye class="w-3 h-3" />
+                                                        {{ new Date(envio.fecha_abierto).toLocaleTimeString('es-ES') }}
+                                                        <Badge v-if="envio.aperturas_count && envio.aperturas_count > 1" variant="secondary" class="ml-1">
+                                                            {{ envio.aperturas_count }}
+                                                        </Badge>
+                                                    </div>
+                                                    <span v-else class="text-muted-foreground">-</span>
+                                                </template>
+                                                <span v-else class="text-muted-foreground text-xs">N/A</span>
+                                            </TableCell>
+                                            <!-- Columna Clicks (solo Email) -->
+                                            <TableCell v-if="campanaData.tipo === 'email' || campanaData.tipo === 'ambos'">
+                                                <template v-if="envio.tipo === 'email'">
+                                                    <div v-if="envio.fecha_primer_click" class="flex items-center gap-1">
+                                                        <MousePointer class="w-3 h-3" />
+                                                        {{ new Date(envio.fecha_primer_click).toLocaleTimeString('es-ES') }}
+                                                        <Badge v-if="envio.clicks_count && envio.clicks_count > 1" variant="secondary" class="ml-1">
+                                                            {{ envio.clicks_count }}
+                                                        </Badge>
+                                                    </div>
+                                                    <span v-else class="text-muted-foreground">-</span>
+                                                </template>
+                                                <span v-else class="text-muted-foreground text-xs">N/A</span>
                                             </TableCell>
                                         </TableRow>
                                         
                                         <!-- Contenido expandido -->
                                         <TableRow v-if="expandedRows.includes(envio.id)">
-                                            <TableCell colspan="6" class="p-0">
+                                            <TableCell :colspan="campanaData.tipo === 'whatsapp' ? 4 : 6" class="p-0">
                                                 <div class="bg-muted/30 p-4">
-                                                    <Tabs defaultValue="aperturas" class="w-full">
-                                                        <TabsList class="grid w-full max-w-md grid-cols-2">
-                                                            <TabsTrigger value="aperturas">
-                                                                <Eye class="w-4 h-4 mr-2" />
-                                                                Aperturas {{ envio.aperturas_count ? `(${envio.aperturas_count})` : '' }}
-                                                            </TabsTrigger>
-                                                            <TabsTrigger value="clics">
-                                                                <MousePointer class="w-4 h-4 mr-2" />
-                                                                Clics {{ envio.clicks_count ? `(${envio.clicks_count})` : '' }}
-                                                            </TabsTrigger>
-                                                        </TabsList>
-                                                        
-                                                        <TabsContent value="aperturas" class="mt-4">
-                                                            <div v-if="envio.metadata?.aperturas?.length" class="space-y-2">
-                                                                <div class="text-sm font-medium mb-2">Historial de aperturas:</div>
-                                                                <div v-for="(apertura, index) in envio.metadata.aperturas" :key="index" 
-                                                                     class="flex items-center gap-2 text-sm p-2 bg-background rounded">
-                                                                    <Eye class="w-3 h-3 text-muted-foreground" />
-                                                                    <span>{{ new Date(apertura.timestamp).toLocaleString('es-ES') }}</span>
-                                                                    <span class="text-muted-foreground text-xs">{{ apertura.ip }}</span>
+                                                    <!-- Para Email: tabs de aperturas y clics -->
+                                                    <template v-if="envio.tipo === 'email'">
+                                                        <Tabs defaultValue="aperturas" class="w-full">
+                                                            <TabsList class="grid w-full max-w-md grid-cols-2">
+                                                                <TabsTrigger value="aperturas">
+                                                                    <Eye class="w-4 h-4 mr-2" />
+                                                                    Aperturas {{ envio.aperturas_count ? `(${envio.aperturas_count})` : '' }}
+                                                                </TabsTrigger>
+                                                                <TabsTrigger value="clics">
+                                                                    <MousePointer class="w-4 h-4 mr-2" />
+                                                                    Clics {{ envio.clicks_count ? `(${envio.clicks_count})` : '' }}
+                                                                </TabsTrigger>
+                                                            </TabsList>
+
+                                                            <TabsContent value="aperturas" class="mt-4">
+                                                                <div v-if="envio.metadata?.aperturas?.length" class="space-y-2">
+                                                                    <div class="text-sm font-medium mb-2">Historial de aperturas:</div>
+                                                                    <div v-for="(apertura, index) in envio.metadata.aperturas" :key="index"
+                                                                         class="flex items-center gap-2 text-sm p-2 bg-background rounded">
+                                                                        <Eye class="w-3 h-3 text-muted-foreground" />
+                                                                        <span>{{ new Date(apertura.timestamp).toLocaleString('es-ES') }}</span>
+                                                                        <span class="text-muted-foreground text-xs">{{ apertura.ip }}</span>
+                                                                    </div>
                                                                 </div>
-                                                            </div>
-                                                            <div v-else class="text-sm text-muted-foreground">
-                                                                No hay registros de apertura
-                                                            </div>
-                                                        </TabsContent>
-                                                        
-                                                        <TabsContent value="clics" class="mt-4">
-                                                            <div v-if="(envio.metadata?.clicks?.length || envio.metadata?.clicks_detail?.length)" class="space-y-2">
-                                                                <div class="text-sm font-medium mb-2">Historial de clics:</div>
-                                                                <!-- Priorizar clicks_detail si existe (tiene más información) -->
-                                                                <div v-if="envio.metadata?.clicks_detail?.length">
-                                                                    <div v-for="(click, index) in envio.metadata.clicks_detail" :key="`click-${index}`" 
-                                                                         class="p-2 bg-background rounded space-y-1">
-                                                                        <div class="flex items-center gap-2 text-sm">
-                                                                            <LinkIcon class="w-3 h-3 text-muted-foreground" />
-                                                                            <span class="font-medium">{{ new Date(click.clicked_at).toLocaleString('es-ES') }}</span>
+                                                                <div v-else class="text-sm text-muted-foreground">
+                                                                    No hay registros de apertura
+                                                                </div>
+                                                            </TabsContent>
+
+                                                            <TabsContent value="clics" class="mt-4">
+                                                                <div v-if="(envio.metadata?.clicks?.length || envio.metadata?.clicks_detail?.length)" class="space-y-2">
+                                                                    <div class="text-sm font-medium mb-2">Historial de clics:</div>
+                                                                    <div v-if="envio.metadata?.clicks_detail?.length">
+                                                                        <div v-for="(click, index) in envio.metadata.clicks_detail" :key="`click-${index}`"
+                                                                             class="p-2 bg-background rounded space-y-1">
+                                                                            <div class="flex items-center gap-2 text-sm">
+                                                                                <LinkIcon class="w-3 h-3 text-muted-foreground" />
+                                                                                <span class="font-medium">{{ new Date(click.clicked_at).toLocaleString('es-ES') }}</span>
+                                                                            </div>
+                                                                            <div class="text-xs text-muted-foreground ml-5">
+                                                                                <div class="truncate">URL: {{ click.url }}</div>
+                                                                                <div v-if="click.ip">IP: {{ click.ip }}</div>
+                                                                            </div>
                                                                         </div>
-                                                                        <div class="text-xs text-muted-foreground ml-5">
-                                                                            <div class="truncate">URL: {{ click.url }}</div>
-                                                                            <div v-if="click.ip">IP: {{ click.ip }}</div>
+                                                                    </div>
+                                                                    <div v-else-if="envio.metadata?.clicks?.length">
+                                                                        <div v-for="(click, index) in envio.metadata.clicks" :key="`click-${index}`"
+                                                                             class="p-2 bg-background rounded space-y-1">
+                                                                            <div class="flex items-center gap-2 text-sm">
+                                                                                <LinkIcon class="w-3 h-3 text-muted-foreground" />
+                                                                                <span class="font-medium">{{ new Date(click.timestamp).toLocaleString('es-ES') }}</span>
+                                                                            </div>
+                                                                            <div class="text-xs text-muted-foreground ml-5">
+                                                                                <div class="truncate">URL: {{ click.url }}</div>
+                                                                            </div>
                                                                         </div>
                                                                     </div>
                                                                 </div>
-                                                                <!-- Solo mostrar clicks si NO existe clicks_detail -->
-                                                                <div v-else-if="envio.metadata?.clicks?.length">
-                                                                    <div v-for="(click, index) in envio.metadata.clicks" :key="`click-${index}`" 
-                                                                         class="p-2 bg-background rounded space-y-1">
-                                                                        <div class="flex items-center gap-2 text-sm">
-                                                                            <LinkIcon class="w-3 h-3 text-muted-foreground" />
-                                                                            <span class="font-medium">{{ new Date(click.timestamp).toLocaleString('es-ES') }}</span>
-                                                                        </div>
-                                                                        <div class="text-xs text-muted-foreground ml-5">
-                                                                            <div class="truncate">URL: {{ click.url }}</div>
-                                                                        </div>
-                                                                    </div>
+                                                                <div v-else class="text-sm text-muted-foreground">
+                                                                    No hay registros de clics
+                                                                </div>
+                                                            </TabsContent>
+                                                        </Tabs>
+                                                    </template>
+
+                                                    <!-- Para WhatsApp Grupo: info del grupo -->
+                                                    <template v-else-if="envio.tipo === 'whatsapp_group'">
+                                                        <div class="space-y-3">
+                                                            <div class="text-sm font-medium">Información del Grupo</div>
+                                                            <div class="grid grid-cols-2 gap-4 text-sm">
+                                                                <div>
+                                                                    <span class="text-muted-foreground">Nombre:</span>
+                                                                    <span class="ml-2 font-medium">{{ envio.grupo?.nombre || envio.metadata?.group_nombre || 'N/A' }}</span>
+                                                                </div>
+                                                                <div>
+                                                                    <span class="text-muted-foreground">Participantes:</span>
+                                                                    <span class="ml-2 font-medium">{{ envio.grupo?.participantes || envio.metadata?.group_participantes || 'N/A' }}</span>
+                                                                </div>
+                                                                <div class="col-span-2">
+                                                                    <span class="text-muted-foreground">JID:</span>
+                                                                    <code class="ml-2 text-xs bg-muted px-2 py-1 rounded">{{ envio.destinatario }}</code>
                                                                 </div>
                                                             </div>
-                                                            <div v-else class="text-sm text-muted-foreground">
-                                                                No hay registros de clics
+                                                            <div class="text-xs text-muted-foreground mt-2">
+                                                                WhatsApp no soporta tracking de aperturas ni clics para grupos.
                                                             </div>
-                                                        </TabsContent>
-                                                    </Tabs>
+                                                        </div>
+                                                    </template>
+
+                                                    <!-- Para WhatsApp Individual: info básica -->
+                                                    <template v-else>
+                                                        <div class="space-y-3">
+                                                            <div class="text-sm font-medium">Información del Envío</div>
+                                                            <div class="grid grid-cols-2 gap-4 text-sm">
+                                                                <div>
+                                                                    <span class="text-muted-foreground">Destinatario:</span>
+                                                                    <span class="ml-2 font-medium">{{ envio.destinatario }}</span>
+                                                                </div>
+                                                                <div>
+                                                                    <span class="text-muted-foreground">Estado:</span>
+                                                                    <span class="ml-2 font-medium">{{ envio.estado }}</span>
+                                                                </div>
+                                                            </div>
+                                                            <div class="text-xs text-muted-foreground mt-2">
+                                                                WhatsApp no soporta tracking de aperturas ni clics.
+                                                            </div>
+                                                        </div>
+                                                    </template>
                                                 </div>
                                             </TableCell>
                                         </TableRow>

@@ -16,19 +16,23 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@modules/Core/Resources/js/components/ui/dialog";
-import { Mail, MessageSquare, RefreshCw, AlertCircle, CheckCircle, Clock, XCircle, Eye } from 'lucide-vue-next';
+import { Mail, MessageSquare, RefreshCw, AlertCircle, CheckCircle, Clock, XCircle, Eye, Users } from 'lucide-vue-next';
 
 // Interfaz para los logs
 interface Log {
     id: number;
-    tipo: 'email' | 'whatsapp';
-    servicio: 'resend' | 'evolution';
+    tipo: 'email' | 'whatsapp' | 'whatsapp_group';
+    servicio: 'resend' | 'evolution_individual' | 'evolution_group';
     estado: string;
     destinatario: string;
     fecha: string | null;
     mensaje_id: string | null;
     error: string | null;
     metadata: Record<string, any> | null;
+    grupo?: {
+        nombre: string | null;
+        participantes: number | null;
+    };
 }
 
 // Props del componente
@@ -39,7 +43,7 @@ const props = defineProps<{
 
 // Estado reactivo
 const logs = ref<Log[]>([]);
-const filtroServicio = ref<'todos' | 'resend' | 'evolution'>('todos');
+const filtroServicio = ref<'todos' | 'resend' | 'evolution_individual' | 'evolution_group'>('todos');
 const isLoading = ref(false);
 const error = ref<string | null>(null);
 const selectedLog = ref<Log | null>(null);
@@ -50,6 +54,13 @@ const logsFiltrados = computed(() => {
     if (filtroServicio.value === 'todos') return logs.value;
     return logs.value.filter(l => l.servicio === filtroServicio.value);
 });
+
+// Contadores por tipo
+const contadores = computed(() => ({
+    email: logs.value.filter(l => l.servicio === 'resend').length,
+    waIndividual: logs.value.filter(l => l.servicio === 'evolution_individual').length,
+    waGrupo: logs.value.filter(l => l.servicio === 'evolution_group').length,
+}));
 
 // Estadísticas
 const stats = computed(() => {
@@ -153,18 +164,38 @@ onMounted(cargarLogs);
                         @click="filtroServicio = filtroServicio === 'resend' ? 'todos' : 'resend'"
                     >
                         <Mail class="w-4 h-4 mr-1" />
-                        Resend
+                        Email
+                        <Badge v-if="contadores.email > 0" variant="secondary" class="ml-1 text-xs">
+                            {{ contadores.email }}
+                        </Badge>
                     </Button>
 
-                    <!-- Filtro por Evolution (WhatsApp) -->
+                    <!-- Filtro por Evolution Individual (WhatsApp contactos) -->
                     <Button
                         v-if="tipo !== 'email'"
-                        :variant="filtroServicio === 'evolution' ? 'default' : 'outline'"
+                        :variant="filtroServicio === 'evolution_individual' ? 'default' : 'outline'"
                         size="sm"
-                        @click="filtroServicio = filtroServicio === 'evolution' ? 'todos' : 'evolution'"
+                        @click="filtroServicio = filtroServicio === 'evolution_individual' ? 'todos' : 'evolution_individual'"
                     >
                         <MessageSquare class="w-4 h-4 mr-1" />
-                        Evolution
+                        WA Individual
+                        <Badge v-if="contadores.waIndividual > 0" variant="secondary" class="ml-1 text-xs">
+                            {{ contadores.waIndividual }}
+                        </Badge>
+                    </Button>
+
+                    <!-- Filtro por Evolution Grupos (WhatsApp grupos) -->
+                    <Button
+                        v-if="tipo !== 'email'"
+                        :variant="filtroServicio === 'evolution_group' ? 'default' : 'outline'"
+                        size="sm"
+                        @click="filtroServicio = filtroServicio === 'evolution_group' ? 'todos' : 'evolution_group'"
+                    >
+                        <Users class="w-4 h-4 mr-1" />
+                        WA Grupos
+                        <Badge v-if="contadores.waGrupo > 0" variant="secondary" class="ml-1 text-xs">
+                            {{ contadores.waGrupo }}
+                        </Badge>
                     </Button>
 
                     <!-- Botón refrescar -->
@@ -210,17 +241,26 @@ onMounted(cargarLogs);
                             <!-- Servicio -->
                             <TableCell>
                                 <Badge :variant="log.servicio === 'resend' ? 'default' : 'secondary'">
-                                    <component
-                                        :is="log.servicio === 'resend' ? Mail : MessageSquare"
-                                        class="w-3 h-3 mr-1"
-                                    />
-                                    {{ log.servicio === 'resend' ? 'Resend' : 'Evolution' }}
+                                    <Mail v-if="log.servicio === 'resend'" class="w-3 h-3 mr-1" />
+                                    <Users v-else-if="log.servicio === 'evolution_group'" class="w-3 h-3 mr-1" />
+                                    <MessageSquare v-else class="w-3 h-3 mr-1" />
+                                    {{ log.servicio === 'resend' ? 'Email' :
+                                       log.servicio === 'evolution_group' ? 'Grupo' : 'WA' }}
                                 </Badge>
                             </TableCell>
 
                             <!-- Destinatario -->
-                            <TableCell class="max-w-[200px] truncate" :title="log.destinatario">
-                                {{ log.destinatario }}
+                            <TableCell class="max-w-[200px]">
+                                <!-- Para grupos, mostrar nombre del grupo -->
+                                <div v-if="log.grupo?.nombre" class="truncate">
+                                    <div class="font-medium text-green-700">{{ log.grupo.nombre }}</div>
+                                    <div class="text-xs text-muted-foreground">
+                                        {{ log.grupo.participantes }} participantes
+                                    </div>
+                                </div>
+                                <div v-else class="truncate" :title="log.destinatario">
+                                    {{ log.destinatario }}
+                                </div>
                             </TableCell>
 
                             <!-- Estado -->
@@ -274,7 +314,11 @@ onMounted(cargarLogs);
                     <div>
                         <p class="text-sm text-muted-foreground">Servicio</p>
                         <Badge :variant="selectedLog.servicio === 'resend' ? 'default' : 'secondary'">
-                            {{ selectedLog.servicio === 'resend' ? 'Resend' : 'Evolution API' }}
+                            <Mail v-if="selectedLog.servicio === 'resend'" class="w-3 h-3 mr-1" />
+                            <Users v-else-if="selectedLog.servicio === 'evolution_group'" class="w-3 h-3 mr-1" />
+                            <MessageSquare v-else class="w-3 h-3 mr-1" />
+                            {{ selectedLog.servicio === 'resend' ? 'Email (Resend)' :
+                               selectedLog.servicio === 'evolution_group' ? 'WA Grupo' : 'WA Individual' }}
                         </Badge>
                     </div>
                     <div>
@@ -290,6 +334,21 @@ onMounted(cargarLogs);
                     <div>
                         <p class="text-sm text-muted-foreground">Fecha de Envío</p>
                         <p class="text-sm">{{ formatDate(selectedLog.fecha) }}</p>
+                    </div>
+                </div>
+
+                <!-- Info del grupo (si aplica) -->
+                <div v-if="selectedLog.grupo?.nombre" class="p-3 bg-green-50 dark:bg-green-950 rounded-lg">
+                    <p class="text-sm text-muted-foreground mb-2">Información del Grupo</p>
+                    <div class="grid grid-cols-2 gap-2 text-sm">
+                        <div>
+                            <span class="text-muted-foreground">Nombre:</span>
+                            <span class="ml-2 font-medium">{{ selectedLog.grupo.nombre }}</span>
+                        </div>
+                        <div>
+                            <span class="text-muted-foreground">Participantes:</span>
+                            <span class="ml-2 font-medium">{{ selectedLog.grupo.participantes }}</span>
+                        </div>
                     </div>
                 </div>
 
