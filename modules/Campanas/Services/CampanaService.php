@@ -45,7 +45,12 @@ class CampanaService
             
             // Crear campaña
             $campana = $this->repository->create($data);
-            
+
+            // Sincronizar grupos de WhatsApp si aplica
+            if (!empty($data['whatsapp_group_ids'])) {
+                $campana->whatsappGroups()->sync($data['whatsapp_group_ids']);
+            }
+
             // Crear registro de métricas iniciales
             // Soporta modo segmento y modo manual
             $tieneAudiencia = $campana->segment_id || ($campana->audience_mode === 'manual' && !empty($campana->filters));
@@ -134,7 +139,12 @@ class CampanaService
             
             // Actualizar campaña
             $this->repository->update($campana, $data);
-            
+
+            // Sincronizar grupos de WhatsApp si aplica
+            if (array_key_exists('whatsapp_group_ids', $data)) {
+                $campana->whatsappGroups()->sync($data['whatsapp_group_ids'] ?? []);
+            }
+
             // Si se cambió la audiencia (segmento o filtros), actualizar métricas
             $audienciaCambiada = (isset($data['segment_id']) && $data['segment_id'] != $campana->segment_id)
                 || (isset($data['audience_mode']) && $data['audience_mode'] != $campana->audience_mode)
@@ -249,62 +259,111 @@ class CampanaService
             $this->repository->marcarInicio($campana);
             
             // Crear registros de envío para cada destinatario
-            $destinatarios = $campana->getDestinatarios();
             $enviosCreados = 0;
-            
-            foreach ($destinatarios as $user) {
-                // Crear envío de email si aplica
-                if ($campana->usaEmail() && !empty($user->email)) {
-                    CampanaEnvio::create([
-                        'tenant_id' => $campana->tenant_id,
-                        'campana_id' => $campana->id,
-                        'user_id' => $user->id,
-                        'tipo' => 'email',
-                        'destinatario' => $user->email,
-                    ]);
-                    $enviosCreados++;
-                }
-                
-                // Crear envío de WhatsApp si aplica
-                if ($campana->usaWhatsApp() && !empty($user->telefono)) {
-                    CampanaEnvio::create([
-                        'tenant_id' => $campana->tenant_id,
-                        'campana_id' => $campana->id,
-                        'user_id' => $user->id,
-                        'tipo' => 'whatsapp',
-                        'destinatario' => $user->telefono,
-                    ]);
-                    $enviosCreados++;
+            $destinatariosCount = 0;
+
+            // Envíos individuales (email y WhatsApp individual)
+            $requiereEnviosIndividuales = $campana->usaEmail() || $campana->usaIndividualesWhatsApp();
+
+            if ($requiereEnviosIndividuales) {
+                $destinatarios = $campana->getDestinatarios();
+                $destinatariosCount = $destinatarios->count();
+
+                foreach ($destinatarios as $user) {
+                    // Crear envío de email si aplica
+                    if ($campana->usaEmail() && !empty($user->email)) {
+                        CampanaEnvio::create([
+                            'tenant_id' => $campana->tenant_id,
+                            'campana_id' => $campana->id,
+                            'user_id' => $user->id,
+                            'tipo' => 'email',
+                            'destinatario' => $user->email,
+                        ]);
+                        $enviosCreados++;
+                    }
+
+                    // Crear envío de WhatsApp individual si aplica
+                    if ($campana->usaIndividualesWhatsApp() && !empty($user->telefono)) {
+                        CampanaEnvio::create([
+                            'tenant_id' => $campana->tenant_id,
+                            'campana_id' => $campana->id,
+                            'user_id' => $user->id,
+                            'tipo' => 'whatsapp',
+                            'destinatario' => $user->telefono,
+                        ]);
+                        $enviosCreados++;
+                    }
                 }
             }
+
+            // Crear envíos a grupos de WhatsApp si aplica
+            if ($campana->usaGruposWhatsApp()) {
+                $grupos = $campana->whatsappGroups;
+
+                foreach ($grupos as $grupo) {
+                    CampanaEnvio::create([
+                        'tenant_id' => $campana->tenant_id,
+                        'campana_id' => $campana->id,
+                        'user_id' => null, // No hay usuario específico para grupos
+                        'tipo' => 'whatsapp_group',
+                        'destinatario' => $grupo->group_jid,
+                        'metadata' => [
+                            'whatsapp_group_id' => $grupo->id,
+                            'group_nombre' => $grupo->nombre,
+                            'group_participantes' => $grupo->participantes_count,
+                        ],
+                    ]);
+                    $enviosCreados++;
+                }
+
+                Log::info('Envíos a grupos de WhatsApp creados', [
+                    'campana_id' => $campana->id,
+                    'grupos_count' => $grupos->count(),
+                ]);
+            }
             
+            // Contar grupos si aplica
+            $gruposCount = $campana->usaGruposWhatsApp() ? $campana->whatsappGroups->count() : 0;
+
             // Crear o actualizar métricas iniciales
             if (!$campana->metrica) {
                 \Modules\Campanas\Models\CampanaMetrica::create([
                     'campana_id' => $campana->id,
                     'tenant_id' => $campana->tenant_id,
-                    'total_destinatarios' => $destinatarios->count(),
+                    'total_destinatarios' => $destinatariosCount + $gruposCount,
                     'total_pendientes' => $enviosCreados,
                 ]);
             }
-            
+
             // Disparar job de procesamiento
             ProcessCampanaBatchJob::dispatch($campana);
-            
+
             DB::commit();
-            
+
             Log::info('Campaña iniciada', [
                 'campana_id' => $campana->id,
                 'envios_creados' => $enviosCreados,
-                'destinatarios' => $destinatarios->count()
+                'destinatarios' => $destinatariosCount,
+                'grupos' => $gruposCount,
             ]);
-            
+
+            // Construir mensaje de respuesta
+            $mensajeParts = [];
+            if ($destinatariosCount > 0) {
+                $mensajeParts[] = "{$destinatariosCount} destinatarios";
+            }
+            if ($gruposCount > 0) {
+                $mensajeParts[] = "{$gruposCount} grupos";
+            }
+            $mensajeDestinatarios = implode(' y ', $mensajeParts);
+
             return [
                 'success' => true,
-                'message' => "Campaña iniciada. Se enviarán {$enviosCreados} mensajes a {$destinatarios->count()} destinatarios",
+                'message' => "Campaña iniciada. Se enviarán {$enviosCreados} mensajes a {$mensajeDestinatarios}",
                 'stats' => [
                     'envios_creados' => $enviosCreados,
-                    'destinatarios' => $destinatarios->count()
+                    'destinatarios' => $destinatariosCount,
+                    'grupos' => $gruposCount,
                 ]
             ];
         } catch (\Exception $e) {

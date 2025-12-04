@@ -158,32 +158,56 @@ class ProcessCampanaBatchJob implements ShouldQueue
         $minDelay = $config['whatsapp_delay_min'] ?? config('campanas.batch.whatsapp.min_delay', 5);
         $maxDelay = $config['whatsapp_delay_max'] ?? config('campanas.batch.whatsapp.max_delay', 120);
 
-        // Procesar un número razonable por iteración (valor fijo interno, no configurable)
-        $envios = $this->campana->envios()
+        $totalDelay = 0;
+
+        // Procesar envíos individuales
+        $enviosIndividuales = $this->campana->envios()
             ->where('tipo', 'whatsapp')
             ->where('estado', 'pendiente')
             ->take(20)
             ->get();
 
-        if ($envios->isEmpty()) {
-            return;
+        if ($enviosIndividuales->isNotEmpty()) {
+            Log::info("Procesando {$enviosIndividuales->count()} WhatsApp individuales con intervalos de {$minDelay}-{$maxDelay}s para campaña {$this->campana->id}");
+
+            foreach ($enviosIndividuales as $envio) {
+                // Marcar como enviando
+                $envio->update(['estado' => 'enviando']);
+
+                // Calcular delay aleatorio acumulativo (en milisegundos)
+                $randomDelay = rand($minDelay * 1000, $maxDelay * 1000);
+                $totalDelay += $randomDelay;
+
+                // Despachar job individual con delay acumulativo
+                dispatch(new SendCampanaWhatsAppJob($envio))
+                    ->onQueue(config('campanas.queues.whatsapp'))
+                    ->delay(now()->addMilliseconds($totalDelay));
+            }
         }
 
-        Log::info("Procesando {$envios->count()} WhatsApp uno a uno con intervalos de {$minDelay}-{$maxDelay}s para campaña {$this->campana->id}");
+        // Procesar envíos a grupos
+        $enviosGrupos = $this->campana->envios()
+            ->where('tipo', 'whatsapp_group')
+            ->where('estado', 'pendiente')
+            ->take(10) // Menos grupos por iteración
+            ->get();
 
-        $totalDelay = 0;
-        foreach ($envios as $index => $envio) {
-            // Marcar como enviando
-            $envio->update(['estado' => 'enviando']);
+        if ($enviosGrupos->isNotEmpty()) {
+            Log::info("Procesando {$enviosGrupos->count()} WhatsApp a grupos con intervalos de {$minDelay}-{$maxDelay}s para campaña {$this->campana->id}");
 
-            // Calcular delay aleatorio acumulativo (en milisegundos)
-            $randomDelay = rand($minDelay * 1000, $maxDelay * 1000);
-            $totalDelay += $randomDelay;
+            foreach ($enviosGrupos as $envio) {
+                // Marcar como enviando
+                $envio->update(['estado' => 'enviando']);
 
-            // Despachar job individual con delay acumulativo
-            dispatch(new SendCampanaWhatsAppJob($envio))
-                ->onQueue(config('campanas.queues.whatsapp'))
-                ->delay(now()->addMilliseconds($totalDelay));
+                // Calcular delay aleatorio acumulativo (en milisegundos)
+                $randomDelay = rand($minDelay * 1000, $maxDelay * 1000);
+                $totalDelay += $randomDelay;
+
+                // Despachar job de grupo con delay acumulativo
+                dispatch(new SendCampanaWhatsAppGroupJob($envio))
+                    ->onQueue(config('campanas.queues.whatsapp'))
+                    ->delay(now()->addMilliseconds($totalDelay));
+            }
         }
     }
 

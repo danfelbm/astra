@@ -8,6 +8,7 @@ use Modules\Core\Models\Segment;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Spatie\Activitylog\Traits\LogsActivity;
@@ -39,6 +40,15 @@ class Campana extends Model
     ];
 
     /**
+     * Constantes de modos de WhatsApp
+     */
+    const WHATSAPP_MODES = [
+        'individual' => 'Contactos Individuales',
+        'grupos' => 'Grupos de WhatsApp',
+        'mixto' => 'Contactos y Grupos',
+    ];
+
+    /**
      * Los atributos asignables masivamente.
      *
      * @var array<int, string>
@@ -48,6 +58,7 @@ class Campana extends Model
         'nombre',
         'descripcion',
         'tipo', // email, whatsapp, ambos
+        'whatsapp_mode', // individual, grupos, mixto
         'estado', // borrador, programada, enviando, completada, pausada, cancelada
         'segment_id',
         'audience_mode', // segment, manual
@@ -84,6 +95,7 @@ class Campana extends Model
     protected $attributes = [
         'estado' => 'borrador',
         'audience_mode' => 'segment',
+        'whatsapp_mode' => 'individual',
         'configuracion' => '{}',
         'metadata' => '{}',
     ];
@@ -148,6 +160,15 @@ class Campana extends Model
     }
 
     /**
+     * Obtener los grupos de WhatsApp de la campaña
+     */
+    public function whatsappGroups(): BelongsToMany
+    {
+        return $this->belongsToMany(WhatsAppGroup::class, 'campana_whatsapp_groups')
+            ->withTimestamps();
+    }
+
+    /**
      * Verificar si la campaña usa email
      *
      * @return bool
@@ -165,6 +186,34 @@ class Campana extends Model
     public function usaWhatsApp(): bool
     {
         return in_array($this->tipo, ['whatsapp', 'ambos']);
+    }
+
+    /**
+     * Verificar si la campaña usa grupos de WhatsApp
+     *
+     * @return bool
+     */
+    public function usaGruposWhatsApp(): bool
+    {
+        if (!$this->usaWhatsApp()) {
+            return false;
+        }
+
+        return in_array($this->whatsapp_mode, ['grupos', 'mixto']);
+    }
+
+    /**
+     * Verificar si la campaña usa contactos individuales de WhatsApp
+     *
+     * @return bool
+     */
+    public function usaIndividualesWhatsApp(): bool
+    {
+        if (!$this->usaWhatsApp()) {
+            return false;
+        }
+
+        return in_array($this->whatsapp_mode, ['individual', 'mixto']);
     }
 
     /**

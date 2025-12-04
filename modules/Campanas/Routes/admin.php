@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use Modules\Campanas\Http\Controllers\Admin\PlantillaEmailController;
 use Modules\Campanas\Http\Controllers\Admin\PlantillaWhatsAppController;
 use Modules\Campanas\Http\Controllers\Admin\CampanaController;
+use Modules\Campanas\Http\Controllers\Admin\WhatsAppGroupController;
 
 /*
 |--------------------------------------------------------------------------
@@ -146,5 +147,35 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
     
     Route::post('/{campana}/preview', [CampanaController::class, 'preview'])->name('preview')
         ->middleware('can:campanas.view');
+    });
+
+    // Rutas de Grupos de WhatsApp
+    Route::prefix('whatsapp-groups')->name('whatsapp-groups.')->group(function () {
+        Route::get('/', [WhatsAppGroupController::class, 'index'])->name('index')
+            ->middleware('can:campanas.view');
+
+        Route::post('/sync', [WhatsAppGroupController::class, 'sync'])->name('sync')
+            ->middleware('can:campanas.edit');
+
+        Route::post('/preview-jid', [WhatsAppGroupController::class, 'previewByJid'])->name('preview-jid')
+            ->middleware('can:campanas.edit');
+
+        Route::post('/add-by-jid', [WhatsAppGroupController::class, 'addByJid'])->name('add-by-jid')
+            ->middleware('can:campanas.edit');
+
+        Route::get('/list', [WhatsAppGroupController::class, 'list'])->name('list')
+            ->middleware('can:campanas.view');
+
+        Route::get('/{whatsappGroup}', [WhatsAppGroupController::class, 'show'])->name('show')
+            ->middleware('can:campanas.view');
+
+        Route::get('/{whatsappGroup}/participants', [WhatsAppGroupController::class, 'getParticipants'])->name('participants')
+            ->middleware('can:campanas.view');
+
+        Route::post('/{whatsappGroup}/refresh', [WhatsAppGroupController::class, 'refresh'])->name('refresh')
+            ->middleware('can:campanas.edit');
+
+        Route::delete('/{whatsappGroup}', [WhatsAppGroupController::class, 'destroy'])->name('destroy')
+            ->middleware('can:campanas.delete');
     });
 });

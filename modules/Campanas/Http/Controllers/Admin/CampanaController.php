@@ -6,6 +6,7 @@ use Modules\Core\Http\Controllers\Base\AdminController;
 use Modules\Campanas\Http\Requests\Admin\StoreCampanaRequest;
 use Modules\Campanas\Http\Requests\Admin\UpdateCampanaRequest;
 use Modules\Campanas\Models\Campana;
+use Modules\Campanas\Models\WhatsAppGroup;
 use Modules\Campanas\Repositories\CampanaRepository;
 use Modules\Campanas\Repositories\PlantillaRepository;
 use Modules\Campanas\Services\CampanaService;
@@ -79,6 +80,10 @@ class CampanaController extends AdminController
             'plantillasEmail' => $this->plantillaRepository->getActiveEmails(),
             'plantillasWhatsApp' => $this->plantillaRepository->getActiveWhatsApps(),
             'tiposOptions' => Campana::TIPOS,
+            'whatsappModesOptions' => Campana::WHATSAPP_MODES,
+            'whatsappGrupos' => WhatsAppGroup::select('id', 'group_jid', 'nombre', 'descripcion', 'tipo', 'avatar_url', 'participantes_count')
+                ->orderBy('nombre')
+                ->get(),
             'batchSizeEmailDefault' => config('campanas.batch_size.email'),
             'batchSizeWhatsAppDefault' => config('campanas.batch_size.whatsapp'),
             'whatsAppDelayDefault' => [
@@ -170,8 +175,11 @@ class CampanaController extends AdminController
                 ->with('error', 'No se puede editar una campaña en estado: ' . $campana->estado);
         }
 
+        // Cargar campaña con relaciones incluyendo grupos de WhatsApp
+        $campana->load(['segment', 'plantillaEmail', 'plantillaWhatsApp', 'whatsappGroups']);
+
         return Inertia::render('Modules/Campanas/Admin/Campanas/Create', [
-            'campana' => $campana->load(['segment', 'plantillaEmail', 'plantillaWhatsApp']),
+            'campana' => $campana,
             'segmentos' => Segment::select('id', 'name', 'description', 'model_type', 'is_dynamic', 'filters', 'metadata', 'cache_duration', 'created_at', 'updated_at')
                 ->orderBy('name')
                 ->get()
@@ -190,6 +198,10 @@ class CampanaController extends AdminController
             'plantillasEmail' => $this->plantillaRepository->getActiveEmails(),
             'plantillasWhatsApp' => $this->plantillaRepository->getActiveWhatsApps(),
             'tiposOptions' => Campana::TIPOS,
+            'whatsappModesOptions' => Campana::WHATSAPP_MODES,
+            'whatsappGrupos' => WhatsAppGroup::select('id', 'group_jid', 'nombre', 'descripcion', 'tipo', 'avatar_url', 'participantes_count')
+                ->orderBy('nombre')
+                ->get(),
             'estadosOptions' => ['borrador', 'programada'], // Solo estos estados permitidos en edición
             // Configuración de campos para AdvancedFilters (modo manual)
             'filterFieldsConfig' => $this->getUserFilterFieldsConfig(),

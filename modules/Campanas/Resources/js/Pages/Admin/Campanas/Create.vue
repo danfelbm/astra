@@ -11,6 +11,7 @@ import { RadioGroup, RadioGroupItem } from "@modules/Core/Resources/js/component
 import { type BreadcrumbItemType } from '@/types';
 import AdminLayout from "@modules/Core/Resources/js/layouts/AdminLayout.vue";
 import SegmentSelector from "@modules/Campanas/Resources/js/Components/SegmentSelector.vue";
+import WhatsAppGroupSelector from "@modules/Campanas/Resources/js/Components/WhatsAppGroupSelector.vue";
 import AdvancedFilters from "@modules/Core/Resources/js/components/filters/AdvancedFilters.vue";
 import type { AdvancedFilterConfig } from "@modules/Core/Resources/js/types/filters";
 import { Head, useForm, router } from '@inertiajs/vue3';
@@ -36,11 +37,22 @@ interface Plantilla {
     variables_usadas?: string[];
 }
 
+interface WhatsAppGroup {
+    id: number;
+    group_jid: string;
+    nombre: string;
+    descripcion?: string;
+    tipo: 'grupo' | 'comunidad';
+    avatar_url?: string;
+    participantes_count: number;
+}
+
 interface Campana {
     id?: number;
     nombre: string;
     descripcion?: string;
     tipo: 'email' | 'whatsapp' | 'ambos';
+    whatsapp_mode?: 'individual' | 'grupos' | 'mixto';
     estado?: string;
     segment_id?: number;
     audience_mode?: 'segment' | 'manual';
@@ -49,6 +61,7 @@ interface Campana {
     plantilla_whatsapp_id?: number;
     fecha_programada?: string;
     configuracion?: any;
+    whatsapp_groups?: WhatsAppGroup[];
 }
 
 interface Props {
@@ -58,6 +71,8 @@ interface Props {
     plantillasWhatsApp?: Plantilla[];
     tiposOptions?: string[];
     estadosOptions?: string[];
+    whatsappModesOptions?: Record<string, string>;
+    whatsappGrupos?: WhatsAppGroup[];
     batchSizeEmailDefault?: number;
     batchSizeWhatsAppDefault?: number;
     whatsAppDelayDefault?: { min: number; max: number };
@@ -68,7 +83,9 @@ const props = withDefaults(defineProps<Props>(), {
     segmentos: () => [],
     plantillasEmail: () => [],
     plantillasWhatsApp: () => [],
-    tiposOptions: () => ['email', 'whatsapp', 'ambos']
+    tiposOptions: () => ['email', 'whatsapp', 'ambos'],
+    whatsappModesOptions: () => ({ individual: 'Contactos Individuales', grupos: 'Grupos de WhatsApp', mixto: 'Contactos y Grupos' }),
+    whatsappGrupos: () => [],
 });
 
 const isEditing = computed(() => !!props.campana?.id);
@@ -83,12 +100,14 @@ const form = useForm({
     nombre: props.campana?.nombre || '',
     descripcion: props.campana?.descripcion || '',
     tipo: props.campana?.tipo || 'email',
+    whatsapp_mode: props.campana?.whatsapp_mode || 'individual',
     estado: props.campana?.estado || 'borrador',
     segment_id: props.campana?.segment_id || null,
     audience_mode: props.campana?.audience_mode || 'segment', // 'segment' o 'manual'
     filters: props.campana?.filters || {}, // Filtros para modo manual
     plantilla_email_id: props.campana?.plantilla_email_id || null,
     plantilla_whatsapp_id: props.campana?.plantilla_whatsapp_id || null,
+    whatsapp_group_ids: props.campana?.whatsapp_groups?.map(g => g.id) || [],
     fecha_programada: props.campana?.fecha_programada || '',
     es_programada: !!props.campana?.fecha_programada,
     configuracion: {
@@ -108,6 +127,8 @@ const selectedSegment = computed(() => {
 
 const requiresEmail = computed(() => form.tipo === 'email' || form.tipo === 'ambos');
 const requiresWhatsApp = computed(() => form.tipo === 'whatsapp' || form.tipo === 'ambos');
+const requiresWhatsAppGroups = computed(() => requiresWhatsApp.value && (form.whatsapp_mode === 'grupos' || form.whatsapp_mode === 'mixto'));
+const requiresWhatsAppIndividual = computed(() => requiresWhatsApp.value && (form.whatsapp_mode === 'individual' || form.whatsapp_mode === 'mixto'));
 
 // Estado para modo manual de audiencia
 const manualFilterCount = ref<number | null>(null);
@@ -176,16 +197,18 @@ watch(() => form.tipo, (newTipo) => {
 });
 
 const submit = () => {
-    // Validar audiencia según el modo
-    if (form.audience_mode === 'segment') {
-        if (!form.segment_id) {
-            toast.error('Debes seleccionar un segmento');
-            return;
-        }
-    } else if (form.audience_mode === 'manual') {
-        if (!manualFilterCount.value || manualFilterCount.value <= 0) {
-            toast.error('Debes definir filtros que generen al menos un destinatario');
-            return;
+    // Validar audiencia según el modo (solo aplica si hay envíos individuales)
+    if (requiresWhatsAppIndividual.value || requiresEmail.value) {
+        if (form.audience_mode === 'segment') {
+            if (!form.segment_id) {
+                toast.error('Debes seleccionar un segmento');
+                return;
+            }
+        } else if (form.audience_mode === 'manual') {
+            if (!manualFilterCount.value || manualFilterCount.value <= 0) {
+                toast.error('Debes definir filtros que generen al menos un destinatario');
+                return;
+            }
         }
     }
 
@@ -196,6 +219,12 @@ const submit = () => {
 
     if (requiresWhatsApp.value && !form.plantilla_whatsapp_id) {
         toast.error('Debes seleccionar una plantilla de WhatsApp');
+        return;
+    }
+
+    // Validar grupos de WhatsApp si el modo lo requiere
+    if (requiresWhatsAppGroups.value && form.whatsapp_group_ids.length === 0) {
+        toast.error('Debes seleccionar al menos un grupo de WhatsApp');
         return;
     }
 
@@ -226,13 +255,21 @@ const canSubmit = computed(() => {
         (requiresEmail.value ? form.plantilla_email_id : true) &&
         (requiresWhatsApp.value ? form.plantilla_whatsapp_id : true);
 
-    // Validar audiencia según el modo
-    if (form.audience_mode === 'segment') {
-        return baseValid && form.segment_id;
-    } else {
-        // Modo manual: requiere filtros con al menos un destinatario
-        return baseValid && manualFilterCount.value && manualFilterCount.value > 0;
+    // Validar grupos de WhatsApp si se requieren
+    const gruposValid = !requiresWhatsAppGroups.value || form.whatsapp_group_ids.length > 0;
+
+    // Validar audiencia según el modo (solo si hay envíos individuales)
+    if (requiresWhatsAppIndividual.value || requiresEmail.value) {
+        if (form.audience_mode === 'segment') {
+            return baseValid && gruposValid && form.segment_id;
+        } else {
+            // Modo manual: requiere filtros con al menos un destinatario
+            return baseValid && gruposValid && manualFilterCount.value && manualFilterCount.value > 0;
+        }
     }
+
+    // Solo grupos de WhatsApp: no requiere audiencia individual
+    return baseValid && gruposValid;
 });
 
 // Método para toggle de programación
@@ -362,8 +399,8 @@ const toggleClickTracking = (value) => {
                 </CardContent>
             </Card>
 
-            <!-- Audiencia -->
-            <Card>
+            <!-- Audiencia (solo si requiere envíos individuales) -->
+            <Card v-if="requiresEmail || requiresWhatsAppIndividual">
                 <CardHeader>
                     <CardTitle>Audiencia</CardTitle>
                     <CardDescription>
@@ -471,31 +508,81 @@ const toggleClickTracking = (value) => {
 
             <Card v-if="requiresWhatsApp">
                 <CardHeader>
-                    <CardTitle>Plantilla de WhatsApp</CardTitle>
+                    <CardTitle>Configuración de WhatsApp</CardTitle>
                     <CardDescription>
-                        Selecciona la plantilla de WhatsApp a utilizar
+                        Define el modo y la plantilla de WhatsApp
                     </CardDescription>
                 </CardHeader>
-                <CardContent>
-                    <Select v-model="form.plantilla_whatsapp_id">
-                        <SelectTrigger>
-                            <SelectValue placeholder="Selecciona una plantilla" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem 
-                                v-for="plantilla in plantillasWhatsApp" 
-                                :key="plantilla.id"
-                                :value="plantilla.id.toString()"
-                            >
-                                <div>
-                                    <div class="font-medium">{{ plantilla.nombre }}</div>
-                                    <div v-if="plantilla.descripcion" class="text-xs text-muted-foreground">
-                                        {{ plantilla.descripcion }}
+                <CardContent class="space-y-4">
+                    <!-- Modo de WhatsApp -->
+                    <div class="space-y-2">
+                        <Label>Tipo de Audiencia WhatsApp</Label>
+                        <RadioGroup v-model="form.whatsapp_mode" class="flex flex-wrap gap-4">
+                            <div class="flex items-center space-x-2">
+                                <RadioGroupItem value="individual" id="whatsapp-mode-individual" />
+                                <Label htmlFor="whatsapp-mode-individual" class="flex items-center gap-1 cursor-pointer">
+                                    <Users class="w-4 h-4" />
+                                    Contactos Individuales
+                                </Label>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <RadioGroupItem value="grupos" id="whatsapp-mode-grupos" />
+                                <Label htmlFor="whatsapp-mode-grupos" class="flex items-center gap-1 cursor-pointer">
+                                    <MessageSquare class="w-4 h-4" />
+                                    Grupos
+                                </Label>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <RadioGroupItem value="mixto" id="whatsapp-mode-mixto" />
+                                <Label htmlFor="whatsapp-mode-mixto" class="flex items-center gap-1 cursor-pointer">
+                                    <Send class="w-4 h-4" />
+                                    Contactos y Grupos
+                                </Label>
+                            </div>
+                        </RadioGroup>
+                    </div>
+
+                    <!-- Selector de Grupos (si aplica) -->
+                    <div v-if="requiresWhatsAppGroups" class="space-y-2">
+                        <Label>Grupos de WhatsApp</Label>
+                        <WhatsAppGroupSelector
+                            v-model="form.whatsapp_group_ids"
+                            :grupos="whatsappGrupos"
+                        />
+                    </div>
+
+                    <!-- Alerta si modo grupos - no hay personalización -->
+                    <Alert v-if="requiresWhatsAppGroups">
+                        <Info class="h-4 w-4" />
+                        <AlertDescription>
+                            Los mensajes a grupos no soportan variables de personalización (ej: nombre del usuario).
+                            El mensaje se enviará tal cual está definido en la plantilla.
+                        </AlertDescription>
+                    </Alert>
+
+                    <!-- Plantilla de WhatsApp -->
+                    <div class="space-y-2">
+                        <Label>Plantilla de WhatsApp</Label>
+                        <Select v-model="form.plantilla_whatsapp_id">
+                            <SelectTrigger>
+                                <SelectValue placeholder="Selecciona una plantilla" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem
+                                    v-for="plantilla in plantillasWhatsApp"
+                                    :key="plantilla.id"
+                                    :value="plantilla.id.toString()"
+                                >
+                                    <div>
+                                        <div class="font-medium">{{ plantilla.nombre }}</div>
+                                        <div v-if="plantilla.descripcion" class="text-xs text-muted-foreground">
+                                            {{ plantilla.descripcion }}
+                                        </div>
                                     </div>
-                                </div>
-                            </SelectItem>
-                        </SelectContent>
-                    </Select>
+                                </SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
                 </CardContent>
             </Card>
 

@@ -398,4 +398,107 @@ class WhatsAppService
             'is_log_mode' => $this->isLogMode(),
         ];
     }
+
+    /**
+     * Enviar mensaje a un grupo de WhatsApp
+     *
+     * @param string $groupJid JID del grupo (ej: 120363295648424210@g.us)
+     * @param string $mensaje Mensaje a enviar
+     * @param array $metadata Metadata adicional (campana_id, envio_id, group_nombre, etc)
+     * @return array Respuesta con success, message_id, status
+     */
+    public function sendGroupMessage(string $groupJid, string $mensaje, array $metadata = []): array
+    {
+        try {
+            // Si no está habilitado, retornar error
+            if (!$this->isEnabled() && $this->mode !== 'log') {
+                return [
+                    'success' => false,
+                    'message' => 'WhatsApp service is not enabled or properly configured',
+                    'status' => 'disabled'
+                ];
+            }
+
+            // Si está en modo LOG, registrar y retornar éxito
+            if ($this->isLogMode()) {
+                Log::info('[WHATSAPP GRUPO - MODE LOG] Mensaje a grupo enviado satisfactoriamente', [
+                    'mode' => 'log',
+                    'group_jid' => $groupJid,
+                    'group_nombre' => $metadata['group_nombre'] ?? 'N/A',
+                    'preview' => substr($mensaje, 0, 100) . '...',
+                    'metadata' => $metadata,
+                    'timestamp' => now()->toISOString(),
+                ]);
+
+                return [
+                    'success' => true,
+                    'message_id' => 'LOG_GROUP_' . uniqid(),
+                    'status' => 'sent_log',
+                    'message' => 'Mensaje a grupo registrado en modo LOG'
+                ];
+            }
+
+            // Construir URL del endpoint (mismo que para individuales)
+            $url = $this->buildApiUrl('/message/sendText/' . $this->instance);
+
+            // Preparar payload - para grupos se usa el JID completo
+            $payload = [
+                'number' => $groupJid,
+                'text' => $mensaje,
+            ];
+
+            // Realizar la petición HTTP
+            $response = Http::timeout(10)
+                ->withHeaders([
+                    'apikey' => $this->apiKey,
+                    'Content-Type' => 'application/json',
+                ])
+                ->post($url, $payload);
+
+            // Verificar respuesta
+            if ($response->successful()) {
+                $responseData = $response->json();
+
+                Log::info('[WHATSAPP GRUPO] Mensaje a grupo enviado', [
+                    'group_jid' => $groupJid,
+                    'group_nombre' => $metadata['group_nombre'] ?? 'N/A',
+                    'response' => $responseData,
+                ]);
+
+                return [
+                    'success' => true,
+                    'message_id' => $responseData['key']['id'] ?? uniqid(),
+                    'status' => 'sent',
+                    'message' => 'Mensaje a grupo enviado exitosamente'
+                ];
+            } else {
+                Log::error('[WHATSAPP GRUPO] Error enviando mensaje a grupo', [
+                    'group_jid' => $groupJid,
+                    'group_nombre' => $metadata['group_nombre'] ?? 'N/A',
+                    'status' => $response->status(),
+                    'response' => $response->body(),
+                ]);
+
+                return [
+                    'success' => false,
+                    'message_id' => null,
+                    'status' => 'failed',
+                    'message' => 'Error al enviar mensaje a grupo: ' . $response->body()
+                ];
+            }
+
+        } catch (\Exception $e) {
+            Log::error('[WHATSAPP GRUPO] Excepción enviando mensaje a grupo', [
+                'group_jid' => $groupJid,
+                'error' => $e->getMessage(),
+                'metadata' => $metadata
+            ]);
+
+            return [
+                'success' => false,
+                'message' => $e->getMessage(),
+                'status' => 'error'
+            ];
+        }
+    }
 }
