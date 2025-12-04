@@ -67,7 +67,7 @@ const cargarLogs = async () => {
     error.value = null;
 
     try {
-        const response = await fetch(`/admin/campanas/${props.campanaId}/logs`);
+        const response = await fetch(`/admin/envio-campanas/${props.campanaId}/logs`);
 
         if (!response.ok) {
             throw new Error('Error al cargar logs');

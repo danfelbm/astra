@@ -47,7 +47,7 @@ export function useCampanaTracking(campanaId?: number) {
         error.value = null;
 
         try {
-            await router.get(`/admin/campanas/${targetId}/metrics`, {}, {
+            await router.get(`/admin/envio-campanas/${targetId}/metrics`, {}, {
                 preserveState: true,
                 preserveScroll: true,
                 only: ['metricas', 'progreso'],
@@ -169,7 +169,7 @@ export function useCampanaTracking(campanaId?: number) {
         isLoading.value = true;
         
         try {
-            await router.post(`/admin/campanas/${campanaId}/export`, {
+            await router.post(`/admin/envio-campanas/${campanaId}/export`, {
                 formato,
                 incluir_detalles: incluirDetalles,
             }, {

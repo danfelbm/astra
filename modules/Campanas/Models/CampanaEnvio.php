@@ -22,7 +22,7 @@ class CampanaEnvio extends Model
         'tenant_id',
         'campana_id',
         'user_id',
-        'tipo', // email, whatsapp
+        'tipo', // email, whatsapp, whatsapp_group
         'estado', // pendiente, enviando, enviado, abierto, click, fallido
         'tracking_id',
         'destinatario', // email o teléfono
@@ -323,6 +323,21 @@ class CampanaEnvio extends Model
     public function scopeTipoWhatsApp($query)
     {
         return $query->where('tipo', 'whatsapp');
+    }
+
+    public function scopeTipoWhatsAppGroup($query)
+    {
+        return $query->where('tipo', 'whatsapp_group');
+    }
+
+    /**
+     * Verificar si es un envío a grupo de WhatsApp
+     *
+     * @return bool
+     */
+    public function esGrupoWhatsApp(): bool
+    {
+        return $this->tipo === 'whatsapp_group';
     }
 
     /**

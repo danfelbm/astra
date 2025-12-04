@@ -72,11 +72,17 @@ class WhatsAppGroup extends Model
 
     /**
      * Obtener las campañas que usan este grupo
+     * Nota: Se especifican las foreign keys explícitamente porque Laravel convierte
+     * WhatsAppGroup a whats_app_group_id en lugar de whatsapp_group_id
      */
     public function campanas(): BelongsToMany
     {
-        return $this->belongsToMany(Campana::class, 'campana_whatsapp_groups')
-            ->withTimestamps();
+        return $this->belongsToMany(
+            Campana::class,
+            'campana_whatsapp_groups',
+            'whatsapp_group_id',
+            'campana_id'
+        )->withTimestamps();
     }
 
     /**

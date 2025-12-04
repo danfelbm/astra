@@ -72,7 +72,7 @@ const props = defineProps<Props>();
 
 const breadcrumbs: BreadcrumbItemType[] = [
     { title: 'Admin', href: '/admin/dashboard' },
-    { title: 'Campañas', href: '/admin/campanas' },
+    { title: 'Campañas', href: '/admin/envio-campanas' },
     { title: 'Plantillas Email', href: '/admin/campanas/plantillas-email' },
 ];
 

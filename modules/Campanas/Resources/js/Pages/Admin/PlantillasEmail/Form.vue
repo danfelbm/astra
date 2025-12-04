@@ -39,7 +39,7 @@ const isEditing = computed(() => !!props.plantilla?.id);
 
 const breadcrumbs: BreadcrumbItemType[] = [
     { title: 'Admin', href: '/admin/dashboard' },
-    { title: 'Campañas', href: '/admin/campanas' },
+    { title: 'Campañas', href: '/admin/envio-campanas' },
     { title: 'Plantillas Email', href: '/admin/campanas/plantillas-email' },
     { 
         title: isEditing.value ? 'Editar Plantilla' : 'Nueva Plantilla', 

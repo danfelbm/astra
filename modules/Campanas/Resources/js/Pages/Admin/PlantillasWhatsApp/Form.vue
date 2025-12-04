@@ -35,7 +35,7 @@ const isEditing = computed(() => !!props.plantilla?.id);
 
 const breadcrumbs: BreadcrumbItemType[] = [
     { title: 'Admin', href: '/admin/dashboard' },
-    { title: 'Campañas', href: '/admin/campanas' },
+    { title: 'Campañas', href: '/admin/envio-campanas' },
     { title: 'Plantillas WhatsApp', href: '/admin/campanas/plantillas-whatsapp' },
     { title: isEditing.value ? 'Editar Plantilla' : 'Nueva Plantilla', href: '#' },
 ];

@@ -47,7 +47,7 @@ const props = defineProps<Props>();
 
 const breadcrumbs: BreadcrumbItemType[] = [
     { title: 'Admin', href: '/admin/dashboard' },
-    { title: 'Campañas', href: '/admin/campanas' },
+    { title: 'Campañas', href: '/admin/envio-campanas' },
     { title: 'Grupos de WhatsApp', href: '/admin/whatsapp-groups' },
     { title: props.grupo.nombre, href: '#' },
 ];
