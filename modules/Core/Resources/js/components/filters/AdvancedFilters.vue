@@ -46,12 +46,16 @@ interface Props {
   preserveScroll?: boolean;
   preserveState?: boolean;
   initialFilters?: any;
+  hideTopbar?: boolean; // Oculta la barra superior (búsqueda rápida, botón expandir, etc.)
+  startExpanded?: boolean; // Inicia con los filtros expandidos
 }
 
 const props = withDefaults(defineProps<Props>(), {
   preserveScroll: true,
   preserveState: true,
   routeParams: () => ({}),
+  hideTopbar: false,
+  startExpanded: false,
 });
 
 // Emits
@@ -87,7 +91,10 @@ const {
   onApply: (filters) => emit('apply', filters),
   preserveScroll: props.preserveScroll,
   preserveState: props.preserveState,
-  initialFilters: props.initialFilters,
+  initialFilters: {
+    ...props.initialFilters,
+    isExpanded: props.startExpanded || props.initialFilters?.isExpanded || false,
+  },
 });
 
 // Estado local del componente
@@ -158,8 +165,8 @@ const formatDate = (date: Date) => {
 
 <template>
   <div class="space-y-4">
-    <!-- Barra superior con búsqueda rápida y botón de filtros avanzados -->
-    <Card>
+    <!-- Barra superior con búsqueda rápida y botón de filtros avanzados (ocultable) -->
+    <Card v-if="!hideTopbar">
       <CardContent class="p-4">
         <div class="flex items-center gap-2">
           <!-- Búsqueda rápida -->
@@ -183,10 +190,10 @@ const formatDate = (date: Date) => {
             <Filter class="h-4 w-4 mr-2" />
             {{ expandButtonText }}
             <component :is="expandButtonIcon" class="h-4 w-4 ml-2" />
-            
+
             <!-- Badge con contador de condiciones activas -->
-            <Badge 
-              v-if="activeConditionsCount > 0" 
+            <Badge
+              v-if="activeConditionsCount > 0"
               variant="secondary"
               class="ml-2"
             >
@@ -206,7 +213,7 @@ const formatDate = (date: Date) => {
               <Check class="h-4 w-4 mr-2" />
               Aplicar
             </Button>
-            
+
             <Button
               type="button"
               variant="outline"
@@ -229,11 +236,11 @@ const formatDate = (date: Date) => {
             <DropdownMenuContent align="end" class="w-[250px]">
               <DropdownMenuLabel>Filtros Guardados</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              
+
               <div v-if="savedFilters.length === 0" class="p-2 text-sm text-muted-foreground text-center">
                 No hay filtros guardados
               </div>
-              
+
               <DropdownMenuItem
                 v-for="preset in savedFilters"
                 :key="preset.id"
@@ -259,12 +266,12 @@ const formatDate = (date: Date) => {
                   <Trash2 class="h-3 w-3" />
                 </Button>
               </DropdownMenuItem>
-              
+
               <DropdownMenuSeparator />
-              
+
               <Dialog v-model:open="showSaveDialog">
                 <DialogTrigger asChild>
-                  <DropdownMenuItem 
+                  <DropdownMenuItem
                     @click.prevent="showSaveDialog = true"
                     :disabled="!hasFilters"
                   >
@@ -313,8 +320,8 @@ const formatDate = (date: Date) => {
       </CardContent>
     </Card>
 
-    <!-- Panel de filtros avanzados expandible -->
-    <Collapsible v-model:open="state.isExpanded">
+    <!-- Panel de filtros avanzados - modo expandible normal -->
+    <Collapsible v-if="!hideTopbar" v-model:open="state.isExpanded">
       <CollapsibleContent>
         <Card>
           <CardHeader>
@@ -326,8 +333,8 @@ const formatDate = (date: Date) => {
           <CardContent>
             <!-- Errores de validación -->
             <div v-if="validationErrors.length > 0" class="mb-4">
-              <div 
-                v-for="(error, index) in validationErrors" 
+              <div
+                v-for="(error, index) in validationErrors"
                 :key="index"
                 class="flex items-center gap-2 p-2 text-sm text-destructive bg-destructive/10 rounded"
               >
@@ -377,7 +384,7 @@ const formatDate = (date: Date) => {
                   <X class="h-4 w-4 mr-2" />
                   Limpiar todo
                 </Button>
-                
+
                 <Button
                   type="button"
                   variant="default"
@@ -393,6 +400,77 @@ const formatDate = (date: Date) => {
         </Card>
       </CollapsibleContent>
     </Collapsible>
+
+    <!-- Panel de filtros - modo simplificado (sin topbar) -->
+    <div v-else>
+      <!-- Errores de validación -->
+      <div v-if="validationErrors.length > 0" class="mb-4">
+        <div
+          v-for="(error, index) in validationErrors"
+          :key="index"
+          class="flex items-center gap-2 p-2 text-sm text-destructive bg-destructive/10 rounded"
+        >
+          <AlertCircle class="h-4 w-4" />
+          {{ error }}
+        </div>
+      </div>
+
+      <!-- Grupo raíz de filtros -->
+      <FilterGroup
+        :group="state.rootGroup"
+        :fields="config.fields"
+        :level="0"
+        :max-nesting-level="config.maxNestingLevel || 3"
+        :is-root="true"
+        :on-update-condition="(conditionId, updates) => updateCondition(conditionId, updates)"
+        :on-remove-condition="(conditionId) => removeCondition(conditionId)"
+        :on-add-condition="() => addCondition()"
+        :on-update-operator="(operator) => updateGroupOperator(state.rootGroup.id, operator)"
+        :on-add-group="() => addGroup()"
+        @update-subgroup-condition="(conditionId, updates, groupId) => updateCondition(conditionId, updates, groupId)"
+        @remove-subgroup-condition="(conditionId, groupId) => removeCondition(conditionId, groupId)"
+        @add-subgroup-condition="(groupId) => addCondition(groupId)"
+        @update-subgroup-operator="(groupId, operator) => updateGroupOperator(groupId, operator)"
+        @add-subgroup="(parentId) => addGroup(parentId)"
+        @remove-subgroup="(groupId, parentId) => removeGroup(groupId, parentId)"
+      />
+
+      <!-- Botones de acción simplificados -->
+      <div class="flex items-center justify-between mt-4 pt-4 border-t">
+        <div class="text-sm text-muted-foreground">
+          <span v-if="activeConditionsCount > 0">
+            {{ activeConditionsCount }} condicion(es) activa(s)
+          </span>
+          <span v-else>
+            No hay condiciones activas
+          </span>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            @click="clearFilters"
+            :disabled="isLoading || !hasFilters"
+          >
+            <X class="h-4 w-4 mr-2" />
+            Limpiar
+          </Button>
+
+          <Button
+            type="button"
+            variant="default"
+            size="sm"
+            @click="applyFilters"
+            :disabled="isLoading || (!state.hasChanges && !config.autoApply)"
+          >
+            <Check class="h-4 w-4 mr-2" />
+            Aplicar filtros
+          </Button>
+        </div>
+      </div>
+    </div>
 
     <!-- Indicador de carga -->
     <div v-if="isLoading" class="fixed bottom-4 right-4 z-50">

@@ -582,7 +582,14 @@ class CampanaService
 
         $query = User::withoutGlobalScopes()->where('tenant_id', $tenantId);
 
-        $filtersData = $filters['advanced_filters'] ?? $filters;
+        // advanced_filters viene como STRING JSON desde el frontend
+        $advancedFilters = $filters['advanced_filters'] ?? null;
+
+        if (is_string($advancedFilters)) {
+            $filtersData = json_decode($advancedFilters, true);
+        } else {
+            $filtersData = $advancedFilters ?? $filters;
+        }
 
         if (!empty($filtersData['conditions']) || !empty($filtersData['groups'])) {
             $this->applyFiltersToQuery($query, $filtersData);

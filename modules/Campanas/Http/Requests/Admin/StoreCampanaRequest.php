@@ -119,6 +119,13 @@ class StoreCampanaRequest extends FormRequest
                 'tracking_enabled' => true,
             ]);
         }
+
+        // Parsear advanced_filters si viene como string JSON
+        $filters = $this->input('filters');
+        if (is_array($filters) && isset($filters['advanced_filters']) && is_string($filters['advanced_filters'])) {
+            $filters['advanced_filters'] = json_decode($filters['advanced_filters'], true);
+            $this->merge(['filters' => $filters]);
+        }
     }
 
     /**

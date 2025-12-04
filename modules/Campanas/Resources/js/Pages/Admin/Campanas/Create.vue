@@ -135,10 +135,9 @@ const handleFiltersApply = async (params: any) => {
 const countFilteredUsers = debounce(async () => {
     const filters = form.filters;
 
-    // Verificar si hay condiciones activas
-    const hasConditions = filters?.advanced_filters?.conditions?.length > 0
-        || filters?.advanced_filters?.groups?.length > 0
-        || filters?.conditions?.length > 0;
+    // advanced_filters viene como STRING JSON desde AdvancedFilters
+    // Verificar si hay filtros definidos
+    const hasConditions = !!filters?.advanced_filters || !!filters?.search;
 
     if (!hasConditions) {
         manualFilterCount.value = null;
@@ -164,15 +163,8 @@ const handleFiltersClear = () => {
     manualFilterCount.value = null;
 };
 
-// Cambio de modo de audiencia
-watch(() => form.audience_mode, (newMode) => {
-    if (newMode === 'segment') {
-        form.filters = {};
-        manualFilterCount.value = null;
-    } else {
-        form.segment_id = null;
-    }
-});
+// NO reseteamos al cambiar de modo - los datos persisten hasta salir de la página
+// Solo se usa el modo activo (segment_id o filters) al guardar
 
 watch(() => form.tipo, (newTipo) => {
     // Limpiar plantillas no necesarias según el tipo
@@ -423,6 +415,7 @@ const toggleClickTracking = (value) => {
 
                         <AdvancedFilters
                             :config="filterConfig"
+                            :hide-topbar="true"
                             @apply="handleFiltersApply"
                             @clear="handleFiltersClear"
                         />
