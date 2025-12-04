@@ -167,7 +167,8 @@ class SendCampanaEmailBatchJob implements ShouldQueue
 
     /**
      * Simular envío en modo LOG (desarrollo/debug)
-     * No llama a la API de Resend, solo registra en logs y actualiza estados
+     * No llama a la API de Resend, solo actualiza estados
+     * Solo registra resumen del batch, no cada email individual
      */
     protected function simularEnvioModoLog(array $emails, array $envioMap, Campana $campana): void
     {
@@ -180,22 +181,10 @@ class SendCampanaEmailBatchJob implements ShouldQueue
                 continue;
             }
 
-            // Generar ID simulado para el log
+            // Generar ID simulado
             $fakeResendId = 'LOG_' . uniqid() . '_' . $index;
 
-            // Registrar en log con información del email
-            Log::info('[EMAIL CAMPAÑA - MODO LOG] Email simulado satisfactoriamente', [
-                'mode' => 'log',
-                'campana_id' => $this->campanaId,
-                'envio_id' => $envio->id,
-                'to' => $emailData['to'][0] ?? 'unknown',
-                'subject' => $emailData['subject'] ?? 'Sin asunto',
-                'from' => $emailData['from'] ?? 'unknown',
-                'fake_resend_id' => $fakeResendId,
-                'timestamp' => now()->toIso8601String(),
-            ]);
-
-            // Marcar como enviado (simulado)
+            // Marcar como enviado (simulado) - sin log individual
             $envio->update([
                 'estado' => 'enviado',
                 'fecha_enviado' => now(),
@@ -213,22 +202,24 @@ class SendCampanaEmailBatchJob implements ShouldQueue
         // Actualizar métricas
         $this->actualizarMetricas($campana, $exitosos, 0);
 
-        Log::info("[EMAIL CAMPAÑA - MODO LOG] Batch simulado para campaña {$this->campanaId}", [
-            'total_emails' => count($emails),
+        // Solo registrar resumen del batch
+        Log::info("Batch de emails procesado (modo LOG) para campaña {$this->campanaId}", [
             'exitosos' => $exitosos,
-            'modo' => 'log',
+            'total' => count($emails),
         ]);
     }
 
     /**
      * Procesar respuesta del batch de Resend
+     * Solo registra resumen y errores, no cada email exitoso
      */
     protected function procesarRespuesta($response, array $envioMap, Campana $campana): void
     {
         $exitosos = 0;
         $fallidos = 0;
+        $erroresDetalle = [];
 
-        // Procesar emails enviados exitosamente
+        // Procesar emails enviados exitosamente - sin log individual
         if (isset($response->data) && is_array($response->data)) {
             foreach ($response->data as $index => $result) {
                 if (!isset($envioMap[$index])) {
@@ -238,7 +229,6 @@ class SendCampanaEmailBatchJob implements ShouldQueue
                 $envio = $envioMap[$index];
 
                 if (isset($result->id)) {
-                    // Email enviado exitosamente
                     $envio->update([
                         'estado' => 'enviado',
                         'fecha_enviado' => now(),
@@ -253,7 +243,7 @@ class SendCampanaEmailBatchJob implements ShouldQueue
             }
         }
 
-        // Procesar errores (modo permissive)
+        // Procesar errores (modo permissive) - estos SÍ se registran
         if (isset($response->errors) && is_array($response->errors)) {
             foreach ($response->errors as $error) {
                 $index = $error->index ?? null;
@@ -270,6 +260,13 @@ class SendCampanaEmailBatchJob implements ShouldQueue
                             'batch_index' => $index,
                         ]),
                     ]);
+
+                    // Guardar detalle del error para log
+                    $erroresDetalle[] = [
+                        'envio_id' => $envio->id,
+                        'to' => $envio->destinatario,
+                        'error' => $mensaje,
+                    ];
                     $fallidos++;
                 }
             }
@@ -278,11 +275,19 @@ class SendCampanaEmailBatchJob implements ShouldQueue
         // Actualizar métricas de la campaña
         $this->actualizarMetricas($campana, $exitosos, $fallidos);
 
+        // Solo registrar resumen del batch
         Log::info("Batch de emails procesado para campaña {$this->campanaId}", [
             'exitosos' => $exitosos,
             'fallidos' => $fallidos,
             'total' => count($envioMap),
         ]);
+
+        // Registrar errores individuales como ERROR (importante para debugging)
+        if (!empty($erroresDetalle)) {
+            Log::error("Errores en batch de emails para campaña {$this->campanaId}", [
+                'errores' => $erroresDetalle,
+            ]);
+        }
     }
 
     /**

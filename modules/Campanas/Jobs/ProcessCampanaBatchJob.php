@@ -184,8 +184,6 @@ class ProcessCampanaBatchJob implements ShouldQueue
             dispatch(new SendCampanaWhatsAppJob($envio))
                 ->onQueue(config('campanas.queues.whatsapp'))
                 ->delay(now()->addMilliseconds($totalDelay));
-
-            Log::debug("WhatsApp #{$index} programado con delay acumulativo de {$totalDelay}ms");
         }
     }
 

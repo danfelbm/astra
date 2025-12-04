@@ -108,16 +108,8 @@ class SendCampanaWhatsAppJob implements ShouldQueue
                 ]),
             ]);
 
-            // Actualizar métricas
+            // Actualizar métricas (sin log individual - solo errores se registran)
             $this->actualizarMetricas();
-
-            Log::info("WhatsApp enviado exitosamente", [
-                'envio_id' => $this->envio->id,
-                'campana_id' => $this->envio->campana_id,
-                'user_id' => $this->envio->user_id,
-                'telefono' => $telefono,
-                'message_id' => $resultado['message_id'] ?? null,
-            ]);
 
         } catch (\Exception $e) {
             $this->manejarError($e);
