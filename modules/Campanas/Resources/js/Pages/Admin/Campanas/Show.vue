@@ -15,7 +15,7 @@ import {
     ArrowLeft, Edit, Play, Pause, XCircle, RefreshCw,
     Mail, MessageSquare, Users, Clock, Send, Calendar, Download
 } from 'lucide-vue-next';
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { toast } from 'vue-sonner';
 
 interface Campana {
@@ -120,7 +120,32 @@ const breadcrumbs: BreadcrumbItemType[] = [
     { title: campanaData.value.nombre, href: '#' },
 ];
 
-const activeTab = ref('resumen');
+// Tabs válidos para validación de deeplink
+const validTabs = ['resumen', 'actividad', 'logs', 'tendencias', 'configuracion'];
+
+// Estado para el tab activo - leer de URL query params
+const getInitialTab = (): string => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const tabFromUrl = urlParams.get('tab');
+    // Validar que el tab existe, si no usar 'resumen' como default
+    return tabFromUrl && validTabs.includes(tabFromUrl) ? tabFromUrl : 'resumen';
+};
+
+const activeTab = ref(getInitialTab());
+
+// Sincronizar tab con URL usando query params (deeplink)
+watch(activeTab, (newTab) => {
+    const url = `/admin/envio-campanas/${campanaData.value.id}?tab=${newTab}`;
+
+    // Navegar sin recargar el componente ni cambiar el scroll
+    router.get(url, {}, {
+        preserveState: true,    // No recargar el componente
+        preserveScroll: true,   // Mantener posición de scroll
+        replace: true,          // Reemplazar en historial (no agregar entrada)
+        only: []                // No recargar ningún prop desde el servidor
+    });
+});
+
 const isRefreshing = ref(false);
 let refreshInterval: NodeJS.Timeout | null = null;
 
