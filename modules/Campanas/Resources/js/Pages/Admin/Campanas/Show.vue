@@ -121,7 +121,7 @@ const breadcrumbs: BreadcrumbItemType[] = [
 ];
 
 // Tabs válidos para validación de deeplink
-const validTabs = ['resumen', 'actividad', 'logs', 'tendencias', 'configuracion'];
+const validTabs = ['resumen', 'actividad', 'logs', 'tendencias'];
 
 // Estado para el tab activo - leer de URL query params
 const getInitialTab = (): string => {
@@ -506,26 +506,6 @@ onUnmounted(() => {
                 </div>
             </div>
 
-            <!-- Progreso de Envío -->
-            <CampanaProgress 
-                v-if="['enviando', 'completada', 'pausada'].includes(campanaData.estado)"
-                :progreso="progreso"
-                :total="metricasData.total_destinatarios"
-                :enviados="metricasData.total_enviados"
-                :pendientes="metricasData.total_pendientes"
-                :fallidos="metricasData.total_fallidos"
-                :estado="campanaData.estado"
-                :fecha-inicio="campanaData.fecha_inicio"
-            />
-
-            <!-- Métricas Principales -->
-            <CampanaMetrics
-                :metrics="metricasData"
-                :comparison="comparacionData"
-                :tipo="campanaData.tipo"
-                :whatsapp-mode="campanaData.whatsapp_mode"
-            />
-
             <!-- Tabs de Información -->
             <Tabs v-model="activeTab">
                 <TabsList>
@@ -535,11 +515,31 @@ onUnmounted(() => {
                     <TabsTrigger value="tendencias" v-if="tendenciasData && tendenciasData.length > 0">
                         Tendencias
                     </TabsTrigger>
-                    <TabsTrigger value="configuracion">Configuración</TabsTrigger>
                 </TabsList>
 
                 <!-- Tab Resumen -->
-                <TabsContent value="resumen">
+                <TabsContent value="resumen" class="space-y-4">
+                    <!-- Progreso de Envío -->
+                    <CampanaProgress
+                        v-if="['enviando', 'completada', 'pausada'].includes(campanaData.estado)"
+                        :progreso="progreso"
+                        :total="metricasData.total_destinatarios"
+                        :enviados="metricasData.total_enviados"
+                        :pendientes="metricasData.total_pendientes"
+                        :fallidos="metricasData.total_fallidos"
+                        :estado="campanaData.estado"
+                        :fecha-inicio="campanaData.fecha_inicio"
+                    />
+
+                    <!-- Métricas Principales -->
+                    <CampanaMetrics
+                        :metrics="metricasData"
+                        :comparison="comparacionData"
+                        :tipo="campanaData.tipo"
+                        :whatsapp-mode="campanaData.whatsapp_mode"
+                    />
+
+                    <!-- Información de la Campaña y Plantillas -->
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <Card>
                             <CardHeader>
@@ -629,27 +629,9 @@ onUnmounted(() => {
                             </CardContent>
                         </Card>
                     </div>
-                </TabsContent>
 
-                <!-- Tab Actividad - Componente con paginación y filtros -->
-                <TabsContent value="actividad">
-                    <ActividadReciente
-                        :campana-id="campanaData.id"
-                        :tipo="campanaData.tipo"
-                    />
-                </TabsContent>
-
-                <!-- Tab Logs -->
-                <TabsContent value="logs">
-                    <CampanaLogs
-                        :campana-id="campanaData.id"
-                        :tipo="campanaData.tipo"
-                    />
-                </TabsContent>
-
-                <!-- Tab Configuración -->
-                <TabsContent value="configuracion">
-                    <Card>
+                    <!-- Configuración de Envío -->
+                    <Card v-if="campanaData.configuracion">
                         <CardHeader>
                             <CardTitle>Configuración de Envío</CardTitle>
                         </CardHeader>
@@ -678,6 +660,22 @@ onUnmounted(() => {
                             </div>
                         </CardContent>
                     </Card>
+                </TabsContent>
+
+                <!-- Tab Actividad - Componente con paginación y filtros -->
+                <TabsContent value="actividad">
+                    <ActividadReciente
+                        :campana-id="campanaData.id"
+                        :tipo="campanaData.tipo"
+                    />
+                </TabsContent>
+
+                <!-- Tab Logs -->
+                <TabsContent value="logs">
+                    <CampanaLogs
+                        :campana-id="campanaData.id"
+                        :tipo="campanaData.tipo"
+                    />
                 </TabsContent>
             </Tabs>
         </div>

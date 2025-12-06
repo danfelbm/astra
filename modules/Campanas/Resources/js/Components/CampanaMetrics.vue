@@ -371,46 +371,5 @@ const formatNumber = (num: number): string => {
             </Card>
         </div>
 
-        <!-- Resumen general -->
-        <Card v-if="showDetails">
-            <CardHeader>
-                <CardTitle class="text-base">Resumen General</CardTitle>
-            </CardHeader>
-            <CardContent>
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div class="flex items-center gap-3">
-                        <Users class="h-8 w-8 text-blue-600" />
-                        <div>
-                            <p class="text-xs text-muted-foreground">Destinatarios</p>
-                            <p class="text-xl font-bold">{{ formatNumber(metrics?.total_destinatarios || 0) }}</p>
-                        </div>
-                    </div>
-                    
-                    <div class="flex items-center gap-3">
-                        <CheckCircle2 class="h-8 w-8 text-green-600" />
-                        <div>
-                            <p class="text-xs text-muted-foreground">Enviados</p>
-                            <p class="text-xl font-bold">{{ formatNumber(metrics?.total_enviados || 0) }}</p>
-                        </div>
-                    </div>
-                    
-                    <div class="flex items-center gap-3">
-                        <XCircle class="h-8 w-8 text-red-600" />
-                        <div>
-                            <p class="text-xs text-muted-foreground">Fallidos</p>
-                            <p class="text-xl font-bold">{{ formatNumber(metrics?.total_fallidos || 0) }}</p>
-                        </div>
-                    </div>
-                    
-                    <div class="flex items-center gap-3">
-                        <TrendingUp class="h-8 w-8 text-purple-600" />
-                        <div>
-                            <p class="text-xs text-muted-foreground">Tasa entrega</p>
-                            <p class="text-xl font-bold">{{ derivedMetrics.tasaEntrega.toFixed(1) }}%</p>
-                        </div>
-                    </div>
-                </div>
-            </CardContent>
-        </Card>
     </div>
 </template>

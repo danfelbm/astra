@@ -3,7 +3,7 @@ import { computed } from 'vue';
 import { Progress } from '@modules/Core/Resources/js/components/ui/progress';
 import { Card, CardContent, CardHeader, CardTitle } from '@modules/Core/Resources/js/components/ui/card';
 import { Badge } from '@modules/Core/Resources/js/components/ui/badge';
-import { Clock, Send, CheckCircle2, XCircle, AlertCircle, TrendingUp } from 'lucide-vue-next';
+import { Clock, Send, CheckCircle2, XCircle, AlertCircle, TrendingUp, Users, Percent } from 'lucide-vue-next';
 
 interface Props {
     progreso?: number; // Porcentaje de progreso calculado externamente
@@ -36,6 +36,12 @@ const porcentaje = computed(() => {
 const porcentajeFallidos = computed(() => {
     if (props.total === 0) return 0;
     return Math.round((props.fallidos / props.total) * 100);
+});
+
+// Tasa de entrega (enviados exitosos / total enviados)
+const tasaEntrega = computed(() => {
+    if (props.enviados === 0) return 0;
+    return ((props.enviados - props.fallidos) / props.enviados * 100);
 });
 
 const formatTime = (minutos?: number): string => {
@@ -108,7 +114,18 @@ const getEstadoBadge = (estado: string) => {
             </div>
 
             <!-- Estadísticas detalladas -->
-            <div class="grid grid-cols-2 gap-4">
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                <div class="space-y-1">
+                    <div class="flex items-center gap-2">
+                        <Users class="w-4 h-4 text-blue-600" />
+                        <span class="text-sm font-medium">Destinatarios</span>
+                    </div>
+                    <p class="text-2xl font-bold">{{ total.toLocaleString() }}</p>
+                    <p class="text-xs text-muted-foreground">
+                        Total
+                    </p>
+                </div>
+
                 <div class="space-y-1">
                     <div class="flex items-center gap-2">
                         <CheckCircle2 class="w-4 h-4 text-green-600" />
@@ -122,7 +139,7 @@ const getEstadoBadge = (estado: string) => {
 
                 <div class="space-y-1">
                     <div class="flex items-center gap-2">
-                        <Clock class="w-4 h-4 text-blue-600" />
+                        <Clock class="w-4 h-4 text-yellow-600" />
                         <span class="text-sm font-medium">Pendientes</span>
                     </div>
                     <p class="text-2xl font-bold">{{ pendientes.toLocaleString() }}</p>
@@ -152,6 +169,17 @@ const getEstadoBadge = (estado: string) => {
                     </p>
                     <p class="text-xs text-muted-foreground">
                         envíos/min
+                    </p>
+                </div>
+
+                <div class="space-y-1">
+                    <div class="flex items-center gap-2">
+                        <Percent class="w-4 h-4 text-emerald-600" />
+                        <span class="text-sm font-medium">Tasa Entrega</span>
+                    </div>
+                    <p class="text-2xl font-bold">{{ tasaEntrega.toFixed(1) }}%</p>
+                    <p class="text-xs text-muted-foreground">
+                        Éxito
                     </p>
                 </div>
             </div>
